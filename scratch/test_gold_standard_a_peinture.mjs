@@ -1,32 +1,27 @@
-// Banc d'essai — Étalon A (Peinture Murale), tolérance zéro documentée dans
-// PROJECT_MASTER_TRACKER.md § 5 : 450 m², attendu 90 L consommés / 7 pots de
-// 15 L achetés / 315 000 FCFA de déboursé.
+// Banc d'essai — Étalon A (Peinture Murale), tolérance zéro.
+// Valeurs de référence mises à jour le 2026-08-16 suite à deux décisions
+// produit qui corrigent PROJECT_MASTER_TRACKER.md § 5 (qui documentait à
+// l'origine 90 L / 315 000 FCFA, sans le facteur de pertes) :
+//
+//   (a) Facteur de pertes de 8% sur la peinture — CONFIRMÉ intentionnel,
+//       cohérent avec le même mécanisme déjà utilisé sur les Tests B et F.
+//       90 L de couverture nette murale → 97.20 L à acheter (90 × 1.08).
+//   (b) Arrondi à l'achat en conditionnement entier — CONFIRMÉ le 2026-08-16,
+//       corrigé dans index_jsx.js (commit "P0.4") : le déboursé facturé est
+//       désormais basé sur purchasedCost (pots entiers réellement achetés),
+//       pas sur consumedCost (litre net). 97.20 L → 7 pots de 15 L → 315 000 FCFA.
 //
 // Ce test reproduit le scénario dans l'UI réelle (catalogue → "Peinture Murale
 // Satinée BTP" → 450 m² en Surface Directe) et lit le déboursé effectivement
-// calculé par l'app, SANS forcer une tolérance large pour le faire passer.
-//
-// Constat initial (2026-08-16, avant correctif) : l'app calculait 97.20 L
-// (= 90 L × 1.08, facteur de pertes de 8% cohérent avec les Tests B/F) et
-// facturait au litre net (291 600 FCFA) au lieu d'arrondir à l'achat réel en
-// pots entiers de 15 L (315 000 FCFA). Deux écarts distincts, deux décisions
-// métier séparées :
-//   (a) le facteur de pertes de 8% (90 L → 97.2 L) — TOUJOURS EN ATTENTE,
-//       pas tranché, ce test échoue donc encore sur la consommation en litres ;
-//   (b) l'arrondi à l'achat en pots entiers — TRANCHÉ le 2026-08-16 (décision
-//       produit : oui, arrondir) et CORRIGÉ dans index_jsx.js (le moteur
-//       calculait déjà purchasedCost/packsNeeded par matière mais ne s'en
-//       servait pas pour le déboursé affiché — voir commit "P0.4"). Le
-//       déboursé matériel obtenu est désormais exactement 315 000 FCFA.
-// Ce test reste donc partiellement en échec, de façon attendue et documentée,
-// tant que (a) n'est pas tranché à son tour.
+// calculé par l'app, sans tolérance, pour verrouiller ce comportement contre
+// toute régression future.
 import { pathToFileURL } from 'node:url';
 import {
     launchApp, enterGuestMode, addCatalogItemBySearch,
     setFirstOuvrageSurface, openDecompositionTab, readFirstOuvrageBreakdown
 } from './lib/harness.mjs';
 
-const EXPECTED = { consumptionL: 90, potsOf15L: 7, debourseMaterielFcfa: 315000 };
+const EXPECTED = { consumptionL: 97.2, potsOf15L: 7, debourseMaterielFcfa: 315000 };
 const TOLERANCE = 0; // étalon "tolérance zéro" — volontairement strict
 
 export async function run() {
@@ -71,9 +66,5 @@ export async function run() {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const results = await run();
     for (const r of results) console.log(`  ${r.pass ? '✅' : '❌'} ${r.label}${r.detail ? ' — ' + r.detail : ''}`);
-    if (!results.every((r) => r.pass)) {
-        console.log('\n  ⚠️  Échec attendu et documenté — voir le commentaire en tête de fichier.');
-        console.log('     Ce n\'est pas un faux positif : décision produit requise avant de faire passer ce test.');
-    }
     process.exit(results.every((r) => r.pass) ? 0 : 1);
 }

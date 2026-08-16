@@ -104,7 +104,7 @@ BLOC 10 — Certification Finale   100/100  (Validé ✓)
 
 | Étalon | Corps d'État | Paramètres Techniques | Déboursé & Ratios de Référence | Tolérance |
 | :---: | :--- | :--- | :--- | :---: |
-| **Test A** | Peinture Murale | $450\text{ m²}$ (2 couches + primaire + enduit) | $90\text{ L}$ consommés, $7$ pots achetés de $15\text{L}$ ($315\,000\text{ FCFA}$) | $0.00\%$ |
+| **Test A** | Peinture Murale | $450\text{ m²}$ (2 couches + primaire + enduit) | $90\text{ L}$ couverture nette $+8\%$ pertes $\rightarrow$ $97.2\text{ L}$ à acheter, $7$ pots de $15\text{L}$ ($315\,000\text{ FCFA}$) | $0.00\%$ |
 | **Test B** | Carrelage Sol | $120\text{ m²}$ (Carreaux 60x60 en cartons de $1.44\text{ m²}$) | $+10\%$ pertes $\rightarrow$ $92$ cartons achetés ($1\,196\,000\text{ FCFA}$) | $0.00\%$ |
 | **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ |
 | **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ |
@@ -176,10 +176,11 @@ affirmations du § 4 tant qu'un nouvel audit ne les confirme pas.
   de la chaîne financière (propriété générique DS→K→NetHT→TVA→TTC), et
   l'étalon A (Peinture Murale) rejoué en conditions réelles dans l'UI.
 
-**Découverte pendant la remédiation — Étalon A en échec réel, pas un bug de test :**
+**Découverte pendant la remédiation, puis résolue — Étalon A (2026-08-16) :**
 En rejouant le scénario documenté ci-dessus (§ 5, Test A : 450 m²), l'app
-calculait **97,20 L** de peinture et facturait **291 600 FCFA** de matériel —
-pas les **90 L / 315 000 FCFA** documentés. Deux écarts distincts identifiés :
+calculait à l'origine **97,20 L** de peinture et facturait **291 600 FCFA** de
+matériel — pas les **90 L / 315 000 FCFA** alors documentés. Deux écarts
+distincts identifiés, tous deux tranchés le même jour :
 
 1. **Arrondi au conditionnement acheté — TRANCHÉ et CORRIGÉ le 2026-08-16.**
    Décision produit : oui, facturer le pot entier acheté, pas le litre net
@@ -199,12 +200,16 @@ pas les **90 L / 315 000 FCFA** documentés. Deux écarts distincts identifiés 
    > peinture. Impact généralement à la hausse (achat réel ≥ consommation
    > nette). À vérifier sur les devis en cours si applicable.
 
-2. **Facteur de pertes de 8% (90 L → 97,2 L) — TOUJOURS EN ATTENTE, non tranché.**
-   Cohérent avec un mécanisme déjà utilisé ailleurs (Tests B, F) mais pas
-   confirmé comme intentionnel pour la peinture spécifiquement. Le test
-   `scratch/test_gold_standard_a_peinture.mjs` échoue donc encore sur
-   l'assertion de consommation en litres (mesuré 97,2 L vs 90 L documentés),
-   volontairement, en attendant cette décision.
+2. **Facteur de pertes de 8% (90 L → 97,2 L) — CONFIRMÉ intentionnel le 2026-08-16.**
+   Décision produit : oui, cohérent avec le même mécanisme déjà utilisé sur
+   les Tests B et F. Le § 5 ci-dessus a été mis à jour : la référence Test A
+   est désormais 97,2 L à l'achat (90 L de couverture nette + 8% de pertes),
+   pas 90 L. Aucun changement de code nécessaire ici — seule la documentation
+   était fausse, le calcul était déjà correct.
+
+**Étalon A — statut final : ✅ conforme, tolérance zéro, verrouillé par
+`scratch/test_gold_standard_a_peinture.mjs` (13/13 vérifications au vert
+dans `npm test`).**
 
 **Pas encore fait (hors périmètre de cette passe) :**
 - Étalons B à G (Carrelage, Métallerie, Menuiserie, Enseigne LED, Façade ACM,
