@@ -113,7 +113,7 @@ BLOC 10 — Certification Finale   100/100  (Validé ✓)
 | **Test B** | Carrelage Sol | $120\text{ m²}$ (Carreaux 60x60 en cartons de $1.44\text{ m²}$) | $+10\%$ pertes $\rightarrow$ $92$ cartons achetés ($1\,196\,000\text{ FCFA}$) | $0.00\%$ | ✅ Conforme |
 | **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ | ⏳ Non testable — le calculateur "Plan de Débit 1D" décrit ici n'existe pas ; seule une démo à lignes figées porte ce nom (voir § 12) |
 | **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ | ⏳ Non testable — même constat que Test C, pour "Calepinage 2D" (voir § 12) |
-| **Test E** | Enseigne Lumineuse LED | $6.0 \times 1.2\text{ m}$ ($7.2\text{ m²}$) | $180$ modules LED $1.2\text{W}$, $2$ alimentations $200\text{W}$ | $0.00\%$ | ❌ Écart réel — catalogue calcule 330 modules (densité 45/m² au lieu de 25/m², voir § 12) |
+| **Test E** | Enseigne Lumineuse LED | $6.0 \times 1.2\text{ m}$ ($7.2\text{ m²}$) | $180$ modules LED $1.2\text{W}$, $2$ alimentations $200\text{W}$ | $0.00\%$ | ✅ Conforme (densité catalogue corrigée 45→25/m² le 2026-08-16, voir § 12) |
 | **Test F** | Façade Panneaux ACM | $180\text{ m²}$ (Plaques Alucobond $6\text{ m²}$) | $+8\%$ pertes $\rightarrow$ $33$ plaques ACM | $0.00\%$ | ✅ Conforme |
 | **Test G** | Villa R+1 (11 lots TCE) | Gros œuvre, étanchéité, plomberie, élec, finitions | Déboursé $65\text{ M}$, PV Net HT $91.26\text{ M}$, Coeff $K = 1.404$, TTC $107.68\text{ M}$ | $0.00\%$ | ❌ Écart réel — modèle 1-clic ≈ 2× plus petit (Net HT mesuré 45.3M, voir § 12) |
 
@@ -222,12 +222,18 @@ dans `npm test`).**
   l'achat (+10% pertes), 1 196 000 FCFA. `scratch/test_gold_standard_b_carrelage.mjs`.
 - ✅ **Test F (Façade ACM 180 m²)** — conforme du premier coup : 194.4 m²
   à l'achat (+8% pertes), 33 plaques. `scratch/test_gold_standard_f_acm.mjs`.
-- ❌ **Test E (Enseigne LED 6.0×1.2m)** — écart réel, non résolu : le
-  catalogue calcule **330 modules LED** (densité `SURFACE * 45`/m²) contre
-  **180 modules** documentés (densité implicite 25/m²). Les alimentations
-  (2×200W) et les dimensions sont conformes. `scratch/test_gold_standard_e_enseigne.mjs`.
-  → **Décision produit requise** : corriger la formule catalogue à 25/m², ou
-  mettre à jour le tracker à 330 modules si 45/m² est la densité voulue.
+- ✅ **Test E (Enseigne LED 6.0×1.2m)** — écart réel identifié puis
+  CORRIGÉ le 2026-08-16 (commit "P0.6") : le catalogue calculait 330 modules
+  LED (densité `SURFACE * 45`/m²) contre 180 documentés (densité implicite
+  25/m²). Décision produit : corriger le catalogue à 25/m² plutôt que la
+  doc — une densité trop haute facture près du double du matériel sur toute
+  enseigne, quelle que soit sa taille, le risque le plus large des deux
+  options. Formule modules et coefficient de la formule d'alimentation mis
+  à jour en cohérence (25 × 1.2W = 30W/m²). `waste` du matériau modules LED
+  ramené de 2% à 0% (cohérent avec l'alimentation, même famille de
+  composant électrique discret — pas de gâchis fractionnel comme un
+  matériau continu). Conforme à tolérance zéro : 180 modules, 2
+  alimentations. `scratch/test_gold_standard_e_enseigne.mjs`.
 - ❌ **Test G (Villa R+1, 11 lots)** — écart réel, non résolu : le modèle
   "Construction Villa Duplex R+1" chargeable en 1-clic (contrairement aux
   Tests C/D ci-dessous, celui-ci EST piloté par le vrai moteur de calcul,
@@ -254,8 +260,8 @@ dans `npm test`).**
   doit être corrigé pour ne plus la présenter comme acquise.
   `scratch/test_gold_standards_pending.mjs`.
 
-**Bilan des 7 étalons (2026-08-16) : 3 conformes (A, B, F), 2 en échec
-documenté nécessitant une décision produit (E, G), 2 non testables car la
+**Bilan des 7 étalons (2026-08-16) : 4 conformes (A, B, E, F), 1 en échec
+documenté nécessitant investigation (G), 2 non testables car la
 fonctionnalité sous-jacente n'existe pas (C, D).**
 
 **Reste à faire (hors périmètre de cette passe) :**
@@ -267,7 +273,9 @@ fonctionnalité sous-jacente n'existe pas (C, D).**
   distinct de l'environnement de développement actuel.
 - Dépôt git local uniquement — pas encore poussé vers un remote GitHub/GitLab,
   donc le pipeline `.github/workflows/ci.yml` ne s'exécute pas encore réellement.
-- Densité LED (Test E) et calibrage Villa R+1 (Test G) à trancher avec le
-  porteur produit.
+- Investiguer l'écart de coefficient K sur Villa R+1 (Test G, mesuré K=1.769
+  vs 1.404 documenté) — priorité sur le recalibrage des quantités du modèle,
+  car un écart de coefficient K affecte potentiellement tous les devis de
+  l'app (taux de marge/frais généraux par défaut), pas seulement ce gabarit.
 - Construire réellement (ou retirer du § 6) les calculateurs "Plan de Débit
   1D" et "Calepinage 2D" (Tests C, D).
