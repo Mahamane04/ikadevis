@@ -1,15 +1,36 @@
 # 🏗️ IKADEVIS / MICRO OFFICE ERP CALCUL — FICHE MAÎTRESSE D'ARCHITECTURE & SUIVI DU PROJET
 
 > **Document de Référence & Mémoire Centrale du Projet**  
-> *Dernière mise à jour : 16 Août 2026 — Statut : 🟡 EN REMÉDIATION POST-AUDIT (audit indépendant : 55/100 au 2026-08-16)*
+> *Dernière mise à jour : 16 Août 2026, fin de session — Statut : 🟢 REMÉDIATION BIEN AVANCÉE (parti de 55/100 le 2026-08-16 matin)*
 >
-> ⚠️ Le statut "100/100 PRODUCTION READY" ci-dessous (§ 4) date d'avant un audit
-> indépendant qui a constaté que le dossier `scratch/` et les 13 suites de tests
-> qu'il documente **n'existaient pas sur le disque**, et que le projet n'était
-> **pas un dépôt git** — rendant le score invérifiable. Une suite de tests réelle
-> a été reconstruite le 2026-08-16 (`scratch/`, `npm test`) ; elle documente
-> honnêtement ce qui est couvert, ce qui échoue, et ce qui reste à faire — voir
-> § 12 "État réel post-audit" en fin de document, qui fait foi sur le § 4.
+> ⚠️ Le statut "100/100 PRODUCTION READY" du § 4 est **obsolète et invérifié**
+> (auto-évaluation d'avant l'audit indépendant du 2026-08-16, qui a trouvé un
+> dossier de tests inexistant et aucun dépôt git). Les § 12 et § 13 en fin de
+> document font foi sur le § 4 et sont à jour.
+>
+> **Repère rapide pour reprendre en nouvelle discussion — état à la fin de
+> cette session (2026-08-16 soir) :**
+> - Dépôt git initialisé et à jour (dernier commit `133c32d`), local uniquement
+>   — pas encore poussé vers un remote GitHub/GitLab.
+> - Suite de tests réelle et honnête dans `scratch/` (`npm test`) : 36/40
+>   vérifications au vert, 0 régression inattendue.
+> - **6 des 7 étalons métier conformes à tolérance zéro** (A, B, C, D, E, F) —
+>   dont C et D, des calculateurs réels construits cette session (Plan de
+>   Débit 1D métallerie, Calepinage 2D menuiserie), qui n'existaient
+>   auparavant que comme noms de démo sans calcul derrière.
+> - **Étalon G (Villa R+1) encore en échec documenté** — cause du Coeff K
+>   isolée (pas un bug de marge global) mais l'échelle du modèle 1-clic reste
+>   ~2× trop petite vs le tracker, non résolu.
+> - **3 environnements Supabase cartographiés** (§ 13) : `staging`
+>   (`ikadevis-staging`) et `production` (`SuperDevisMO`) ont chacun le schéma
+>   V6 appliqué (19 tables, RLS actif) et sont accessibles en direct via MCP
+>   (`supabase-staging` en écriture, `supabase-production` en lecture seule
+>   par défaut). **`development` n'est PAS isolé — pointe vers la même base
+>   que la production**, décision explicite de l'utilisateur de reporter la
+>   création d'un 3ᵉ projet dédié à après que le SaaS soit jugé prêt.
+> - Prochaines pistes ouvertes, aucune urgente : isoler `development`, pousser
+>   le dépôt vers un remote, recalibrer l'échelle du modèle Villa R+1, migrer
+>   ou supprimer la ligne `user_data` (V5) laissée intacte en production.
 
 ---
 
