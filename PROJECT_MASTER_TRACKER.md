@@ -234,15 +234,33 @@ dans `npm test`).**
   composant électrique discret — pas de gâchis fractionnel comme un
   matériau continu). Conforme à tolérance zéro : 180 modules, 2
   alimentations. `scratch/test_gold_standard_e_enseigne.mjs`.
-- ❌ **Test G (Villa R+1, 11 lots)** — écart réel, non résolu : le modèle
-  "Construction Villa Duplex R+1" chargeable en 1-clic (contrairement aux
-  Tests C/D ci-dessous, celui-ci EST piloté par le vrai moteur de calcul,
-  solutionId + calcForm réels par lot) calcule Déboursé 25.6M / K=1.769 /
-  Net HT 45.3M / TTC 53.5M — environ **2× plus petit** que les 65M / 1.404 /
-  91.26M / 107.68M documentés. Piste probable : les quantités du modèle
-  (terrassement 250 m³, structure 4m×2m...) correspondent à une villa plus
-  modeste que celle utilisée pour calibrer le tracker. Cause exacte non
-  isolée (11 lots, ~20 lignes de calcul). `scratch/test_gold_standard_g_villa.mjs`.
+- ❌ **Test G (Villa R+1, 11 lots)** — écart réel, **cause isolée mais non
+  corrigée** (investigation du 2026-08-16 suite à la question : l'écart de
+  coefficient K a-t-il un impact transversal sur tous les devis ?). Réponse :
+  **non**, ce n'est pas un bug de marge global. Le modèle "Construction Villa
+  Duplex R+1" calcule Déboursé 25.6M / K=1.769 / Net HT 45.3M / TTC 53.5M,
+  contre 65M / 1.404 / 91.26M / 107.68M documentés. Deux causes distinctes,
+  vérifiées au franc près :
+  1. **Distorsion du Coeff K par les lots à prix fixe.** 3 des 11 lots
+     (Électricité 3,5M, Plomberie 2,8M, Finitions 0,6M — 6,9M au total) sont
+     des lignes libres (`isCustom`) car **aucune recette catalogue n'existe
+     pour l'électricité et la plomberie** (les 16 solutions du catalogue ne
+     couvrent pas ces corps d'état) : elles contribuent au Net HT sans
+     aucun déboursé calculé en face. En les retirant du calcul, les 8 lots
+     réellement chiffrés donnent K = (45.3M − 6.9M) / 25.6M = **1.500 pile**
+     — cohérent avec margin=30%/reel + overheadRate=5% (`revient = DS×1.05`,
+     `netHT = revient/0.7 = DS×1.5`). Le Coeff K affiché (`kFactor =
+     totalHT/totalDebourse`, `index_jsx.js` ~L4353) est donc mathématiquement
+     correct mais **trompeur dès qu'un devis mélange lots calculés et lignes
+     libres** : il n'existe aujourd'hui aucune distinction visuelle entre "K
+     de marge réelle" et "K gonflé par des lignes sans déboursé".
+  2. **Échelle du modèle environ 2× plus petite** que celle utilisée pour
+     calibrer le tracker (terrassement 250 m³, structure 4m×2m...) —
+     indépendant du point 1, cause non creusée plus loin.
+  → **Ceci ne remet pas en cause** le correctif P0.4 (arrondi conditionnement)
+  ni aucun autre correctif de cette passe : le Coeff K de 1.5 sur les lots
+  calculés est exactement celui attendu par les réglages margin/overheadRate
+  du gabarit. `scratch/test_gold_standard_g_villa.mjs`.
 - ⏳ **Tests C et D (Garde-Corps Métallerie, Dressing Menuiserie) — non
   testables, constat structurel :** le tracker les décrit comme pilotés par
   des calculateurs dédiés "Plan de Débit 1D" et "Calepinage 2D". Les modèles
@@ -273,9 +291,14 @@ fonctionnalité sous-jacente n'existe pas (C, D).**
   distinct de l'environnement de développement actuel.
 - Dépôt git local uniquement — pas encore poussé vers un remote GitHub/GitLab,
   donc le pipeline `.github/workflows/ci.yml` ne s'exécute pas encore réellement.
-- Investiguer l'écart de coefficient K sur Villa R+1 (Test G, mesuré K=1.769
-  vs 1.404 documenté) — priorité sur le recalibrage des quantités du modèle,
-  car un écart de coefficient K affecte potentiellement tous les devis de
-  l'app (taux de marge/frais généraux par défaut), pas seulement ce gabarit.
+- Cause de l'écart K sur Villa R+1 isolée (§ 12) : pas un bug de marge
+  global (K=1.5 confirmé exact sur les lots calculés), mais un Coeff K
+  affiché trompeur dès qu'un devis mélange lots calculés et lignes libres à
+  prix fixe. Deux options pour la suite, à trancher : (a) exclure les lignes
+  libres du calcul de K pour afficher "K sur périmètre chiffré" séparément
+  du K global, ou (b) construire de vraies recettes catalogue pour
+  Électricité et Plomberie (absentes des 16 solutions actuelles) pour que ces
+  lots aient un déboursé réel. Recalibrage de l'échelle du modèle Villa
+  (2× trop petit vs le tracker) toujours à faire séparément.
 - Construire réellement (ou retirer du § 6) les calculateurs "Plan de Débit
   1D" et "Calepinage 2D" (Tests C, D).
