@@ -9,7 +9,7 @@
 //   ✅ Étalon A — Peinture Murale : conforme (pertes 8% + arrondi conditionnement tranchés)
 //   ✅ Taux de perte ajustable par ouvrage
 //   ✅ Étalon B — Carrelage Sol : conforme du premier coup
-//   ⚠️  Étalon E — Enseigne LED : ÉCHOUE (densité LED catalogue 45/m² vs 25/m² tracker)
+//   ✅ Étalon E — Enseigne LED : conforme (densité corrigée 45→25/m², waste LED 2%→0%)
 //   ✅ Étalon F — Façade ACM : conforme du premier coup
 //   ⚠️  Étalon G — Villa R+1 : ÉCHOUE (modèle 1-clic ~2× plus petit que le tracker)
 //   ⏳ Étalons C, D : non testables (calculateurs "Plan de Débit"/"Calepinage"
@@ -35,7 +35,7 @@ const SUITES = [
     { name: 'Étalon A — Peinture Murale (tolérance zéro)', mod: goldA, expectedToFail: false },
     { name: 'Taux de perte ajustable par ouvrage', mod: wasteOverride, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
-    { name: 'Étalon E — Enseigne Lumineuse LED (tolérance zéro)', mod: goldE, expectedToFail: true },
+    { name: 'Étalon E — Enseigne Lumineuse LED (tolérance zéro)', mod: goldE, expectedToFail: false },
     { name: 'Étalon F — Façade Panneaux ACM (tolérance zéro)', mod: goldF, expectedToFail: false },
     { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: true },
 ];
@@ -66,7 +66,7 @@ for (const r of pendingResults) console.log(`  ⏳ ${r.label} — ${r.detail}`);
 console.log('\n' + '─'.repeat(60));
 console.log(`Vérifications individuelles : ${passedChecks}/${totalChecks} au vert`);
 console.log(`Suites en régression inattendue : ${unexpectedFailures}/${SUITES.length}`);
-console.log(`Étalons métier : A,B,F conformes · E,G en échec documenté · C,D non testables (${pendingResults.length}/7 non couverts)`);
+console.log(`Étalons métier : A,B,E,F conformes · G en échec documenté · C,D non testables (${pendingResults.length}/7 non couverts)`);
 console.log('─'.repeat(60));
 
 process.exit(unexpectedFailures > 0 ? 1 : 0);

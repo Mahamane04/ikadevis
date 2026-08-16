@@ -6328,7 +6328,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 11, name: 'Colle carrelage C2TE & Joint hydrofuge', category: 'Revêtement', unitBuy: 'Sac (25kg)', unitSize: 25, unitCalc: 'kg', priceBuy: 5500, priceCalc: 220, waste: 5, yieldRate: 0, purchaseMode: 'pack' },
     { id: 12, name: 'Profilé Aluminium thermolaqué noir/blanc', category: 'Menuiserie', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: 18000, priceCalc: 3000, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
     { id: 13, name: 'Vitrage feuilleté de sécurité 44.2', category: 'Menuiserie', unitBuy: 'm²', unitSize: 1, unitCalc: 'm²', priceBuy: 28000, priceCalc: 28000, waste: 5, yieldRate: 0, purchaseMode: 'real' },
-    { id: 14, name: 'Modules LED étanches IP67 1.2W Grand Angle', category: 'Électricité', unitBuy: 'Module', unitSize: 1, unitCalc: 'u', priceBuy: 650, priceCalc: 650, waste: 2, yieldRate: 0, purchaseMode: 'real' },
+    // P0.6 — waste 2% → 0% : un module LED ne se gâche pas fractionnellement
+    // (contrairement à un matériau continu comme la peinture ou le carrelage)
+    // — soit il est posé, soit non. Cohérent avec l'alimentation (id 15,
+    // même famille de composant électrique discret, déjà à waste: 0.
+    { id: 14, name: 'Modules LED étanches IP67 1.2W Grand Angle', category: 'Électricité', unitBuy: 'Module', unitSize: 1, unitCalc: 'u', priceBuy: 650, priceCalc: 650, waste: 0, yieldRate: 0, purchaseMode: 'real' },
     { id: 15, name: 'Alimentation étanche LED MeanWell 12V 200W', category: 'Électricité', unitBuy: 'Unité', unitSize: 1, unitCalc: 'u', priceBuy: 24000, priceCalc: 24000, waste: 0, yieldRate: 0, purchaseMode: 'real' },
     { id: 16, name: 'Plaque Plexiglas Acrylique Diffusant 3mm', category: 'Support', unitBuy: 'Plaque (3m²)', unitSize: 3, unitCalc: 'm²', priceBuy: 36000, priceCalc: 12000, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
     { id: 17, name: 'Bâche PVC 510g M1 Anti-reflet HD', category: 'Impression', unitBuy: 'm²', unitSize: 1, unitCalc: 'm²', priceBuy: 4500, priceCalc: 4500, waste: 5, yieldRate: 0, purchaseMode: 'real' },
@@ -6534,8 +6538,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Solution 8: Caisson Enseigne Lumineuse LED
     { id: 28, solutionId: 8, type: 'material', refId: 12, formula: 'PERIMETRE', label: 'Profilé Aluminium caisson étanche', costCategory: 'material' },
     { id: 29, solutionId: 8, type: 'material', refId: 16, formula: 'SURFACE * 2', label: 'Faces Plexiglas diffusant blanc 3mm', costCategory: 'material' },
-    { id: 30, solutionId: 8, type: 'material', refId: 14, formula: 'SURFACE * 45', label: 'Modules LED IP67 1.2W (45 u/m²)', costCategory: 'material' },
-    { id: 31, solutionId: 8, type: 'material', refId: 15, formula: 'ceil(SURFACE * 54 / 200)', label: 'Alimentation MeanWell 200W', costCategory: 'material' },
+    // P0.6 — Densité corrigée de 45 à 25 u/m² (2026-08-16) : 45/m² facturait
+    // près du double du matériel réellement posé sur toute enseigne, quelle
+    // que soit sa taille (confirmé sur l'Étalon E : 330 modules calculés vs
+    // 180 documentés pour 7.2m²). Le coefficient de la formule d'alimentation
+    // (25 u/m² × 1.2W = 30W/m²) est mis à jour en cohérence, pour que le
+    // nombre d'alimentations reste dérivé de la même densité que les modules.
+    { id: 30, solutionId: 8, type: 'material', refId: 14, formula: 'SURFACE * 25', label: 'Modules LED IP67 1.2W (25 u/m²)', costCategory: 'material' },
+    { id: 31, solutionId: 8, type: 'material', refId: 15, formula: 'ceil(SURFACE * 30 / 200)', label: 'Alimentation MeanWell 200W', costCategory: 'material' },
     { id: 32, solutionId: 8, type: 'labor', refId: 13, formula: '1', label: 'Câblage LED et assemblage caisson', costCategory: 'labor' },
     { id: 33, solutionId: 8, type: 'labor', refId: 4, formula: '1', label: 'Fixation et raccordement secteur', costCategory: 'installation' },
 

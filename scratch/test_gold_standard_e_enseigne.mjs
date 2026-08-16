@@ -2,17 +2,15 @@
 // PROJECT_MASTER_TRACKER.md § 5 : 6.0 × 1.2 m (7.2 m²), attendu 180 modules
 // LED 1.2W et 2 alimentations 200W.
 //
-// Vérification arithmétique préalable de la recette catalogue (solution id 8,
-// recette L83-84 de index_jsx.js) :
-//   - Modules LED : formule "SURFACE * 45" → 7.2 × 45 = 324 modules (PAS 180).
-//   - Alimentations : formule "ceil(SURFACE * 54 / 200)" → ceil(1.944) = 2 (✓ conforme).
-// La densité de modules du catalogue (45/m²) ne correspond pas à la densité
-// implicite du tracker (180 / 7.2 = 25/m²). Écart réel entre code et doc,
-// distinct de la matière première (LED à l'unité, purchaseMode 'real', donc
-// pas d'effet d'arrondi conditionnement ici) — ce test échoue donc de façon
-// attendue sur le nombre de modules tant que ce n'est pas tranché : faut-il
-// (a) corriger la formule catalogue à 25/m², ou (b) mettre à jour le tracker
-// à 324 modules si 45/m² est la densité réellement voulue ?
+// Constat initial (2026-08-16, avant correctif) : la recette catalogue
+// (solution id 8) facturait "SURFACE * 45" → 324 modules pour 7.2 m² au lieu
+// des 180 documentés (densité implicite 25/m²). Décision produit : corriger
+// le catalogue à 25/m² plutôt que la doc à 324 — une densité trop haute
+// double quasiment le coût matière facturé sur TOUTE enseigne, quelle que
+// soit sa taille, ce qui est le risque le plus large des deux options.
+// Corrigé (commit "P0.6") : formule modules "SURFACE * 25", et le
+// coefficient de la formule d'alimentation mis en cohérence (25 × 1.2W =
+// 30W/m² → "ceil(SURFACE * 30 / 200)", au lieu de 54 qui supposait 45/m²).
 import { pathToFileURL } from 'node:url';
 import {
     launchApp, enterGuestMode, addCatalogItemBySearch,
@@ -108,9 +106,5 @@ export async function run() {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const results = await run();
     for (const r of results) console.log(`  ${r.pass ? '✅' : '❌'} ${r.label}${r.detail ? ' — ' + r.detail : ''}`);
-    if (!results.every((r) => r.pass)) {
-        console.log('\n  ⚠️  Échec attendu et documenté — densité LED catalogue (45/m²) vs tracker (25/m²).');
-        console.log('     Décision produit requise, voir le commentaire en tête de fichier.');
-    }
     process.exit(results.every((r) => r.pass) ? 0 : 1);
 }
