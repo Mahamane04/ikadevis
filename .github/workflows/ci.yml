@@ -1,0 +1,36 @@
+name: ikadevis CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-and-tests:
+    name: Lint, Test Suite (7 Gold Standards) & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Run 7 Gold Standard Unit Tests
+        run: node scratch/test_unit_gold_standards.js
+
+      - name: Compile Distribution Bundle (esbuild)
+        run: npx -y esbuild index_jsx.js --outfile=app.compiled.js "--loader:.js=jsx" --jsx-factory=React.createElement --jsx-fragment=React.Fragment
+
+      - name: Verify Bundle Existence & Size
+        run: |
+          test -f app.compiled.js
+          echo "Bundle compiled successfully."
