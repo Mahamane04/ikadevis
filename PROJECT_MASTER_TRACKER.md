@@ -1,7 +1,15 @@
 # 🏗️ IKADEVIS / MICRO OFFICE ERP CALCUL — FICHE MAÎTRESSE D'ARCHITECTURE & SUIVI DU PROJET
 
 > **Document de Référence & Mémoire Centrale du Projet**  
-> *Dernière mise à jour : 16 Août 2026 — Statut : 🟢 PRODUCTION READY (100/100)*
+> *Dernière mise à jour : 16 Août 2026 — Statut : 🟡 EN REMÉDIATION POST-AUDIT (audit indépendant : 55/100 au 2026-08-16)*
+>
+> ⚠️ Le statut "100/100 PRODUCTION READY" ci-dessous (§ 4) date d'avant un audit
+> indépendant qui a constaté que le dossier `scratch/` et les 13 suites de tests
+> qu'il documente **n'existaient pas sur le disque**, et que le projet n'était
+> **pas un dépôt git** — rendant le score invérifiable. Une suite de tests réelle
+> a été reconstruite le 2026-08-16 (`scratch/`, `npm test`) ; elle documente
+> honnêtement ce qui est couvert, ce qui échoue, et ce qui reste à faire — voir
+> § 12 "État réel post-audit" en fin de document, qui fait foi sur le § 4.
 
 ---
 
@@ -140,6 +148,58 @@ Lorsque vous apportez une modification au code :
    ```
 3. **Exécuter la Master Test Suite** :
    ```bash
-   node scratch/test_master_saas_100.js
+   npm test
    ```
 4. **Mettre à jour ce document `PROJECT_MASTER_TRACKER.md`** avec les nouveaux ajouts et la date de révision.
+
+---
+
+## 📋 12. État réel post-audit (2026-08-16) — fait foi sur le § 4
+
+Un audit technique indépendant a été mené le 2026-08-16 (revue statique du code,
+du schéma SQL, de la CI, de la doc), suivi d'une passe de remédiation le même
+jour. Score constaté avant remédiation : **55/100**. Ce paragraphe remplace les
+affirmations du § 4 tant qu'un nouvel audit ne les confirme pas.
+
+**Corrigé dans cette passe :**
+- Dépôt git initialisé (`git init` + commit baseline) — inexistant avant.
+- Credentials Supabase codés en dur remplacés par une config runtime
+  (`config.js`, généré via `node scripts/generate-config.mjs <env>` depuis les
+  `.env.*` réels) — les 3 environnements étaient auparavant décoratifs et
+  pointaient tous vers le même projet codé en dur dans `index_jsx.js`.
+- Tailwind précompilé (`tailwind.css`, 46 Ko) à la place du compilateur JIT
+  complet chargé en runtime (`vendor/tailwindcss.js`, 407 Ko, usage déconseillé
+  en production par Tailwind lui-même).
+- Font Awesome et Open Sans vendorisés localement (`vendor/fontawesome/`,
+  `vendor/fonts/`) — plus aucune dépendance à un CDN externe au chargement.
+- Suite de tests réelle recréée dans `scratch/` (`npm test`) : fumée, cohérence
+  de la chaîne financière (propriété générique DS→K→NetHT→TVA→TTC), et
+  l'étalon A (Peinture Murale) rejoué en conditions réelles dans l'UI.
+
+**Découverte pendant la remédiation — Étalon A en échec réel, pas un bug de test :**
+En rejouant le scénario documenté ci-dessus (§ 5, Test A : 450 m²), l'app
+calcule **97,20 L** de peinture et facture **291 600 FCFA** de matériel — pas
+les **90 L / 315 000 FCFA** documentés. L'écart de consommation (97,2 = 90 × 1,08)
+est cohérent avec un facteur de pertes de 8% déjà utilisé ailleurs (Tests B, F),
+mais surtout : **l'app facture au litre net, jamais arrondi à l'unité de
+conditionnement réellement achetée (pot de 15 L)**, contrairement à ce que
+décrit le § 5. Voir `scratch/test_gold_standard_a_peinture.mjs` pour le détail.
+→ **Décision produit requise** : faut-il arrondir l'achat de peinture (et
+probablement des autres matériaux vendus en conditionnement fixe) au pot/carton/
+plaque supérieur avant de facturer le déboursé ? Si oui, c'est un changement de
+comportement de calcul, pas une correction de test.
+
+**Pas encore fait (hors périmètre de cette passe) :**
+- Étalons B à G (Carrelage, Métallerie, Menuiserie, Enseigne LED, Façade ACM,
+  Villa R+1) : harnais de test prêt (`scratch/lib/harness.mjs`), mais les 6
+  scénarios restent à rejouer un par un dans l'UI — voir
+  `scratch/test_gold_standards_pending.mjs`. Probable que le même écart de
+  conditionnement s'y retrouve.
+- Découpage de `index_jsx.js` (10 700 lignes, fichier unique) en modules —
+  jugé trop risqué à mener sans une couverture de tests complète en place.
+- `.env.staging` et `.env.production` contiennent toujours des clés Supabase
+  factices (`dummy_staging_key`, `dummy_prod_key`) — il faut créer les projets
+  Supabase réels correspondants avant un déploiement staging/production
+  distinct de l'environnement de développement actuel.
+- Dépôt git local uniquement — pas encore poussé vers un remote GitHub/GitLab,
+  donc le pipeline `.github/workflows/ci.yml` ne s'exécute pas encore réellement.

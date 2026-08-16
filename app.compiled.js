@@ -1,7 +1,11 @@
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
-const SUPABASE_URL = "https://qmavetqcpzsfralsqxsi.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtYXZldHFjcHpzZnJhbHNxeHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3Mjc2NTQsImV4cCI6MjEwMjMwMzY1NH0.vJ4aYWMC645-SpZ7cKC2ZvfFUYVuHIaVmPZCt5PsxWY";
-const sb = typeof window !== "undefined" && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+const __CFG = typeof window !== "undefined" && window.__APP_CONFIG__ || {};
+if (typeof window !== "undefined" && !window.__APP_CONFIG__) {
+  console.warn("[ikadevis] config.js absent ou non charg\xE9 avant app.compiled.js \u2014 copiez config.example.js en config.js et renseignez vos identifiants Supabase.");
+}
+const SUPABASE_URL = __CFG.SUPABASE_URL || "";
+const SUPABASE_ANON = __CFG.SUPABASE_ANON || "";
+const sb = typeof window !== "undefined" && window.supabase && SUPABASE_URL && SUPABASE_ANON ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 const CC_PREFIX = "costcalc_";
 const LS = {
   getKey: (key, userId) => userId ? "costcalc:" + userId + ":" + key : "costcalc:guest:" + key,

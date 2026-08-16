@@ -1,11 +1,18 @@
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
 // ═══════════════════════════════════════════════════════════════
-// V5.3 — SUPABASE CLIENT INIT
+// V6.2 — SUPABASE CLIENT INIT (config runtime par environnement)
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://qmavetqcpzsfralsqxsi.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtYXZldHFjcHpzZnJhbHNxeHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3Mjc2NTQsImV4cCI6MjEwMjMwMzY1NH0.vJ4aYWMC645-SpZ7cKC2ZvfFUYVuHIaVmPZCt5PsxWY';
-const sb = (typeof window !== 'undefined' && window.supabase)
+// Lit window.__APP_CONFIG__, injecté par config.js (généré depuis .env.<env>
+// via scripts/generate-config.mjs, voir README). config.js n'est jamais
+// versionné : seul config.example.js sert de gabarit commité.
+const __CFG = (typeof window !== 'undefined' && window.__APP_CONFIG__) || {};
+if (typeof window !== 'undefined' && !window.__APP_CONFIG__) {
+    console.warn('[ikadevis] config.js absent ou non chargé avant app.compiled.js — copiez config.example.js en config.js et renseignez vos identifiants Supabase.');
+}
+const SUPABASE_URL  = __CFG.SUPABASE_URL || '';
+const SUPABASE_ANON = __CFG.SUPABASE_ANON || '';
+const sb = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL && SUPABASE_ANON)
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
     : null;
 
