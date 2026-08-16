@@ -1,40 +1,56 @@
-// Étalons B à G (Carrelage, Métallerie, Menuiserie, Enseigne LED, Façade ACM,
-// Villa R+1) — PAS ENCORE implémentés en E2E, volontairement marqués "pending"
-// plutôt que fabriqués pour passer artificiellement.
+// Étalons C et D (Garde-Corps Métallerie, Dressing Menuiserie) — PAS testables
+// en l'état, pour une raison structurelle précise, pas un manque de temps :
 //
-// Le Test A (voir test_gold_standard_a_peinture.mjs) a révélé que le calcul
-// réel divergeait de la documentation (facteur de pertes 8% non documenté,
-// pas d'arrondi à l'unité de conditionnement achetée). Il est probable que
-// B, C, D, E, F, G aient le même type d'écart — mais on ne peut pas l'affirmer
-// sans les rejouer un par un dans l'UI comme A, ce qui n'a pas été fait ici
-// faute de temps dans cette passe.
+// Le tracker (§ 5 et § 6) décrit ces deux étalons comme pilotés par des
+// calculateurs dynamiques dédiés — "Plan de Débit 1D" pour la métallerie
+// (30 ml → 31 poteaux, 3 lisses → 22 barres optimisées) et "Calepinage 2D"
+// pour le dressing (3.0×2.5 m → 28.5 m² → 6 panneaux mélaminé). Les modèles
+// "1-clic" du même nom dans l'Assistant Intelligent (METALLERIE_PRO_TEMPLATE_QUOTE
+// et MENUISERIE_PRO_TEMPLATE_QUOTE, index_jsx.js) portent bien ces noms, mais
+// sont entièrement composés de lignes libres figées (isCustom: true, qty/prix
+// écrits en dur) — PAS d'un calcul paramétrable par ml ou m². Charger ces
+// modèles donne des chiffres complètement différents (36 barres de 50x50mm à
+// 18 500 FCFA, 8 plaques mélaminé 2.80×2.07m...) qui ne correspondent à aucun
+// des deux scénarios documentés dans le tracker.
 //
-// Pour compléter un étalon : dupliquer test_gold_standard_a_peinture.mjs,
-// remplacer le terme de recherche catalogue et le mode de métré (voir
-// PROJECT_MASTER_TRACKER.md § 5 pour les valeurs attendues et § "Modes" du
-// catalogue pour le mode de métré correct : volume, rectangle, floor, etc.)
+// Autrement dit : le calculateur "Plan de Débit 1D" / "Calepinage 2D" décrit
+// dans le tracker comme fonctionnel n'existe pas en tant que fonctionnalité
+// paramétrable dans l'app livrée — seul un nom de modèle de démo identique
+// existe, avec un contenu sans rapport. Un test ne peut pas combler cet écart :
+// soit la fonctionnalité reste à construire, soit le tracker doit être corrigé
+// pour ne plus la présenter comme acquise (§ 6, Bloc 4 "7 assistants métiers
+// spécialisés" — 2 des 7 semblent donc être des démos statiques, pas des
+// générateurs réels).
+//
+// (Étalon G — Villa R+1 — utilise lui un vrai calcul dynamique solutionId/
+// calcForm par lot ; voir test_gold_standard_g_villa.mjs, qui est implémenté
+// et échoue pour une raison différente : écart de calibrage des quantités.)
 import { pathToFileURL } from 'node:url';
 
 const PENDING = [
-    { id: 'B', name: 'Carrelage Sol (120 m², cartons 1.44 m²)' },
-    { id: 'C', name: 'Garde-Corps Métallerie (30 ml, plan de débit 1D)' },
-    { id: 'D', name: 'Dressing Menuiserie (3.0×2.5 m, caissons)' },
-    { id: 'E', name: 'Enseigne Lumineuse LED (6.0×1.2 m)' },
-    { id: 'F', name: 'Façade Panneaux ACM (180 m²)' },
-    { id: 'G', name: 'Villa R+1 (11 lots TCE)' },
+    {
+        id: 'C',
+        name: 'Garde-Corps Métallerie (30 ml, plan de débit 1D)',
+        reason: 'Le modèle "Métallerie, Châssis Acier & Plan de Débit" est une démo à lignes figées, pas un calculateur paramétrable par ml.'
+    },
+    {
+        id: 'D',
+        name: 'Dressing Menuiserie (3.0×2.5 m, caissons)',
+        reason: 'Le modèle "Menuiserie, Dressing & Caissons Meuble" est une démo à lignes figées, pas un calculateur paramétrable par m².'
+    },
 ];
 
 export async function run() {
     return PENDING.map((t) => ({
         label: `Étalon ${t.id} — ${t.name}`,
-        pass: null, // null = non exécuté, à ne pas confondre avec un succès
-        detail: 'Non implémenté dans cette passe — voir commentaire en tête de fichier.'
+        pass: null, // null = non testable en l'état, à ne pas confondre avec un succès
+        detail: t.reason
     }));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const results = await run();
     for (const r of results) console.log(`  ⏳ ${r.label} — ${r.detail}`);
-    console.log(`\n  ${results.length} étalons en attente d'implémentation (non comptés dans le score pass/fail).`);
+    console.log(`\n  ${results.length} étalons non testables en l'état (écart structurel documenté, pas un TODO de test).`);
     process.exit(0);
 }

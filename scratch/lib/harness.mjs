@@ -180,6 +180,42 @@ export async function readFirstOuvrageBreakdown(page) {
     });
 }
 
+// Charge un modèle 1-clic depuis l'Assistant Intelligent, onglet "2. Modèles
+// Métiers 1-Clic", en ciblant la carte dont le titre contient titleSubstring.
+export async function loadOneClickTemplate(page, titleSubstring) {
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+            .find((b) => b.getAttribute('title') === "Ouvrir l'assistant intelligent de création de devis"
+                || b.textContent.includes('Nouveau Devis'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+            .find((b) => b.textContent.includes('Modèles Métiers 1-Clic'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 200));
+
+    const clicked = await page.evaluate((titleSubstring) => {
+        const heading = [...document.querySelectorAll('h3, h2, h4')]
+            .find((h) => h.textContent.includes(titleSubstring));
+        if (!heading) return false;
+        // La carte entière (pas un <button> dédié) porte le onClick de chargement
+        // du modèle — on remonte jusqu'au conteneur "p-5 rounded-2xl ... border".
+        let card = heading;
+        for (let i = 0; i < 6 && card; i++) {
+            if (card.className && String(card.className).includes('rounded-2xl') && String(card.className).includes('border')) break;
+            card = card.parentElement;
+        }
+        if (!card) return false;
+        card.click();
+        return true;
+    }, titleSubstring);
+    if (!clicked) throw new Error(`Modèle "${titleSubstring}" introuvable dans l'Assistant Intelligent.`);
+    await new Promise((r) => setTimeout(r, 300));
+}
+
 // Modifie le taux de perte affiché pour une ligne matière donnée (colonne
 // "Perte %" de l'onglet "2. Décomposition Déboursé"), en ciblant l'input via
 // son aria-label (voir index_jsx.js, aria-label={`Taux de perte pour ${d.label}`}).

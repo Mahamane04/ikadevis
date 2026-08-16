@@ -102,15 +102,20 @@ BLOC 10 — Certification Finale   100/100  (Validé ✓)
 
 ## 📐 5. Bibliothèque des 7 Devis Étalons de Référence (Gold Standards)
 
-| Étalon | Corps d'État | Paramètres Techniques | Déboursé & Ratios de Référence | Tolérance |
-| :---: | :--- | :--- | :--- | :---: |
-| **Test A** | Peinture Murale | $450\text{ m²}$ (2 couches + primaire + enduit) | $90\text{ L}$ couverture nette $+8\%$ pertes $\rightarrow$ $97.2\text{ L}$ à acheter, $7$ pots de $15\text{L}$ ($315\,000\text{ FCFA}$) | $0.00\%$ |
-| **Test B** | Carrelage Sol | $120\text{ m²}$ (Carreaux 60x60 en cartons de $1.44\text{ m²}$) | $+10\%$ pertes $\rightarrow$ $92$ cartons achetés ($1\,196\,000\text{ FCFA}$) | $0.00\%$ |
-| **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ |
-| **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ |
-| **Test E** | Enseigne Lumineuse LED | $6.0 \times 1.2\text{ m}$ ($7.2\text{ m²}$) | $180$ modules LED $1.2\text{W}$, $2$ alimentations $200\text{W}$ | $0.00\%$ |
-| **Test F** | Façade Panneaux ACM | $180\text{ m²}$ (Plaques Alucobond $6\text{ m²}$) | $+8\%$ pertes $\rightarrow$ $33$ plaques ACM | $0.00\%$ |
-| **Test G** | Villa R+1 (11 lots TCE) | Gros œuvre, étanchéité, plomberie, élec, finitions | Déboursé $65\text{ M}$, PV Net HT $91.26\text{ M}$, Coeff $K = 1.404$, TTC $107.68\text{ M}$ | $0.00\%$ |
+> Colonne **Statut** ajoutée le 2026-08-16 : chaque étalon a été rejoué dans
+> l'UI réelle via `scratch/test_gold_standard_*.mjs` (`npm test`). Contrairement
+> au reste de ce tableau (qui décrit l'intention), cette colonne décrit ce qui
+> est **vérifié et reproductible**, pas ce qui est souhaité.
+
+| Étalon | Corps d'État | Paramètres Techniques | Déboursé & Ratios de Référence | Tolérance | Statut vérifié |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **Test A** | Peinture Murale | $450\text{ m²}$ (2 couches + primaire + enduit) | $90\text{ L}$ couverture nette $+8\%$ pertes $\rightarrow$ $97.2\text{ L}$ à acheter, $7$ pots de $15\text{L}$ ($315\,000\text{ FCFA}$) | $0.00\%$ | ✅ Conforme |
+| **Test B** | Carrelage Sol | $120\text{ m²}$ (Carreaux 60x60 en cartons de $1.44\text{ m²}$) | $+10\%$ pertes $\rightarrow$ $92$ cartons achetés ($1\,196\,000\text{ FCFA}$) | $0.00\%$ | ✅ Conforme |
+| **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ | ⏳ Non testable — le calculateur "Plan de Débit 1D" décrit ici n'existe pas ; seule une démo à lignes figées porte ce nom (voir § 12) |
+| **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ | ⏳ Non testable — même constat que Test C, pour "Calepinage 2D" (voir § 12) |
+| **Test E** | Enseigne Lumineuse LED | $6.0 \times 1.2\text{ m}$ ($7.2\text{ m²}$) | $180$ modules LED $1.2\text{W}$, $2$ alimentations $200\text{W}$ | $0.00\%$ | ❌ Écart réel — catalogue calcule 330 modules (densité 45/m² au lieu de 25/m², voir § 12) |
+| **Test F** | Façade Panneaux ACM | $180\text{ m²}$ (Plaques Alucobond $6\text{ m²}$) | $+8\%$ pertes $\rightarrow$ $33$ plaques ACM | $0.00\%$ | ✅ Conforme |
+| **Test G** | Villa R+1 (11 lots TCE) | Gros œuvre, étanchéité, plomberie, élec, finitions | Déboursé $65\text{ M}$, PV Net HT $91.26\text{ M}$, Coeff $K = 1.404$, TTC $107.68\text{ M}$ | $0.00\%$ | ❌ Écart réel — modèle 1-clic ≈ 2× plus petit (Net HT mesuré 45.3M, voir § 12) |
 
 ---
 
@@ -211,12 +216,49 @@ distincts identifiés, tous deux tranchés le même jour :
 `scratch/test_gold_standard_a_peinture.mjs` (13/13 vérifications au vert
 dans `npm test`).**
 
-**Pas encore fait (hors périmètre de cette passe) :**
-- Étalons B à G (Carrelage, Métallerie, Menuiserie, Enseigne LED, Façade ACM,
-  Villa R+1) : harnais de test prêt (`scratch/lib/harness.mjs`), mais les 6
-  scénarios restent à rejouer un par un dans l'UI — voir
-  `scratch/test_gold_standards_pending.mjs`. Probable que le même écart de
-  conditionnement s'y retrouve.
+**Étalons B à G — rejoués dans l'UI réelle le 2026-08-16 :**
+
+- ✅ **Test B (Carrelage 120 m²)** — conforme du premier coup : 132 m² à
+  l'achat (+10% pertes), 1 196 000 FCFA. `scratch/test_gold_standard_b_carrelage.mjs`.
+- ✅ **Test F (Façade ACM 180 m²)** — conforme du premier coup : 194.4 m²
+  à l'achat (+8% pertes), 33 plaques. `scratch/test_gold_standard_f_acm.mjs`.
+- ❌ **Test E (Enseigne LED 6.0×1.2m)** — écart réel, non résolu : le
+  catalogue calcule **330 modules LED** (densité `SURFACE * 45`/m²) contre
+  **180 modules** documentés (densité implicite 25/m²). Les alimentations
+  (2×200W) et les dimensions sont conformes. `scratch/test_gold_standard_e_enseigne.mjs`.
+  → **Décision produit requise** : corriger la formule catalogue à 25/m², ou
+  mettre à jour le tracker à 330 modules si 45/m² est la densité voulue.
+- ❌ **Test G (Villa R+1, 11 lots)** — écart réel, non résolu : le modèle
+  "Construction Villa Duplex R+1" chargeable en 1-clic (contrairement aux
+  Tests C/D ci-dessous, celui-ci EST piloté par le vrai moteur de calcul,
+  solutionId + calcForm réels par lot) calcule Déboursé 25.6M / K=1.769 /
+  Net HT 45.3M / TTC 53.5M — environ **2× plus petit** que les 65M / 1.404 /
+  91.26M / 107.68M documentés. Piste probable : les quantités du modèle
+  (terrassement 250 m³, structure 4m×2m...) correspondent à une villa plus
+  modeste que celle utilisée pour calibrer le tracker. Cause exacte non
+  isolée (11 lots, ~20 lignes de calcul). `scratch/test_gold_standard_g_villa.mjs`.
+- ⏳ **Tests C et D (Garde-Corps Métallerie, Dressing Menuiserie) — non
+  testables, constat structurel :** le tracker les décrit comme pilotés par
+  des calculateurs dédiés "Plan de Débit 1D" et "Calepinage 2D". Les modèles
+  1-clic du même nom dans l'Assistant Intelligent existent bien
+  (`METALLERIE_PRO_TEMPLATE_QUOTE`, `MENUISERIE_PRO_TEMPLATE_QUOTE` dans
+  `index_jsx.js`) mais sont entièrement composés de **lignes libres figées**
+  (`isCustom: true`, quantités/prix écrits en dur — 36 barres 50x50mm à
+  18 500 FCFA pour la métallerie, 8 plaques mélaminé 2.80×2.07m pour la
+  menuiserie), **sans rapport avec les scénarios documentés** (30 ml/22
+  barres, 3.0×2.5m/6 panneaux) et sans aucun calcul paramétrable par ml ou m².
+  Autrement dit : cette fonctionnalité, présentée au § 6 comme l'un des
+  "7 assistants métiers spécialisés" (Bloc 4), **n'existe pas** — seul un nom
+  de démo identique existe, avec un contenu sans rapport. Un test ne peut pas
+  combler cet écart : soit la fonctionnalité reste à construire, soit le § 6
+  doit être corrigé pour ne plus la présenter comme acquise.
+  `scratch/test_gold_standards_pending.mjs`.
+
+**Bilan des 7 étalons (2026-08-16) : 3 conformes (A, B, F), 2 en échec
+documenté nécessitant une décision produit (E, G), 2 non testables car la
+fonctionnalité sous-jacente n'existe pas (C, D).**
+
+**Reste à faire (hors périmètre de cette passe) :**
 - Découpage de `index_jsx.js` (10 700 lignes, fichier unique) en modules —
   jugé trop risqué à mener sans une couverture de tests complète en place.
 - `.env.staging` et `.env.production` contiennent toujours des clés Supabase
@@ -225,3 +267,7 @@ dans `npm test`).**
   distinct de l'environnement de développement actuel.
 - Dépôt git local uniquement — pas encore poussé vers un remote GitHub/GitLab,
   donc le pipeline `.github/workflows/ci.yml` ne s'exécute pas encore réellement.
+- Densité LED (Test E) et calibrage Villa R+1 (Test G) à trancher avec le
+  porteur produit.
+- Construire réellement (ou retirer du § 6) les calculateurs "Plan de Débit
+  1D" et "Calepinage 2D" (Tests C, D).
