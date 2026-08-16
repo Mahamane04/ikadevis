@@ -310,10 +310,18 @@ modèle Villa 1-clic, cause du Coeff K déjà isolée).**
 **Reste à faire (hors périmètre de cette passe) :**
 - Découpage de `index_jsx.js` (10 700 lignes, fichier unique) en modules —
   jugé trop risqué à mener sans une couverture de tests complète en place.
-- `.env.staging` et `.env.production` contiennent toujours des clés Supabase
-  factices (`dummy_staging_key`, `dummy_prod_key`) — il faut créer les projets
-  Supabase réels correspondants avant un déploiement staging/production
-  distinct de l'environnement de développement actuel.
+- ~~`.env.staging` et `.env.production` contiennent des clés factices~~ —
+  **fait le 2026-08-16**, projets réels créés et branchés (voir § 13
+  "Cartographie des environnements Supabase" ci-dessous).
+  ⚠️ **Risque identifié à cette occasion, non corrigé** : `.env.development`
+  pointe vers le **même projet Supabase que la production** (`qmavetqcpzsfralsqxsi`,
+  alias `SuperDevisMO`). Il n'existe aujourd'hui aucun projet de développement
+  isolé — un test lancé en local (`npm start` + `config.js` généré depuis
+  `.env.development`) lit/écrit dans la vraie base de production. Ce n'est
+  pas une régression de cette passe : c'était déjà le cas avant (le
+  `SUPABASE_URL`/`SUPABASE_ANON` codés en dur dans `index_jsx.js`, corrigés
+  au P0.4, pointaient déjà vers ce même projet). À corriger : créer un
+  troisième projet Supabase dédié au développement.
 - Dépôt git local uniquement — pas encore poussé vers un remote GitHub/GitLab,
   donc le pipeline `.github/workflows/ci.yml` ne s'exécute pas encore réellement.
 - Cause de l'écart K sur Villa R+1 isolée (§ 12) : pas un bug de marge
@@ -332,3 +340,34 @@ modèle Villa 1-clic, cause du Coeff K déjà isolée).**
   "Menuiserie, Dressing & Caissons Meuble" (Assistant Intelligent) restent
   des démos à lignes figées, non branchées aux nouvelles solutions 17/18 —
   cohérence à revoir si on veut qu'ils servent d'exemple au vrai calculateur.
+
+---
+
+## 🗄️ 13. Cartographie des environnements Supabase (2026-08-16)
+
+> Vérifiée par capture d'écran du dashboard le 2026-08-16 — cette table fait
+> foi, ne pas se fier aux noms de fichiers `.env.*` seuls pour deviner quel
+> projet est lequel.
+
+| Environnement | Nom projet Supabase | Ref / URL | Organisation | Statut |
+| :--- | :--- | :--- | :--- | :--- |
+| **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 Live, schéma déjà en place (c'est le projet historique, codé en dur dans `index_jsx.js` avant le correctif P0.4) |
+| **Development** | *(aucun projet dédié)* | `qmavetqcpzsfralsqxsi` — **identique à la prod** | Ika devis | 🔴 Pas isolé, voir avertissement ci-dessous |
+| **Staging** | `ikadevis-staging` | `mwfmruzlonsrrfufbsyz` | Ika devis | 🟢 Créé le 2026-08-16, `v6_schema.sql` appliqué (19 tables, RLS actif), 0 ligne de données |
+
+**⚠️ Development = Production, actuellement.** Aucune régression introduite
+dans cette passe : le hardcode originel de `index_jsx.js` (avant P0.4)
+pointait déjà vers `qmavetqcpzsfralsqxsi`, donc `.env.development` a été
+aligné dessus pour préserver le comportement existant au moment de la
+remédiation. Mais ça veut dire concrètement que **tester en local avec
+`npm start` lit et écrit dans la vraie base de production**. À corriger :
+créer un 3ᵉ projet Supabase dédié au développement, lui appliquer
+`v6_schema.sql`, et mettre à jour `.env.development`.
+
+**Accès MCP direct** : le connecteur Supabase (`.mcp.json`) est configuré
+avec un Personal Access Token de compte (`sbp_...`, portée sur l'organisation
+"Ika devis" entière) et pointe actuellement sur le projet **staging**
+(`mwfmruzlonsrrfufbsyz`). Il ne peut cibler qu'un seul projet à la fois avec
+cette config ; dupliquer l'entrée `"supabase"` sous des noms distincts
+(`supabase-staging`, `supabase-production`, `supabase-dev`) dans `.mcp.json`
+si un accès simultané aux trois devient nécessaire.
