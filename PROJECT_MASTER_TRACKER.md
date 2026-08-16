@@ -29,8 +29,11 @@
 >   que la production**, décision explicite de l'utilisateur de reporter la
 >   création d'un 3ᵉ projet dédié à après que le SaaS soit jugé prêt.
 > - Prochaines pistes ouvertes, aucune urgente : isoler `development`, pousser
->   le dépôt vers un remote, recalibrer l'échelle du modèle Villa R+1, migrer
->   ou supprimer la ligne `user_data` (V5) laissée intacte en production.
+>   le dépôt vers un remote, recalibrer l'échelle du modèle Villa R+1.
+>   ~~Migrer ou supprimer `user_data` (V5) en production~~ — **fait le
+>   2026-08-16** : table supprimée (`DROP TABLE`), confirmée comme donnée de
+>   test sans valeur par l'utilisateur avant suppression. Production ne porte
+>   plus que les 19 tables V6, plus aucune trace du schéma legacy.
 
 ---
 
@@ -372,7 +375,7 @@ modèle Villa 1-clic, cause du Coeff K déjà isolée).**
 
 | Environnement | Nom projet Supabase | Ref / URL | Organisation | Statut |
 | :--- | :--- | :--- | :--- | :--- |
-| **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 `v6_schema.sql` appliqué le 2026-08-16 (19 tables, RLS actif) |
+| **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 `v6_schema.sql` appliqué le 2026-08-16 (19 tables, RLS actif), legacy `user_data` (V5) supprimée |
 | **Development** | *(aucun projet dédié)* | `qmavetqcpzsfralsqxsi` — **identique à la prod** | Ika devis | 🔴 Pas isolé, voir avertissement ci-dessous |
 | **Staging** | `ikadevis-staging` | `mwfmruzlonsrrfufbsyz` | Ika devis | 🟢 Créé le 2026-08-16, `v6_schema.sql` appliqué (19 tables, RLS actif), 0 ligne de données |
 
@@ -398,9 +401,11 @@ cloud réel vers la production aurait échoué** ("relation does not exist") —
 seul le Mode Démo/Invité (100% local) fonctionnait contre cette base. 1 ligne
 de données existait dans `user_data`, confirmée par l'utilisateur comme un
 compte de test sans valeur à préserver — `v6_schema.sql` appliqué directement
-à côté (19 nouvelles tables), **`user_data` conservée telle quelle, non
-migrée, non supprimée** (aucun script de migration V5→V6 écrit dans cette
-passe ; à faire si cette ligne s'avère finalement avoir de la valeur).
+à côté (19 nouvelles tables). **`user_data` supprimée le 2026-08-16**
+(`DROP TABLE public.user_data`, migration `drop_legacy_v5_user_data`),
+après confirmation explicite de l'utilisateur que la ligne était un compte
+de test sans valeur. Production ne porte plus aucune trace du schéma V5 —
+uniquement les 19 tables V6.
 
 **Accès MCP direct** : `.mcp.json` porte désormais **deux** connecteurs
 Supabase simultanés, sous un Personal Access Token de compte (`sbp_...`,
