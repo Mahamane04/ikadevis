@@ -351,7 +351,7 @@ modèle Villa 1-clic, cause du Coeff K déjà isolée).**
 
 | Environnement | Nom projet Supabase | Ref / URL | Organisation | Statut |
 | :--- | :--- | :--- | :--- | :--- |
-| **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 Live, schéma déjà en place (c'est le projet historique, codé en dur dans `index_jsx.js` avant le correctif P0.4) |
+| **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 `v6_schema.sql` appliqué le 2026-08-16 (19 tables, RLS actif) |
 | **Development** | *(aucun projet dédié)* | `qmavetqcpzsfralsqxsi` — **identique à la prod** | Ika devis | 🔴 Pas isolé, voir avertissement ci-dessous |
 | **Staging** | `ikadevis-staging` | `mwfmruzlonsrrfufbsyz` | Ika devis | 🟢 Créé le 2026-08-16, `v6_schema.sql` appliqué (19 tables, RLS actif), 0 ligne de données |
 
@@ -360,14 +360,37 @@ dans cette passe : le hardcode originel de `index_jsx.js` (avant P0.4)
 pointait déjà vers `qmavetqcpzsfralsqxsi`, donc `.env.development` a été
 aligné dessus pour préserver le comportement existant au moment de la
 remédiation. Mais ça veut dire concrètement que **tester en local avec
-`npm start` lit et écrit dans la vraie base de production**. À corriger :
-créer un 3ᵉ projet Supabase dédié au développement, lui appliquer
-`v6_schema.sql`, et mettre à jour `.env.development`.
+`npm start` lit et écrit dans la vraie base de production**. Décision de
+l'utilisateur (2026-08-16) : reporté à plus tard, une fois le SaaS jugé prêt
+— on avance pour l'instant avec seulement staging + production. À corriger
+à ce moment-là : créer un 3ᵉ projet Supabase dédié au développement, lui
+appliquer `v6_schema.sql`, et mettre à jour `.env.development`.
 
-**Accès MCP direct** : le connecteur Supabase (`.mcp.json`) est configuré
-avec un Personal Access Token de compte (`sbp_...`, portée sur l'organisation
-"Ika devis" entière) et pointe actuellement sur le projet **staging**
-(`mwfmruzlonsrrfufbsyz`). Il ne peut cibler qu'un seul projet à la fois avec
-cette config ; dupliquer l'entrée `"supabase"` sous des noms distincts
-(`supabase-staging`, `supabase-production`, `supabase-dev`) dans `.mcp.json`
-si un accès simultané aux trois devient nécessaire.
+**Découverte en appliquant le schéma sur la production — schéma legacy V5
+coexistant avec le code V6 :** avant cette passe, la base production ne
+contenait qu'**une seule table `user_data`** (un blob JSON par utilisateur —
+`materials`, `solutions`, `recipes`, `saved_quotes` empilés dans des colonnes
+JSONB, `schema_version: 9`), pas les tables relationnelles multi-tenant
+(`organizations`, `quotes`, `materials`...) que le code de l'app (V6, RPC
+`create_quote_v6`, etc.) attend depuis longtemps. **Concrètement, tout appel
+cloud réel vers la production aurait échoué** ("relation does not exist") —
+seul le Mode Démo/Invité (100% local) fonctionnait contre cette base. 1 ligne
+de données existait dans `user_data`, confirmée par l'utilisateur comme un
+compte de test sans valeur à préserver — `v6_schema.sql` appliqué directement
+à côté (19 nouvelles tables), **`user_data` conservée telle quelle, non
+migrée, non supprimée** (aucun script de migration V5→V6 écrit dans cette
+passe ; à faire si cette ligne s'avère finalement avoir de la valeur).
+
+**Accès MCP direct** : `.mcp.json` porte désormais **deux** connecteurs
+Supabase simultanés, sous un Personal Access Token de compte (`sbp_...`,
+portée sur l'organisation "Ika devis" entière) :
+- `supabase-staging` → `mwfmruzlonsrrfufbsyz`, lecture/écriture.
+- `supabase-production` → `qmavetqcpzsfralsqxsi`, **`--read-only` par
+  défaut** — retiré temporairement le temps d'appliquer `v6_schema.sql` le
+  2026-08-16 (avec confirmation explicite de l'utilisateur), remis en lecture
+  seule immédiatement après. Toute future écriture en production doit repasser
+  par ce même aller-retour (retirer `--read-only` dans `.mcp.json` → redémarrer
+  → agir → remettre `--read-only` → redémarrer), jamais laisser l'accès
+  en écriture ouvert par défaut.
+- Un 3ᵉ connecteur `supabase-dev` pourra être ajouté sur le même principe
+  une fois le projet development isolé créé.
