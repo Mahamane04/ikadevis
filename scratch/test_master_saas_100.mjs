@@ -16,12 +16,14 @@
 import * as smoke from './test_smoke.mjs';
 import * as financialChain from './test_financial_chain_consistency.mjs';
 import * as goldA from './test_gold_standard_a_peinture.mjs';
+import * as wasteOverride from './test_waste_override.mjs';
 import * as pending from './test_gold_standards_pending.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
     { name: 'Cohérence chaîne financière', mod: financialChain, expectedToFail: false },
     { name: 'Étalon A — Peinture Murale (tolérance zéro)', mod: goldA, expectedToFail: false },
+    { name: 'Taux de perte ajustable par ouvrage', mod: wasteOverride, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

@@ -1287,7 +1287,17 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         if (line.type === 'material') {
             const mat = materials.find(m => m.id === line.refId);
             if (mat) {
-                const billedQty = line.baseQty * (1 + ((parseFloat(mat.waste) || 0) / 100));
+                // P0.5 — Taux de perte ajustable par devis/chantier : par défaut on
+                // reprend mat.waste (taux "catalogue", partagé par toutes les
+                // recettes utilisant cette matière), mais calcForm.wasteOverrides
+                // permet de le surcharger pour CET ouvrage précis (mur neuf lisse vs
+                // support irrégulier n'ont pas le même taux de perte réel), sans
+                // toucher au taux catalogue qui reste la référence par défaut.
+                const wasteOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : undefined;
+                const wastePct = (wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== '')
+                    ? parseFloat(wasteOverride)
+                    : (parseFloat(mat.waste) || 0);
+                const billedQty = line.baseQty * (1 + (wastePct / 100));
                 const consumedCost = billedQty * mat.priceCalc;
 
                 // P0.4 — Pack rounding : on ne peut pas acheter 97.2 L de peinture,
@@ -1308,7 +1318,8 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 details.push({
                     id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
                     baseQty: line.baseQty, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: purchasedCost,
-                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost, consumedCost
+                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost, consumedCost,
+                    matId: mat.id, wastePct, defaultWastePct: parseFloat(mat.waste) || 0, isWasteOverridden: wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== ''
                 });
             }
         } else if (line.type === 'labor') {
@@ -4172,6 +4183,7 @@ function WorkItemInspector({
                                             <tr className="bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase">
                                                 <th className="p-2.5 text-left">Poste</th>
                                                 <th className="p-2.5 text-right">Quantité Nette</th>
+                                                <th className="p-2.5 text-right">Perte %</th>
                                                 <th className="p-2.5 text-right">Coût Unitaire</th>
                                                 <th className="p-2.5 text-right">Coût Total</th>
                                             </tr>
@@ -4181,12 +4193,55 @@ function WorkItemInspector({
                                                 <tr key={i} className="hover:bg-neutral-50">
                                                     <td className="p-2.5 font-bold text-neutral-800">{d.label}</td>
                                                     <td className="p-2.5 text-right font-medium">{d.billedQty?.toFixed(2)} {d.unit}</td>
+                                                    <td className="p-2.5 text-right">
+                                                        {d.type === 'material' ? (
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <input
+                                                                    type="number" min="0" max="100" step="0.1"
+                                                                    aria-label={`Taux de perte pour ${d.label}`}
+                                                                    title={`Taux catalogue par défaut : ${d.defaultWastePct}%`}
+                                                                    className={`w-14 p-1 text-right text-xs font-bold border rounded-md ${d.isWasteOverridden ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-neutral-200 bg-white text-neutral-700'}`}
+                                                                    value={d.wastePct}
+                                                                    onChange={(e) => {
+                                                                        const raw = e.target.value;
+                                                                        const nextOverrides = { ...(calcForm.wasteOverrides || {}) };
+                                                                        if (raw === '' || parseFloat(raw) === d.defaultWastePct) {
+                                                                            delete nextOverrides[d.matId];
+                                                                        } else {
+                                                                            nextOverrides[d.matId] = raw;
+                                                                        }
+                                                                        handleParamChange('wasteOverrides', nextOverrides);
+                                                                    }}
+                                                                />
+                                                                {d.isWasteOverridden && (
+                                                                    <button
+                                                                        type="button"
+                                                                        title={`Revenir au taux catalogue (${d.defaultWastePct}%)`}
+                                                                        aria-label={`Revenir au taux de perte catalogue pour ${d.label}`}
+                                                                        className="btn-icon w-5 h-5 text-[10px]"
+                                                                        onClick={() => {
+                                                                            const nextOverrides = { ...(calcForm.wasteOverrides || {}) };
+                                                                            delete nextOverrides[d.matId];
+                                                                            handleParamChange('wasteOverrides', nextOverrides);
+                                                                        }}
+                                                                    >
+                                                                        <i className="fa-solid fa-rotate-left"></i>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ) : <span className="text-neutral-300">—</span>}
+                                                    </td>
                                                     <td className="p-2.5 text-right font-medium">{formatMoney(d.unitCost, currency)}</td>
                                                     <td className="p-2.5 text-right font-bold text-neutral-900">{formatMoney(d.totalCost, currency)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
+                                    <p className="text-[11px] text-neutral-400 px-1">
+                                        Le taux de perte est repris du catalogue par défaut. Le modifier ici l'ajuste
+                                        uniquement pour cet ouvrage sur ce devis — le taux catalogue (utilisé par tous
+                                        les autres devis) n'est pas affecté.
+                                    </p>
                                 </div>
                             )}
 

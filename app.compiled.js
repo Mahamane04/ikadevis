@@ -1194,7 +1194,9 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     if (line.type === "material") {
       const mat = materials.find((m) => m.id === line.refId);
       if (mat) {
-        const billedQty = line.baseQty * (1 + (parseFloat(mat.waste) || 0) / 100);
+        const wasteOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : void 0;
+        const wastePct = wasteOverride !== void 0 && wasteOverride !== null && wasteOverride !== "" ? parseFloat(wasteOverride) : parseFloat(mat.waste) || 0;
+        const billedQty = line.baseQty * (1 + wastePct / 100);
         const consumedCost = billedQty * mat.priceCalc;
         const packUnitSize = mat.unitSize || 1;
         const isRealMode = mat.purchaseMode === "real";
@@ -1216,7 +1218,11 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
           packsNeeded,
           packUnitBuy: mat.unitBuy,
           purchasedCost,
-          consumedCost
+          consumedCost,
+          matId: mat.id,
+          wastePct,
+          defaultWastePct: parseFloat(mat.waste) || 0,
+          isWasteOverridden: wasteOverride !== void 0 && wasteOverride !== null && wasteOverride !== ""
         });
       }
     } else if (line.type === "labor") {
@@ -3393,7 +3399,43 @@ function WorkItemInspector({
         onChange: (e) => handleParamChange("surfaceDirect", parseFloat(e.target.value) || 0),
         className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
       }
-    )))), activeTab === "costs" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center bg-neutral-100 p-3 rounded-xl" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-neutral-700 uppercase" }, "D\xE9bours\xE9 Sec Consomm\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("table", { className: "w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { className: "bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase" }, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-left" }, "Poste"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Quantit\xE9 Nette"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Unitaire"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Total"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, (quoteData.details || []).map((d, i) => /* @__PURE__ */ React.createElement("tr", { key: i, className: "hover:bg-neutral-50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, d.label), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, d.billedQty?.toFixed(2), " ", d.unit), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, formatMoney(d.unitCost, currency)), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-bold text-neutral-900" }, formatMoney(d.totalCost, currency))))))), activeTab === "pricing" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taux de Marge R\xE9elle (%)"), /* @__PURE__ */ React.createElement(
+    )))), activeTab === "costs" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center bg-neutral-100 p-3 rounded-xl" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-neutral-700 uppercase" }, "D\xE9bours\xE9 Sec Consomm\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("table", { className: "w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { className: "bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase" }, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-left" }, "Poste"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Quantit\xE9 Nette"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Perte %"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Unitaire"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Total"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, (quoteData.details || []).map((d, i) => /* @__PURE__ */ React.createElement("tr", { key: i, className: "hover:bg-neutral-50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, d.label), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, d.billedQty?.toFixed(2), " ", d.unit), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right" }, d.type === "material" ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-end gap-1" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        min: "0",
+        max: "100",
+        step: "0.1",
+        "aria-label": `Taux de perte pour ${d.label}`,
+        title: `Taux catalogue par d\xE9faut : ${d.defaultWastePct}%`,
+        className: `w-14 p-1 text-right text-xs font-bold border rounded-md ${d.isWasteOverridden ? "border-brand-400 bg-brand-50 text-brand-700" : "border-neutral-200 bg-white text-neutral-700"}`,
+        value: d.wastePct,
+        onChange: (e) => {
+          const raw = e.target.value;
+          const nextOverrides = { ...calcForm.wasteOverrides || {} };
+          if (raw === "" || parseFloat(raw) === d.defaultWastePct) {
+            delete nextOverrides[d.matId];
+          } else {
+            nextOverrides[d.matId] = raw;
+          }
+          handleParamChange("wasteOverrides", nextOverrides);
+        }
+      }
+    ), d.isWasteOverridden && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        title: `Revenir au taux catalogue (${d.defaultWastePct}%)`,
+        "aria-label": `Revenir au taux de perte catalogue pour ${d.label}`,
+        className: "btn-icon w-5 h-5 text-[10px]",
+        onClick: () => {
+          const nextOverrides = { ...calcForm.wasteOverrides || {} };
+          delete nextOverrides[d.matId];
+          handleParamChange("wasteOverrides", nextOverrides);
+        }
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-rotate-left" })
+    )) : /* @__PURE__ */ React.createElement("span", { className: "text-neutral-300" }, "\u2014")), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, formatMoney(d.unitCost, currency)), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-bold text-neutral-900" }, formatMoney(d.totalCost, currency)))))), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 px-1" }, "Le taux de perte est repris du catalogue par d\xE9faut. Le modifier ici l'ajuste uniquement pour cet ouvrage sur ce devis \u2014 le taux catalogue (utilis\xE9 par tous les autres devis) n'est pas affect\xE9.")), activeTab === "pricing" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taux de Marge R\xE9elle (%)"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",

@@ -151,14 +151,49 @@ export async function openDecompositionTab(page) {
     await new Promise((r) => setTimeout(r, 150));
 }
 
+// Lit les cellules du tableau de décomposition ligne par ligne (plutôt que le
+// texte brut de la page), pour rester robuste si une cellule contient un
+// <input> — innerText casse le flux de texte d'une ligne autour d'un champ
+// de formulaire, ce qu'un parsing par tabulations ne survit pas.
 export async function readFirstOuvrageBreakdown(page) {
     return page.evaluate(() => {
-        const bodyText = document.body.innerText;
-        const marker = 'DÉBOURSÉ SEC CONSOMMÉ';
-        const idx = bodyText.indexOf(marker);
-        if (idx === -1) return { found: false, raw: null };
-        const chunk = bodyText.slice(idx, idx + 800);
-        const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
-        return { found: true, raw: lines };
+        const headers = [...document.querySelectorAll('th')]
+            .find((th) => th.textContent.trim() === 'Poste');
+        const table = headers?.closest('table');
+        if (!table) return { found: false, raw: null, rows: [] };
+
+        const cellText = (td) => {
+            const input = td.querySelector('input');
+            if (input) return input.value;
+            return td.textContent.trim();
+        };
+
+        const rows = [...table.querySelectorAll('tbody tr')].map((tr) =>
+            [...tr.querySelectorAll('td')].map(cellText)
+        );
+
+        const debourseLabel = [...document.querySelectorAll('span')]
+            .find((s) => s.textContent.includes('Déboursé Sec Consommé'));
+        const debourseTotal = debourseLabel?.parentElement?.querySelector('span:last-child')?.textContent.trim();
+
+        return { found: rows.length > 0, raw: rows, debourseTotal };
     });
+}
+
+// Modifie le taux de perte affiché pour une ligne matière donnée (colonne
+// "Perte %" de l'onglet "2. Décomposition Déboursé"), en ciblant l'input via
+// son aria-label (voir index_jsx.js, aria-label={`Taux de perte pour ${d.label}`}).
+export async function setWasteOverride(page, labelSubstring, newPct) {
+    const set = await page.evaluate((labelSubstring, newPct) => {
+        const input = [...document.querySelectorAll('input[aria-label^="Taux de perte pour"]')]
+            .find((el) => el.getAttribute('aria-label').includes(labelSubstring));
+        if (!input) return false;
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeSetter.call(input, String(newPct));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }, labelSubstring, newPct);
+    if (!set) throw new Error(`Champ "Taux de perte" introuvable pour "${labelSubstring}".`);
+    await new Promise((r) => setTimeout(r, 200));
 }

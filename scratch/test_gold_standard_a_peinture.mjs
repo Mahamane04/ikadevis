@@ -21,8 +21,15 @@ import {
     setFirstOuvrageSurface, openDecompositionTab, readFirstOuvrageBreakdown
 } from './lib/harness.mjs';
 
-const EXPECTED = { consumptionL: 97.2, potsOf15L: 7, debourseMaterielFcfa: 315000 };
+const EXPECTED = { consumptionL: 97.2, wastePct: 8, potsOf15L: 7, debourseMaterielFcfa: 315000 };
 const TOLERANCE = 0; // étalon "tolérance zéro" — volontairement strict
+
+const parseNum = (s) => {
+    if (s === undefined || s === null) return null;
+    const cleaned = String(s).replace(/[^\d.,-]/g, '').replace(/\s/g, '');
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : null;
+};
 
 export async function run() {
     const results = [];
@@ -39,18 +46,24 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const peintureLine = breakdown.raw.find((l) => /Pot Peinture|Peinture Satinée/i.test(l));
-            const litresMatch = peintureLine?.match(/([\d.]+)\s*L/);
-            const litres = litresMatch ? parseFloat(litresMatch[1]) : null;
+            // Colonnes attendues : [Poste, Quantité Nette, Perte %, Coût Unitaire, Coût Total]
+            const peintureRow = breakdown.raw.find((row) => /Pot Peinture|Peinture Satinée/i.test(row[0] || ''));
 
+            const litres = parseNum(peintureRow?.[1]);
             ok(
                 `Consommation peinture = ${EXPECTED.consumptionL} L (tolérance ${TOLERANCE})`,
                 litres !== null && Math.abs(litres - EXPECTED.consumptionL) <= TOLERANCE,
-                `mesuré=${litres} L — ligne source: "${peintureLine}"`
+                `mesuré=${litres} L — ligne source: ${JSON.stringify(peintureRow)}`
             );
 
-            const costMatch = peintureLine?.match(/([\d\s]+)\s*FCFA\s*$/);
-            const materielFcfa = costMatch ? parseFloat(costMatch[1].replace(/\s/g, '')) : null;
+            const wastePct = parseNum(peintureRow?.[2]);
+            ok(
+                `Taux de perte par défaut = ${EXPECTED.wastePct}% (éditable par ouvrage, non surchargé ici)`,
+                wastePct !== null && Math.abs(wastePct - EXPECTED.wastePct) <= TOLERANCE,
+                `mesuré=${wastePct}%`
+            );
+
+            const materielFcfa = parseNum(peintureRow?.[4]);
             ok(
                 `Déboursé matériel peinture = ${EXPECTED.debourseMaterielFcfa} FCFA (tolérance ${TOLERANCE})`,
                 materielFcfa !== null && Math.abs(materielFcfa - EXPECTED.debourseMaterielFcfa) <= TOLERANCE,
