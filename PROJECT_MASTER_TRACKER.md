@@ -178,16 +178,33 @@ affirmations du § 4 tant qu'un nouvel audit ne les confirme pas.
 
 **Découverte pendant la remédiation — Étalon A en échec réel, pas un bug de test :**
 En rejouant le scénario documenté ci-dessus (§ 5, Test A : 450 m²), l'app
-calcule **97,20 L** de peinture et facture **291 600 FCFA** de matériel — pas
-les **90 L / 315 000 FCFA** documentés. L'écart de consommation (97,2 = 90 × 1,08)
-est cohérent avec un facteur de pertes de 8% déjà utilisé ailleurs (Tests B, F),
-mais surtout : **l'app facture au litre net, jamais arrondi à l'unité de
-conditionnement réellement achetée (pot de 15 L)**, contrairement à ce que
-décrit le § 5. Voir `scratch/test_gold_standard_a_peinture.mjs` pour le détail.
-→ **Décision produit requise** : faut-il arrondir l'achat de peinture (et
-probablement des autres matériaux vendus en conditionnement fixe) au pot/carton/
-plaque supérieur avant de facturer le déboursé ? Si oui, c'est un changement de
-comportement de calcul, pas une correction de test.
+calculait **97,20 L** de peinture et facturait **291 600 FCFA** de matériel —
+pas les **90 L / 315 000 FCFA** documentés. Deux écarts distincts identifiés :
+
+1. **Arrondi au conditionnement acheté — TRANCHÉ et CORRIGÉ le 2026-08-16.**
+   Décision produit : oui, facturer le pot entier acheté, pas le litre net
+   consommé. Le moteur de calcul possédait déjà toute la logique nécessaire
+   (`purchaseMode`, `packsNeeded`/`purchasedCost` par matière, avec un mode
+   `'real'` pour les matériaux sans conditionnement fixe comme le vitrage au
+   m²) — le bug était que le déboursé affiché au client utilisait le coût net
+   consommé (`consumedCost`) au lieu du coût d'achat arrondi (`purchasedCost`),
+   dans la fonction de calcul par ouvrage (`index_jsx.js`, autour de la L1285).
+   Corrigé : `consumedByCategory` et `details[].totalCost` utilisent désormais
+   `purchasedCost`. Vérifié : le déboursé matériel de l'Étalon A est
+   maintenant exactement **315 000 FCFA** (test `scratch/test_gold_standard_a_peinture.mjs`
+   passe sur cette assertion).
+   > ⚠️ Ce changement modifie le déboursé — et donc le prix TTC — affiché pour
+   > **tous** les ouvrages utilisant un matériau en `purchaseMode: 'pack'`
+   > (peinture, carrelage, ciment, aciers, plaques…), pas seulement la
+   > peinture. Impact généralement à la hausse (achat réel ≥ consommation
+   > nette). À vérifier sur les devis en cours si applicable.
+
+2. **Facteur de pertes de 8% (90 L → 97,2 L) — TOUJOURS EN ATTENTE, non tranché.**
+   Cohérent avec un mécanisme déjà utilisé ailleurs (Tests B, F) mais pas
+   confirmé comme intentionnel pour la peinture spécifiquement. Le test
+   `scratch/test_gold_standard_a_peinture.mjs` échoue donc encore sur
+   l'assertion de consommation en litres (mesuré 97,2 L vs 90 L documentés),
+   volontairement, en attendant cette décision.
 
 **Pas encore fait (hors périmètre de cette passe) :**
 - Étalons B à G (Carrelage, Métallerie, Menuiserie, Enseigne LED, Façade ACM,

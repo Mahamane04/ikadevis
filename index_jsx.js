@@ -1289,18 +1289,26 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             if (mat) {
                 const billedQty = line.baseQty * (1 + ((parseFloat(mat.waste) || 0) / 100));
                 const consumedCost = billedQty * mat.priceCalc;
-                
-                // Pack rounding calculation
+
+                // P0.4 — Pack rounding : on ne peut pas acheter 97.2 L de peinture,
+                // on achète des pots entiers. Le déboursé facturé au client doit
+                // refléter purchasedCost (conditionnement réellement acheté), pas
+                // consumedCost (quantité nette théorique). mat.purchaseMode 'real'
+                // = pas de conditionnement fixe (ex: m² de vitrage) → les deux
+                // coïncident naturellement.
                 const packUnitSize = mat.unitSize || 1;
-                const packsNeeded = Math.ceil(billedQty / packUnitSize);
+                const isRealMode = mat.purchaseMode === 'real';
+                const packsNeeded = isRealMode
+                    ? (packUnitSize > 0 ? billedQty / packUnitSize : billedQty)
+                    : Math.ceil(billedQty / packUnitSize);
                 const purchasedCost = packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc));
                 totalPurchasedMaterialCost += purchasedCost;
 
-                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + consumedCost;
+                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + purchasedCost;
                 details.push({
                     id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
-                    baseQty: line.baseQty, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: consumedCost,
-                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost
+                    baseQty: line.baseQty, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: purchasedCost,
+                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost, consumedCost
                 });
             }
         } else if (line.type === 'labor') {
@@ -7376,16 +7384,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     const billedQty = line.baseQty * (1 + ((parseFloat(mat.waste)||0) / 100));
                     const cost = billedQty * mat.priceCalc;
 
-                    consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
+                    // P0.4 — Le déboursé facturé au client doit refléter ce qui est
+                    // RÉELLEMENT acheté (conditionnement entier : pot, carton, barre…),
+                    // pas la quantité nette consommée. materialConsolidation[mat.id]
+                    // porte déjà purchaseQty/totalPurchaseCost, arrondis selon
+                    // mat.purchaseMode ('pack' = conditionnement entier, 'real' = qté
+                    // réelle, 'step' = pas commercial). On répartit ce coût d'achat
+                    // au prorata de la part de cette ligne dans la consommation totale
+                    // de la matière (utile si une même matière sert sur plusieurs lignes).
+                    const cons = materialConsolidation[mat.id] || { purchaseQty: 0, totalBilledQty: 0, totalPurchaseCost: 0 };
+                    const lineShare = cons.totalBilledQty > 0 ? (billedQty / cons.totalBilledQty) : 0;
+                    const achatCost = (cons.totalPurchaseCost || 0) * lineShare;
+
+                    consumedByCategory[cat] = (consumedByCategory[cat] || 0) + achatCost;
 
                     if (!materialConsumedByCat[mat.id]) materialConsumedByCat[mat.id] = {};
                     materialConsumedByCat[mat.id][cat] = (materialConsumedByCat[mat.id][cat] || 0) + cost;
 
-                    const cons = materialConsolidation[mat.id] || { purchaseQty: 0 };
-                    
                     details.push({
                         id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
-                        baseQty: line.baseQty, waste: mat.waste, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: cost,
+                        baseQty: line.baseQty, waste: mat.waste, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: achatCost,
                         purchaseQty: cons.purchaseQty, purchaseUnit: mat.unitBuy, evalError: line.evalError
                     });
                 }

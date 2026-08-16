@@ -1197,10 +1197,11 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         const billedQty = line.baseQty * (1 + (parseFloat(mat.waste) || 0) / 100);
         const consumedCost = billedQty * mat.priceCalc;
         const packUnitSize = mat.unitSize || 1;
-        const packsNeeded = Math.ceil(billedQty / packUnitSize);
+        const isRealMode = mat.purchaseMode === "real";
+        const packsNeeded = isRealMode ? packUnitSize > 0 ? billedQty / packUnitSize : billedQty : Math.ceil(billedQty / packUnitSize);
         const purchasedCost = packsNeeded * (mat.priceBuy || packUnitSize * mat.priceCalc);
         totalPurchasedMaterialCost += purchasedCost;
-        consumedByCategory[cat] = (consumedByCategory[cat] || 0) + consumedCost;
+        consumedByCategory[cat] = (consumedByCategory[cat] || 0) + purchasedCost;
         details.push({
           id: line.id,
           type: "material",
@@ -1211,10 +1212,11 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
           billedQty,
           unit: mat.unitCalc,
           unitCost: mat.priceCalc,
-          totalCost: consumedCost,
+          totalCost: purchasedCost,
           packsNeeded,
           packUnitBuy: mat.unitBuy,
-          purchasedCost
+          purchasedCost,
+          consumedCost
         });
       }
     } else if (line.type === "labor") {
@@ -5814,10 +5816,12 @@ Veuillez d'abord la retirer de ces recettes pour pouvoir la supprimer.`,
         if (mat) {
           const billedQty = line.baseQty * (1 + (parseFloat(mat.waste) || 0) / 100);
           const cost = billedQty * mat.priceCalc;
-          consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
+          const cons = materialConsolidation[mat.id] || { purchaseQty: 0, totalBilledQty: 0, totalPurchaseCost: 0 };
+          const lineShare = cons.totalBilledQty > 0 ? billedQty / cons.totalBilledQty : 0;
+          const achatCost = (cons.totalPurchaseCost || 0) * lineShare;
+          consumedByCategory[cat] = (consumedByCategory[cat] || 0) + achatCost;
           if (!materialConsumedByCat[mat.id]) materialConsumedByCat[mat.id] = {};
           materialConsumedByCat[mat.id][cat] = (materialConsumedByCat[mat.id][cat] || 0) + cost;
-          const cons = materialConsolidation[mat.id] || { purchaseQty: 0 };
           details.push({
             id: line.id,
             type: "material",
@@ -5829,7 +5833,7 @@ Veuillez d'abord la retirer de ces recettes pour pouvoir la supprimer.`,
             billedQty,
             unit: mat.unitCalc,
             unitCost: mat.priceCalc,
-            totalCost: cost,
+            totalCost: achatCost,
             purchaseQty: cons.purchaseQty,
             purchaseUnit: mat.unitBuy,
             evalError: line.evalError

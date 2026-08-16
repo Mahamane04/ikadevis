@@ -6,17 +6,20 @@
 // Satinée BTP" → 450 m² en Surface Directe) et lit le déboursé effectivement
 // calculé par l'app, SANS forcer une tolérance large pour le faire passer.
 //
-// Résultat constaté au 2026-08-16 : l'app calcule 97.20 L (= 90 L × 1.08, un
-// facteur de pertes de 8% cohérent avec les Tests B/F) et facture au litre net
-// (3 000 FCFA/L) plutôt qu'en pots entiers de 15 L achetés. Le déboursé "peinture
-// seule" obtenu (97.20 × 3000 = 291 600 FCFA) ne correspond ni aux 315 000 FCFA
-// documentés (= arrondi à 7 pots entiers), ni le calcul ne semble arrondir à
-// l'unité de conditionnement vendue nulle part dans le flux testé.
-// → Ce test échoue intentionnellement tant que ce point n'est pas tranché par
-//   le porteur produit : faut-il (a) supprimer le facteur de pertes de 8% pour
-//   retrouver 90 L, et/ou (b) arrondir l'achat au pot de 15 L supérieur avant
-//   de facturer ? Les deux changent le résultat et ne sont pas de simples bugs
-//   de test — ce sont des décisions métier.
+// Constat initial (2026-08-16, avant correctif) : l'app calculait 97.20 L
+// (= 90 L × 1.08, facteur de pertes de 8% cohérent avec les Tests B/F) et
+// facturait au litre net (291 600 FCFA) au lieu d'arrondir à l'achat réel en
+// pots entiers de 15 L (315 000 FCFA). Deux écarts distincts, deux décisions
+// métier séparées :
+//   (a) le facteur de pertes de 8% (90 L → 97.2 L) — TOUJOURS EN ATTENTE,
+//       pas tranché, ce test échoue donc encore sur la consommation en litres ;
+//   (b) l'arrondi à l'achat en pots entiers — TRANCHÉ le 2026-08-16 (décision
+//       produit : oui, arrondir) et CORRIGÉ dans index_jsx.js (le moteur
+//       calculait déjà purchasedCost/packsNeeded par matière mais ne s'en
+//       servait pas pour le déboursé affiché — voir commit "P0.4"). Le
+//       déboursé matériel obtenu est désormais exactement 315 000 FCFA.
+// Ce test reste donc partiellement en échec, de façon attendue et documentée,
+// tant que (a) n'est pas tranché à son tour.
 import { pathToFileURL } from 'node:url';
 import {
     launchApp, enterGuestMode, addCatalogItemBySearch,
