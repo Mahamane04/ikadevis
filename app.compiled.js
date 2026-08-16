@@ -3399,7 +3399,25 @@ function WorkItemInspector({
         onChange: (e) => handleParamChange("surfaceDirect", parseFloat(e.target.value) || 0),
         className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
       }
-    )))), activeTab === "costs" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center bg-neutral-100 p-3 rounded-xl" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-neutral-700 uppercase" }, "D\xE9bours\xE9 Sec Consomm\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("table", { className: "w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { className: "bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase" }, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-left" }, "Poste"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Quantit\xE9 Nette"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Perte %"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Unitaire"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Total"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, (quoteData.details || []).map((d, i) => /* @__PURE__ */ React.createElement("tr", { key: i, className: "hover:bg-neutral-50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, d.label), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, d.billedQty?.toFixed(2), " ", d.unit), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right" }, d.type === "material" ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-end gap-1" }, /* @__PURE__ */ React.createElement(
+    )), calcForm.takeoffMode === "linear" && /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Longueur (ml)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        step: "any",
+        value: calcForm.lengthDirect || 0,
+        onChange: (e) => handleParamChange("lengthDirect", parseFloat(e.target.value) || 0),
+        className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+      }
+    )), calcForm.takeoffMode === "unit" && /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-lg p-2" }, "Mode Pi\xE8ce / Forfait : le calcul s'applique directement \xE0 la quantit\xE9 d'ouvrages ci-dessus."), solution?.customVars?.map((cv) => /* @__PURE__ */ React.createElement("div", { key: cv.name }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, cv.label), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        step: "any",
+        value: calcForm.customVarValues && calcForm.customVarValues[cv.name] !== void 0 ? calcForm.customVarValues[cv.name] : cv.defaultValue,
+        onChange: (e) => handleCustomVarChange(cv.name, e.target.value),
+        className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+      }
+    ))))), activeTab === "costs" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center bg-neutral-100 p-3 rounded-xl" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-neutral-700 uppercase" }, "D\xE9bours\xE9 Sec Consomm\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("table", { className: "w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { className: "bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase" }, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-left" }, "Poste"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Quantit\xE9 Nette"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Perte %"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Unitaire"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right" }, "Co\xFBt Total"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, (quoteData.details || []).map((d, i) => /* @__PURE__ */ React.createElement("tr", { key: i, className: "hover:bg-neutral-50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, d.label), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right font-medium" }, d.billedQty?.toFixed(2), " ", d.unit), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right" }, d.type === "material" ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-end gap-1" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
@@ -4846,7 +4864,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 26, name: "Tube PVC \xE9vacuation sanitaire \xD840/\xD8100", category: "Plomberie", unitBuy: "Barre (4m)", unitSize: 4, unitCalc: "m", priceBuy: 6500, priceCalc: 1625, waste: 5, yieldRate: 0, purchaseMode: "pack" },
     { id: 27, name: "C\xE2ble cuivre d\u2019alimentation R2V 3G2.5mm\xB2", category: "\xC9lectricit\xE9", unitBuy: "Couronne (100m)", unitSize: 100, unitCalc: "m", priceBuy: 55e3, priceCalc: 550, waste: 5, yieldRate: 0, purchaseMode: "pack" },
     { id: 28, name: "Disjoncteur divisionnaire 16A/20A Phase+Neutre", category: "\xC9lectricit\xE9", unitBuy: "Unit\xE9", unitSize: 1, unitCalc: "u", priceBuy: 4500, priceCalc: 4500, waste: 0, yieldRate: 0, purchaseMode: "real" },
-    { id: 29, name: "Mortier d\u2019enduit ciment hydrofuge pr\xEAt \xE0 g\xE2cher", category: "BTP", unitBuy: "Sac (25kg)", unitSize: 25, unitCalc: "kg", priceBuy: 3800, priceCalc: 152, waste: 5, yieldRate: 0, purchaseMode: "pack" }
+    { id: 29, name: "Mortier d\u2019enduit ciment hydrofuge pr\xEAt \xE0 g\xE2cher", category: "BTP", unitBuy: "Sac (25kg)", unitSize: 25, unitCalc: "kg", priceBuy: 3800, priceCalc: 152, waste: 5, yieldRate: 0, purchaseMode: "pack" },
+    { id: 30, name: "Panneau M\xE9lamin\xE9 18mm Hydrofuge (Plaque 6m\xB2)", category: "Menuiserie", unitBuy: "Plaque (6m\xB2)", unitSize: 6, unitCalc: "m\xB2", priceBuy: 45e3, priceCalc: 7500, waste: 8, yieldRate: 0, purchaseMode: "pack" },
+    // waste: 0 volontairement — la formule du Garde-Corps (solution 18) calcule
+    // déjà la liste de débit exacte (poteaux + lisses), contrairement à id 1
+    // (même tube, waste 5%) dont les formules des AUTRES ouvrages sont des
+    // estimations plus grossières où un pourcentage de perte a du sens. Un
+    // pourcentage de perte générique par-dessus une liste de débit précise
+    // compterait la perte deux fois (une fois via l'arrondi au conditionnement
+    // pack, une fois via le waste%).
+    { id: 31, name: "Tube carr\xE9 acier 25x25 (D\xE9bit pr\xE9cis, Barre 6m)", category: "Fer", unitBuy: "Barre (6m)", unitSize: 6, unitCalc: "m", priceBuy: 9e3, priceCalc: 1500, waste: 0, yieldRate: 0, purchaseMode: "pack" }
   ];
   const initialLabor = [
     { id: 1, name: "Soudure et assemblage du cadre m\xE9tallique", calcMode: "unite", unit: "u", rate: 1e4, yieldRate: 0 },
@@ -4867,7 +4894,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 16, name: "Pose faux-plafond suspendu BA13 avec suspentes", calcMode: "surface", unit: "m\xB2", rate: 4200, yieldRate: 18 },
     { id: 17, name: "Application enduit ciment hydrofuge 2 passes", calcMode: "surface", unit: "m\xB2", rate: 2800, yieldRate: 25 },
     { id: 18, name: "Installation r\xE9seau plomberie et raccordements", calcMode: "forfait", unit: "forfait", rate: 45e3, yieldRate: 0 },
-    { id: 19, name: "C\xE2blage \xE9lectrique sous gaine et appareillage", calcMode: "unite", unit: "u", rate: 8500, yieldRate: 0 }
+    { id: 19, name: "C\xE2blage \xE9lectrique sous gaine et appareillage", calcMode: "unite", unit: "u", rate: 8500, yieldRate: 0 },
+    { id: 20, name: "Fabrication atelier et pose de caisson menuiserie bois", calcMode: "surface", unit: "m\xB2", rate: 6e3, yieldRate: 0 }
   ];
   const initialSolutions = [
     {
@@ -4987,6 +5015,42 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
       icon: "fa-faucet-drip",
       allowedModes: ["unit", "forfait"],
       customVars: []
+    },
+    // P0.7 (2026-08-16) — Garde-Corps Métallerie : "Plan de Débit 1D" décrit au
+    // § 6 du tracker comme un assistant métier fonctionnel, mais qui n'existait
+    // que comme nom de démo à lignes figées (voir PROJECT_MASTER_TRACKER.md § 12).
+    // Poteaux espacés de 1m (hauteur 1.2m), 3 lisses par intervalle, débités
+    // dans des barres commerciales de 6m — mêmes hypothèses que le moteur
+    // optimize1DLinearCuts() déjà présent dans le code mais jamais relié à un
+    // ouvrage catalogue. Vérifié : 30 ml → 31 poteaux, 90 segments de lisse,
+    // 22 barres de 6m (chutes 3.64% < 5%), exactement conforme à l'Étalon C.
+    {
+      id: 17,
+      name: "Garde-Corps M\xE9tallerie (Plan de D\xE9bit 1D)",
+      icon: "fa-ruler-horizontal",
+      allowedModes: ["linear"],
+      customVars: [
+        { name: "ESPACEMENT", label: "Espacement des poteaux (m)", defaultValue: 1, unit: "m" },
+        { name: "HAUTEUR_POTEAU", label: "Hauteur des poteaux (m)", defaultValue: 1.2, unit: "m" },
+        { name: "NB_LISSES", label: "Nombre de lisses horizontales", defaultValue: 3, unit: "lisses" }
+      ]
+    },
+    // P0.7 (2026-08-16) — Dressing Menuiserie : "Calepinage 2D" décrit au § 6
+    // comme un assistant métier fonctionnel, même constat que ci-dessus. Caisson
+    // = 2 côtés (hauteur × profondeur) + 1 fond (largeur × hauteur) + N tablettes
+    // (largeur × profondeur, top/bottom inclus). Profondeur 0.6m et 10 tablettes
+    // par défaut — hypothèses standard menuiserie, ajustables par ouvrage.
+    // Vérifié : 3.0×2.5m → 28.5 m² de panneaux, +8% chute → 6 plaques de 6m²,
+    // exactement conforme à l'Étalon D.
+    {
+      id: 18,
+      name: "Dressing Menuiserie sur Mesure (Caissons)",
+      icon: "fa-boxes-stacked",
+      allowedModes: ["rectangle"],
+      customVars: [
+        { name: "PROFONDEUR_CAISSON", label: "Profondeur du caisson (m)", defaultValue: 0.6, unit: "m" },
+        { name: "NB_TABLETTES", label: "Nombre de tablettes (dont dessus/dessous)", defaultValue: 10, unit: "tablettes" }
+      ]
     }
   ];
   const initialRecipes = [
@@ -5071,7 +5135,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Solution 16: Plomberie Sanitaire
     { id: 58, solutionId: 16, type: "material", refId: 25, formula: "QTY * 25", label: "Tube multicouche \xD816/20 gain\xE9", costCategory: "material" },
     { id: 59, solutionId: 16, type: "material", refId: 26, formula: "QTY * 8", label: "Tubes PVC \xE9vacuation \xD840/100", costCategory: "material" },
-    { id: 60, solutionId: 16, type: "labor", refId: 18, formula: "QTY", label: "Raccordements plomberie et pose sanitaires", costCategory: "labor" }
+    { id: 60, solutionId: 16, type: "labor", refId: 18, formula: "QTY", label: "Raccordements plomberie et pose sanitaires", costCategory: "labor" },
+    // Solution 17: Garde-Corps Métallerie (Plan de Débit 1D) — P0.7 2026-08-16
+    // Poteaux tous les ESPACEMENT m (hauteur HAUTEUR_POTEAU) + NB_LISSES lisses
+    // horizontales par intervalle, débités dans les barres 6m du Tube carré
+    // 25x25 (refId 1, déjà purchaseMode 'pack') : l'arrondi au conditionnement
+    // acheté (P0.4) donne directement le nombre de barres, sans re-coder de
+    // bin-packing dédié — le calcul coïncide avec optimize1DLinearCuts() ici.
+    { id: 61, solutionId: 17, type: "material", refId: 31, formula: "(floor(LONGUEUR / ESPACEMENT) + 1) * HAUTEUR_POTEAU + floor(LONGUEUR / ESPACEMENT) * NB_LISSES * ESPACEMENT", label: "D\xE9bit barres Tube carr\xE9 25x25 (poteaux + lisses)", costCategory: "material" },
+    { id: 62, solutionId: 17, type: "labor", refId: 3, formula: "LONGUEUR", label: "D\xE9coupe et usinage des profil\xE9s", costCategory: "labor" },
+    { id: 63, solutionId: 17, type: "labor", refId: 4, formula: "1", label: "Soudure, assemblage et pose sur site", costCategory: "installation" },
+    // Solution 18: Dressing Menuiserie sur Mesure (Caissons) — P0.7 2026-08-16
+    // Caisson = 2 côtés (HAUTEUR × PROFONDEUR) + 1 fond (LARGEUR × HAUTEUR) +
+    // NB_TABLETTES tablettes (LARGEUR × PROFONDEUR, dessus/dessous inclus),
+    // débité dans les plaques mélaminé 6m² (refId 30, purchaseMode 'pack').
+    { id: 64, solutionId: 18, type: "material", refId: 30, formula: "2 * (HAUTEUR * PROFONDEUR_CAISSON) + (LARGEUR * HAUTEUR) + NB_TABLETTES * (LARGEUR * PROFONDEUR_CAISSON)", label: "Panneaux m\xE9lamin\xE9 (c\xF4t\xE9s + fond + tablettes)", costCategory: "material" },
+    { id: 65, solutionId: 18, type: "labor", refId: 20, formula: "2 * (HAUTEUR * PROFONDEUR_CAISSON) + (LARGEUR * HAUTEUR) + NB_TABLETTES * (LARGEUR * PROFONDEUR_CAISSON)", label: "Fabrication atelier et pose du caisson", costCategory: "labor" }
   ];
   const loadLocalData = (key, defaultValue) => {
     const val = LS.get(key, sbUser?.id);

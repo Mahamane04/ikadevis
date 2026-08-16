@@ -124,10 +124,16 @@ export async function setFirstOuvrageSurface(page, surfaceM2) {
     });
     await new Promise((r) => setTimeout(r, 150));
 
+    // Ciblage par label (pas par position) : un ouvrage avec des customVars
+    // (ex: COUCHES pour la peinture) ajoute des <input> après le champ de
+    // surface dans le DOM — "le dernier input" n'est plus fiable dès qu'un
+    // ouvrage a au moins une variable personnalisée. Piège rencontré le
+    // 2026-08-16 en ajoutant le rendu générique des customVars (P0.7) : ce
+    // même harnais, non mis à jour, avait alors silencieusement rempli le
+    // champ COUCHES au lieu du champ Surface Directe pour l'Étalon A.
     const set = await page.evaluate((val) => {
-        const inputs = [...document.querySelectorAll('input[type="number"]')];
-        // Le champ de surface est le dernier input number visible dans le panneau "Métré & Dimensions".
-        const target = inputs[inputs.length - 1];
+        const label = [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Surface Directe'));
+        const target = label?.parentElement?.querySelector('input[type="number"]');
         if (!target) return false;
         const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
         nativeSetter.call(target, String(val));
@@ -137,6 +143,72 @@ export async function setFirstOuvrageSurface(page, surfaceM2) {
     }, surfaceM2);
     if (!set) throw new Error('Champ de surface introuvable dans l\'inspecteur avancé.');
     await new Promise((r) => setTimeout(r, 250));
+}
+
+// Ouvre l'inspecteur avancé du 1er ouvrage et fixe la longueur (mode 'linear',
+// champ "Longueur (ml)" — ajouté le 2026-08-16, absent auparavant de cet
+// inspecteur bien que le mode existe dans le moteur de calcul, voir P0.7).
+export async function setFirstOuvrageLinearLength(page, lengthMl) {
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+            .find((b) => (b.getAttribute('aria-label') || '').startsWith('Détails techniques de'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('⚙️ Avancé'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 150));
+
+    const set = await page.evaluate((val) => {
+        const label = [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Longueur (ml)'));
+        const input = label?.parentElement?.querySelector('input[type="number"]');
+        if (!input) return false;
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeSetter.call(input, String(val));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }, lengthMl);
+    if (!set) throw new Error('Champ "Longueur (ml)" introuvable dans l\'inspecteur avancé.');
+    await new Promise((r) => setTimeout(r, 250));
+}
+
+// Ouvre l'inspecteur avancé du 1er ouvrage et fixe largeur/hauteur (mode
+// 'rectangle') en deux passes séparées — voir la note dans
+// test_gold_standard_e_enseigne.mjs sur le risque de fermeture (closure)
+// obsolète si les deux champs sont modifiés dans le même tick.
+export async function setFirstOuvrageRectangle(page, widthM, heightM) {
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+            .find((b) => (b.getAttribute('aria-label') || '').startsWith('Détails techniques de'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('⚙️ Avancé'));
+        if (btn) btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 150));
+
+    const setByLabel = async (labelText, val) => {
+        const set = await page.evaluate((labelText, val) => {
+            const label = [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === labelText);
+            const input = label?.parentElement?.querySelector('input[type="number"]');
+            if (!input) return false;
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            nativeSetter.call(input, String(val));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        }, labelText, val);
+        await new Promise((r) => setTimeout(r, 200));
+        return set;
+    };
+    const setW = await setByLabel('Largeur (m)', widthM);
+    const setH = await setByLabel('Hauteur (m)', heightM);
+    if (!setW || !setH) throw new Error('Champs largeur/hauteur introuvables dans l\'inspecteur avancé.');
 }
 
 export async function openDecompositionTab(page) {

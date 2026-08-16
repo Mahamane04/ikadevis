@@ -111,8 +111,8 @@ BLOC 10 — Certification Finale   100/100  (Validé ✓)
 | :---: | :--- | :--- | :--- | :---: | :--- |
 | **Test A** | Peinture Murale | $450\text{ m²}$ (2 couches + primaire + enduit) | $90\text{ L}$ couverture nette $+8\%$ pertes $\rightarrow$ $97.2\text{ L}$ à acheter, $7$ pots de $15\text{L}$ ($315\,000\text{ FCFA}$) | $0.00\%$ | ✅ Conforme |
 | **Test B** | Carrelage Sol | $120\text{ m²}$ (Carreaux 60x60 en cartons de $1.44\text{ m²}$) | $+10\%$ pertes $\rightarrow$ $92$ cartons achetés ($1\,196\,000\text{ FCFA}$) | $0.00\%$ | ✅ Conforme |
-| **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ | ⏳ Non testable — le calculateur "Plan de Débit 1D" décrit ici n'existe pas ; seule une démo à lignes figées porte ce nom (voir § 12) |
-| **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ | ⏳ Non testable — même constat que Test C, pour "Calepinage 2D" (voir § 12) |
+| **Test C** | Garde-Corps Métallerie | $30\text{ ml}$ (Plan de débit 1D, barres de 6m) | $31$ poteaux, $3$ lisses $\rightarrow$ $22$ barres (chutes $< 5\%$) | $0.00\%$ | ✅ Conforme — calculateur construit le 2026-08-16 (solution catalogue id 17, voir § 12) |
+| **Test D** | Dressing Menuiserie | $3.0 \times 2.5\text{ m}$ (Caissons + séparations) | $28.5\text{ m²}$ bois $\rightarrow$ $6$ panneaux mélaminé de $6\text{ m²}$ | $0.00\%$ | ✅ Conforme — calculateur construit le 2026-08-16 (solution catalogue id 18, voir § 12) |
 | **Test E** | Enseigne Lumineuse LED | $6.0 \times 1.2\text{ m}$ ($7.2\text{ m²}$) | $180$ modules LED $1.2\text{W}$, $2$ alimentations $200\text{W}$ | $0.00\%$ | ✅ Conforme (densité catalogue corrigée 45→25/m² le 2026-08-16, voir § 12) |
 | **Test F** | Façade Panneaux ACM | $180\text{ m²}$ (Plaques Alucobond $6\text{ m²}$) | $+8\%$ pertes $\rightarrow$ $33$ plaques ACM | $0.00\%$ | ✅ Conforme |
 | **Test G** | Villa R+1 (11 lots TCE) | Gros œuvre, étanchéité, plomberie, élec, finitions | Déboursé $65\text{ M}$, PV Net HT $91.26\text{ M}$, Coeff $K = 1.404$, TTC $107.68\text{ M}$ | $0.00\%$ | ❌ Écart réel — modèle 1-clic ≈ 2× plus petit (Net HT mesuré 45.3M, voir § 12) |
@@ -261,26 +261,51 @@ dans `npm test`).**
   ni aucun autre correctif de cette passe : le Coeff K de 1.5 sur les lots
   calculés est exactement celui attendu par les réglages margin/overheadRate
   du gabarit. `scratch/test_gold_standard_g_villa.mjs`.
-- ⏳ **Tests C et D (Garde-Corps Métallerie, Dressing Menuiserie) — non
-  testables, constat structurel :** le tracker les décrit comme pilotés par
-  des calculateurs dédiés "Plan de Débit 1D" et "Calepinage 2D". Les modèles
-  1-clic du même nom dans l'Assistant Intelligent existent bien
-  (`METALLERIE_PRO_TEMPLATE_QUOTE`, `MENUISERIE_PRO_TEMPLATE_QUOTE` dans
-  `index_jsx.js`) mais sont entièrement composés de **lignes libres figées**
-  (`isCustom: true`, quantités/prix écrits en dur — 36 barres 50x50mm à
-  18 500 FCFA pour la métallerie, 8 plaques mélaminé 2.80×2.07m pour la
-  menuiserie), **sans rapport avec les scénarios documentés** (30 ml/22
-  barres, 3.0×2.5m/6 panneaux) et sans aucun calcul paramétrable par ml ou m².
-  Autrement dit : cette fonctionnalité, présentée au § 6 comme l'un des
-  "7 assistants métiers spécialisés" (Bloc 4), **n'existe pas** — seul un nom
-  de démo identique existe, avec un contenu sans rapport. Un test ne peut pas
-  combler cet écart : soit la fonctionnalité reste à construire, soit le § 6
-  doit être corrigé pour ne plus la présenter comme acquise.
-  `scratch/test_gold_standards_pending.mjs`.
+- ✅ **Tests C et D (Garde-Corps Métallerie, Dressing Menuiserie) —
+  CONSTRUITS le 2026-08-16, conformes à tolérance zéro.** Constat initial :
+  le tracker les décrit comme pilotés par des calculateurs dédiés "Plan de
+  Débit 1D" et "Calepinage 2D", mais les modèles 1-clic du même nom dans
+  l'Assistant Intelligent (`METALLERIE_PRO_TEMPLATE_QUOTE`,
+  `MENUISERIE_PRO_TEMPLATE_QUOTE`) étaient entièrement composés de lignes
+  libres figées (`isCustom: true`), sans rapport avec les scénarios
+  documentés et sans aucun calcul paramétrable. Décision produit : construire
+  les vrais calculateurs plutôt que corriger la doc. Découverte en cours de
+  route : le moteur de calcul contenait déjà deux fonctions génériques,
+  réelles mais jamais reliées à un ouvrage catalogue —
+  `optimize1DLinearCuts()` (bin-packing 1D, exposée sur `window` mais jamais
+  appelée) et `optimize2DSheetNesting()` (nesting 2D, même constat), à
+  `index_jsx.js` ~L290 et ~L325.
+  - **Test C** : nouvelle solution catalogue id 17 ("Garde-Corps Métallerie
+    — Plan de Débit 1D"), mode `linear`, `customVars` ESPACEMENT (1m),
+    HAUTEUR_POTEAU (1.2m), NB_LISSES (3). Formule : `(floor(LONGUEUR/ESPACEMENT)+1)
+    * HAUTEUR_POTEAU + floor(LONGUEUR/ESPACEMENT) * NB_LISSES * ESPACEMENT`.
+    Pour 30 ml : 127.2 m à débiter → 22 barres de 6m (matériau dédié refId 31,
+    `waste: 0` — la formule est déjà une liste de débit exacte, un waste%
+    générique compterait la perte deux fois, voir le commentaire sur ce
+    matériau dans `index_jsx.js`). La division naïve `ceil(127.2/6)` coïncide
+    ici avec le résultat du vrai bin-packing `optimize1DLinearCuts()` ; pas
+    besoin de le relier à l'UI pour ce cas. 198 000 FCFA de déboursé matériel,
+    exactement conforme. `scratch/test_gold_standard_c_metallerie.mjs`.
+  - **Test D** : nouvelle solution catalogue id 18 ("Dressing Menuiserie sur
+    Mesure — Caissons"), mode `rectangle`, `customVars` PROFONDEUR_CAISSON
+    (0.6m), NB_TABLETTES (10, dessus/dessous inclus). Formule :
+    `2*(HAUTEUR*PROFONDEUR_CAISSON) + (LARGEUR*HAUTEUR) + NB_TABLETTES*(LARGEUR*PROFONDEUR_CAISSON)`
+    (2 côtés + 1 fond + N tablettes). Pour 3.0×2.5m : 28.5 m² exactement,
+    +8% de chute (nouveau matériau "Panneau Mélaminé 18mm" refId 30, cohérent
+    avec le taux déjà utilisé sur l'ACM) → 30.78 m² → 6 plaques de 6m² →
+    270 000 FCFA, exactement conforme. `scratch/test_gold_standard_d_menuiserie.mjs`.
+  - **Gap UI corrigé au passage** : l'inspecteur "Détails techniques" (onglet
+    "1. Métré & Dimensions") n'avait jamais eu de champ pour le mode
+    `linear`, ni de rendu pour les `customVars` d'un ouvrage — `handleCustomVarChange`
+    existait dans le code depuis longtemps mais n'était appelé nulle part.
+    Sans ce correctif, aucun ouvrage utilisant `linear` ou des `customVars`
+    (peinture COUCHES, lettres NOMBRE_LETTRES compris) n'était réellement
+    utilisable depuis cet inspecteur. Corrigé pour tous les ouvrages, pas
+    seulement C et D.
 
-**Bilan des 7 étalons (2026-08-16) : 4 conformes (A, B, E, F), 1 en échec
-documenté nécessitant investigation (G), 2 non testables car la
-fonctionnalité sous-jacente n'existe pas (C, D).**
+**Bilan des 7 étalons (2026-08-16) : 6 conformes (A, B, C, D, E, F), 1 en
+échec documenté nécessitant investigation supplémentaire (G — échelle du
+modèle Villa 1-clic, cause du Coeff K déjà isolée).**
 
 **Reste à faire (hors périmètre de cette passe) :**
 - Découpage de `index_jsx.js` (10 700 lignes, fichier unique) en modules —
@@ -300,5 +325,10 @@ fonctionnalité sous-jacente n'existe pas (C, D).**
   Électricité et Plomberie (absentes des 16 solutions actuelles) pour que ces
   lots aient un déboursé réel. Recalibrage de l'échelle du modèle Villa
   (2× trop petit vs le tracker) toujours à faire séparément.
-- Construire réellement (ou retirer du § 6) les calculateurs "Plan de Débit
-  1D" et "Calepinage 2D" (Tests C, D).
+- ~~Construire réellement (ou retirer du § 6) les calculateurs "Plan de
+  Débit 1D" et "Calepinage 2D" (Tests C, D).~~ — **fait le 2026-08-16**,
+  solutions catalogue id 17 et 18, conformes à tolérance zéro (voir ci-dessus).
+- Les gabarits 1-clic "Métallerie, Châssis Acier & Plan de Débit" et
+  "Menuiserie, Dressing & Caissons Meuble" (Assistant Intelligent) restent
+  des démos à lignes figées, non branchées aux nouvelles solutions 17/18 —
+  cohérence à revoir si on veut qu'ils servent d'exemple au vrai calculateur.

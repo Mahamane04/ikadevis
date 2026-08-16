@@ -2,8 +2,9 @@
 // PROJECT_MASTER_TRACKER.md § 5 : Déboursé 65 M, PV Net HT 91.26 M,
 // Coeff K = 1.404, TTC 107.68 M.
 //
-// Contrairement aux Étalons C et D (voir test_gold_standards_pending.mjs),
-// le modèle "Construction Villa Duplex R+1" chargeable en 1-clic EST piloté
+// Contrairement aux Étalons C et D (construits séparément le 2026-08-16 en
+// tant que solutions catalogue réelles), le modèle "Construction Villa
+// Duplex R+1" chargeable en 1-clic EST piloté
 // par le vrai moteur de calcul (solutionId + calcForm réels sur chaque ligne,
 // pas des lignes libres figées) — donc testable comme un étalon normal.
 //

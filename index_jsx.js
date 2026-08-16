@@ -4167,6 +4167,46 @@ function WorkItemInspector({
                                                 />
                                             </div>
                                         )}
+
+                                        {/* P0.7 — mode 'linear' absent de cet inspecteur avant le 2026-08-16 :
+                                            présent dans le sélecteur (option "Mètre Linéaire") et dans le moteur
+                                            de calcul, mais sans champ de saisie ici — impossible de modifier la
+                                            longueur d'un ouvrage linéaire (ex: Garde-Corps) une fois ajouté. */}
+                                        {calcForm.takeoffMode === 'linear' && (
+                                            <div className="sm:col-span-2">
+                                                <label className="app-label">Longueur (ml)</label>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={calcForm.lengthDirect || 0}
+                                                    onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)}
+                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {calcForm.takeoffMode === 'unit' && (
+                                            <div className="sm:col-span-2 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-lg p-2">
+                                                Mode Pièce / Forfait : le calcul s'applique directement à la quantité d'ouvrages ci-dessus.
+                                            </div>
+                                        )}
+
+                                        {/* handleCustomVarChange existait déjà dans le code (L3917) mais n'était
+                                            appelé nulle part : les variables personnalisées (COUCHES, NOMBRE_LETTRES,
+                                            et désormais ESPACEMENT/HAUTEUR_POTEAU/etc.) n'étaient éditables sur
+                                            aucun ouvrage depuis cet inspecteur. */}
+                                        {solution?.customVars?.map((cv) => (
+                                            <div key={cv.name}>
+                                                <label className="app-label">{cv.label}</label>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={(calcForm.customVarValues && calcForm.customVarValues[cv.name] !== undefined) ? calcForm.customVarValues[cv.name] : cv.defaultValue}
+                                                    onChange={(e) => handleCustomVarChange(cv.name, e.target.value)}
+                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -6347,7 +6387,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 26, name: 'Tube PVC évacuation sanitaire Ø40/Ø100', category: 'Plomberie', unitBuy: 'Barre (4m)', unitSize: 4, unitCalc: 'm', priceBuy: 6500, priceCalc: 1625, waste: 5, yieldRate: 0, purchaseMode: 'pack' },
     { id: 27, name: 'Câble cuivre d’alimentation R2V 3G2.5mm²', category: 'Électricité', unitBuy: 'Couronne (100m)', unitSize: 100, unitCalc: 'm', priceBuy: 55000, priceCalc: 550, waste: 5, yieldRate: 0, purchaseMode: 'pack' },
     { id: 28, name: 'Disjoncteur divisionnaire 16A/20A Phase+Neutre', category: 'Électricité', unitBuy: 'Unité', unitSize: 1, unitCalc: 'u', priceBuy: 4500, priceCalc: 4500, waste: 0, yieldRate: 0, purchaseMode: 'real' },
-    { id: 29, name: 'Mortier d’enduit ciment hydrofuge prêt à gâcher', category: 'BTP', unitBuy: 'Sac (25kg)', unitSize: 25, unitCalc: 'kg', priceBuy: 3800, priceCalc: 152, waste: 5, yieldRate: 0, purchaseMode: 'pack' }
+    { id: 29, name: 'Mortier d’enduit ciment hydrofuge prêt à gâcher', category: 'BTP', unitBuy: 'Sac (25kg)', unitSize: 25, unitCalc: 'kg', priceBuy: 3800, priceCalc: 152, waste: 5, yieldRate: 0, purchaseMode: 'pack' },
+    { id: 30, name: 'Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²)', category: 'Menuiserie', unitBuy: 'Plaque (6m²)', unitSize: 6, unitCalc: 'm²', priceBuy: 45000, priceCalc: 7500, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
+    // waste: 0 volontairement — la formule du Garde-Corps (solution 18) calcule
+    // déjà la liste de débit exacte (poteaux + lisses), contrairement à id 1
+    // (même tube, waste 5%) dont les formules des AUTRES ouvrages sont des
+    // estimations plus grossières où un pourcentage de perte a du sens. Un
+    // pourcentage de perte générique par-dessus une liste de débit précise
+    // compterait la perte deux fois (une fois via l'arrondi au conditionnement
+    // pack, une fois via le waste%).
+    { id: 31, name: 'Tube carré acier 25x25 (Débit précis, Barre 6m)', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: 9000, priceCalc: 1500, waste: 0, yieldRate: 0, purchaseMode: 'pack' }
 ];
 
         const initialLabor = [
@@ -6369,7 +6418,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 16, name: 'Pose faux-plafond suspendu BA13 avec suspentes', calcMode: 'surface', unit: 'm²', rate: 4200, yieldRate: 18 },
     { id: 17, name: 'Application enduit ciment hydrofuge 2 passes', calcMode: 'surface', unit: 'm²', rate: 2800, yieldRate: 25 },
     { id: 18, name: 'Installation réseau plomberie et raccordements', calcMode: 'forfait', unit: 'forfait', rate: 45000, yieldRate: 0 },
-    { id: 19, name: 'Câblage électrique sous gaine et appareillage', calcMode: 'unite', unit: 'u', rate: 8500, yieldRate: 0 }
+    { id: 19, name: 'Câblage électrique sous gaine et appareillage', calcMode: 'unite', unit: 'u', rate: 8500, yieldRate: 0 },
+    { id: 20, name: 'Fabrication atelier et pose de caisson menuiserie bois', calcMode: 'surface', unit: 'm²', rate: 6000, yieldRate: 0 }
 ];
 
         const initialSolutions = [
@@ -6490,6 +6540,42 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         icon: 'fa-faucet-drip',
         allowedModes: ['unit', 'forfait'],
         customVars: []
+    },
+    // P0.7 (2026-08-16) — Garde-Corps Métallerie : "Plan de Débit 1D" décrit au
+    // § 6 du tracker comme un assistant métier fonctionnel, mais qui n'existait
+    // que comme nom de démo à lignes figées (voir PROJECT_MASTER_TRACKER.md § 12).
+    // Poteaux espacés de 1m (hauteur 1.2m), 3 lisses par intervalle, débités
+    // dans des barres commerciales de 6m — mêmes hypothèses que le moteur
+    // optimize1DLinearCuts() déjà présent dans le code mais jamais relié à un
+    // ouvrage catalogue. Vérifié : 30 ml → 31 poteaux, 90 segments de lisse,
+    // 22 barres de 6m (chutes 3.64% < 5%), exactement conforme à l'Étalon C.
+    {
+        id: 17,
+        name: 'Garde-Corps Métallerie (Plan de Débit 1D)',
+        icon: 'fa-ruler-horizontal',
+        allowedModes: ['linear'],
+        customVars: [
+            { name: 'ESPACEMENT', label: 'Espacement des poteaux (m)', defaultValue: 1, unit: 'm' },
+            { name: 'HAUTEUR_POTEAU', label: 'Hauteur des poteaux (m)', defaultValue: 1.2, unit: 'm' },
+            { name: 'NB_LISSES', label: 'Nombre de lisses horizontales', defaultValue: 3, unit: 'lisses' }
+        ]
+    },
+    // P0.7 (2026-08-16) — Dressing Menuiserie : "Calepinage 2D" décrit au § 6
+    // comme un assistant métier fonctionnel, même constat que ci-dessus. Caisson
+    // = 2 côtés (hauteur × profondeur) + 1 fond (largeur × hauteur) + N tablettes
+    // (largeur × profondeur, top/bottom inclus). Profondeur 0.6m et 10 tablettes
+    // par défaut — hypothèses standard menuiserie, ajustables par ouvrage.
+    // Vérifié : 3.0×2.5m → 28.5 m² de panneaux, +8% chute → 6 plaques de 6m²,
+    // exactement conforme à l'Étalon D.
+    {
+        id: 18,
+        name: 'Dressing Menuiserie sur Mesure (Caissons)',
+        icon: 'fa-boxes-stacked',
+        allowedModes: ['rectangle'],
+        customVars: [
+            { name: 'PROFONDEUR_CAISSON', label: 'Profondeur du caisson (m)', defaultValue: 0.6, unit: 'm' },
+            { name: 'NB_TABLETTES', label: 'Nombre de tablettes (dont dessus/dessous)', defaultValue: 10, unit: 'tablettes' }
+        ]
     }
 ];
 
@@ -6590,7 +6676,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Solution 16: Plomberie Sanitaire
     { id: 58, solutionId: 16, type: 'material', refId: 25, formula: 'QTY * 25', label: 'Tube multicouche Ø16/20 gainé', costCategory: 'material' },
     { id: 59, solutionId: 16, type: 'material', refId: 26, formula: 'QTY * 8', label: 'Tubes PVC évacuation Ø40/100', costCategory: 'material' },
-    { id: 60, solutionId: 16, type: 'labor', refId: 18, formula: 'QTY', label: 'Raccordements plomberie et pose sanitaires', costCategory: 'labor' }
+    { id: 60, solutionId: 16, type: 'labor', refId: 18, formula: 'QTY', label: 'Raccordements plomberie et pose sanitaires', costCategory: 'labor' },
+
+    // Solution 17: Garde-Corps Métallerie (Plan de Débit 1D) — P0.7 2026-08-16
+    // Poteaux tous les ESPACEMENT m (hauteur HAUTEUR_POTEAU) + NB_LISSES lisses
+    // horizontales par intervalle, débités dans les barres 6m du Tube carré
+    // 25x25 (refId 1, déjà purchaseMode 'pack') : l'arrondi au conditionnement
+    // acheté (P0.4) donne directement le nombre de barres, sans re-coder de
+    // bin-packing dédié — le calcul coïncide avec optimize1DLinearCuts() ici.
+    { id: 61, solutionId: 17, type: 'material', refId: 31, formula: '(floor(LONGUEUR / ESPACEMENT) + 1) * HAUTEUR_POTEAU + floor(LONGUEUR / ESPACEMENT) * NB_LISSES * ESPACEMENT', label: 'Débit barres Tube carré 25x25 (poteaux + lisses)', costCategory: 'material' },
+    { id: 62, solutionId: 17, type: 'labor', refId: 3, formula: 'LONGUEUR', label: 'Découpe et usinage des profilés', costCategory: 'labor' },
+    { id: 63, solutionId: 17, type: 'labor', refId: 4, formula: '1', label: 'Soudure, assemblage et pose sur site', costCategory: 'installation' },
+
+    // Solution 18: Dressing Menuiserie sur Mesure (Caissons) — P0.7 2026-08-16
+    // Caisson = 2 côtés (HAUTEUR × PROFONDEUR) + 1 fond (LARGEUR × HAUTEUR) +
+    // NB_TABLETTES tablettes (LARGEUR × PROFONDEUR, dessus/dessous inclus),
+    // débité dans les plaques mélaminé 6m² (refId 30, purchaseMode 'pack').
+    { id: 64, solutionId: 18, type: 'material', refId: 30, formula: '2 * (HAUTEUR * PROFONDEUR_CAISSON) + (LARGEUR * HAUTEUR) + NB_TABLETTES * (LARGEUR * PROFONDEUR_CAISSON)', label: 'Panneaux mélaminé (côtés + fond + tablettes)', costCategory: 'material' },
+    { id: 65, solutionId: 18, type: 'labor', refId: 20, formula: '2 * (HAUTEUR * PROFONDEUR_CAISSON) + (LARGEUR * HAUTEUR) + NB_TABLETTES * (LARGEUR * PROFONDEUR_CAISSON)', label: 'Fabrication atelier et pose du caisson', costCategory: 'labor' }
 ];
 
     // P1.C V5.7 — Chargement via LS helper avec préfixe costcalc_
