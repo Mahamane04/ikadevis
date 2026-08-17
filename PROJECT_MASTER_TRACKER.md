@@ -10,9 +10,9 @@
 >
 > **Repère rapide pour reprendre en nouvelle discussion — état à la fin de
 > cette session (2026-08-17) :**
-> - Dépôt git initialisé et **à jour** (dernier commit `37ac2b3`), **local
->   uniquement** — pas de remote configuré, décision explicite de
->   l'utilisateur (2026-08-17) de rester en local pour l'instant.
+> - Dépôt git **publié sur GitHub le 2026-08-17** :
+>   `git@github.com:Mahamane04/ikadevis.git`, **privé**, branche `main`,
+>   33 commits. Audit de secrets fait avant push (voir § 20).
 > - Suite de tests réelle et honnête dans `scratch/` (`npm test`) : **40/40
 >   vérifications au vert**, 0 régression inattendue après tous les correctifs
 >   ci-dessous.
@@ -813,3 +813,63 @@ post-migration, identiques à celles de staging :
   puis ouvrir *Plateforme → Administration*.
 - Pistes d'extension non faites : détail par organisation (drill-in),
   suspension d'un compte client, métriques d'usage dans le temps.
+
+---
+
+## 🐙 20. Mise en ligne sur GitHub (2026-08-17)
+
+Dépôt : **`git@github.com:Mahamane04/ikadevis.git`** — **privé**, branche
+`main`, 33 commits, 52 fichiers, ~1 Mo transférés.
+
+### 20.1 Audit de secrets effectué AVANT le push
+
+Le dépôt avait démarré par un commit baseline (`02e177d`) contenant des
+identifiants en dur — d'où un audit complet de **tout l'historique**, pas
+seulement des fichiers courants (une fois sur GitHub, l'historique est
+difficile à effacer).
+
+| Recherche | Résultat |
+| :--- | :--- |
+| Clés `service_role` (`sb_secret_…`) | ❌ aucune — le seul match était le préfixe constant de `vendor/supabase.min.js`, sans valeur |
+| Personal Access Token (`sbp_…`) | ❌ aucun — le seul match était le texte littéral `` `sbp_...` `` dans la doc |
+| JWT Supabase dans l'historique | ✅ présents (`02e177d`, `f5d56b5`) — **tous décodés : `"role":"anon"` uniquement** |
+| `.env.development/staging/production` | ❌ jamais committés (exclus dès le baseline via `git rm --cached`) |
+| `config.js` | ❌ jamais committé (`.gitignore`) |
+| `.env.example`, `config.example.js` | ✅ publiés, mais valeurs factices (`your-project`, `your-anon-key-here`) |
+
+**Conclusion : push sûr.** La clé `anon` est *conçue* pour être publique —
+elle est embarquée dans le JS de toute app Supabase et lisible dans les
+devtools du site déployé. Sa sécurité repose entièrement sur les RLS, qui
+ont été vérifiées en profondeur (§ 19.3 notamment). Aucun secret réel
+(service_role, token de compte) n'a jamais touché le dépôt.
+
+> Le dépôt a néanmoins été créé **privé** : rien ne justifie d'exposer la
+> logique de calcul, la grille tarifaire et les références de projets Supabase.
+
+### 20.2 Points à connaître
+
+- **Authentification** : SSH déjà configurée sur la machine (compte GitHub
+  `Mahamane04`). Aucun token ni mot de passe n'a été manipulé.
+- **Le push a été exécuté par l'utilisateur**, pas par l'agent : le garde-fou
+  du mode auto bloque les actions qui publient vers l'extérieur. Le remote
+  avait été ajouté au préalable ; seul `git push` a nécessité une exécution
+  manuelle.
+- **Identité des commits** : tous signés `ikadevis <dev@ikadevis.local>`,
+  identité de substitution utilisée faute de `user.name`/`user.email` git
+  configurés sur la machine. Conséquence : ils **n'apparaissent pas dans le
+  graphe de contributions GitHub** de l'utilisateur. Réécrivable, mais cela
+  suppose de réécrire tout l'historique (`filter-branch`/`filter-repo`) et
+  de forcer le push — à ne faire que si c'est vraiment souhaité.
+- **`README.md` créé** à cette occasion (le dépôt n'en avait aucun et se
+  serait affiché vide) : démarrage, commandes, structure, cartographie des
+  environnements et posture de sécurité. Il renvoie vers ce tracker, qui
+  reste la référence.
+
+### 20.3 Conséquence : la CI devient réelle
+
+`.github/workflows/ci.yml` existait depuis le début mais ne pouvait pas
+s'exécuter faute de remote. Elle se déclenchera désormais à chaque push sur
+`main`. **Non vérifié à ce jour** : le premier run n'a pas encore été observé.
+À surveiller — le workflow lance `npm ci` puis `npm test`, lequel démarre
+Chromium via puppeteer ; un runner GitHub sans les dépendances système de
+Chromium pourrait échouer là où la machine locale réussit.
