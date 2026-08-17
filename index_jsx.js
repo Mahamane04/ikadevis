@@ -4312,105 +4312,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             { id: 4, name: 'Société VRD & Assainissement BTP', trade: 'Terrassement Lourd', phone: '+223 75 44 22 11', defaultMarkup: 12 }
         ];
 
-        const initialClients = [
-            {
-                id: 'cli-001',
-                name: 'Société Immobilière NBB',
-                contactPerson: 'M. Amadou DIOP (Directeur Général)',
-                taxId: 'NIF-00482910-A',
-                email: 'contact@nbb-immo.com',
-                phone: '+221 77 654 32 10',
-                address: 'Boulevard de la République',
-                city: 'Dakar',
-                notes: 'Grand compte immobilier, projets tertiaires & résidentiels.'
-            },
-            {
-                id: 'cli-002',
-                name: 'Résidence Les Almadies',
-                contactPerson: 'Mme Fatou SOW (Syndic)',
-                taxId: 'NIF-00918234-B',
-                email: 'syndic@almadies-residence.sn',
-                phone: '+221 78 432 19 87',
-                address: 'Route des Almadies',
-                city: 'Dakar',
-                notes: 'Rénovations régulières et étanchéité façades.'
-            }
-        ];
 
-        const initialProjects = [
-            {
-                id: 'prj-001',
-                code: 'PRJ-2026-001',
-                name: 'Construction Siège NBB',
-                clientId: 'cli-001',
-                clientName: 'Société Immobilière NBB',
-                siteAddress: 'Plateau, Rue Carnot',
-                city: 'Dakar',
-                status: 'active',
-                budgetEstimated: 150000000,
-                createdAt: '2026-01-15'
-            },
-            {
-                id: 'prj-002',
-                code: 'PRJ-2026-002',
-                name: 'Rénovation Façades ACM & Enseignes LED',
-                clientId: 'cli-002',
-                clientName: 'Résidence Les Almadies',
-                siteAddress: 'Corniche Ouest',
-                city: 'Dakar',
-                status: 'in_progress',
-                budgetEstimated: 45000000,
-                createdAt: '2026-02-01'
-            }
-        ];
 
-        const initialSavedQuotes = [
-            {
-                id: 101,
-                number: `DEV-${new Date().getFullYear()}-001`,
-                versionNumber: 1,
-                clientName: 'Société Immobilière NBB',
-                projectRef: 'Construction Siège NBB',
-                date: new Date().toLocaleDateString('fr-FR'),
-                status: 'approved',
-                vatRate: 18,
-                quoteData: {
-                    netHTConsomme: 12500000,
-                    tvaConsomme: 2250000,
-                    totalTTCConsomme: 14750000,
-                    totalDebourseConsomme: 8500000,
-                    fraisGenerauxConsomme: 600000,
-                    margeValeurConsomme: 3400000,
-                    margePctConsommeReelle: 27.2,
-                    lots: [
-                        {
-                            id: 'lot-1',
-                            lotName: 'Lot 03 — Gros Œuvre & Béton Armé',
-                            quoteData: {
-                                netHTConsomme: 12500000,
-                                totalTTCConsomme: 14750000,
-                                totalDebourseConsomme: 8500000
-                            }
-                        }
-                    ],
-                    commercialItems: [
-                        {
-                            name: 'Lot 03 — Gros Œuvre & Béton Armé B25',
-                            billedQty: 1,
-                            unit: 'forfait',
-                            sellingUnitHT: 12500000,
-                            sellingTotalHT: 12500000
-                        }
-                    ]
-                },
-                companyInfoSnapshot: {
-                    name: 'MicroOffice BTP Ingénierie',
-                    currency: 'FCFA',
-                    paymentTerms: '40% acompte, 30% avancement, 20% finitions, 10% solde',
-                    quoteValidity: '30 jours'
-                }
-            }
-        ];
 
         const initialSuppliers = [
             { id: 'sup_1', name: 'MATFORCE BTP & MATÉRIAUX', phone: '+223 20 22 00 00', rating: 5, address: 'Zone Industrielle Sotuba' },
@@ -4808,9 +4711,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return loadedRecipes;
     });
 
+    // P0.8 (2026-08-17) — Plus aucune donnée de démonstration injectée.
+    //
+    // L'ancienne logique était : `stored.length > 0 ? stored : initialClients`,
+    // c'est-à-dire « si l'utilisateur n'a aucun client, affiche les clients
+    // fictifs ». Trois problèmes, constatés sur le site déployé :
+    //   1. Un nouveau client découvrait des fiches sénégalaises qui n'étaient
+    //      pas les siennes (Société Immobilière NBB, Résidence Les Almadies…).
+    //   2. Ces fiches n'existent QUE dans localStorage — jamais en base. Un
+    //      devis rattaché à l'une d'elles pointait vers un client fantôme.
+    //   3. La condition `length > 0` rendait le zéro impossible : supprimer
+    //      tous ses clients faisait RÉAPPARAÎTRE les données de démo.
+    //
+    // On distingue désormais explicitement « rien de stocké » (nouveau compte)
+    // de « stocké et vide » (tout supprimé) : dans les deux cas, tableau vide.
+    // Les vues affichent un état vide dédié avec un appel à l'action.
     const [clients, setClients] = useState(() => {
         const stored = LS.get('clients', activeOrganizationId);
-        return stored && Array.isArray(stored) && stored.length > 0 ? stored : initialClients;
+        return Array.isArray(stored) ? stored : [];
     });
     const updateClients = (newClients) => {
         setClients(newClients);
@@ -4819,7 +4737,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [projects, setProjects] = useState(() => {
         const stored = LS.get('projects', activeOrganizationId);
-        return stored && Array.isArray(stored) && stored.length > 0 ? stored : initialProjects;
+        return Array.isArray(stored) ? stored : [];
     });
     const updateProjects = (newProjects) => {
         setProjects(newProjects);
@@ -4835,8 +4753,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [selectedProjectId, setSelectedProjectId] = useState(null);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
-        const loaded = loadLocalData('savedQuotes', initialSavedQuotes);
-        return loaded && Array.isArray(loaded) && loaded.length > 0 ? loaded : initialSavedQuotes;
+        // P0.8 — même correctif que clients/projects : plus de devis de
+        // démonstration injecté, et supprimer tous ses devis ne les fait
+        // plus réapparaître.
+        const loaded = loadLocalData('savedQuotes', []);
+        return Array.isArray(loaded) ? loaded : [];
     });
 
     // P0.11 (2026-08-17) — Bug trouvé en testant 3 devis à la suite : le devis
@@ -7059,7 +6980,33 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             );
                         })}
                         {filteredProjects.length === 0 && (
-                            <p className="text-xs text-neutral-400 italic text-center py-6">Aucune affaire trouvée.</p>
+                            projects.length === 0 ? (
+                                <div className="text-center py-10 px-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
+                                        <i className="fa-solid fa-folder-tree"></i>
+                                    </div>
+                                    <p className="text-sm font-bold text-neutral-800">Aucune affaire pour l'instant</p>
+                                    <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
+                                        {clients.length === 0
+                                            ? "Créez d'abord un client, puis rattachez-lui une affaire."
+                                            : 'Créez une affaire pour regrouper les devis d’un même chantier.'}
+                                    </p>
+                                    {clients.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+                                                setIsNewProjectModalOpen(true);
+                                            }}
+                                            className="btn-primary mt-4 text-xs py-2 px-3.5"
+                                            aria-label="Créer votre première affaire"
+                                        >
+                                            <i className="fa-solid fa-plus"></i> Nouvelle Affaire
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-neutral-400 italic text-center py-6">Aucune affaire ne correspond à cette recherche.</p>
+                            )
                         )}
                     </div>
                 </div>
@@ -7353,7 +7300,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             );
                         })}
                         {filteredClients.length === 0 && (
-                            <p className="text-xs text-neutral-400 italic text-center py-6">Aucun client trouvé.</p>
+                            /* Deux situations distinctes : une recherche sans résultat
+                               (on garde un message discret) et un compte encore vide
+                               (on guide vers la création). */
+                            clients.length === 0 ? (
+                                <div className="text-center py-10 px-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
+                                        <i className="fa-solid fa-users"></i>
+                                    </div>
+                                    <p className="text-sm font-bold text-neutral-800">Aucun client pour l'instant</p>
+                                    <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
+                                        Ajoutez votre premier client pour commencer à lui rattacher des affaires et des devis.
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                            setIsNewClientModalOpen(true);
+                                        }}
+                                        className="btn-primary mt-4 text-xs py-2 px-3.5"
+                                        aria-label="Créer votre premier client"
+                                    >
+                                        <i className="fa-solid fa-user-plus"></i> Nouveau Client
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-neutral-400 italic text-center py-6">Aucun client ne correspond à cette recherche.</p>
+                            )
                         )}
                     </div>
                 </div>

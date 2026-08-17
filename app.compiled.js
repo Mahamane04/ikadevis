@@ -2887,103 +2887,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 3, name: "Atelier Vitrerie Miroiterie & Tremp\xE9", trade: "Vitrerie", phone: "+223 70 88 99 00", defaultMarkup: 18 },
     { id: 4, name: "Soci\xE9t\xE9 VRD & Assainissement BTP", trade: "Terrassement Lourd", phone: "+223 75 44 22 11", defaultMarkup: 12 }
   ];
-  const initialClients = [
-    {
-      id: "cli-001",
-      name: "Soci\xE9t\xE9 Immobili\xE8re NBB",
-      contactPerson: "M. Amadou DIOP (Directeur G\xE9n\xE9ral)",
-      taxId: "NIF-00482910-A",
-      email: "contact@nbb-immo.com",
-      phone: "+221 77 654 32 10",
-      address: "Boulevard de la R\xE9publique",
-      city: "Dakar",
-      notes: "Grand compte immobilier, projets tertiaires & r\xE9sidentiels."
-    },
-    {
-      id: "cli-002",
-      name: "R\xE9sidence Les Almadies",
-      contactPerson: "Mme Fatou SOW (Syndic)",
-      taxId: "NIF-00918234-B",
-      email: "syndic@almadies-residence.sn",
-      phone: "+221 78 432 19 87",
-      address: "Route des Almadies",
-      city: "Dakar",
-      notes: "R\xE9novations r\xE9guli\xE8res et \xE9tanch\xE9it\xE9 fa\xE7ades."
-    }
-  ];
-  const initialProjects = [
-    {
-      id: "prj-001",
-      code: "PRJ-2026-001",
-      name: "Construction Si\xE8ge NBB",
-      clientId: "cli-001",
-      clientName: "Soci\xE9t\xE9 Immobili\xE8re NBB",
-      siteAddress: "Plateau, Rue Carnot",
-      city: "Dakar",
-      status: "active",
-      budgetEstimated: 15e7,
-      createdAt: "2026-01-15"
-    },
-    {
-      id: "prj-002",
-      code: "PRJ-2026-002",
-      name: "R\xE9novation Fa\xE7ades ACM & Enseignes LED",
-      clientId: "cli-002",
-      clientName: "R\xE9sidence Les Almadies",
-      siteAddress: "Corniche Ouest",
-      city: "Dakar",
-      status: "in_progress",
-      budgetEstimated: 45e6,
-      createdAt: "2026-02-01"
-    }
-  ];
-  const initialSavedQuotes = [
-    {
-      id: 101,
-      number: `DEV-${(/* @__PURE__ */ new Date()).getFullYear()}-001`,
-      versionNumber: 1,
-      clientName: "Soci\xE9t\xE9 Immobili\xE8re NBB",
-      projectRef: "Construction Si\xE8ge NBB",
-      date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR"),
-      status: "approved",
-      vatRate: 18,
-      quoteData: {
-        netHTConsomme: 125e5,
-        tvaConsomme: 225e4,
-        totalTTCConsomme: 1475e4,
-        totalDebourseConsomme: 85e5,
-        fraisGenerauxConsomme: 6e5,
-        margeValeurConsomme: 34e5,
-        margePctConsommeReelle: 27.2,
-        lots: [
-          {
-            id: "lot-1",
-            lotName: "Lot 03 \u2014 Gros \u0152uvre & B\xE9ton Arm\xE9",
-            quoteData: {
-              netHTConsomme: 125e5,
-              totalTTCConsomme: 1475e4,
-              totalDebourseConsomme: 85e5
-            }
-          }
-        ],
-        commercialItems: [
-          {
-            name: "Lot 03 \u2014 Gros \u0152uvre & B\xE9ton Arm\xE9 B25",
-            billedQty: 1,
-            unit: "forfait",
-            sellingUnitHT: 125e5,
-            sellingTotalHT: 125e5
-          }
-        ]
-      },
-      companyInfoSnapshot: {
-        name: "MicroOffice BTP Ing\xE9nierie",
-        currency: "FCFA",
-        paymentTerms: "40% acompte, 30% avancement, 20% finitions, 10% solde",
-        quoteValidity: "30 jours"
-      }
-    }
-  ];
   const initialSuppliers = [
     { id: "sup_1", name: "MATFORCE BTP & MAT\xC9RIAUX", phone: "+223 20 22 00 00", rating: 5, address: "Zone Industrielle Sotuba" },
     { id: "sup_2", name: "SOGEA MAT\xC9RIAUX DU MALI", phone: "+223 20 23 11 22", rating: 5, address: "Bd du 22 Octobre" },
@@ -3351,7 +3254,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   });
   const [clients, setClients] = useState(() => {
     const stored = LS.get("clients", activeOrganizationId);
-    return stored && Array.isArray(stored) && stored.length > 0 ? stored : initialClients;
+    return Array.isArray(stored) ? stored : [];
   });
   const updateClients = (newClients) => {
     setClients(newClients);
@@ -3359,7 +3262,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   };
   const [projects, setProjects] = useState(() => {
     const stored = LS.get("projects", activeOrganizationId);
-    return stored && Array.isArray(stored) && stored.length > 0 ? stored : initialProjects;
+    return Array.isArray(stored) ? stored : [];
   });
   const updateProjects = (newProjects) => {
     setProjects(newProjects);
@@ -3370,8 +3273,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [savedQuotes, setSavedQuotes] = useState(() => {
-    const loaded = loadLocalData("savedQuotes", initialSavedQuotes);
-    return loaded && Array.isArray(loaded) && loaded.length > 0 ? loaded : initialSavedQuotes;
+    const loaded = loadLocalData("savedQuotes", []);
+    return Array.isArray(loaded) ? loaded : [];
   });
   useEffect(() => {
     if (savedQuotes.some((q) => q.number === hybridQuote.number)) {
@@ -5180,7 +5083,19 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     ), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none" })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1" }, filteredProjects.map((prj) => {
       const prjQuotesCount = savedQuotes.filter((q) => q.projectRef === prj.name || q.projectId && q.projectId === prj.id).length;
       return /* @__PURE__ */ React.createElement("button", { key: prj.id, onClick: () => setSelectedProjectId(prj.id), className: `flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? "border-brand-500 shadow-sm" : "border-transparent hover:border-neutral-200 shadow-sm"}`, "aria-label": `S\xE9lectionner l'affaire ${prj.name}` }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0" }, prj.code), /* @__PURE__ */ React.createElement("span", { className: `text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}` }, getProjectStatusBadge(prj.status).label)), /* @__PURE__ */ React.createElement("p", { className: `font-bold text-sm truncate ${selectedProjectId === prj.id ? "text-neutral-900" : "text-neutral-700"}` }, prj.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, prj.clientName, " ", prjQuotesCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "text-brand-600 font-bold" }, "\xB7 ", prjQuotesCount, " devis")));
-    }), filteredProjects.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucune affaire trouv\xE9e."))), /* @__PURE__ */ React.createElement("div", { className: `${selectedProject ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll` }, !selectedProject ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez une affaire pour voir son d\xE9tail")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedProjectId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mb-1" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200" }, selectedProject.code), /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(selectedProject.status).className}` }, getProjectStatusBadge(selectedProject.status).label)), /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedProject.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 font-medium truncate" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user mr-1 text-neutral-400" }), " ", selectedProject.clientName, " \u2022 ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-1 text-neutral-400" }), " ", selectedProject.siteAddress || selectedProject.city))), /* @__PURE__ */ React.createElement("div", { className: "text-left sm:text-right shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 block" }, "CA Cumul\xE9 Affaire"), /* @__PURE__ */ React.createElement("span", { className: "text-lg font-black text-brand-600 font-mono" }, formatMoney(selectedProjectCA, companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-lines text-brand-500" }), "Devis & Avenants Rattach\xE9s (", selectedProjectQuotes.length, ")"), selectedProjectQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, selectedProjectQuotes.map((q) => (
+    }), filteredProjects.length === 0 && (projects.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-center py-10 px-4" }, /* @__PURE__ */ React.createElement("div", { className: "w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-tree" })), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-800" }, "Aucune affaire pour l'instant"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed" }, clients.length === 0 ? "Cr\xE9ez d'abord un client, puis rattachez-lui une affaire." : "Cr\xE9ez une affaire pour regrouper les devis d\u2019un m\xEAme chantier."), clients.length > 0 && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setNewProjectForm({ name: "", clientId: clients[0]?.id || "", siteAddress: "", city: "Dakar", budgetEstimated: "" });
+          setIsNewProjectModalOpen(true);
+        },
+        className: "btn-primary mt-4 text-xs py-2 px-3.5",
+        "aria-label": "Cr\xE9er votre premi\xE8re affaire"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }),
+      " Nouvelle Affaire"
+    )) : /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucune affaire ne correspond \xE0 cette recherche.")))), /* @__PURE__ */ React.createElement("div", { className: `${selectedProject ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll` }, !selectedProject ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez une affaire pour voir son d\xE9tail")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedProjectId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mb-1" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200" }, selectedProject.code), /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(selectedProject.status).className}` }, getProjectStatusBadge(selectedProject.status).label)), /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedProject.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 font-medium truncate" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user mr-1 text-neutral-400" }), " ", selectedProject.clientName, " \u2022 ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-1 text-neutral-400" }), " ", selectedProject.siteAddress || selectedProject.city))), /* @__PURE__ */ React.createElement("div", { className: "text-left sm:text-right shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 block" }, "CA Cumul\xE9 Affaire"), /* @__PURE__ */ React.createElement("span", { className: "text-lg font-black text-brand-600 font-mono" }, formatMoney(selectedProjectCA, companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-lines text-brand-500" }), "Devis & Avenants Rattach\xE9s (", selectedProjectQuotes.length, ")"), selectedProjectQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, selectedProjectQuotes.map((q) => (
       // P0.20 (2026-08-17) — La ligne n'offrait que l'aperçu PDF ;
       // elle ouvre désormais le dossier du devis (page Devis
       // Enregistrés, filtrée sur ce devis) où se trouvent l'édition,
@@ -5246,7 +5161,22 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     ), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none" })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1" }, filteredClients.map((c) => {
       const cQuotesCount = savedQuotes.filter((q) => q.clientId === c.id || q.clientName === c.name).length;
       return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => setSelectedClientId(c.id), className: `flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? "border-brand-500 shadow-sm" : "border-transparent hover:border-neutral-200 shadow-sm"}`, "aria-label": `S\xE9lectionner ${c.name}` }, /* @__PURE__ */ React.createElement("div", { className: `w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-black text-xs ${selectedClientId === c.id ? "bg-brand-100 text-brand-600" : "bg-neutral-100 text-neutral-500"}` }, c.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("p", { className: `font-bold text-sm truncate ${selectedClientId === c.id ? "text-neutral-900" : "text-neutral-700"}` }, c.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, c.contactPerson || "Sans contact renseign\xE9")), cQuotesCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded shrink-0" }, cQuotesCount));
-    }), filteredClients.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucun client trouv\xE9."))), /* @__PURE__ */ React.createElement("div", { className: `${selectedClient ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll` }, !selectedClient ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-users text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez un client pour voir sa fiche")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedClientId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0" }, selectedClient.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedClient.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 truncate" }, selectedClient.contactPerson || "Sans contact renseign\xE9"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    }), filteredClients.length === 0 && /* Deux situations distinctes : une recherche sans résultat
+       (on garde un message discret) et un compte encore vide
+       (on guide vers la création). */
+    (clients.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-center py-10 px-4" }, /* @__PURE__ */ React.createElement("div", { className: "w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-users" })), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-800" }, "Aucun client pour l'instant"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed" }, "Ajoutez votre premier client pour commencer \xE0 lui rattacher des affaires et des devis."), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setNewClientForm({ name: "", contactPerson: "", taxId: "", phone: "", email: "", address: "", city: "Dakar" });
+          setIsNewClientModalOpen(true);
+        },
+        className: "btn-primary mt-4 text-xs py-2 px-3.5",
+        "aria-label": "Cr\xE9er votre premier client"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user-plus" }),
+      " Nouveau Client"
+    )) : /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucun client ne correspond \xE0 cette recherche.")))), /* @__PURE__ */ React.createElement("div", { className: `${selectedClient ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll` }, !selectedClient ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-users text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez un client pour voir sa fiche")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedClientId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0" }, selectedClient.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedClient.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 truncate" }, selectedClient.contactPerson || "Sans contact renseign\xE9"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
       setEditingClientId(selectedClient.id);
       setNewClientForm({
         name: selectedClient.name || "",
