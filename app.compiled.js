@@ -1677,8 +1677,14 @@ function QuoteWorkspace({
     setHybridQuote(next);
     showToast("Action r\xE9tablie (Redo)");
   };
+  const isTypingTarget = (el) => {
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+  };
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         handleUndo();

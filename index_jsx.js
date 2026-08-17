@@ -2526,8 +2526,21 @@ function QuoteWorkspace({
     };
 
     // Keyboard shortcut listeners
+    //
+    // F3 (2026-08-17) — Le raccourci était capté sur window sans regarder où
+    // était le focus : une faute de frappe dans le nom du client suivie d'un
+    // Cmd+Z réflexe annulait la dernière action sur le DEVIS au lieu de la
+    // frappe. On rend la main au navigateur dès que la saisie est en cours ;
+    // l'annulation du devis ne s'applique plus qu'en dehors des champs.
+    const isTypingTarget = (el) => {
+        if (!el) return false;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    };
+
     useEffect(() => {
         const handleKeyDown = (e) => {
+            if (isTypingTarget(e.target)) return;
             if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 handleUndo();
