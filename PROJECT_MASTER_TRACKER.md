@@ -41,6 +41,9 @@
 >   par défaut). **`development` n'est PAS isolé — pointe vers la même base
 >   que la production**, décision explicite de l'utilisateur de reporter la
 >   création d'un 3ᵉ projet dédié à après que le SaaS soit jugé prêt.
+> - **Super-admin plateforme livré et testé sur staging** (§ 19) : écran
+>   Administration en lecture seule, auto-promotion impossible, accès
+>   journalisés. Reste à appliquer `v6_platform_admin.sql` en production.
 > - Prochaines pistes ouvertes : isoler `development`, pousser le dépôt vers
 >   un remote, migrer `savedQuotes`/`nextQuoteSeq` vers la vraie table
 >   `quotes` (§ 16), appliquer la migration RLS `material_price_history` sur
@@ -718,3 +721,74 @@ deux vraies violations de la Règle d'Or #3). Ce qui manque encore avant un
    l'utilisateur).
 5. Pousser vers un remote pour activer la CI (reporté par l'utilisateur).
 6. Corriger le bug `\n` littéral dans 2 gabarits sur 8 (cosmétique, mineur).
+
+---
+
+## 🛡️ 19. Super-admin plateforme (éditeur du SaaS) — 2026-08-17
+
+Demande : un compte permettant à l'éditeur de superviser **toutes** les
+organisations clientes (support, statistiques), distinct du rôle `owner`
+qui n'a de portée que sur sa propre organisation.
+
+### 19.1 Pourquoi c'est le chantier le plus sensible du projet
+
+Un super-admin **contourne par construction l'isolation multi-tenant** (RLS
+par `organization_id`) — c'est-à-dire exactement la protection anti-IDOR sur
+laquelle repose toute la Règle d'Or #2. Trois garde-fous encadrent donc ce
+contournement, et ils ne sont pas négociables :
+
+1. **Lecture seule sur les données clients.** Aucune policy d'écriture
+   cross-tenant n'existe. L'éditeur peut diagnostiquer et compter, il ne peut
+   pas modifier le devis d'un client à son insu. Si un besoin d'écriture en
+   support apparaît un jour, il devra passer par une RPC dédiée, journalisée
+   et limitée — jamais par un blanc-seing global.
+2. **Auto-promotion impossible.** `platform_admins` n'a **aucune** policy
+   INSERT/UPDATE/DELETE. RLS étant actif, Postgres refuse toute écriture
+   venant de `anon`/`authenticated`, même avec un JWT valide. L'octroi se
+   fait uniquement en SQL sous `service_role`.
+3. **Traçabilité.** Chaque consultation passe par une RPC qui journalise dans
+   `platform_admin_audit` (table elle aussi non-écrivable côté client).
+
+### 19.2 Ce qui a été livré
+
+- `v6_platform_admin.sql` (migration additive versionnée) : tables
+  `platform_admins` + `platform_admin_audit`, helper `is_platform_admin()`,
+  19 policies de lecture cross-tenant **ajoutées** (permissives, donc en OR
+  avec les policies tenant existantes — celles-ci ne sont pas touchées),
+  RPC `get_platform_overview()`, `log_platform_admin_action()`,
+  `grant_platform_admin()`, et des `REVOKE EXECUTE` sur `anon`.
+- Écran **Administration** dans l'app (`renderPlatformAdmin`), visible
+  uniquement si `is_platform_admin()` renvoie vrai : agrégats plateforme +
+  tableau par organisation (membres, clients, affaires, devis, volume TTC,
+  dernière activité). Bandeau « LECTURE SEULE » explicite.
+- Le booléen `isPlatformAdmin` côté React **n'est jamais une source
+  d'autorité** : il ne pilote que l'affichage du menu. Le forcer dans la
+  console ne donne accès à aucune donnée — la RPC refuserait.
+
+### 19.3 Vérifications réellement effectuées (staging, 2026-08-17)
+
+Scénario monté avec 2 puis 3 organisations distinctes et 2 comptes :
+
+| Test | Attendu | Résultat |
+| :--- | :--- | :--- |
+| Utilisateur lambda (membre org A) | ne voit que l'org A | ✅ 1 org / 1 devis, org B invisible |
+| Admin plateforme | voit tout | ✅ 2 orgs / 2 devis |
+| `INSERT` dans `platform_admins` depuis `authenticated` | refusé | ✅ table reste à 0 ligne |
+| `get_platform_overview()` depuis compte lambda | refusé | ✅ exception levée |
+| Accès admin | journalisé | ✅ entrée dans `platform_admin_audit` |
+| Mode Démo/Invité | pas d'entrée de menu | ✅ 6 entrées, aucune "Administration" |
+| Connexion admin réelle via l'UI | menu + écran peuplé | ✅ vérifié en navigateur, données cross-tenant affichées |
+
+Toutes les données de test ont été supprimées de staging après vérification
+(staging est revenu à 0 organisation / 0 utilisateur).
+
+### 19.4 Reste à faire
+
+- **Appliquer `v6_platform_admin.sql` sur la production** — fait sur staging
+  uniquement. La production est en `--read-only` dans `.mcp.json` : il faut
+  retirer le drapeau, appliquer, puis le remettre (procédure § 13).
+- **Désigner le premier admin réel** une fois la migration en production :
+  créer un compte normal dans l'app, puis dans le SQL Editor du dashboard :
+  `SELECT public.grant_platform_admin('email@exemple.com', 'Éditeur du SaaS');`
+- Pistes d'extension non faites : détail par organisation (drill-in),
+  suspension d'un compte client, métriques d'usage dans le temps.

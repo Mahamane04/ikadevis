@@ -4110,6 +4110,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [activeView, setActiveView] = useState('calculator');
     const [toast, setToast] = useState(null);
+
+    // ── SUPER-ADMIN PLATEFORME (éditeur du SaaS) ──────────────────────────
+    // isPlatformAdmin n'est JAMAIS une source d'autorité : il ne sert qu'à
+    // afficher ou non l'entrée de menu. Toute la sécurité réelle est côté
+    // Postgres (RLS + is_platform_admin() dans les RPC) — bidouiller ce
+    // booléen dans la console ne donne accès à aucune donnée supplémentaire.
+    const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+    const [platformOverview, setPlatformOverview] = useState(null);
+    const [platformLoading, setPlatformLoading] = useState(false);
+    const [platformError, setPlatformError] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isDanger: false });
     
     // P0.2 V5.7 — Schema Check Post-Auth (strictement propre à l'utilisateur connecté)
@@ -4119,6 +4129,48 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const isDowngrade = storedInt > CURRENT_SCHEMA_INT;
         return { isDowngrade, storedInt };
     }, [sbUser]);
+
+    // Détection du statut admin plateforme à la connexion. Le Mode Démo/Invité
+    // est exclu d'office : il n'a pas de session Supabase, donc auth.uid() est
+    // NULL et la RPC renverrait false de toute façon.
+    useEffect(() => {
+        let annule = false;
+        const verifier = async () => {
+            if (!sb || !sbUser || sbUser.id === 'guest') { setIsPlatformAdmin(false); return; }
+            try {
+                const { data, error } = await sb.rpc('is_platform_admin');
+                if (!annule) setIsPlatformAdmin(error ? false : data === true);
+            } catch (e) {
+                if (!annule) setIsPlatformAdmin(false);
+            }
+        };
+        verifier();
+        return () => { annule = true; };
+    }, [sbUser]);
+
+    const loadPlatformOverview = useCallback(async () => {
+        if (!sb) return;
+        setPlatformLoading(true);
+        setPlatformError(null);
+        try {
+            const { data, error } = await sb.rpc('get_platform_overview');
+            if (error) throw error;
+            setPlatformOverview(data);
+        } catch (e) {
+            // Zéro faux succès : on affiche l'échec, jamais un tableau vide
+            // qui laisserait croire à une plateforme sans clients.
+            setPlatformError(e.message || 'Chargement de la vue plateforme impossible.');
+            setPlatformOverview(null);
+        } finally {
+            setPlatformLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeView === 'platformAdmin' && isPlatformAdmin && !platformOverview && !platformLoading) {
+            loadPlatformOverview();
+        }
+    }, [activeView, isPlatformAdmin, platformOverview, platformLoading, loadPlatformOverview]);
 
     const [isReadOnlyDueToDowngrade, setIsReadOnlyDueToDowngrade] = useState(false);
     const [downgradeWarning, setDowngradeWarning] = useState(null);
@@ -7089,6 +7141,157 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     // ═══════════════════════════════════════════════════════════════
+    // VUE ADMIN PLATEFORME (éditeur du SaaS) — LECTURE SEULE
+    // ═══════════════════════════════════════════════════════════════
+    const renderPlatformAdmin = () => {
+        // Double barrière côté UI. La vraie protection reste Postgres :
+        // même en forçant cet écran, la RPC refuserait un non-admin.
+        if (!isPlatformAdmin) {
+            return (
+                <div className="app-card p-8 text-center max-w-lg mx-auto mt-10">
+                    <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto text-xl border border-red-200 mb-4">
+                        <i className="fa-solid fa-lock"></i>
+                    </div>
+                    <h3 className="font-extrabold text-neutral-900">Accès réservé</h3>
+                    <p className="text-sm text-neutral-500 mt-1">
+                        Cet espace est réservé aux administrateurs de la plateforme ikadevis.
+                    </p>
+                </div>
+            );
+        }
+
+        const stat = (label, value, icon) => (
+            <div className="app-card p-4">
+                <div className="flex items-center gap-2 text-neutral-400 mb-1.5">
+                    <i className={`fa-solid ${icon} text-xs`}></i>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                </div>
+                <p className="text-2xl font-black text-neutral-900 tabular-nums">{value}</p>
+            </div>
+        );
+
+        const o = platformOverview;
+
+        return (
+            <div className="h-full overflow-y-auto custom-scroll space-y-5 pb-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-black mb-2">
+                            <i className="fa-solid fa-shield-halved"></i> ADMINISTRATION PLATEFORME · LECTURE SEULE
+                        </div>
+                        <p className="text-xs text-neutral-500 max-w-xl">
+                            Vue transverse sur toutes les organisations clientes. Chaque consultation est
+                            journalisée. Aucune modification des données clients n'est possible depuis cet écran.
+                        </p>
+                    </div>
+                    <button onClick={loadPlatformOverview} disabled={platformLoading} className="btn-secondary text-xs py-2 px-3 disabled:opacity-50">
+                        <i className={`fa-solid fa-arrows-rotate ${platformLoading ? 'fa-spin' : ''}`}></i> Actualiser
+                    </button>
+                </div>
+
+                {platformLoading && (
+                    <div className="app-card p-10 text-center text-neutral-400">
+                        <i className="fa-solid fa-spinner fa-spin text-2xl mb-3"></i>
+                        <p className="text-sm font-semibold">Chargement de la vue plateforme…</p>
+                    </div>
+                )}
+
+                {platformError && !platformLoading && (
+                    <div className="app-card p-6 border-red-200 bg-red-50/50">
+                        <div className="flex items-start gap-3">
+                            <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5"></i>
+                            <div>
+                                <p className="font-bold text-red-900 text-sm">Vue plateforme indisponible</p>
+                                <p className="text-xs text-red-700 mt-1 font-mono">{platformError}</p>
+                                <p className="text-[11px] text-red-600/80 mt-2">
+                                    Si le message mentionne une fonction inexistante, la migration
+                                    <code className="mx-1 px-1 bg-red-100 rounded">v6_platform_admin.sql</code>
+                                    n'a pas encore été appliquée sur cet environnement.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {o && !platformLoading && (<>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {stat('Organisations', o.total_organizations ?? 0, 'fa-building')}
+                        {stat('Utilisateurs', o.total_users ?? 0, 'fa-users')}
+                        {stat('Devis émis', o.total_quotes ?? 0, 'fa-file-invoice')}
+                        {stat('Volume TTC cumulé', formatMoney(o.total_ttc_all ?? 0, companyInfo.currency), 'fa-coins')}
+                    </div>
+
+                    <div className="app-card overflow-hidden">
+                        <div className="px-5 py-3.5 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                                Organisations clientes ({(o.organizations || []).length})
+                            </h3>
+                            <span className="text-[10px] text-neutral-400 font-medium">
+                                Généré le {o.generated_at ? new Date(o.generated_at).toLocaleString('fr-FR') : '—'}
+                            </span>
+                        </div>
+
+                        {(o.organizations || []).length === 0 ? (
+                            <div className="p-10 text-center">
+                                <i className="fa-solid fa-building-circle-exclamation text-3xl text-neutral-300 mb-3"></i>
+                                <p className="text-sm font-bold text-neutral-700">Aucune organisation cliente</p>
+                                <p className="text-xs text-neutral-400 mt-1">
+                                    Cet environnement ne contient encore aucun compte client.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="app-table-wrapper">
+                                <table className="app-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="app-th pl-5">Organisation</th>
+                                            <th className="app-th text-right">Membres</th>
+                                            <th className="app-th text-right">Clients</th>
+                                            <th className="app-th text-right">Affaires</th>
+                                            <th className="app-th text-right">Devis</th>
+                                            <th className="app-th text-right">Volume TTC</th>
+                                            <th className="app-th pr-5">Dernière activité</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(o.organizations || []).map((org) => (
+                                            <tr key={org.organization_id} className="hover:bg-neutral-50/60 transition-colors">
+                                                <td className="app-td pl-5">
+                                                    <p className="font-bold text-neutral-900">{org.name}</p>
+                                                    <p className="text-[10px] text-neutral-400 font-mono">{org.organization_id}</p>
+                                                </td>
+                                                <td className="app-td text-right tabular-nums">{org.members}</td>
+                                                <td className="app-td text-right tabular-nums">{org.clients}</td>
+                                                <td className="app-td text-right tabular-nums">{org.projects}</td>
+                                                <td className="app-td text-right tabular-nums">
+                                                    {org.quotes}
+                                                    {org.quotes_accepted > 0 && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600">
+                                                            ({org.quotes_accepted} acceptés)
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="app-td text-right font-bold tabular-nums">
+                                                    {formatMoney(org.total_ttc || 0, org.currency || 'FCFA')}
+                                                </td>
+                                                <td className="app-td pr-5 text-xs text-neutral-500">
+                                                    {org.last_activity
+                                                        ? new Date(org.last_activity).toLocaleDateString('fr-FR')
+                                                        : <span className="text-neutral-300">Jamais</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </>)}
+            </div>
+        );
+    };
+
+    // ═══════════════════════════════════════════════════════════════
     // VUE 2 : CRM CLIENTS BTP (7.1)
     // ═══════════════════════════════════════════════════════════════
     const renderClients = () => {
@@ -8367,6 +8570,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" />
                     <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" />
                     <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" />
+                    {isPlatformAdmin && (<>
+                        <p className="sidebar-section-label mt-4">Plateforme</p>
+                        <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label="Administration" />
+                    </>)}
                 </nav>
                 <div className="p-4 border-t border-neutral-100 flex flex-col gap-2.5">
                     {sbUser && (
@@ -8556,6 +8763,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {activeView === 'savedQuotes' && 'Devis Enregistrés & PDF Commercial'}
                                 {activeView === 'recipes' && 'Catalogue des Ouvrages & Formules'}
                                 {activeView === 'materials' && 'Base des Ressources & Coûts'}
+                                {activeView === 'platformAdmin' && 'Administration de la Plateforme'}
                             </h1>
                             <div className="flex items-center gap-2">
                                 <button 
@@ -8581,6 +8789,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             {activeView === 'savedQuotes' && renderSavedQuotes()}
                             {activeView === 'recipes' && renderRecipes()}
                             {activeView === 'materials' && renderMaterials()}
+                            {activeView === 'platformAdmin' && renderPlatformAdmin()}
                         </div>
                     </div>
                 </main>
