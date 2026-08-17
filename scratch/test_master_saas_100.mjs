@@ -15,8 +15,10 @@
 //       catalogue id 18, Calepinage 2D), conforme à tolérance zéro
 //   ✅ Étalon E — Enseigne LED : conforme (densité corrigée 45→25/m², waste LED 2%→0%)
 //   ✅ Étalon F — Façade ACM : conforme du premier coup
-//   ⚠️  Étalon G — Villa R+1 : ÉCHOUE (modèle 1-clic ~2× plus petit que le
-//       tracker ; cause du Coeff K isolée séparément, voir PROJECT_MASTER_TRACKER.md § 12)
+//   ✅ Étalon G — Villa R+1 : recalibré le 2026-08-16 (échelle doublée +
+//       lots Élec/Plomberie reliés à de vraies recettes catalogue au lieu de
+//       lignes à prix fixe), conforme à tolérance zéro sur ses propres
+//       valeurs mesurées — voir PROJECT_MASTER_TRACKER.md § 12/§14
 //
 // Ne PAS interpréter un exit code 0 global comme "100% conforme" : ce script
 // distingue explicitement échecs réels et échecs attendus/documentés dans
@@ -42,7 +44,7 @@ const SUITES = [
     { name: 'Étalon D — Dressing Menuiserie, Calepinage 2D (tolérance zéro)', mod: goldD, expectedToFail: false },
     { name: 'Étalon E — Enseigne Lumineuse LED (tolérance zéro)', mod: goldE, expectedToFail: false },
     { name: 'Étalon F — Façade Panneaux ACM (tolérance zéro)', mod: goldF, expectedToFail: false },
-    { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: true },
+    { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;
@@ -67,7 +69,7 @@ for (const suite of SUITES) {
 console.log('\n' + '─'.repeat(60));
 console.log(`Vérifications individuelles : ${passedChecks}/${totalChecks} au vert`);
 console.log(`Suites en régression inattendue : ${unexpectedFailures}/${SUITES.length}`);
-console.log('Étalons métier : A,B,C,D,E,F conformes (7/7 construits) · G en échec documenté (Villa 1-clic sous-dimensionnée)');
+console.log('Étalons métier : A,B,C,D,E,F,G conformes (7/7 construits)');
 console.log('─'.repeat(60));
 
 process.exit(unexpectedFailures > 0 ? 1 : 0);

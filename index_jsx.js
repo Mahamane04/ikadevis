@@ -265,113 +265,6 @@ const LogoSVG = ({ className = "h-8" }) => (
     </svg>
 );
 
-const RESERVED_KEYWORDS = [
-    'SURFACE', 'PERIMETRE', 'VOLUME', 'PROFONDEUR', 'EPAISSEUR', 'LONGUEUR', 'LINEAIRE', 'LARGEUR', 'HAUTEUR',
-    'QTY', 'FACES', 'L', 'H', 'P', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE',
-    'TARIF_MO', 'TARIF_MATIERE', 'CEIL', 'FLOOR', 'ROUND', 'MIN', 'MAX', 'ABS', 'SQRT', 'IF'
-];
-
-const ALLOWED_VARS_BY_MODE = {
-    rectangle: ['SURFACE', 'PERIMETRE', 'LARGEUR', 'HAUTEUR', 'QTY', 'FACES', 'L', 'H', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    surface: ['SURFACE', 'QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    volume: ['SURFACE', 'VOLUME', 'PERIMETRE', 'LARGEUR', 'HAUTEUR', 'PROFONDEUR', 'EPAISSEUR', 'QTY', 'FACES', 'L', 'H', 'P', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    linear: ['LONGUEUR', 'LINEAIRE', 'PERIMETRE', 'QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    floor: ['SURFACE', 'PERIMETRE', 'LARGEUR', 'LONGUEUR', 'LINEAIRE', 'QTY', 'FACES', 'L', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    unit: ['QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE']
-};
-
-const formatMoney = (amount, currency = 'FCFA') => {
-    if (isNaN(amount) || amount === null || amount === undefined) return `0 ${currency}`;
-    const rounded = Math.round(amount);
-    return `${rounded.toLocaleString('fr-FR')} ${currency}`;
-};
-
-// Optimiseur BTP 1D : Bin-packing pour découpe de profilés (barres fer/alu)
-const optimize1DLinearCuts = (cutLengths, barLength = 6.0) => {
-    if (!Array.isArray(cutLengths) || cutLengths.length === 0) {
-        return { barsNeeded: 0, totalBarLength: 0, wasteLength: 0, efficiencyPercent: 100 };
-    }
-    for (let i = 0; i < cutLengths.length; i++) {
-        const len = cutLengths[i];
-        if (typeof len !== 'number' || isNaN(len) || len <= 0) {
-            return { error: `Dimension de pièce invalide (${len} m <= 0)`, barsNeeded: 0, totalBarLength: 0, wasteLength: 0, efficiencyPercent: 0 };
-        }
-        if (len > barLength) {
-            return { error: `La pièce de ${len.toFixed(2)} m ne peut pas être obtenue dans une barre commerciale de ${barLength.toFixed(2)} m.`, barsNeeded: 0, totalBarLength: 0, wasteLength: 0, efficiencyPercent: 0 };
-        }
-    }
-    const sorted = [...cutLengths].sort((a, b) => b - a);
-    const bars = [];
-    sorted.forEach(len => {
-        let placed = false;
-        for (let i = 0; i < bars.length; i++) {
-            if (bars[i] + len <= barLength + 1e-6) {
-                bars[i] += len;
-                placed = true;
-                break;
-            }
-        }
-        if (!placed) bars.push(len);
-    });
-    const barsNeeded = bars.length;
-    const totalBarLength = barsNeeded * barLength;
-    const usedLength = cutLengths.reduce((a, b) => a + b, 0);
-    const wasteLength = Math.max(0, totalBarLength - usedLength);
-    const efficiencyPercent = totalBarLength > 0 ? Math.min(100, Math.max(0, Math.round((usedLength / totalBarLength) * 100))) : 0;
-    return { barsNeeded, totalBarLength, wasteLength, efficiencyPercent };
-};
-
-// Optimiseur BTP 2D : Nesting & calepinage pour découpe de panneaux (tôles/Alucobond/MDF)
-const optimize2DSheetNesting = (pieceWidth, pieceHeight, pieceQty, sheetWidth = 3.0, sheetHeight = 1.0) => {
-    if (pieceWidth <= 0 || pieceHeight <= 0 || pieceQty <= 0) {
-        return { error: 'Dimensions de panneau ou quantité invalide', sheetsNeeded: 0, totalSheetArea: 0, wasteArea: 0, maxPerSheet: 0, efficiencyPercent: 0 };
-    }
-    const pieceArea = pieceWidth * pieceHeight * pieceQty;
-    const sheetArea = sheetWidth * sheetHeight;
-    if (sheetArea <= 0) return { sheetsNeeded: 0, totalSheetArea: 0, wasteArea: 0, maxPerSheet: 0, efficiencyPercent: 0 };
-
-    const perSheetNormal = Math.floor(sheetWidth / pieceWidth) * Math.floor(sheetHeight / pieceHeight);
-    const perSheetRotated = Math.floor(sheetWidth / pieceHeight) * Math.floor(sheetHeight / pieceWidth);
-    const maxPerSheet = Math.max(perSheetNormal, perSheetRotated);
-
-    if (maxPerSheet === 0) {
-        return { error: `La pièce de ${pieceWidth.toFixed(2)} × ${pieceHeight.toFixed(2)} m ne rentre pas dans une plaque commerciale de ${sheetWidth.toFixed(2)} × ${sheetHeight.toFixed(2)} m.`, sheetsNeeded: 0, totalSheetArea: 0, wasteArea: 0, maxPerSheet: 0, efficiencyPercent: 0 };
-    }
-
-    const sheetsNeeded = Math.ceil(pieceQty / maxPerSheet);
-    const totalSheetArea = sheetsNeeded * sheetArea;
-    const wasteArea = Math.max(0, totalSheetArea - pieceArea);
-    const efficiencyPercent = totalSheetArea > 0 ? Math.min(100, Math.max(0, Math.round((pieceArea / totalSheetArea) * 100))) : 0;
-    return { sheetsNeeded, totalSheetArea, wasteArea, maxPerSheet, efficiencyPercent };
-};
-
-// SCHEMA MIGRATOR V5.7 — chaîne de migrations par version
-const migrateRecipes = (rawRecipes, fromVersion) => {
-    if (!Array.isArray(rawRecipes)) return rawRecipes;
-    let result = rawRecipes;
-    // migrate7To8: normaliser les alias de formules
-    if (fromVersion < 8) {
-        result = result.map(r => {
-            if (!r || !r.formula) return r;
-            const newFormula = r.formula
-                .replace(/\bsurface\b/gi, 'SURFACE')
-                .replace(/\bperimetre\b/gi, 'PERIMETRE')
-                .replace(/\bunite\b/gi, 'QTY')
-                .replace(/\bforfait\b/gi, '1')
-                .replace(/\brenforts\b/gi, '(HAUTEUR * floor(LARGEUR) * QTY)');
-            return { ...r, formula: newFormula };
-        });
-    }
-    // migrate8To9: s'assurer que costCategory est toujours présent
-    if (fromVersion < 9) {
-        result = result.map(r => ({
-            ...r,
-            costCategory: r.costCategory || (r.type === 'labor' ? 'labor' : 'material')
-        }));
-    }
-    return result;
-};
-
 const CustomSelect = ({ value, onChange, options, className, disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectRef = useRef(null);
@@ -411,498 +304,6 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false })
 // ═══════════════════════════════════════════════════════════════
 // BLOC 3/10 : MOTEUR UNIVERSEL DE MÉTRÉ, UNITÉS & AST SÉCURISÉ (ZERO new Function)
 // ═══════════════════════════════════════════════════════════════
-
-// 1. SYSTÈME UNIVERSEL D'UNITÉS BTP AVEC CONVERSIONS AUTOMATIQUES
-const BTP_UNIT_CATEGORIES = {
-    length: {
-        base: 'm',
-        units: {
-            'mm': 0.001,
-            'cm': 0.01,
-            'dm': 0.1,
-            'm': 1,
-            'ml': 1,
-            'km': 1000
-        }
-    },
-    surface: {
-        base: 'm²',
-        units: {
-            'mm²': 0.000001,
-            'cm²': 0.0001,
-            'dm²': 0.01,
-            'm²': 1,
-            'ha': 10000
-        }
-    },
-    volume: {
-        base: 'm³',
-        units: {
-            'mm³': 1e-9,
-            'cm³': 0.000001,
-            'dm³': 0.001,
-            'm³': 1,
-            'ml': 0.000001,
-            'cl': 0.00001,
-            'l': 0.001,
-            'L': 0.001,
-            'hl': 0.1
-        }
-    },
-    weight: {
-        base: 'kg',
-        units: {
-            'mg': 0.000001,
-            'g': 0.001,
-            'kg': 1,
-            'q': 100,
-            't': 1000,
-            'tonne': 1000
-        }
-    },
-    time: {
-        base: 'h',
-        units: {
-            'min': 1 / 60,
-            'h': 1,
-            'heure': 1,
-            'j': 8,
-            'jour': 8,
-            'semaine': 40
-        }
-    },
-    count: {
-        base: 'u',
-        units: {
-            'u': 1,
-            'unite': 1,
-            'forfait': 1,
-            'barre': 1,
-            'plaque': 1,
-            'rouleau': 1,
-            'carton': 1,
-            'sac': 1,
-            'pot': 1,
-            'seau': 1,
-            'palette': 1
-        }
-    }
-};
-
-function getUnitCategory(unit) {
-    if (!unit) return null;
-    const clean = String(unit).trim().toLowerCase();
-    for (const [catName, catData] of Object.entries(BTP_UNIT_CATEGORIES)) {
-        if (Object.keys(catData.units).map(u => u.toLowerCase()).includes(clean)) {
-            return catName;
-        }
-    }
-    return null;
-}
-
-function convertUnit(value, fromUnit, toUnit) {
-    const val = parseFloat(value);
-    if (isNaN(val)) return 0;
-    if (!fromUnit || !toUnit || fromUnit === toUnit) return val;
-
-    const fromClean = String(fromUnit).trim();
-    const toClean = String(toUnit).trim();
-    const catFrom = getUnitCategory(fromClean);
-    const catTo = getUnitCategory(toClean);
-
-    if (!catFrom || !catTo || catFrom !== catTo) {
-        return val;
-    }
-
-    const catUnits = BTP_UNIT_CATEGORIES[catFrom].units;
-    const fromFactor = catUnits[fromClean] || catUnits[fromClean.toLowerCase()] || 1;
-    const toFactor = catUnits[toClean] || catUnits[toClean.toLowerCase()] || 1;
-
-    return (val * fromFactor) / toFactor;
-}
-
-// 2. PARSER MATHÉMATIQUE SÉCURISÉ (AST SANS EVAL NI new Function)
-class SafeMathEvaluator {
-    static tokenize(expr) {
-        const tokens = [];
-        let i = 0;
-        const s = expr.trim();
-
-        while (i < s.length) {
-            const char = s[i];
-
-            if (/\s/.test(char)) {
-                i++;
-                continue;
-            }
-
-            // Nombres décimaux ou entiers
-            if (/[0-9]/.test(char) || (char === '.' && i + 1 < s.length && /[0-9]/.test(s[i + 1]))) {
-                let numStr = '';
-                while (i < s.length && (/[0-9]/.test(s[i]) || s[i] === '.')) {
-                    numStr += s[i];
-                    i++;
-                }
-                tokens.push({ type: 'NUMBER', value: parseFloat(numStr) });
-                continue;
-            }
-
-            // Identifiants (Variables ou Fonctions Mathématiques)
-            if (/[a-zA-Z_À-ÿ]/.test(char)) {
-                let idStr = '';
-                while (i < s.length && /[a-zA-Z0-9_À-ÿ]/.test(s[i])) {
-                    idStr += s[i];
-                    i++;
-                }
-                tokens.push({ type: 'IDENTIFIER', value: idStr.toUpperCase() });
-                continue;
-            }
-
-            // Opérateurs de comparaison à 2 caractères
-            if (i + 1 < s.length) {
-                const twoChar = char + s[i + 1];
-                if (['<=', '>=', '==', '!=', '&&', '||'].includes(twoChar)) {
-                    tokens.push({ type: 'OPERATOR', value: twoChar });
-                    i += 2;
-                    continue;
-                }
-            }
-
-            // Opérateurs arithmétiques & séparateurs 1 caractère
-            if (['+', '-', '*', '/', '%', '^', '<', '>', '!', '(', ')', ',', '?', ':'].includes(char)) {
-                tokens.push({ type: char === '(' ? 'LPAREN' : char === ')' ? 'RPAREN' : char === ',' ? 'COMMA' : 'OPERATOR', value: char });
-                i++;
-                continue;
-            }
-
-            throw new Error(`Caractère non autorisé dans la formule : "${char}"`);
-        }
-
-        return tokens;
-    }
-
-    static parseAndEvaluate(expr, scope = {}) {
-        if (!expr || typeof expr !== 'string' || !expr.trim()) return 0;
-        const tokens = this.tokenize(expr);
-        let pos = 0;
-
-        const peek = () => tokens[pos];
-        const consume = (expectedType, expectedVal) => {
-            const token = tokens[pos];
-            if (!token) throw new Error("Fin inattendue de l'expression mathématique");
-            if (expectedType && token.type !== expectedType) {
-                throw new Error(`Attendu type ${expectedType}, reçu ${token.type} (${token.value})`);
-            }
-            if (expectedVal && token.value !== expectedVal) {
-                throw new Error(`Attendu ${expectedVal}, reçu ${token.value}`);
-            }
-            pos++;
-            return token;
-        };
-
-        // Recursive Descent Parser
-        const parseExpression = () => parseTernary();
-
-        const parseTernary = () => {
-            let left = parseLogicalOr();
-            if (peek() && peek().value === '?') {
-                consume('OPERATOR', '?');
-                const trueBranch = parseExpression();
-                consume('OPERATOR', ':');
-                const falseBranch = parseExpression();
-                return left ? trueBranch : falseBranch;
-            }
-            return left;
-        };
-
-        const parseLogicalOr = () => {
-            let left = parseLogicalAnd();
-            while (peek() && peek().value === '||') {
-                consume('OPERATOR', '||');
-                const right = parseLogicalAnd();
-                left = (left || right) ? 1 : 0;
-            }
-            return left;
-        };
-
-        const parseLogicalAnd = () => {
-            let left = parseComparison();
-            while (peek() && peek().value === '&&') {
-                consume('OPERATOR', '&&');
-                const right = parseComparison();
-                left = (left && right) ? 1 : 0;
-            }
-            return left;
-        };
-
-        const parseComparison = () => {
-            let left = parseAddSub();
-            while (peek() && ['<', '<=', '>', '>=', '==', '!='].includes(peek().value)) {
-                const op = consume('OPERATOR').value;
-                const right = parseAddSub();
-                switch (op) {
-                    case '<': left = left < right ? 1 : 0; break;
-                    case '<=': left = left <= right ? 1 : 0; break;
-                    case '>': left = left > right ? 1 : 0; break;
-                    case '>=': left = left >= right ? 1 : 0; break;
-                    case '==': left = left === right ? 1 : 0; break;
-                    case '!=': left = left !== right ? 1 : 0; break;
-                }
-            }
-            return left;
-        };
-
-        const parseAddSub = () => {
-            let left = parseMulDiv();
-            while (peek() && (peek().value === '+' || peek().value === '-')) {
-                const op = consume('OPERATOR').value;
-                const right = parseMulDiv();
-                left = op === '+' ? left + right : left - right;
-            }
-            return left;
-        };
-
-        const parseMulDiv = () => {
-            let left = parsePower();
-            while (peek() && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
-                const op = consume('OPERATOR').value;
-                const right = parsePower();
-                if (op === '/' && right === 0) {
-                    throw new Error("Division par zéro dans la formule");
-                }
-                left = op === '*' ? left * right : op === '/' ? left / right : left % right;
-            }
-            return left;
-        };
-
-        const parsePower = () => {
-            let left = parseUnary();
-            while (peek() && peek().value === '^') {
-                consume('OPERATOR', '^');
-                const right = parseUnary();
-                left = Math.pow(left, right);
-            }
-            return left;
-        };
-
-        const parseUnary = () => {
-            if (peek() && peek().value === '-') {
-                consume('OPERATOR', '-');
-                return -parseUnary();
-            }
-            if (peek() && peek().value === '+') {
-                consume('OPERATOR', '+');
-                return parseUnary();
-            }
-            if (peek() && peek().value === '!') {
-                consume('OPERATOR', '!');
-                return !parseUnary() ? 1 : 0;
-            }
-            return parsePrimary();
-        };
-
-        const parsePrimary = () => {
-            const token = peek();
-            if (!token) throw new Error("Expression incomplète");
-
-            if (token.type === 'NUMBER') {
-                consume('NUMBER');
-                return token.value;
-            }
-
-            if (token.type === 'LPAREN') {
-                consume('LPAREN');
-                const val = parseExpression();
-                consume('RPAREN');
-                return val;
-            }
-
-            if (token.type === 'IDENTIFIER') {
-                const id = consume('IDENTIFIER').value;
-
-                // Appel de fonction mathématique
-                if (peek() && peek().type === 'LPAREN') {
-                    consume('LPAREN');
-                    const args = [];
-                    if (!peek() || peek().type !== 'RPAREN') {
-                        args.push(parseExpression());
-                        while (peek() && peek().type === 'COMMA') {
-                            consume('COMMA');
-                            args.push(parseExpression());
-                        }
-                    }
-                    consume('RPAREN');
-
-                    switch (id) {
-                        case 'CEIL': return Math.ceil(args[0] || 0);
-                        case 'FLOOR': return Math.floor(args[0] || 0);
-                        case 'ROUND': {
-                            const decimals = args[1] !== undefined ? args[1] : 0;
-                            const factor = Math.pow(10, decimals);
-                            return Math.round((args[0] || 0) * factor) / factor;
-                        }
-                        case 'MIN': return Math.min(...args);
-                        case 'MAX': return Math.max(...args);
-                        case 'ABS': return Math.abs(args[0] || 0);
-                        case 'SQRT': {
-                            if (args[0] < 0) throw new Error("Racine carrée d'un nombre négatif impossible");
-                            return Math.sqrt(args[0] || 0);
-                        }
-                        case 'IF': return args[0] ? (args[1] !== undefined ? args[1] : 1) : (args[2] !== undefined ? args[2] : 0);
-                        case 'POW': return Math.pow(args[0] || 0, args[1] || 1);
-                        default:
-                            throw new Error(`Fonction inconnue : "${id}()"`);
-                    }
-                }
-
-                // Variable du Scope
-                if (scope[id] !== undefined) {
-                    const numVal = parseFloat(scope[id]);
-                    return isNaN(numVal) ? 0 : numVal;
-                }
-
-                // Variable en minuscule fallback
-                const lowerId = id.toLowerCase();
-                if (scope[lowerId] !== undefined) {
-                    const numVal = parseFloat(scope[lowerId]);
-                    return isNaN(numVal) ? 0 : numVal;
-                }
-
-                // Constantes
-                if (['PI'].includes(id)) return Math.PI;
-                if (['E'].includes(id)) return Math.E;
-
-                throw new Error(`Variable non définie dans la formule : "${id}"`);
-            }
-
-            throw new Error(`Symbole inattendu : "${token.value}"`);
-        };
-
-        const result = parseExpression();
-        if (pos < tokens.length) {
-            throw new Error(`Fin d'expression inattendue après "${tokens[pos - 1]?.value}"`);
-        }
-        return isNaN(result) || !isFinite(result) ? 0 : result;
-    }
-}
-
-// BLOC 3 : Safe Math Evaluator V6 (100% AST Parser, ZERO new Function)
-const safeEvaluateMath = (expression, scope = {}) => {
-    if (!expression || typeof expression !== 'string') return 0;
-    try {
-        const sanitizedScope = {};
-        Object.keys(scope).forEach(k => {
-            sanitizedScope[k.toUpperCase()] = parseFloat(scope[k]) || 0;
-            sanitizedScope[k.toLowerCase()] = parseFloat(scope[k]) || 0;
-        });
-        const result = SafeMathEvaluator.parseAndEvaluate(expression, sanitizedScope);
-        if (isNaN(result) || !isFinite(result)) {
-            throw new Error("Calcul invalide (division par zéro ou valeur indéfinie)");
-        }
-        if (result < 0) {
-            throw new Error(`Le résultat de la formule est négatif (${result}), ce qui est impossible pour une quantité d'ouvrage.`);
-        }
-        return result;
-    } catch (e) {
-        throw new Error(e.message || "Erreur de calcul mathématique");
-    }
-};
-
-if (typeof window !== 'undefined') {
-    window.SafeMathEvaluator = SafeMathEvaluator;
-    window.convertUnit = convertUnit;
-    window.evaluateCustomFormula = safeEvaluateMath;
-}
-
-const evaluateDynamicFormula = (formulaStr, vars = {}, extraContext = {}) => {
-    if (!formulaStr) return { value: 0, error: null };
-    
-    const takeoffMode = vars.takeoffMode || 'rectangle';
-    const allowedVars = ALLOWED_VARS_BY_MODE[takeoffMode] || ALLOWED_VARS_BY_MODE.rectangle;
-
-    let normalizedFormula = formulaStr
-        .replace(/\bsurface\b/gi, 'SURFACE')
-        .replace(/\bperimetre\b/gi, 'PERIMETRE')
-        .replace(/\bunite\b/gi, 'QTY')
-        .replace(/\bforfait\b/gi, '1')
-        .replace(/\brenforts\b/gi, '(HAUTEUR * floor(LARGEUR) * QTY)');
-
-    const reservedUsed = RESERVED_KEYWORDS.filter(kw => {
-        const regex = new RegExp('(?<![a-zA-Z0-9_])' + kw + '(?![a-zA-Z0-9_])', 'g');
-        return regex.test(normalizedFormula);
-    });
-
-    for (const kw of reservedUsed) {
-        if (['CEIL', 'FLOOR', 'ROUND', 'MIN', 'MAX', 'ABS', 'SQRT', 'IF'].includes(kw)) continue;
-        const isExplicitInVars = vars && (vars[kw] !== undefined || vars[kw.toLowerCase()] !== undefined);
-        const isExplicitInExtra = extraContext && (extraContext[kw] !== undefined || extraContext[kw.toLowerCase()] !== undefined);
-        if (!allowedVars.includes(kw) && !isExplicitInVars && !isExplicitInExtra) {
-            return { 
-                value: 0, 
-                error: `Formule incompatible : la variable "${kw}" n'est pas disponible en mode "${takeoffMode}".` 
-            };
-        }
-    }
-
-    const uppercaseVars = {};
-    if (vars && typeof vars === 'object') {
-        Object.keys(vars).forEach(k => {
-            const num = parseFloat(vars[k]);
-            uppercaseVars[k.toUpperCase()] = (!isNaN(num) && typeof vars[k] !== 'boolean') ? num : vars[k];
-        });
-    }
-
-    const w = Math.max(0, parseFloat(vars.width || vars.LARGEUR || vars.largeur || vars.L) || 0);
-    const h = Math.max(0, parseFloat(vars.height || vars.HAUTEUR || vars.hauteur || vars.H) || 0);
-    const d = Math.max(0, parseFloat(vars.depth || vars.depthDirect || vars.PROFONDEUR || vars.profondeur || vars.EPAISSEUR || vars.epaisseur || vars.P) || 0);
-    const l = Math.max(0, parseFloat(vars.length || vars.LONGUEUR || vars.longueur || vars.LINEAIRE || vars.lineaire) || 0);
-    const q = Math.max(1, parseInt(vars.qty || vars.QTY || vars.Q) || 1);
-    const f = Math.max(1, parseInt(vars.faces || vars.FACES || vars.F) || 1);
-
-    const directSurf = parseFloat(vars.SURFACE || vars.surface || vars.surfaceDirect);
-    let surfaceValue = !isNaN(directSurf) && directSurf > 0 ? directSurf : (w * h * q * f);
-    if (takeoffMode === 'surface') surfaceValue = (parseFloat(vars.surfaceDirect) || directSurf || 0) * q;
-    else if (takeoffMode === 'floor') surfaceValue = w * (parseFloat(vars.lengthDirect)||l||w) * q;
-    else if (takeoffMode === 'volume') surfaceValue = !isNaN(directSurf) && directSurf > 0 ? directSurf : (w * h * q * f);
-    else if (takeoffMode === 'linear') surfaceValue = (parseFloat(vars.lengthDirect)||l||w) * q;
-
-    const directVol = parseFloat(vars.VOLUME || vars.volume || vars.volumeDirect);
-    const volumeValue = !isNaN(directVol) && directVol > 0 ? directVol : ((takeoffMode === 'volume') ? (surfaceValue * (d || 1)) : (surfaceValue * (d || 1)));
-
-    let perimetreValue = 2 * (w + h) * q;
-    if (takeoffMode === 'floor') {
-        const floorLen = parseFloat(vars.lengthDirect) || l || w;
-        perimetreValue = 2 * (w + floorLen) * q;
-    } else if (takeoffMode === 'linear') {
-        perimetreValue = (parseFloat(vars.lengthDirect)||l||w) * q;
-    }
-
-    const lineaireVal = (takeoffMode === 'linear') ? (parseFloat(vars.lengthDirect)||l||w) * q : l * q;
-
-    const scope = {
-        ...vars,
-        ...uppercaseVars,
-        ...extraContext,
-        SURFACE: surfaceValue,
-        PERIMETRE: perimetreValue,
-        VOLUME: volumeValue,
-        PROFONDEUR: d, EPAISSEUR: d,
-        LARGEUR: w, HAUTEUR: h, LONGUEUR: lineaireVal, LINEAIRE: lineaireVal, QTY: q, FACES: f,
-        L: w, H: h, P: d, Q: q, F: f
-    };
-
-    try {
-        const val = safeEvaluateMath(normalizedFormula, scope);
-        return { value: val, error: null };
-    } catch (e) {
-        return { value: 0, error: e.message };
-    }
-};
-if (typeof window !== 'undefined') {
-    window.evaluateDynamicFormula = evaluateDynamicFormula;
-    window.optimize1DLinearCuts = optimize1DLinearCuts;
-    window.optimize2DSheetNesting = optimize2DSheetNesting;
-}
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -947,1401 +348,6 @@ class ErrorBoundary extends React.Component {
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 // ikadevis V6 HYBRID QUOTE MODULE — DATA ADAPTER & ENGINE
-// ═══════════════════════════════════════════════════════════════
-
-const R1_TEMPLATE_QUOTE = {
-    id: 1001,
-    number: 'DEV-2026-R1',
-    clientName: 'M. & Mme KOUASSI',
-    projectRef: 'Construction Villa Duplex R+1 — Cocody Ambassades',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Devis tous corps d’état (TCE) pour la construction d’une villa duplex de standing.\\nValidité : 30 jours. Règlement : 40% démarrage, 30% hors d’eau, 20% second œuvre, 10% réception.',
-    lots: [
-        {
-            id: 'lot_1',
-            code: '01',
-            name: 'Installation de Chantier & Travaux Préparatoires',
-            items: [
-                {
-                    id: 'item_1_1',
-                    solutionId: 1,
-                    name: 'Panneau de Chantier & Clôture Sécurisée',
-                    description: 'Fourniture et pose de panneau d’information et palissade métallique sécurisée 4m x 2m',
-                    qty: 1,
-                    calcForm: { solutionId: 1, takeoffMode: 'rectangle', width: 4, height: 2, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                }
-            ]
-        },
-        {
-            id: 'lot_2',
-            code: '02',
-            name: 'Terrassement & Fouilles en Rigoles',
-            items: [
-                {
-                    id: 'item_2_1',
-                    solutionId: 10,
-                    name: 'Fouilles en pleine masse et décapage terre végétale',
-                    description: 'Déblais mécaniques (250 m³) avec évacuation des terres excédentaires à la décharge publique',
-                    qty: 1,
-                    calcForm: { solutionId: 10, takeoffMode: 'volume', width: 25, height: 10, depth: 1.0, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                }
-            ]
-        },
-        {
-            id: 'lot_3',
-            code: '03',
-            name: 'Fondations & Béton Armé d’Infrastructure',
-            items: [
-                {
-                    id: 'item_3_1',
-                    solutionId: 4,
-                    name: 'Semelles isolées et filantes en béton armé B25 dosé à 350 kg/m³',
-                    description: 'Béton prêt à l’emploi (36 m³) avec armature haute adhérence FeE500 dosée à 80 kg/m³',
-                    qty: 1,
-                    calcForm: { solutionId: 4, takeoffMode: 'volume', width: 15, height: 12, depth: 0.20, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { DOSAGE_ACIER: 80 } }
-                }
-            ]
-        },
-        {
-            id: 'lot_4',
-            code: '04',
-            name: 'Structure & Gros Œuvre RDC',
-            items: [
-                {
-                    id: 'item_4_1',
-                    solutionId: 4,
-                    name: 'Poteaux, poutres et chaînages RDC en béton armé',
-                    description: 'Coffrage soigné contreplaqué bakélisé et coulage béton prêt à l’emploi (28 m³)',
-                    qty: 1,
-                    calcForm: { solutionId: 4, takeoffMode: 'volume', width: 14, height: 10, depth: 0.20, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { DOSAGE_ACIER: 90 } }
-                }
-            ]
-        },
-        {
-            id: 'lot_5',
-            code: '05',
-            name: 'Plancher Haut RDC & Structure Étage R+1',
-            items: [
-                {
-                    id: 'item_5_1',
-                    solutionId: 4,
-                    name: 'Dalle de compression et plancher hourdis nervuré 16+4',
-                    description: 'Hourdis creux avec treillis soudé et béton dosé à 350 kg/m³ (160 m²)',
-                    qty: 1,
-                    calcForm: { solutionId: 4, takeoffMode: 'volume', width: 16, height: 10, depth: 0.15, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { DOSAGE_ACIER: 75 } }
-                }
-            ]
-        },
-        {
-            id: 'lot_6',
-            code: '06',
-            name: 'Maçonnerie & Cloisonnements',
-            items: [
-                {
-                    id: 'item_6_1',
-                    solutionId: 5,
-                    name: 'Murs extérieurs en agglos pleins de 15 et cloisons intérieures',
-                    description: 'Élévation de 320 m² de murs hourdés au mortier de ciment dosé à 300 kg/m³',
-                    qty: 1,
-                    calcForm: { solutionId: 5, takeoffMode: 'surface', surfaceDirect: 320, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                }
-            ]
-        },
-        {
-            id: 'lot_7',
-            code: '07',
-            name: 'Électricité Courants Forts & Faibles',
-            items: [
-                {
-                    id: 'item_7_1',
-                    isCustom: true,
-                    name: 'Tableau divisionnaire & Câblage complet appareillage Legrand',
-                    description: 'Distribution encastrée, disjoncteurs différentiels, prises et 48 points lumineux LED',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 3500000,
-                    totalHT: 3500000
-                }
-            ]
-        },
-        {
-            id: 'lot_8',
-            code: '08',
-            name: 'Plomberie Sanitaire & Évacuations',
-            items: [
-                {
-                    id: 'item_8_1',
-                    isCustom: true,
-                    name: 'Réseau alimentation multicouche & Évacuations PVC EU/EV',
-                    description: 'Fourniture et raccordement sanitaires complets (4 SDB complètes + Cuisine moderne)',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 2800000,
-                    totalHT: 2800000
-                }
-            ]
-        },
-        {
-            id: 'lot_9',
-            code: '09',
-            name: 'Menuiserie Aluminium & Serrurerie',
-            items: [
-                {
-                    id: 'item_9_1',
-                    solutionId: 7,
-                    name: 'Baies vitrées coulissantes & Portes-fenêtres alu vitrage feuilleté 44.2',
-                    description: 'Profilés aluminium thermolaqués avec vitrage isolant de sécurité 44.2 (6 ensembles 2.4m x 2.2m)',
-                    qty: 6,
-                    calcForm: { solutionId: 7, takeoffMode: 'rectangle', width: 2.4, height: 2.2, qty: 6, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                }
-            ]
-        },
-        {
-            id: 'lot_10',
-            code: '10',
-            name: 'Revêtements de Sol & Peinture Intérieure/Extérieure',
-            items: [
-                {
-                    id: 'item_10_1',
-                    solutionId: 6,
-                    name: 'Carrelage Grès Cérame 60x60 Poli & Plinthes assorties (220 m²)',
-                    description: 'Pose collée avec mortier colle C2TE et jointoiement soigné hydrofuge',
-                    qty: 1,
-                    calcForm: { solutionId: 6, takeoffMode: 'surface', surfaceDirect: 220, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                },
-                {
-                    id: 'item_10_2',
-                    solutionId: 3,
-                    name: 'Peinture Murale Satinée 2 Couches (Intérieur + Façades 650 m²)',
-                    description: 'Ponçage, impression fixatrice et application de 2 couches de finition satinée lessivable',
-                    qty: 1,
-                    calcForm: { solutionId: 3, takeoffMode: 'surface', surfaceDirect: 650, qty: 1, faces: 2, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { COUCHES: 2 } }
-                }
-            ]
-        },
-        {
-            id: 'lot_11',
-            code: '11',
-            name: 'Finitions, Nettoyage & Réception de Chantier',
-            items: [
-                {
-                    id: 'item_11_1',
-                    isCustom: true,
-                    name: 'Nettoyage industriel de fin de chantier & Enlèvement gravats',
-                    description: 'Remise en état impeccable avant livraison des clés au maître d’ouvrage',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 600000,
-                    totalHT: 600000
-                }
-            ]
-        }
-    ]
-};
-
-function generateNextQuoteNumber(existingQuotes, currentYear = new Date().getFullYear()) {
-    if (!Array.isArray(existingQuotes) || existingQuotes.length === 0) {
-        return `DEV-${currentYear}-001`;
-    }
-    const pattern = new RegExp(`DEV-${currentYear}-(\\d+)`);
-    const seqs = existingQuotes
-        .map(q => {
-            const match = String(q.number || '').match(pattern);
-            return match ? parseInt(match[1], 10) : 0;
-        })
-        .filter(n => !isNaN(n) && n > 0);
-
-    const maxSeq = seqs.length > 0 ? Math.max(...seqs) : 0;
-    return `DEV-${currentYear}-${String(maxSeq + 1).padStart(3, '0')}`;
-}
-
-function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quoteFinancials = {}) {
-    if (item.isCustom) {
-        const qty = Math.max(1, parseFloat(item.qty) || 1);
-        const unitPriceHT = Math.max(0, parseFloat(item.unitPriceHT) || 0);
-        const totalHT = Math.round(qty * unitPriceHT);
-        const hasKnownCost = parseFloat(item.costUnit) > 0;
-        const debourse = hasKnownCost ? Math.round(parseFloat(item.costUnit) * qty) : null;
-        const overheadRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.overheadRate || 5)));
-        const vatRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.vatRate || 18)));
-        const fraisGen = hasKnownCost ? Math.round(debourse * (overheadRate / 100)) : null;
-        const revient = hasKnownCost ? debourse + fraisGen : null;
-        const marge = hasKnownCost ? totalHT - revient : null;
-        return {
-            ...item,
-            name: item.name || 'Ligne Libre',
-            qty,
-            unit: item.unit || 'u',
-            unitPriceHT,
-            totalHT,
-            quoteData: {
-                solutionName: item.name,
-                totalDebourseConsomme: debourse,
-                totalDebourseAchat: debourse,
-                fraisGenerauxConsomme: fraisGen,
-                fraisGenerauxAchat: fraisGen,
-                totalRevientConsomme: revient,
-                totalRevientAchat: revient,
-                netHTConsomme: totalHT,
-                netHTAchat: totalHT,
-                tvaConsomme: Math.round(totalHT * (vatRate / 100)),
-                totalTTCConsomme: Math.round(totalHT * (1 + (vatRate / 100))),
-                margeValeurConsomme: marge,
-                details: []
-            }
-        };
-    }
-
-    const solution = solutions.find(s => s.id === item.solutionId) || solutions[0];
-    if (!solution) return { ...item, error: 'Ouvrage non trouvé' };
-
-    const recipeLines = recipes.filter(r => r.solutionId === solution.id);
-    const calcForm = item.calcForm || {
-        solutionId: solution.id,
-        takeoffMode: solution.allowedModes?.[0] || 'rectangle',
-        width: 2, height: 1, lengthDirect: 2, surfaceDirect: 10, depth: 0.15,
-        qty: item.qty || 1, faces: 1,
-        margin: quoteFinancials.margin || 30,
-        marginType: quoteFinancials.marginType || 'reel',
-        overheadRate: quoteFinancials.overheadRate || 5,
-        vatRate: quoteFinancials.vatRate || 18,
-        discountRate: quoteFinancials.discountRate || 0,
-        includeInstall: true,
-        customVarValues: {}
-    };
-
-    const widthVal = Math.max(0.01, parseFloat(calcForm.width) || 0);
-    const heightVal = Math.max(0.01, parseFloat(calcForm.height) || 0);
-    const depthVal = Math.max(0.01, parseFloat(calcForm.depth) || 0.15);
-    const lengthDirectVal = Math.max(0.01, parseFloat(calcForm.lengthDirect) || widthVal);
-    const surfaceDirectVal = Math.max(0.01, parseFloat(calcForm.surfaceDirect) || (widthVal * heightVal));
-    const qtyVal = Math.max(1, parseInt(calcForm.qty || item.qty) || 1);
-    const facesVal = Math.max(1, parseInt(calcForm.faces) || 1);
-    const marginVal = Math.min(95, Math.max(0, parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin || 30))));
-
-    // Dynamic scope isolated per calculation
-    const mode = calcForm.takeoffMode || 'rectangle';
-    let calcSurface = surfaceDirectVal;
-    let calcPerimeter = 2 * (widthVal + heightVal);
-    let calcVolume = widthVal * heightVal * depthVal;
-
-    if (mode === 'rectangle') {
-        calcSurface = widthVal * heightVal;
-        calcPerimeter = 2 * (widthVal + heightVal);
-    } else if (mode === 'volume') {
-        calcSurface = widthVal * heightVal;
-        calcVolume = widthVal * heightVal * depthVal;
-    } else if (mode === 'surface') {
-        calcSurface = surfaceDirectVal;
-        calcPerimeter = 4 * Math.sqrt(surfaceDirectVal);
-    } else if (mode === 'linear') {
-        calcSurface = lengthDirectVal;
-        calcPerimeter = lengthDirectVal;
-    }
-
-    const evalVars = {
-        takeoffMode: mode,
-        width: widthVal, height: heightVal, depth: depthVal,
-        lengthDirect: lengthDirectVal, surfaceDirect: calcSurface,
-        qty: qtyVal, faces: facesVal,
-        LARGEUR: widthVal, HAUTEUR: heightVal, PROFONDEUR: depthVal, EPAISSEUR: depthVal, P: depthVal, QTY: qtyVal, FACES: facesVal,
-        LONGUEUR: lengthDirectVal, LINEAIRE: lengthDirectVal,
-        SURFACE: calcSurface, PERIMETRE: calcPerimeter, VOLUME: calcVolume
-    };
-
-    if (solution.customVars && solution.customVars.length > 0) {
-        solution.customVars.forEach(cv => {
-            const rawVal = calcForm.customVarValues && calcForm.customVarValues[cv.name] !== undefined
-                ? calcForm.customVarValues[cv.name]
-                : (cv.defaultValue !== undefined ? cv.defaultValue : 0);
-            evalVars[cv.name] = parseFloat(rawVal) || 0;
-        });
-    }
-
-    const evaluatedLines = recipeLines.map(line => {
-        const costCat = line.costCategory || (line.label.toLowerCase().includes('install') ? 'installation' : line.type);
-        let extraCtx = {};
-        if (line.type === 'labor') {
-            const lab = labor.find(l => l.id === line.refId);
-            if (lab) { extraCtx.RENDEMENT_MO = lab.yieldRate || 0; extraCtx.TARIF_MO = lab.rate || 0; }
-        } else if (line.type === 'material') {
-            const mat = materials.find(m => m.id === line.refId);
-            if (mat) { extraCtx.RENDEMENT_MATIERE = mat.yieldRate || 0; extraCtx.TARIF_MATIERE = mat.priceCalc || 0; }
-        }
-        const evalRes = evaluateDynamicFormula(line.formula, evalVars, extraCtx);
-        return { ...line, costCategory: costCat, baseQty: evalRes.value, evalError: evalRes.error };
-    });
-
-    const activeLines = evaluatedLines.filter(line => line.baseQty > 0);
-    const details = [];
-    const consumedByCategory = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
-    let totalPurchasedMaterialCost = 0;
-
-    activeLines.forEach(line => {
-        const cat = line.costCategory || 'material';
-        if (line.type === 'material') {
-            const mat = materials.find(m => m.id === line.refId);
-            if (mat) {
-                // P0.5 — Taux de perte ajustable par devis/chantier : par défaut on
-                // reprend mat.waste (taux "catalogue", partagé par toutes les
-                // recettes utilisant cette matière), mais calcForm.wasteOverrides
-                // permet de le surcharger pour CET ouvrage précis (mur neuf lisse vs
-                // support irrégulier n'ont pas le même taux de perte réel), sans
-                // toucher au taux catalogue qui reste la référence par défaut.
-                const wasteOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : undefined;
-                const wastePct = (wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== '')
-                    ? parseFloat(wasteOverride)
-                    : (parseFloat(mat.waste) || 0);
-                const billedQty = line.baseQty * (1 + (wastePct / 100));
-                const consumedCost = billedQty * mat.priceCalc;
-
-                // P0.4 — Pack rounding : on ne peut pas acheter 97.2 L de peinture,
-                // on achète des pots entiers. Le déboursé facturé au client doit
-                // refléter purchasedCost (conditionnement réellement acheté), pas
-                // consumedCost (quantité nette théorique). mat.purchaseMode 'real'
-                // = pas de conditionnement fixe (ex: m² de vitrage) → les deux
-                // coïncident naturellement.
-                const packUnitSize = mat.unitSize || 1;
-                const isRealMode = mat.purchaseMode === 'real';
-                const packsNeeded = isRealMode
-                    ? (packUnitSize > 0 ? billedQty / packUnitSize : billedQty)
-                    : Math.ceil(billedQty / packUnitSize);
-                const purchasedCost = packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc));
-                totalPurchasedMaterialCost += purchasedCost;
-
-                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + purchasedCost;
-                details.push({
-                    id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
-                    baseQty: line.baseQty, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: purchasedCost,
-                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost, consumedCost,
-                    matId: mat.id, wastePct, defaultWastePct: parseFloat(mat.waste) || 0, isWasteOverridden: wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== ''
-                });
-            }
-        } else if (line.type === 'labor') {
-            const lab = labor.find(l => l.id === line.refId);
-            if (lab) {
-                const cost = line.baseQty * lab.rate;
-                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
-                details.push({
-                    id: line.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
-                    baseQty: line.baseQty, billedQty: line.baseQty, unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost
-                });
-            }
-        }
-    });
-
-    const totalDebourseConsomme = Object.values(consumedByCategory).reduce((a, b) => a + b, 0);
-    const overheadRate = Math.min(50, Math.max(0, parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate || 5))));
-    const fraisGenerauxConsomme = totalDebourseConsomme * (overheadRate / 100);
-    const totalRevientConsomme = totalDebourseConsomme + fraisGenerauxConsomme;
-
-    let prixVenteConsommeHT = 0;
-    if (calcForm.marginType === 'reel') {
-        const safeDivisor = Math.max(0.05, 1 - (marginVal / 100));
-        prixVenteConsommeHT = totalRevientConsomme / safeDivisor;
-    } else {
-        prixVenteConsommeHT = totalRevientConsomme * (1 + (marginVal / 100));
-    }
-
-    const discountRate = Math.min(100, Math.max(0, parseFloat(calcForm.discountRate || quoteFinancials.discountRate || 0)));
-    const netHTConsomme = prixVenteConsommeHT * (1 - (discountRate / 100));
-    const vatRate = Math.min(50, Math.max(0, parseFloat(calcForm.vatRate !== undefined ? calcForm.vatRate : (quoteFinancials.vatRate || 18))));
-    const tvaConsomme = netHTConsomme * (vatRate / 100);
-    const totalTTCConsomme = netHTConsomme + tvaConsomme;
-    const margeValeurConsomme = netHTConsomme - totalRevientConsomme;
-
-    const unitSellingPriceHT = qtyVal > 0 ? (netHTConsomme / qtyVal) : netHTConsomme;
-
-    return {
-        ...item,
-        name: item.name || solution.name,
-        qty: qtyVal,
-        unit: item.unit || (mode === 'surface' ? 'm²' : mode === 'linear' ? 'ml' : mode === 'volume' ? 'm³' : 'u'),
-        unitPriceHT: Math.round(unitSellingPriceHT),
-        totalHT: Math.round(netHTConsomme),
-        calcForm,
-        quoteData: {
-            solutionName: solution.name,
-            totalDebourseConsomme: Math.round(totalDebourseConsomme),
-            totalDebourseAchat: Math.round(totalPurchasedMaterialCost + (consumedByCategory.labor || 0) + (consumedByCategory.installation || 0)),
-            fraisGenerauxConsomme: Math.round(fraisGenerauxConsomme),
-            totalRevientConsomme: Math.round(totalRevientConsomme),
-            netHTConsomme: Math.round(netHTConsomme),
-            tvaConsomme: Math.round(tvaConsomme),
-            totalTTCConsomme: Math.round(totalTTCConsomme),
-            margeValeurConsomme: Math.round(margeValeurConsomme),
-            details
-        }
-    };
-}
-
-function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
-    if (!quote) return null;
-    const quoteFinancials = {
-        margin: quote.margin !== undefined ? quote.margin : 30,
-        marginType: quote.marginType || 'reel',
-        overheadRate: quote.overheadRate !== undefined ? quote.overheadRate : 5,
-        vatRate: quote.vatRate !== undefined ? quote.vatRate : 18,
-        discountRate: quote.discountRate !== undefined ? quote.discountRate : 0
-    };
-
-    let totalDebourse = 0;
-    let totalFraisGen = 0;
-    let totalRevient = 0;
-    let totalNetHT = 0;
-    let totalTVA = 0;
-    let totalTTC = 0;
-    let totalMargeVal = 0;
-
-    const allCommercialItems = [];
-    const aggregatedMaterials = {};
-
-    const calculatedLots = (quote.lots || []).map((lot, idx) => {
-        let lotDebourse = 0;
-        let lotRevient = 0;
-        let lotNetHT = 0;
-        let lotMargeVal = 0;
-
-        const calculatedItems = (lot.items || []).map(item => {
-            const calculatedItem = calculateSingleWorkItem(item, solutions, materials, labor, recipes, quoteFinancials);
-            const qd = calculatedItem.quoteData || {};
-            lotDebourse += (qd.totalDebourseConsomme || 0);
-            lotRevient += (qd.totalRevientConsomme || 0);
-            lotNetHT += (qd.netHTConsomme || 0);
-            lotMargeVal += (qd.margeValeurConsomme || 0);
-
-            // Commercial item format for customer preview & PDF
-            allCommercialItems.push({
-                id: calculatedItem.id,
-                lotCode: lot.code || String(idx + 1).padStart(2, '0'),
-                lotName: lot.name,
-                label: calculatedItem.name,
-                description: calculatedItem.description || '',
-                billedQty: calculatedItem.qty || 1,
-                unit: calculatedItem.unit || 'u',
-                sellingUnitHT: calculatedItem.unitPriceHT || 0,
-                sellingTotalHT: calculatedItem.totalHT || 0
-            });
-
-            // Material consolidation aggregation
-            if (qd.materialConsolidation) {
-                Object.keys(qd.materialConsolidation).forEach(matId => {
-                    const c = qd.materialConsolidation[matId];
-                    if (!aggregatedMaterials[matId]) {
-                        aggregatedMaterials[matId] = { mat: c.mat, totalBilledQty: 0 };
-                    }
-                    aggregatedMaterials[matId].totalBilledQty += c.totalBilledQty;
-                });
-            }
-
-            return calculatedItem;
-        });
-
-        const lotFraisGen = lotDebourse * (quoteFinancials.overheadRate / 100);
-        const lotTVA = lotNetHT * (quoteFinancials.vatRate / 100);
-        const lotTTC = lotNetHT + lotTVA;
-        const lotMarginPct = lotNetHT > 0 ? (lotMargeVal / lotNetHT) * 100 : 0;
-
-        totalDebourse += lotDebourse;
-        totalFraisGen += lotFraisGen;
-        totalRevient += lotRevient;
-        totalNetHT += lotNetHT;
-        totalTVA += lotTVA;
-        totalTTC += lotTTC;
-        totalMargeVal += lotMargeVal;
-
-        return {
-            ...lot,
-            code: lot.code || String(idx + 1).padStart(2, '0'),
-            items: calculatedItems,
-            lotTotalHT: Math.round(lotNetHT),
-            lotTotalTTC: Math.round(lotTTC),
-            lotDebourse: Math.round(lotDebourse),
-            lotMarginPct: parseFloat(lotMarginPct.toFixed(2)),
-            isComplete: calculatedItems.length > 0 && calculatedItems.every(i => !i.error && i.totalHT > 0)
-        };
-    });
-
-    const globalMarginPct = totalNetHT > 0 ? (totalMargeVal / totalNetHT) * 100 : 0;
-    const salesMultiplierK = totalDebourse > 0 ? parseFloat((totalNetHT / totalDebourse).toFixed(3)) : 1.0;
-    const profitabilityStatus = globalMarginPct < 15 ? 'warning' : 'healthy';
-
-    const paymentSchedule = {
-        deposit: { pct: 40, label: 'Acompte à la commande (40%)', amount: Math.round(totalTTC * 0.40) },
-        midterm: { pct: 30, label: 'Situation intermédiaire / Hors d’eau (30%)', amount: Math.round(totalTTC * 0.30) },
-        finishes: { pct: 20, label: 'Second œuvre & Finitions (20%)', amount: Math.round(totalTTC * 0.20) },
-        balance: { pct: 10, label: 'Solde à la réception des travaux (10%)', amount: Math.round(totalTTC * 0.10) }
-    };
-
-    return {
-        ...quote,
-        lots: calculatedLots,
-        commercialItems: allCommercialItems,
-        materialConsolidation: aggregatedMaterials,
-        totalDebourse: Math.round(totalDebourse),
-        totalFraisGen: Math.round(totalFraisGen),
-        totalRevient: Math.round(totalRevient),
-        totalNetHT: Math.round(totalNetHT),
-        totalTVA: Math.round(totalTVA),
-        totalTTC: Math.round(totalTTC),
-        totalMargeVal: Math.round(totalMargeVal),
-        globalMarginPct: parseFloat(globalMarginPct.toFixed(2)),
-        salesMultiplierK,
-        profitabilityStatus,
-        paymentSchedule
-    };
-}
-
-function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
-    const calc = hybridQuote;
-    const currentYear = new Date().getFullYear();
-    const quoteNumber = hybridQuote.number || `DEV-${currentYear}-001`;
-
-    const savedLots = (calc.lots || []).map((lot, idx) => ({
-        id: lot.id,
-        lotNumber: idx + 1,
-        lotName: lot.name,
-        solutionId: lot.items?.[0]?.solutionId || 1,
-        solutionName: lot.items?.[0]?.name || lot.name,
-        takeoffMode: lot.items?.[0]?.calcForm?.takeoffMode || 'rectangle',
-        dimensions: lot.items?.[0]?.calcForm || {},
-        quoteData: {
-            solutionName: lot.name,
-            totalDebourseConsomme: lot.lotDebourse,
-            netHTConsomme: lot.lotTotalHT,
-            totalTTCConsomme: lot.lotTotalTTC,
-            details: lot.items.flatMap(i => i.quoteData?.details || [])
-        }
-    }));
-
-    const quoteData = {
-        solutionName: hybridQuote.projectRef || `Devis Multi-Lots (${calc.lots?.length || 1} lots)`,
-        isMultiLot: true,
-        lots: savedLots,
-        totalDebourseConsomme: calc.totalDebourse,
-        fraisGenerauxConsomme: calc.totalFraisGen,
-        totalRevientConsomme: calc.totalRevient,
-        margeValeurConsomme: calc.totalMargeVal,
-        margePctConsommeReelle: calc.globalMarginPct,
-        netHTConsomme: calc.totalNetHT,
-        tvaConsomme: calc.totalTVA,
-        totalTTCConsomme: calc.totalTTC,
-        commercialItems: calc.commercialItems || [],
-        vatRate: calc.vatRate || 18
-    };
-
-    return {
-        id: hybridQuote.id || Date.now(),
-        number: quoteNumber,
-        date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        clientName: hybridQuote.clientName?.trim() || 'Client Passage',
-        projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
-        notes: hybridQuote.notes || '',
-        vatRate: calc.vatRate || 18,
-        isMultiLot: true,
-        status: hybridQuote.status || 'draft',
-        quoteData,
-        companyInfoSnapshot: { ...companyInfo },
-        calcFormSnapshot: hybridQuote.lots?.[0]?.items?.[0]?.calcForm || {},
-        hybridQuoteSnapshot: JSON.parse(JSON.stringify(hybridQuote))
-    };
-}
-
-function adaptSavedQuoteToHybrid(savedQuote, solutions, materials, labor, recipes) {
-    if (!savedQuote) return null;
-    if (savedQuote.hybridQuoteSnapshot) {
-        return calculateHybridQuote(savedQuote.hybridQuoteSnapshot, solutions, materials, labor, recipes);
-    }
-    
-    // If it's an existing multi-lot quote from V5.9
-    if (savedQuote.isMultiLot && savedQuote.quoteData?.lots && savedQuote.quoteData.lots.length > 0) {
-        const hybridQuote = {
-            id: savedQuote.id,
-            number: savedQuote.number,
-            clientName: savedQuote.clientName,
-            projectRef: savedQuote.projectRef,
-            status: savedQuote.status || 'draft',
-            vatRate: savedQuote.vatRate || 18,
-            overheadRate: 5,
-            margin: 30,
-            marginType: 'reel',
-            notes: savedQuote.notes || '',
-            lots: savedQuote.quoteData.lots.map((l, idx) => ({
-                id: l.id || `lot_${idx + 1}`,
-                code: String(idx + 1).padStart(2, '0'),
-                name: l.lotName || `Lot ${idx + 1}`,
-                items: [
-                    {
-                        id: `item_${l.id || idx + 1}`,
-                        solutionId: l.solutionId || 1,
-                        name: l.solutionName || l.lotName,
-                        qty: l.dimensions?.qty || 1,
-                        calcForm: l.dimensions || { solutionId: l.solutionId || 1, takeoffMode: l.takeoffMode || 'rectangle' }
-                    }
-                ]
-            }))
-        };
-        return calculateHybridQuote(hybridQuote, solutions, materials, labor, recipes);
-    }
-
-    // If it's a single calculation quote from V5.9
-    const singleQuote = {
-        id: savedQuote.id,
-        number: savedQuote.number,
-        clientName: savedQuote.clientName,
-        projectRef: savedQuote.projectRef,
-        status: savedQuote.status || 'draft',
-        vatRate: savedQuote.vatRate || 18,
-        overheadRate: 5,
-        margin: 30,
-        marginType: 'reel',
-        notes: savedQuote.notes || '',
-        lots: [
-            {
-                id: 'lot_1',
-                code: '01',
-                name: savedQuote.projectRef || 'Lot Principal',
-                items: [
-                    {
-                        id: 'item_1',
-                        solutionId: savedQuote.calcFormSnapshot?.solutionId || 1,
-                        name: savedQuote.quoteData?.solutionName || 'Ouvrage Principal',
-                        qty: savedQuote.calcFormSnapshot?.qty || 1,
-                        calcForm: savedQuote.calcFormSnapshot || {}
-                    }
-                ]
-            }
-        ]
-    };
-    return calculateHybridQuote(singleQuote, solutions, materials, labor, recipes);
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// ikadevis V6 HYBRID QUOTE WORKSPACE & SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════
-// ikadevis V6.1 UI/UX AUDIT ENHANCEMENTS — COMPONENTS & WIZARD
-// ═══════════════════════════════════════════════════════════════
-
-const EVENT_TEMPLATE_QUOTE = {
-    id: 1002,
-    number: 'DEV-2026-EVT-01',
-    clientName: 'AGENCE IMPACT COM',
-    projectRef: 'Salon International de l’Innovation — Stand Premium 36m²',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Prestation événementielle tout compris : Scénographie, Impression, Mobilier, Éclairage et Régie technique.\nValidité : 15 jours. Acompte : 50% à la commande, 50% à la livraison du stand.',
-    lots: [
-        {
-            id: 'lot_evt_1',
-            code: '01',
-            name: 'Scénographie, Podium & Structures Modulaires',
-            items: [
-                {
-                    id: 'item_evt_1_1',
-                    isCustom: true,
-                    name: 'Podium Scène surélevé 6m × 4m avec juponnage noir',
-                    description: 'Structure praticable aluminium renforcée avec plancher bois antidérapant et escalier 2 marches',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 1200000,
-                    totalHT: 1200000
-                },
-                {
-                    id: 'item_evt_1_2',
-                    solutionId: 1,
-                    name: 'Structure Autoportante Backdrop Fond de Scène 8m × 3m',
-                    description: 'Cadre métallique tubulaire avec platines de lestage pour tension de bâche grand format',
-                    qty: 1,
-                    calcForm: {
-                        solutionId: 1, takeoffMode: 'rectangle', width: 8, height: 3, qty: 1, faces: 1,
-                        margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0,
-                        includeInstall: true, customVarValues: {}
-                    }
-                },
-                {
-                    id: 'item_evt_1_3',
-                    isCustom: true,
-                    name: 'Arche d’Accueil Monumentale 4m × 3m & Photocall VIP',
-                    description: 'Structure 3D habillée avec éclairage intégré et fond photocall pour prises de vue partenaires',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 850000,
-                    totalHT: 850000
-                }
-            ]
-        },
-        {
-            id: 'lot_evt_2',
-            code: '02',
-            name: 'Impression Grand Format, Bâches & Signalétique',
-            items: [
-                {
-                    id: 'item_evt_2_1',
-                    solutionId: 1,
-                    name: 'Impression Bâche PVC 510g M1 Anti-reflet HD',
-                    description: 'Bâche occultante haute définition avec fourreaux et œillets de tension périphériques',
-                    qty: 1,
-                    calcForm: {
-                        solutionId: 1, takeoffMode: 'rectangle', width: 8, height: 3, qty: 1, faces: 1,
-                        margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0,
-                        includeInstall: true, customVarValues: {}
-                    }
-                },
-                {
-                    id: 'item_evt_2_2',
-                    isCustom: true,
-                    name: 'Totems Signalétiques Triangulaires 2.00m × 0.80m (x3)',
-                    description: 'Totems autoportants en Alucobond imprimé vinyle lamination mate anti-reflet',
-                    qty: 3,
-                    unit: 'u',
-                    unitPriceHT: 220000,
-                    totalHT: 660000
-                }
-            ]
-        },
-        {
-            id: 'lot_evt_3',
-            code: '03',
-            name: 'Équipements, Mobilier & Technique Lumière',
-            items: [
-                {
-                    id: 'item_evt_3_1',
-                    isCustom: true,
-                    name: 'Moquette Événementielle Ignifugée M1 avec film protecteur',
-                    description: 'Fourniture et pose de moquette velours 36m² avec découpe et ruban adhésif double-face résistant',
-                    qty: 36,
-                    unit: 'm²',
-                    unitPriceHT: 12000,
-                    totalHT: 432000
-                },
-                {
-                    id: 'item_evt_3_2',
-                    isCustom: true,
-                    name: 'Kit Éclairage Scénique LED Wash 54x3W & Projecteurs Découpe',
-                    description: 'Rampe de 6 projecteurs LED RGBW orientables avec gradateur DMX et câblage sécurisé',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 650000,
-                    totalHT: 650000
-                },
-                {
-                    id: 'item_evt_3_3',
-                    isCustom: true,
-                    name: 'Pack Mobilier Lounge (Canapés, Table basse, Mange-debout x4)',
-                    description: 'Mobilier design haut standing pour espace networking et accueil VIP',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 750000,
-                    totalHT: 750000
-                }
-            ]
-        },
-        {
-            id: 'lot_evt_4',
-            code: '04',
-            name: 'Logistique, Montage Nuit, Régie & Démontage',
-            items: [
-                {
-                    id: 'item_evt_4_1',
-                    isCustom: true,
-                    name: 'Transport Camion 20m³ & Manutention sécurisée A/R',
-                    description: 'Acheminement sur site expo, déchargement et rechargement après clôture',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 350000,
-                    totalHT: 350000
-                },
-                {
-                    id: 'item_evt_4_2',
-                    isCustom: true,
-                    name: 'Équipe de Montage Nuit & Démontage Express (8 techniciens)',
-                    description: 'Installation complète en horaires décalés (J-1 20h à J0 06h) et repli en 3 heures',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 950000,
-                    totalHT: 950000
-                }
-            ]
-        }
-    ]
-};
-
-// ═══════════════════════════════════════════════════════════════
-// BLOC 4/10 : MODÈLES & GÉNÉRATEURS MÉTIERS PROFESSIONNELS BTP
-// ═══════════════════════════════════════════════════════════════
-
-const PAINTING_PRO_TEMPLATE_QUOTE = {
-    id: 1005,
-    number: 'DEV-2026-PNT-01',
-    clientName: 'SCI RÉSIDENCE DU PARC',
-    projectRef: 'Travaux de Peinture Complète, Préparation & Enduit — 350m²',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Travaux de peinture intérieure soignée : protection des sols et menuiseries, lessivage, impression hydrofuge, enduit de lissage 2 passes, ponçage dépoussiérage et application de 2 couches de peinture satinée velours.',
-    lots: [
-        {
-            id: 'lot_pnt_1',
-            code: '01',
-            name: 'Protection, Masquage & Préparation des Supports',
-            items: [
-                {
-                    id: 'item_pnt_1_1',
-                    isCustom: true,
-                    name: 'Protection des sols, fenêtres et plinthes (bâche polyane + adhésif de masquage)',
-                    description: 'Fourniture et pose de films de protection sur l’ensemble des surfaces non peintes',
-                    qty: 350,
-                    unit: 'm²',
-                    unitPriceHT: 850,
-                    totalHT: 297500
-                },
-                {
-                    id: 'item_pnt_1_2',
-                    isCustom: true,
-                    name: 'Lessivage, égrenage et rebouchage des fissures',
-                    description: 'Nettoyage des fonds et traitement des microfissures à l’enduit fibré',
-                    qty: 350,
-                    unit: 'm²',
-                    unitPriceHT: 1200,
-                    totalHT: 420000
-                }
-            ]
-        },
-        {
-            id: 'lot_pnt_2',
-            code: '02',
-            name: 'Couche d’Impression & Enduisage 2 Passes',
-            items: [
-                {
-                    id: 'item_pnt_2_1',
-                    isCustom: true,
-                    name: 'Application d’une sous-couche primaire d’accrochage hydrofuge',
-                    description: 'Régulation de la porosité du plâtre et uniformisation des supports',
-                    qty: 350,
-                    unit: 'm²',
-                    unitPriceHT: 1800,
-                    totalHT: 630000
-                },
-                {
-                    id: 'item_pnt_2_2',
-                    isCustom: true,
-                    name: 'Enduit de surfaçage et lissage en 2 passes croisées avec ponçage fin',
-                    description: 'Application manuelle au couteau et ponçage mécanique avec aspiration',
-                    qty: 350,
-                    unit: 'm²',
-                    unitPriceHT: 2600,
-                    totalHT: 910000
-                }
-            ]
-        },
-        {
-            id: 'lot_pnt_3',
-            code: '03',
-            name: 'Peinture de Finition Satinée Velours (2 Couches)',
-            items: [
-                {
-                    id: 'item_pnt_3_1',
-                    solutionId: 3,
-                    name: 'Peinture murale acrylique satinée velours — 2 couches croisées',
-                    description: 'Peinture haute résistance lavable, certifiée sans COV (350 m²)',
-                    qty: 1,
-                    calcForm: { solutionId: 3, takeoffMode: 'surface', surfaceDirect: 350, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { COUCHES: 2, RENDEMENT: 9 } }
-                }
-            ]
-        }
-    ]
-};
-
-const TILING_PRO_TEMPLATE_QUOTE = {
-    id: 1006,
-    number: 'DEV-2026-CRL-01',
-    clientName: 'IMMEUBLE LE SÉMAPHORE',
-    projectRef: 'Revêtement Sols & Murs en Grès Cérame 60x60 — 220m²',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Fourniture et pose de carrelage en grès cérame émaillé 60x60 rectifié avec ragréage préalable autolissant, colle haute performance C2S1, joints hydrofuges 2mm et plinthes assorties.',
-    lots: [
-        {
-            id: 'lot_crl_1',
-            code: '01',
-            name: 'Ragréage Autolissant & Préparation du Support',
-            items: [
-                {
-                    id: 'item_crl_1_1',
-                    isCustom: true,
-                    name: 'Ragréage autolissant P3 fibré épaisseur 3 à 5mm',
-                    description: 'Primaire d’adhérence et coulage de mortier autolissant fibré pour planéité parfaite',
-                    qty: 220,
-                    unit: 'm²',
-                    unitPriceHT: 3500,
-                    totalHT: 770000
-                }
-            ]
-        },
-        {
-            id: 'lot_crl_2',
-            code: '02',
-            name: 'Pose Carrelage Grès Cérame 60x60 & Jointoiement',
-            items: [
-                {
-                    id: 'item_crl_2_1',
-                    isCustom: true,
-                    name: 'Fourniture et pose carrelage grès cérame 60x60 rectifié (pose droite)',
-                    description: 'Double encollage au mortier-colle C2S1, croisillons autonivelants et découpes soignées (+7% perte)',
-                    qty: 235.4,
-                    unit: 'm²',
-                    unitPriceHT: 16500,
-                    totalHT: 3884100
-                },
-                {
-                    id: 'item_crl_2_2',
-                    isCustom: true,
-                    name: 'Jointoiement hydrofuge fin (2mm) et nettoyage de fin de chantier',
-                    description: 'Mortier de jointoiement haute résistance aux taches et anti-moisissures',
-                    qty: 220,
-                    unit: 'm²',
-                    unitPriceHT: 1200,
-                    totalHT: 264000
-                }
-            ]
-        },
-        {
-            id: 'lot_crl_3',
-            code: '03',
-            name: 'Plinthes Assorties & Profilés de Seuil',
-            items: [
-                {
-                    id: 'item_crl_3_1',
-                    isCustom: true,
-                    name: 'Fourniture et pose de plinthes en grès cérame 8cm avec coupe d’onglet',
-                    description: 'Pose collée avec joint silicone d’étanchéité périphérique (140 ml)',
-                    qty: 140,
-                    unit: 'ml',
-                    unitPriceHT: 4500,
-                    totalHT: 630000
-                },
-                {
-                    id: 'item_crl_3_2',
-                    isCustom: true,
-                    name: 'Profilés de transition et de seuil en aluminium anodisé',
-                    description: 'Barres de seuil invisibles extra-plates pour portes et baies vitrées',
-                    qty: 8,
-                    unit: 'u',
-                    unitPriceHT: 7500,
-                    totalHT: 60000
-                }
-            ]
-        }
-    ]
-};
-
-const METALLERIE_PRO_TEMPLATE_QUOTE = {
-    id: 1007,
-    number: 'DEV-2026-MET-01',
-    clientName: 'INDUSTRIE MÉTALLURGIQUE SA',
-    projectRef: 'Ouvrages de Métallerie & Châssis Tubulaires avec Plan de Débit',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Fabrication et pose d’ouvrages métalliques sur-mesure : débit optimisé de profilés acier 6m (chute < 5%), soudure semi-automatique MIG/MAG, meulage, décapage, primaire antirouille au phosphate de zinc et thermolaquage.',
-    lots: [
-        {
-            id: 'lot_met_1',
-            code: '01',
-            name: 'Débit 1D des Profilés Acier & Usinage Atelier',
-            items: [
-                {
-                    id: 'item_met_1_1',
-                    isCustom: true,
-                    name: 'Débit optimisé de tubes carrés 50x50x2mm (Barres commerciales 6m)',
-                    description: 'Coupe d’angle 45°/90° à la scie à ruban, ébavurage et perçage des platines de fixation',
-                    qty: 36,
-                    unit: 'barre',
-                    unitPriceHT: 18500,
-                    totalHT: 666000
-                },
-                {
-                    id: 'item_met_1_2',
-                    isCustom: true,
-                    name: 'Fourniture cornières et fers plats de renfort 40x4mm',
-                    description: 'Débit et grugeage des goussets et équerres de renfort',
-                    qty: 12,
-                    unit: 'barre',
-                    unitPriceHT: 9500,
-                    totalHT: 114000
-                }
-            ]
-        },
-        {
-            id: 'lot_met_2',
-            code: '02',
-            name: 'Assemblage, Soudure MIG/MAG & Consommables',
-            items: [
-                {
-                    id: 'item_met_2_1',
-                    isCustom: true,
-                    name: 'Soudure semi-automatique continue MIG/MAG sous gaz Argon/CO2',
-                    description: 'Fil d’apport SG2 0.8mm, gaz de protection, meulage affleurant des cordons et contrôle visuel',
-                    qty: 48,
-                    unit: 'h',
-                    unitPriceHT: 8500,
-                    totalHT: 408000
-                },
-                {
-                    id: 'item_met_2_2',
-                    isCustom: true,
-                    name: 'Consommables de métallerie (disques à tronçonner/ébarber, gaz, électrodes)',
-                    description: 'Pack complet consommables pour débit et assemblage de 48h atelier',
-                    qty: 1,
-                    unit: 'forfait',
-                    unitPriceHT: 125000,
-                    totalHT: 125000
-                }
-            ]
-        },
-        {
-            id: 'lot_met_3',
-            code: '03',
-            name: 'Traitement Anticorrosion, Laque de Finition & Pose Site',
-            items: [
-                {
-                    id: 'item_met_3_1',
-                    isCustom: true,
-                    name: 'Traitement primaire anticorrosion au phosphate de zinc (2 passes)',
-                    description: 'Dégraissage préalable et application de 2 couches d’apprêt antirouille 60µm',
-                    qty: 120,
-                    unit: 'm²',
-                    unitPriceHT: 3200,
-                    totalHT: 384000
-                },
-                {
-                    id: 'item_met_3_2',
-                    isCustom: true,
-                    name: 'Peinture de finition laque polyuréthane industrielle RAL au choix',
-                    description: 'Application au pistolet haute pression, séchage rapide et film protecteur',
-                    qty: 120,
-                    unit: 'm²',
-                    unitPriceHT: 4500,
-                    totalHT: 540000
-                },
-                {
-                    id: 'item_met_3_3',
-                    isCustom: true,
-                    name: 'Pose et ancrage sur site par chevilles métalliques haute charge M12',
-                    description: 'Mise à niveau au laser, calage, chevillage chimique et réglage final',
-                    qty: 2,
-                    unit: 'j',
-                    unitPriceHT: 140000,
-                    totalHT: 280000
-                }
-            ]
-        }
-    ]
-};
-
-const MENUISERIE_PRO_TEMPLATE_QUOTE = {
-    id: 1008,
-    number: 'DEV-2026-MNU-01',
-    clientName: 'ARCHITECTES & ASSOCIÉS',
-    projectRef: 'Agencement sur Mesure Dressing & Caissons MDF 18mm',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Fabrication et pose de dressing sur mesure : panneaux MDF hydrofuge 18mm mélaminé Chêne Naturel, chants ABS 2mm plaqués à chaud, tiroirs coulisses amorties invisibles, charnières clipsables 110° et poignées profilées alu.',
-    lots: [
-        {
-            id: 'lot_mnu_1',
-            code: '01',
-            name: 'Panneaux MDF 18mm & Calepinage Débit 2D',
-            items: [
-                {
-                    id: 'item_mnu_1_1',
-                    isCustom: true,
-                    name: 'Fourniture panneaux mélaminé 18mm hydrofuge 2.80m × 2.07m',
-                    description: 'Calepinage optimisé (taux de chute < 8%), découpe sur scie à format numérique',
-                    qty: 8,
-                    unit: 'plaque',
-                    unitPriceHT: 45000,
-                    totalHT: 360000
-                },
-                {
-                    id: 'item_mnu_1_2',
-                    isCustom: true,
-                    name: 'Placage des chants en bande ABS 2mm assortie avec colle thermofusible',
-                    description: 'Placage automatique, affleurage, raclage et polissage des chants visibles',
-                    qty: 95,
-                    unit: 'ml',
-                    unitPriceHT: 1500,
-                    totalHT: 142500
-                }
-            ]
-        },
-        {
-            id: 'lot_mnu_2',
-            code: '02',
-            name: 'Quincaillerie Haute Performance & Tiroirs Amortis',
-            items: [
-                {
-                    id: 'item_mnu_2_1',
-                    isCustom: true,
-                    name: 'Charnières invisibles grand angle 110° avec amortisseur intégré (Blum)',
-                    description: 'Embases réglables 3D et fermeture progressive amortie (Soft-Close)',
-                    qty: 24,
-                    unit: 'u',
-                    unitPriceHT: 3800,
-                    totalHT: 91200
-                },
-                {
-                    id: 'item_mnu_2_2',
-                    isCustom: true,
-                    name: 'Coulisses de tiroirs invisibles à sortie totale avec frein (charge 40kg)',
-                    description: 'Système d’ouverture synchronisée ultra-fluide avec réglage micrométrique',
-                    qty: 8,
-                    unit: 'u',
-                    unitPriceHT: 14500,
-                    totalHT: 116000
-                },
-                {
-                    id: 'item_mnu_2_3',
-                    isCustom: true,
-                    name: 'Poignées profilées aluminium noir mat brossé',
-                    description: 'Fixation traversante invisible avec visserie inox',
-                    qty: 16,
-                    unit: 'u',
-                    unitPriceHT: 4500,
-                    totalHT: 72000
-                }
-            ]
-        },
-        {
-            id: 'lot_mnu_3',
-            code: '03',
-            name: 'Assemblage Atelier & Pose Soignée sur Site',
-            items: [
-                {
-                    id: 'item_mnu_3_1',
-                    isCustom: true,
-                    name: 'Pré-assemblage des caissons et tiroirs en atelier par tourillons & confirmat',
-                    description: 'Équerrage rigide sous presse et contrôle dimensionnel',
-                    qty: 24,
-                    unit: 'h',
-                    unitPriceHT: 7500,
-                    totalHT: 180000
-                },
-                {
-                    id: 'item_mnu_3_2',
-                    isCustom: true,
-                    name: 'Livraison, installation et ajustement sur site avec fileurs de finition',
-                    description: 'Fixation murale sécurisée, réglage des portes et tiroirs, nettoyage complet',
-                    qty: 2,
-                    unit: 'j',
-                    unitPriceHT: 120000,
-                    totalHT: 240000
-                }
-            ]
-        }
-    ]
-};
-
-
-const ACM_FACADE_TEMPLATE_QUOTE = {
-    id: 1003,
-    number: 'DEV-2026-ACM-01',
-    clientName: 'SOCIÉTÉ IMMOBILIÈRE DU GOLFE',
-    projectRef: 'Habillage Façade Moderne en Panneaux Alucobond 4mm PVDF — 180m²',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Habillage composite aluminium Alucobond PVDF 4mm résistant aux UV et intempéries.\\nComprend échafaudage, ossature métallique primaire et secondaire, découpes rainurage V, pose en cassettes.',
-    lots: [
-        {
-            id: 'lot_acm_1',
-            code: '01',
-            name: 'Travaux Préparatoires & Échafaudage Façade',
-            items: [
-                {
-                    id: 'item_acm_1_1',
-                    isCustom: true,
-                    name: 'Montage et location échafaudage tubulaire sécurisé 180m²',
-                    description: 'Échafaudage conforme aux normes avec filet de protection et garde-corps',
-                    qty: 180,
-                    unit: 'm²',
-                    unitPriceHT: 4500,
-                    totalHT: 810000
-                }
-            ]
-        },
-        {
-            id: 'lot_acm_2',
-            code: '02',
-            name: 'Habillage Complet Façade Panneaux ACM Alucobond 4mm PVDF',
-            items: [
-                {
-                    id: 'item_acm_2_1',
-                    solutionId: 2,
-                    name: 'Fourniture, Ossature galva, Usinage Cassettes ACM & Pose Nacelle (180 m²)',
-                    description: 'Ensemble complet incluant ossature primaire/secondaire 40x40, plaques Alucobond PVDF, usinage V-groove, fixations et pose',
-                    qty: 1,
-                    calcForm: { solutionId: 2, takeoffMode: 'surface', surfaceDirect: 180, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                }
-            ]
-        }
-    ]
-};
-
-const SIGNAGE_BRANDING_TEMPLATE_QUOTE = {
-    id: 1004,
-    number: 'DEV-2026-SGN-01',
-    clientName: 'BOUTIQUE CONCEPT STORE',
-    projectRef: 'Enseigne Lumineuse LED & Identité Visuelle de Façade',
-    status: 'draft',
-    vatRate: 18,
-    overheadRate: 5,
-    margin: 30,
-    marginType: 'reel',
-    discountRate: 0,
-    notes: 'Fabrication et pose d’enseigne lumineuse LED haute luminosité avec caisson profilé aluminium thermolaqué et lettres reliefs rétro-éclairées.',
-    lots: [
-        {
-            id: 'lot_sgn_1',
-            code: '01',
-            name: 'Caisson Enseigne Lumineuse LED & Lettres Découpées',
-            items: [
-                {
-                    id: 'item_sgn_1_1',
-                    solutionId: 8,
-                    name: 'Caisson Lumineux LED Double Face 3.00m × 0.80m',
-                    description: 'Structure aluminium étanche avec modules LED IP67 1.2W, alimentation MeanWell et faces Plexi diffusant',
-                    qty: 1,
-                    calcForm: { solutionId: 8, takeoffMode: 'rectangle', width: 3, height: 0.8, qty: 1, faces: 2, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
-                },
-                {
-                    id: 'item_sgn_1_2',
-                    solutionId: 9,
-                    name: 'Lettres Reliefs Découpées en Acrylique Rétroéclairé LED (12 lettres)',
-                    description: 'Lettres bloc plexi 20mm diffusant avec rétro-éclairage halo blanc chaud et entretoises de fixation',
-                    qty: 1,
-                    calcForm: { solutionId: 9, takeoffMode: 'rectangle', width: 2.5, height: 0.5, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { NOMBRE_LETTRES: 12 } }
-                }
-            ]
-        },
-        {
-            id: 'lot_sgn_2',
-            code: '02',
-            name: 'Habillage Vitrine en Adhésif Vinyle Microperforé',
-            items: [
-                {
-                    id: 'item_sgn_2_1',
-                    isCustom: true,
-                    name: 'Film vinyle microperforé One-Way Vision imprimé HD 12m²',
-                    description: 'Impression éco-solvant haute durabilité et pose soignée sans bulles sur vitrine',
-                    qty: 12,
-                    unit: 'm²',
-                    unitPriceHT: 18000,
-                    totalHT: 216000
-                }
-            ]
-        }
-    ]
-};
-
-function calculateQuickEstimate({ category = 'villa_house', surface = 150, quality = 'standard', city = 'Bamako' }) {
-    const ratesPerM2 = {
-        villa_house: { eco: 180000, standard: 260000, premium: 380000 },
-        renovation_paint: { eco: 3500, standard: 6000, premium: 11000 },
-        event_stand: { eco: 35000, standard: 65000, premium: 120000 },
-        acm_facade: { eco: 45000, standard: 75000, premium: 110000 },
-        signage_branding: { eco: 80000, standard: 150000, premium: 280000 }
-    };
-
-    const baseRates = ratesPerM2[category] || ratesPerM2.villa_house;
-    const baseRate = baseRates[quality] || baseRates.standard;
-
-    const cityMultipliers = {
-        'Abidjan': 1.10,
-        'Dakar': 1.08,
-        'Bamako': 1.00,
-        'Ouagadougou': 0.98,
-        'Conakry': 1.05,
-        'Autre': 1.00
-    };
-    const cityMult = cityMultipliers[city] || 1.00;
-
-    const estimatedHT = Math.round(surface * baseRate * cityMult);
-    const minHT = Math.round(estimatedHT * 0.92);
-    const maxHT = Math.round(estimatedHT * 1.12);
-    const vat = Math.round(estimatedHT * 0.18);
-    const avgTTC = estimatedHT + vat;
-
-    return {
-        estimatedHT,
-        minHT,
-        maxHT,
-        avgTTC,
-        vat,
-        ratePerUnit: Math.round(baseRate * cityMult),
-        unit: category === 'signage_branding' ? 'ml' : 'm²'
-    };
-}
-
-function calculateAcmNesting({ width = 12, height = 6, panelWidth = 1.5, panelHeight = 4.0, jointWidth = 0.015 }) {
-    const totalSurface = width * height;
-    const singlePanelArea = panelWidth * panelHeight;
-
-    const cols = Math.ceil(width / (panelWidth + jointWidth));
-    const rows = Math.ceil(height / (panelHeight + jointWidth));
-    const totalRawPanels = cols * rows;
-    const totalRawArea = totalRawPanels * singlePanelArea;
-    const wasteArea = Math.max(0, totalRawArea - totalSurface);
-    const wastePct = parseFloat(((wasteArea / totalRawArea) * 100).toFixed(1));
-
-    const linearRails = (rows + 1) * width;
-    const linearStuds = (cols + 1) * height;
-    const totalLinearTubes = Math.round((linearRails + linearStuds) * 1.08);
-
-    return {
-        totalSurface: parseFloat(totalSurface.toFixed(2)),
-        cols,
-        rows,
-        totalRawPanels,
-        singlePanelArea,
-        totalRawArea: parseFloat(totalRawArea.toFixed(2)),
-        wastePct,
-        totalLinearTubes,
-        tubesBarCount: Math.ceil(totalLinearTubes / 6)
-    };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ASSISTANT INTELLIGENT DE DÉMARRAGE (NewQuoteWizardModal)
 // ═══════════════════════════════════════════════════════════════
 
 function NewQuoteWizardModal({
@@ -2739,57 +745,6 @@ function NewQuoteWizardModal({
 // ═══════════════════════════════════════════════════════════════
 // ASSISTANT & VISUALISEUR DE CALEPINAGE 2D (ACM Alucobond)
 // ═══════════════════════════════════════════════════════════════
-
-function calculateAcmNestingOptimal({ width = 12, height = 6, panelWidth = 1.5, panelHeight = 4.0, jointWidth = 0.015 }) {
-    const totalSurface = width * height;
-    const singlePanelArea = panelWidth * panelHeight;
-
-    // Orientation 0° (Normal)
-    const cols0 = Math.ceil(width / (panelWidth + jointWidth));
-    const rows0 = Math.ceil(height / (panelHeight + jointWidth));
-    const panels0 = cols0 * rows0;
-    const rawArea0 = panels0 * singlePanelArea;
-    const waste0 = Math.max(0, rawArea0 - totalSurface);
-    const wastePct0 = (waste0 / rawArea0) * 100;
-
-    // Orientation 90° (Rotated)
-    const cols90 = Math.ceil(width / (panelHeight + jointWidth));
-    const rows90 = Math.ceil(height / (panelWidth + jointWidth));
-    const panels90 = cols90 * rows90;
-    const rawArea90 = panels90 * singlePanelArea;
-    const waste90 = Math.max(0, rawArea90 - totalSurface);
-    const wastePct90 = (waste90 / rawArea90) * 100;
-
-    // Pick optimal orientation
-    const isRotated = panels90 < panels0 || (panels90 === panels0 && wastePct90 < wastePct0);
-    const cols = isRotated ? cols90 : cols0;
-    const rows = isRotated ? rows90 : rows0;
-    const totalRawPanels = isRotated ? panels90 : panels0;
-    const totalRawArea = isRotated ? rawArea90 : rawArea0;
-    const wastePct = parseFloat((isRotated ? wastePct90 : wastePct0).toFixed(1));
-    const effPanelW = isRotated ? panelHeight : panelWidth;
-    const effPanelH = isRotated ? panelWidth : panelHeight;
-
-    // Structure linéaire (tubes 40x40)
-    const linearRails = (rows + 1) * width;
-    const linearStuds = (cols + 1) * height;
-    const totalLinearTubes = Math.round((linearRails + linearStuds) * 1.08);
-
-    return {
-        totalSurface: parseFloat(totalSurface.toFixed(2)),
-        isRotated,
-        cols,
-        rows,
-        effPanelW,
-        effPanelH,
-        totalRawPanels,
-        singlePanelArea,
-        totalRawArea: parseFloat(totalRawArea.toFixed(2)),
-        wastePct,
-        totalLinearTubes,
-        tubesBarCount: Math.ceil(totalLinearTubes / 6)
-    };
-}
 
 function AcmCalepinageVisualizer({
     width = 12,
@@ -5000,22 +2955,20 @@ function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, 
                         .eq('organization_id', organizationId)
                         .order('created_at', { ascending: false })
                         .limit(50);
-                    
-                    if (!error && data && data.length > 0) {
-                        setLogs(data);
+
+                    if (!error) {
+                        setLogs(data || []);
                         return;
                     }
+                    console.warn('[Audit Log] Supabase query error:', error);
                 }
-                // Fallback local mock logs for demo & offline security audit
-                setLogs([
-                    { id: '1', action: 'quote_created', entity_type: 'quote', user_email: 'officemicro89@gmail.com', details: { quote_number: 'DEV-2026-R1', client: 'M. & Mme KOUASSI' }, created_at: new Date().toISOString() },
-                    { id: '2', action: 'organization_bootstrapped', entity_type: 'organization', user_email: 'officemicro89@gmail.com', details: { role: 'owner' }, created_at: new Date(Date.now() - 3600000).toISOString() }
-                ]);
+                // Pas de session cloud réelle (mode Invité/local) : aucun journal n'existe
+                // à afficher — l'état vide honnête ci-dessous s'en charge. Ne JAMAIS
+                // fabriquer de faux événements ici (Règle d'Or #3, Zéro Faux Succès).
+                setLogs([]);
             } catch (e) {
                 console.warn('[Audit Log] Failed to fetch remote logs:', e);
-                setLogs([
-                    { id: '1', action: 'quote_created', entity_type: 'quote', user_email: 'officemicro89@gmail.com', details: { quote_number: 'DEV-2026-R1', client: 'M. & Mme KOUASSI' }, created_at: new Date().toISOString() }
-                ]);
+                setLogs([]);
             } finally {
                 setIsLoading(false);
             }
@@ -5576,14 +3529,52 @@ Cordialement.`;
 }
 
 
-function PriceHistoryModal({ isOpen, onClose, material }) {
+function PriceHistoryModal({ isOpen, onClose, material, supabaseClient, organizationId }) {
+    const [history, setHistory] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const isCloudOrg = organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local');
+
+    useEffect(() => {
+        if (!isOpen || !material) return;
+        setIsLoading(true);
+        setLoadError(false);
+        (async () => {
+            if (!supabaseClient || !isCloudOrg) {
+                // Mode Invité/local : aucun historique cloud à afficher. L'état vide
+                // honnête ci-dessous s'en charge — ne JAMAIS inventer de données de
+                // remplacement (Règle d'Or #3, Zéro Faux Succès).
+                setHistory([]);
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('material_price_history')
+                    .select('*')
+                    .eq('material_id', material.id)
+                    .eq('organization_id', organizationId)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                setHistory(data || []);
+            } catch (e) {
+                console.warn('[Price History] Échec de la requête Supabase:', e);
+                setLoadError(true);
+                setHistory([]);
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    }, [isOpen, material, supabaseClient, organizationId, isCloudOrg]);
+
     if (!isOpen || !material) return null;
 
-    const mockHistory = [
-        { date: '15/08/2026', price: material.priceBuy || material.priceCalc, supplier: material.supplier || 'Fournisseur Principal', variation: '+5.5%' },
-        { date: '10/05/2026', price: (material.priceBuy || material.priceCalc) * 0.945, supplier: material.supplier || 'Fournisseur Principal', variation: '+3.2%' },
-        { date: '15/01/2026', price: (material.priceBuy || material.priceCalc) * 0.915, supplier: 'Ancien Fournisseur', variation: 'Base' }
-    ];
+    const currentPrice = material.priceBuy || material.priceCalc;
+    const lastRecorded = history[0];
+    const variationPct = lastRecorded && lastRecorded.previous_price
+        ? ((lastRecorded.price - lastRecorded.previous_price) / lastRecorded.previous_price) * 100
+        : null;
 
     return (
         <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-fade-in">
@@ -5606,38 +3597,60 @@ function PriceHistoryModal({ isOpen, onClose, material }) {
                     <div className="p-4 bg-white rounded-2xl border border-neutral-200 flex items-center justify-between">
                         <div>
                             <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
-                            <span className="text-xl font-black text-brand-600 font-mono">{formatCurrency(material.priceBuy || material.priceCalc)}</span>
+                            <span className="text-xl font-black text-brand-600 font-mono">{formatMoney(currentPrice)}</span>
                             <span className="text-[11px] text-neutral-500 block">par {material.unitBuy || material.unitCalc}</span>
                         </div>
-                        <div className="text-right">
-                            <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                <i className="fa-solid fa-arrow-trend-up mr-1"></i> +8.5% (2026)
-                            </span>
-                        </div>
+                        {variationPct !== null && (
+                            <div className="text-right">
+                                <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${variationPct >= 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                    <i className={`fa-solid fa-arrow-trend-${variationPct >= 0 ? 'up' : 'down'} mr-1`}></i> {variationPct >= 0 ? '+' : ''}{variationPct.toFixed(1)}%
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">
                         <span className="text-xs font-bold text-neutral-700 block">Évolution Historique des Prix :</span>
-                        <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase">
-                                    <tr>
-                                        <th className="p-2.5 pl-3">Date</th>
-                                        <th className="p-2.5">Fournisseur</th>
-                                        <th className="p-2.5 text-right pr-3">Tarif HT</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-neutral-100">
-                                    {mockHistory.map((h, i) => (
-                                        <tr key={i} className="hover:bg-neutral-50/50">
-                                            <td className="p-2.5 pl-3 font-mono text-neutral-500">{h.date}</td>
-                                            <td className="p-2.5 font-bold text-neutral-800">{h.supplier}</td>
-                                            <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatCurrency(h.price)}</td>
+                        {!isCloudOrg ? (
+                            <div className="p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200">
+                                <i className="fa-solid fa-cloud text-2xl mb-2 text-neutral-300"></i>
+                                <p className="text-xs font-bold text-neutral-600">Historique disponible uniquement en mode connecté</p>
+                                <p className="text-[11px] text-neutral-400 mt-1">Connectez-vous à votre organisation cloud pour suivre l'évolution réelle des prix.</p>
+                            </div>
+                        ) : isLoading ? (
+                            <div className="p-6 text-center text-neutral-400">
+                                <i className="fa-solid fa-circle-notch fa-spin text-xl text-amber-500"></i>
+                            </div>
+                        ) : history.length === 0 ? (
+                            <div className="p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200">
+                                <i className="fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300"></i>
+                                <p className="text-xs font-bold text-neutral-600">
+                                    {loadError ? 'Historique indisponible pour le moment' : 'Aucun changement de prix enregistré'}
+                                </p>
+                                <p className="text-[11px] text-neutral-400 mt-1">Chaque modification du prix d'achat de cette matière sera journalisée ici.</p>
+                            </div>
+                        ) : (
+                            <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase">
+                                        <tr>
+                                            <th className="p-2.5 pl-3">Date</th>
+                                            <th className="p-2.5">Fournisseur</th>
+                                            <th className="p-2.5 text-right pr-3">Tarif HT</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {history.map((h) => (
+                                            <tr key={h.id} className="hover:bg-neutral-50/50">
+                                                <td className="p-2.5 pl-3 font-mono text-neutral-500">{new Date(h.created_at).toLocaleDateString('fr-FR')}</td>
+                                                <td className="p-2.5 font-bold text-neutral-800">{h.supplier_name || 'Non renseigné'}</td>
+                                                <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney(h.price)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                     <div className="pt-2 flex justify-end">
                         <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-5 font-bold">Fermer</button>
@@ -6172,6 +4185,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [isMatModalOpen, setIsMatModalOpen] = useState(false);
     const [matForm, setMatForm] = useState(null);
+    const [priceHistoryMaterial, setPriceHistoryMaterial] = useState(null);
     const [isLaborModalOpen, setIsLaborModalOpen] = useState(false);
     const [laborForm, setLaborForm] = useState(null);
     const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
@@ -6782,6 +4796,72 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [calcForm.solutionId, solutions, calcForm.takeoffMode]);
 
+    // P0.8 (2026-08-17) — Mappage JS (camelCase) <-> tables relationnelles V6
+    // (snake_case). Remplace le blob JSON `user_data` (V5, table supprimée de la
+    // production le 2026-08-16) — voir PROJECT_MASTER_TRACKER.md § 16.
+    // ⚠️ materials porte des champs locaux sans colonne V6 (reference, brand,
+    // supplier, stock, purchaseStep) : ils sont conservés en mémoire/local mais
+    // ne survivent PAS à un aller-retour cloud tant que le schéma n'est pas
+    // étendu — limitation connue, documentée, hors périmètre de ce correctif.
+    const mapMaterialToDb = (m, orgId) => ({
+        id: m.id, organization_id: orgId, name: m.name, category: m.category || 'Divers',
+        unit_buy: m.unitBuy || 'Unité', unit_size: parseFloat(m.unitSize) || 1, unit_calc: m.unitCalc || 'u',
+        price_buy: parseFloat(m.priceBuy) || 0, price_calc: parseFloat(m.priceCalc) || 0,
+        waste: parseFloat(m.waste) || 0, yield_rate: parseFloat(m.yieldRate) || 0,
+        purchase_mode: m.purchaseMode || 'pack'
+    });
+    const mapMaterialFromDb = (r) => ({
+        id: r.id, name: r.name, category: r.category, unitBuy: r.unit_buy, unitSize: r.unit_size,
+        unitCalc: r.unit_calc, priceBuy: r.price_buy, priceCalc: r.price_calc, waste: r.waste,
+        yieldRate: r.yield_rate, purchaseMode: r.purchase_mode
+    });
+    const mapLaborToDb = (l, orgId) => ({
+        id: l.id, organization_id: orgId, name: l.name, calc_mode: l.calcMode || 'surface',
+        unit: l.unit || 'u', rate: parseFloat(l.rate) || 0, yield_rate: parseFloat(l.yieldRate) || 0
+    });
+    const mapLaborFromDb = (r) => ({ id: r.id, name: r.name, calcMode: r.calc_mode, unit: r.unit, rate: r.rate, yieldRate: r.yield_rate });
+    const mapSolutionToDb = (s, orgId) => ({
+        id: s.id, organization_id: orgId, name: s.name, icon: s.icon || 'fa-cube',
+        allowed_modes: s.allowedModes || [], custom_vars: s.customVars || []
+    });
+    const mapSolutionFromDb = (r) => ({ id: r.id, name: r.name, icon: r.icon, allowedModes: r.allowed_modes || [], customVars: r.custom_vars || [] });
+    const mapRecipeToDb = (rc, orgId) => ({
+        id: rc.id, organization_id: orgId, solution_id: rc.solutionId, type: rc.type,
+        ref_id: rc.refId, formula: rc.formula, cost_category: rc.costCategory || rc.type, label: rc.label
+    });
+    const mapRecipeFromDb = (r) => ({ id: r.id, solutionId: r.solution_id, type: r.type, refId: r.ref_id, formula: r.formula, costCategory: r.cost_category, label: r.label });
+    const mapCompanyToDb = (c, orgId) => ({
+        organization_id: orgId, name: c.name, tagline: c.tagline, phone: c.phone, email: c.email,
+        address: c.address, nif: c.nif, rccm: c.rccm, currency: c.currency,
+        quote_validity: c.quoteValidity, payment_terms: c.paymentTerms
+    });
+    const mapCompanyFromDb = (r) => ({
+        name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
+        nif: r.nif, rccm: r.rccm, currency: r.currency, quoteValidity: r.quote_validity, paymentTerms: r.payment_terms
+    });
+
+    // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
+    // Cohérent avec la sémantique historique de updateMaterials/etc. (newVal = liste
+    // complète à faire autorité) ; la fenêtre delete→insert n'est pas atomique, mais
+    // un échec réseau y laisse au pire le catalogue cloud vide jusqu'au prochain
+    // enregistrement réussi — le local (state + LS.setOutboxKey) reste la source de
+    // vérité affichée à l'utilisateur entre-temps.
+    const syncCatalogTable = async (table, orgId, rows, mapToDb) => {
+        if (!supabaseClient || !orgId) return;
+        const { error: delErr } = await supabaseClient.from(table).delete().eq('organization_id', orgId);
+        if (delErr) { console.warn(`[Cloud Sync] ${table} delete error:`, delErr); return; }
+        if (rows.length > 0) {
+            const { error: insErr } = await supabaseClient.from(table).insert(rows.map(r => mapToDb(r, orgId)));
+            if (insErr) console.warn(`[Cloud Sync] ${table} insert error:`, insErr);
+        }
+    };
+
+    const catalogSaveTimers = useRef({});
+    const scheduleCatalogSave = useCallback((key, fn) => {
+        if (catalogSaveTimers.current[key]) clearTimeout(catalogSaveTimers.current[key]);
+        catalogSaveTimers.current[key] = setTimeout(fn, 1500);
+    }, []);
+
     // BLOC 1/10 : ONBOARDING AUTOMATIQUE & CHARGEMENT MULTI-TENANT STRICT
     useEffect(() => {
         if (!supabaseClient || !sbUser || sbDataLoaded) return;
@@ -6794,16 +4874,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setCloudState('loading');
         (async () => {
             try {
+                let resolvedOrgId = null;
+
                 // 1. Onboarding Automatique & Idempotent via bootstrap_user_organization
                 try {
                     const { data: bootData, error: bootErr } = await supabaseClient.rpc('bootstrap_user_organization', {
                         p_org_name: sbUser.user_metadata?.org_name || 'Entreprise BTP'
                     });
                     if (!bootErr && bootData && bootData.organization_id) {
+                        resolvedOrgId = bootData.organization_id;
                         const orgObj = {
                             id: bootData.organization_id,
-                            name: bootData.name || 'Entreprise BTP',
-                            currency: 'FCFA',
+                            name: bootData.organization_name || bootData.name || 'Entreprise BTP',
+                            currency: bootData.currency || 'FCFA',
                             role: bootData.role || 'owner'
                         };
                         setUserOrganizations([orgObj]);
@@ -6822,7 +4905,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         .from('organization_members')
                         .select('organization_id, role, organizations(id, name, currency)')
                         .eq('user_id', sbUser.id);
-                    
+
                     if (!memErr && memberOrgs && memberOrgs.length > 0) {
                         const parsedOrgs = memberOrgs.map(m => ({
                             id: m.organization_id,
@@ -6832,7 +4915,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         }));
                         setUserOrganizations(parsedOrgs);
                         localStorage.setItem(`ikadevis_orgs_${sbUser.id}`, JSON.stringify(parsedOrgs));
-                        if (!parsedOrgs.some(o => o.id === activeOrganizationId)) {
+                        if (!resolvedOrgId || !parsedOrgs.some(o => o.id === resolvedOrgId)) {
+                            resolvedOrgId = parsedOrgs[0].id;
                             setActiveOrganizationId(parsedOrgs[0].id);
                             setActiveOrganizationRole(parsedOrgs[0].role);
                             localStorage.setItem(`ikadevis_active_org_${sbUser.id}`, parsedOrgs[0].id);
@@ -6842,114 +4926,73 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     console.warn('[Bloc 1] Members query fallback:', mErr);
                 }
 
-                // 3. Chargement des données relationnelles ou fallback user_data
-                const { data, error } = await supabaseClient
-                    .from('user_data')
-                    .select('*')
-                    .eq('user_id', sbUser.id)
-                    .single();
+                if (!resolvedOrgId) {
+                    console.error('[Bloc 1] Aucune organisation résolue pour cet utilisateur.');
+                    setCloudState('offline_error');
+                    setCloudErrorMessage("Impossible de déterminer votre organisation. Réessayez ou contactez le support.");
+                    return;
+                }
 
-                if (error && error.code === 'PGRST116') {
-                    // Première connexion : créer la ligne utilisateur neutre dans Supabase
+                // 3. Chargement du catalogue relationnel V6 (materials/labor/solutions/
+                // recipes/company_settings), org par org — remplace l'ancien blob JSON
+                // `user_data` (V5, supprimé de la production le 2026-08-16). Voir
+                // PROJECT_MASTER_TRACKER.md § 16.
+                const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes] = await Promise.all([
+                    supabaseClient.from('company_settings').select('*').eq('organization_id', resolvedOrgId).maybeSingle(),
+                    supabaseClient.from('materials').select('*').eq('organization_id', resolvedOrgId),
+                    supabaseClient.from('labor').select('*').eq('organization_id', resolvedOrgId),
+                    supabaseClient.from('solutions').select('*').eq('organization_id', resolvedOrgId),
+                    supabaseClient.from('recipes').select('*').eq('organization_id', resolvedOrgId)
+                ]);
+
+                const firstError = [companyRes.error, materialsRes.error, laborRes.error, solutionsRes.error, recipesRes.error].find(Boolean);
+                if (firstError) {
+                    console.error('[Bloc 1] Erreur de chargement du catalogue cloud:', firstError);
+                    setCloudState('offline_error');
+                    setCloudErrorMessage("Erreur de connexion Cloud. Vos modifications restent uniquement enregistrées sur ce navigateur.");
+                    return;
+                }
+
+                const isFirstLoginOnOrg = !companyRes.data && materialsRes.data.length === 0 && solutionsRes.data.length === 0;
+
+                if (isFirstLoginOnOrg) {
+                    // Première connexion sur cette organisation : amorcer le catalogue de
+                    // démarrage directement dans les tables V6.
                     const legacyAvailable = LS.hasLegacyUnnamespacedData();
                     if (legacyAvailable) setShowImportBanner(true);
 
-                    const { error: insErr } = await supabaseClient.from('user_data').insert({
-                        user_id: sbUser.id,
-                        org_name: sbUser.user_metadata?.org_name || 'Mon Organisation',
-                        company_info: defaultCompany,
-                        materials: initialMaterials,
-                        labor: initialLabor,
-                        solutions: initialSolutions,
-                        recipes: initialRecipes,
-                        saved_quotes: [],
-                        next_quote_seq: 1,
-                        schema_version: CURRENT_SCHEMA_INT
-                    });
-                    if (insErr) {
-                        console.error('[V5.7] Initial insert error:', insErr);
-                        setCloudState('offline_error');
-                        setCloudErrorMessage("Impossible d'initialiser votre espace cloud.");
-                        return;
-                    }
-                    setCloudState('loaded');
-                    setSbDataLoaded(true);
-                } else if (error) {
-                    console.error('[V5.7.1] Supabase SELECT error:', error);
-                    setCloudState('offline_error');
-                    if (error.code === 'PGRST205' || error.message?.includes('schema cache') || error.message?.includes('user_data')) {
-                        setCloudErrorMessage("La table 'public.user_data' n'existe pas encore sur votre projet Supabase. Exécutez v5_schema.sql dans votre Supabase SQL Editor.");
-                    } else {
-                        setCloudErrorMessage("Erreur de connexion Cloud. Vos modifications restent uniquement enregistrées sur ce navigateur.");
-                    }
-                } else if (data) {
-                    // P0.4 — Anti-downgrade Cloud Check
-                    if (data.schema_version && data.schema_version > CURRENT_SCHEMA_INT) {
-                        setIsReadOnlyDueToDowngrade(true);
-                        setDowngradeWarning(`🔒 Base Cloud V${data.schema_version} incompatible (Schéma local V${CURRENT_SCHEMA_INT}). Le mode Lecture Seule est activé pour protéger vos données distantes.`);
-                        setCloudState('loaded');
-                        setSbDataLoaded(true);
-                        return;
-                    }
+                    const seedResults = await Promise.all([
+                        supabaseClient.from('company_settings').insert(mapCompanyToDb(defaultCompany, resolvedOrgId)),
+                        initialMaterials.length ? supabaseClient.from('materials').insert(initialMaterials.map(m => mapMaterialToDb(m, resolvedOrgId))) : Promise.resolve({ error: null }),
+                        initialLabor.length ? supabaseClient.from('labor').insert(initialLabor.map(l => mapLaborToDb(l, resolvedOrgId))) : Promise.resolve({ error: null }),
+                        initialSolutions.length ? supabaseClient.from('solutions').insert(initialSolutions.map(s => mapSolutionToDb(s, resolvedOrgId))) : Promise.resolve({ error: null }),
+                        initialRecipes.length ? supabaseClient.from('recipes').insert(initialRecipes.map(r => mapRecipeToDb(r, resolvedOrgId))) : Promise.resolve({ error: null })
+                    ]);
+                    const seedError = seedResults.map(r => r.error).find(Boolean);
+                    if (seedError) console.warn('[Bloc 1] Erreur lors de l\'amorçage du catalogue cloud:', seedError);
 
-                    // P1.2 — Migration si la base cloud est sur une version antérieure à CURRENT_SCHEMA_INT
-                    let loadedCloudRecipes = Array.isArray(data.recipes) ? data.recipes : initialRecipes;
-                    if (data.schema_version && data.schema_version < CURRENT_SCHEMA_INT) {
-                        loadedCloudRecipes = migrateRecipes(loadedCloudRecipes, data.schema_version);
-                    }
-
-                    // P0.1 V5.7 — Outbox Reconciliation lors du chargement Cloud SELECT (extraction sécurisée revision/value)
-                    const outbox = LS.getOutbox(sbUser.id);
-                    const getOutboxVal = (k) => {
-                        if (!outbox || outbox[k] === undefined) return undefined;
-                        return (outbox[k] && typeof outbox[k] === 'object' && 'revision' in outbox[k]) ? outbox[k].value : outbox[k];
-                    };
-
-                    const obCompany = getOutboxVal('company_info');
-                    const obMaterials = getOutboxVal('materials');
-                    const obLabor = getOutboxVal('labor');
-                    const obSolutions = getOutboxVal('solutions');
-                    const obRecipes = getOutboxVal('recipes');
-                    const obSavedQuotes = getOutboxVal('saved_quotes');
-                    const obNextQuoteSeq = getOutboxVal('next_quote_seq');
-
-                    const hasOutboxEdits = [obCompany, obMaterials, obLabor, obSolutions, obRecipes, obSavedQuotes, obNextQuoteSeq].some(v => v !== undefined);
-
-                    const finalCompanyInfo = obCompany !== undefined ? obCompany : (data.company_info || defaultCompany);
-                    const finalMaterials = obMaterials !== undefined ? obMaterials : (Array.isArray(data.materials) ? data.materials : initialMaterials);
-                    const finalLabor = obLabor !== undefined ? obLabor : (Array.isArray(data.labor) ? data.labor : initialLabor);
-                    const finalSolutions = obSolutions !== undefined ? obSolutions : (Array.isArray(data.solutions) ? data.solutions : initialSolutions);
-                    const finalRecipes = obRecipes !== undefined ? obRecipes : loadedCloudRecipes;
-                    const finalSavedQuotes = obSavedQuotes !== undefined ? obSavedQuotes : (Array.isArray(data.saved_quotes) ? data.saved_quotes : []);
-                    const finalNextQuoteSeq = obNextQuoteSeq !== undefined ? obNextQuoteSeq : (data.next_quote_seq || 1);
-
-                    setCompanyInfo(finalCompanyInfo);
-                    setMaterials(finalMaterials);
-                    setLabor(finalLabor);
-                    setSolutions(finalSolutions);
-                    setRecipes(finalRecipes);
-                    setSavedQuotes(finalSavedQuotes);
-                    setNextQuoteSeq(finalNextQuoteSeq);
-
-                    if (LS.hasLegacyUnnamespacedData()) setShowImportBanner(true);
-                    setCloudState('loaded');
-                    setSbDataLoaded(true);
-
-                    if (hasOutboxEdits) {
-                        showToast("Reconnexion Cloud : Envoi des modifications hors-ligne vers votre base...", "info");
-                        const patchObj = {};
-                        if (obCompany !== undefined) patchObj.company_info = obCompany;
-                        if (obMaterials !== undefined) patchObj.materials = obMaterials;
-                        if (obLabor !== undefined) patchObj.labor = obLabor;
-                        if (obSolutions !== undefined) patchObj.solutions = obSolutions;
-                        if (obRecipes !== undefined) patchObj.recipes = obRecipes;
-                        if (obSavedQuotes !== undefined) patchObj.saved_quotes = obSavedQuotes;
-                        if (obNextQuoteSeq !== undefined) patchObj.next_quote_seq = obNextQuoteSeq;
-                        saveToSupabase(patchObj);
-                    }
+                    setCompanyInfo(defaultCompany);
+                    setMaterials(initialMaterials);
+                    setLabor(initialLabor);
+                    setSolutions(initialSolutions);
+                    setRecipes(initialRecipes);
+                } else {
+                    setCompanyInfo(companyRes.data ? mapCompanyFromDb(companyRes.data) : defaultCompany);
+                    setMaterials((materialsRes.data || []).map(mapMaterialFromDb));
+                    setLabor((laborRes.data || []).map(mapLaborFromDb));
+                    setSolutions((solutionsRes.data || []).map(mapSolutionFromDb));
+                    setRecipes((recipesRes.data || []).map(mapRecipeFromDb));
                 }
+
+                // Les devis (savedQuotes/nextQuoteSeq) restent chargés localement pour
+                // l'instant — la persistance cloud de cette liste (distincte de la vraie
+                // table `quotes` déjà écrite par create_quote_v6) reste un chantier
+                // séparé, documenté au tracker, non traité dans ce correctif.
+
+                setCloudState('loaded');
+                setSbDataLoaded(true);
             } catch (e) {
-                console.error('[V5.7] Network error during initial cloud load:', e);
+                console.error('[Bloc 1] Network error during initial cloud load:', e);
                 setCloudState('offline_error');
                 setCloudErrorMessage("Connexion réseau indisponible.");
             }
@@ -7029,68 +5072,128 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     }, [supabaseClient, sbUser, sbDataLoaded, cloudState, isReadOnlyDueToDowngrade, processSaveQueue]);
 
     // P0.1 V5.7.3-FINAL — Drainage Automatique de l'Outbox post-authentification
+    // P0.8 (2026-08-17) — materials/labor/solutions/recipes/company_info sont
+    // désormais rejoués vers leurs vraies tables V6 (pas le blob user_data mort) ;
+    // saved_quotes/next_quote_seq restent sur l'ancien chemin, hors périmètre de ce
+    // correctif (voir PROJECT_MASTER_TRACKER.md § 16).
+    const RELATIONAL_OUTBOX_KEYS = { materials: mapMaterialToDb, labor: mapLaborToDb, solutions: mapSolutionToDb, recipes: mapRecipeToDb };
     useEffect(() => {
-        if (sbUser && sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded') {
+        if (sbUser && sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
             const outbox = LS.getOutbox(sbUser.id);
             if (outbox && Object.keys(outbox).length > 0) {
-                const patchToSync = {};
+                const legacyPatch = {};
                 Object.keys(outbox).forEach(key => {
-                    if (outbox[key] && typeof outbox[key] === 'object' && 'value' in outbox[key]) {
-                        patchToSync[key] = outbox[key].value;
+                    if (!(outbox[key] && typeof outbox[key] === 'object' && 'value' in outbox[key])) return;
+                    const value = outbox[key].value;
+                    if (key in RELATIONAL_OUTBOX_KEYS) {
+                        syncCatalogTable(key, activeOrganizationId, value, RELATIONAL_OUTBOX_KEYS[key])
+                            .then(() => LS.clearOutboxKey(key, sbUser.id))
+                            .catch(e => console.warn(`[Cloud Sync] Échec du drainage outbox pour ${key}:`, e));
+                    } else if (key === 'company_info') {
+                        supabaseClient.from('company_settings').upsert(mapCompanyToDb(value, activeOrganizationId), { onConflict: 'organization_id' })
+                            .then(({ error }) => { if (!error) LS.clearOutboxKey('company_info', sbUser.id); else console.warn('[Cloud Sync] Échec du drainage outbox company_info:', error); });
+                    } else {
+                        legacyPatch[key] = value;
                     }
                 });
-                if (Object.keys(patchToSync).length > 0) {
-                    saveToSupabase(patchToSync);
+                if (Object.keys(legacyPatch).length > 0) {
+                    saveToSupabase(legacyPatch);
                 }
             }
         }
-    }, [sbUser, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [sbUser, sbDataLoaded, cloudState, activeOrganizationId, saveToSupabase, supabaseClient]);
 
     // P0.1 V5.7.3-FINAL — Mutateurs Explicites Déterministes
+    // P0.8 (2026-08-17) — Persistance cloud réelle vers les tables V6 org-scopées
+    // (materials/labor/solutions/recipes/company_settings), à la place de l'ancien
+    // blob `user_data` (V5, supprimé de la production). LS.setOutboxKey conserve la
+    // résilience hors-ligne existante (rejoué au reconnect ci-dessous) ; seule la
+    // destination réseau change. Voir PROJECT_MASTER_TRACKER.md § 16.
     const updateMaterials = useCallback((newVal) => {
         setMaterials(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
             LS.set('materials', newVal, sbUser.id);
             if (!isBootstrapping) LS.setOutboxKey('materials', newVal, sbUser.id);
-            if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ materials: newVal });
+            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
+                setSbSyncStatus('syncing');
+                scheduleCatalogSave('materials', async () => {
+                    await syncCatalogTable('materials', activeOrganizationId, newVal, mapMaterialToDb);
+                    LS.clearOutboxKey('materials', sbUser.id);
+                    setSbSyncStatus('saved');
+                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                });
+            }
         }
-    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
 
     const updateCompanyInfo = useCallback((newVal) => {
         setCompanyInfo(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
             LS.set('companyInfo', newVal, sbUser.id);
             if (!isBootstrapping) LS.setOutboxKey('company_info', newVal, sbUser.id);
-            if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ company_info: newVal });
+            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
+                setSbSyncStatus('syncing');
+                scheduleCatalogSave('company_info', async () => {
+                    const { error } = await supabaseClient.from('company_settings').upsert(mapCompanyToDb(newVal, activeOrganizationId), { onConflict: 'organization_id' });
+                    if (error) { console.warn('[Cloud Sync] company_settings upsert error:', error); return; }
+                    LS.clearOutboxKey('company_info', sbUser.id);
+                    setSbSyncStatus('saved');
+                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                });
+            }
         }
-    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave, supabaseClient]);
 
     const updateLabor = useCallback((newVal) => {
         setLabor(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
             LS.set('labor', newVal, sbUser.id);
             if (!isBootstrapping) LS.setOutboxKey('labor', newVal, sbUser.id);
-            if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ labor: newVal });
+            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
+                setSbSyncStatus('syncing');
+                scheduleCatalogSave('labor', async () => {
+                    await syncCatalogTable('labor', activeOrganizationId, newVal, mapLaborToDb);
+                    LS.clearOutboxKey('labor', sbUser.id);
+                    setSbSyncStatus('saved');
+                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                });
+            }
         }
-    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
 
     const updateSolutions = useCallback((newVal) => {
         setSolutions(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
             LS.set('solutions', newVal, sbUser.id);
             if (!isBootstrapping) LS.setOutboxKey('solutions', newVal, sbUser.id);
-            if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ solutions: newVal });
+            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
+                setSbSyncStatus('syncing');
+                scheduleCatalogSave('solutions', async () => {
+                    await syncCatalogTable('solutions', activeOrganizationId, newVal, mapSolutionToDb);
+                    LS.clearOutboxKey('solutions', sbUser.id);
+                    setSbSyncStatus('saved');
+                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                });
+            }
         }
-    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
 
     const updateRecipes = useCallback((newVal) => {
         setRecipes(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
             LS.set('recipes', newVal, sbUser.id);
             if (!isBootstrapping) LS.setOutboxKey('recipes', newVal, sbUser.id);
-            if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ recipes: newVal });
+            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
+                setSbSyncStatus('syncing');
+                scheduleCatalogSave('recipes', async () => {
+                    await syncCatalogTable('recipes', activeOrganizationId, newVal, mapRecipeToDb);
+                    LS.clearOutboxKey('recipes', sbUser.id);
+                    setSbSyncStatus('saved');
+                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                });
+            }
         }
-    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+    }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
 
     const updateSavedQuotes = useCallback((newVal) => {
         setSavedQuotes(newVal);
@@ -9464,6 +7567,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-2 pt-1">
+                                    <button onClick={() => setPriceHistoryMaterial(m)} className="btn-icon text-neutral-400 hover:text-amber-600 p-1.5" title="Historique des prix" aria-label={`Historique des prix de ${m.name}`}>
+                                        <i className="fa-solid fa-chart-line"></i>
+                                    </button>
                                     <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setMatForm({...m}); setIsMatModalOpen(true); }} className="btn-secondary py-1.5 px-3 text-xs font-bold" aria-label={`Modifier ${m.name}`}>
                                         <i className="fa-solid fa-pen mr-1"></i> Modifier
                                     </button>
@@ -9511,6 +7617,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </td>
                                         <td className="p-4 pr-6 text-right">
                                             <div className="flex justify-end gap-1">
+                                                <button onClick={() => setPriceHistoryMaterial(m)} className="btn-icon text-neutral-400 hover:text-amber-600 hover:bg-amber-50" title="Historique des prix" aria-label={`Historique des prix de ${m.name}`}><i className="fa-solid fa-chart-line"></i></button>
                                                 <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setMatForm({...m}); setIsMatModalOpen(true); }} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : ''}`} title="Modifier" aria-label={`Modifier ${m.name}`}><i className="fa-solid fa-pen"></i></button>
                                                 <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteMaterial(m)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${m.name}`}><i className="fa-solid fa-trash"></i></button>
                                             </div>
@@ -9840,6 +7947,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 />
             )}
 
+            {priceHistoryMaterial && (
+                <PriceHistoryModal
+                    isOpen={!!priceHistoryMaterial}
+                    onClose={() => setPriceHistoryMaterial(null)}
+                    material={priceHistoryMaterial}
+                    organizationId={activeOrganizationId}
+                    supabaseClient={supabaseClient}
+                />
+            )}
+
             {isCreateOrgModalOpen && (
                 <CreateOrganizationModal
                     isOpen={isCreateOrgModalOpen}
@@ -10024,7 +8141,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <button onClick={() => setIsMatModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                            <form id="matForm" onSubmit={(e) => { e.preventDefault(); if (isReadOnlyDueToDowngrade) return; const p = (parseFloat(matForm.priceBuy)||0)/(parseFloat(matForm.unitSize)||1); const nm = {...matForm, priceCalc:p, waste:parseFloat(matForm.waste)||0, yieldRate:parseFloat(matForm.yieldRate)||0}; updateMaterials(materials.find(m=>m.id===nm.id) ? materials.map(m=>m.id===nm.id?nm:m) : [...materials, {...nm, id:Date.now()}]); setIsMatModalOpen(false); showToast("Ressource enregistrée"); }} className="space-y-5">
+                            <form id="matForm" onSubmit={(e) => {
+                                e.preventDefault();
+                                if (isReadOnlyDueToDowngrade) return;
+                                const p = (parseFloat(matForm.priceBuy)||0)/(parseFloat(matForm.unitSize)||1);
+                                const nm = {...matForm, priceCalc:p, waste:parseFloat(matForm.waste)||0, yieldRate:parseFloat(matForm.yieldRate)||0};
+                                const previousMat = materials.find(m=>m.id===nm.id);
+                                updateMaterials(previousMat ? materials.map(m=>m.id===nm.id?nm:m) : [...materials, {...nm, id:Date.now()}]);
+                                setIsMatModalOpen(false);
+                                showToast("Ressource enregistrée");
+                                // Journalisation réelle de l'historique de prix (Règle d'Or #3, Zéro Faux
+                                // Succès) : uniquement si le prix a changé pour une matière existante, en
+                                // organisation cloud réelle. Non bloquant — un échec réseau ici ne doit
+                                // jamais empêcher la sauvegarde de la matière elle-même.
+                                const isCloudOrg = activeOrganizationId && !activeOrganizationId.startsWith('org_default') && !activeOrganizationId.startsWith('org_local');
+                                if (previousMat && isCloudOrg && supabaseClient && parseFloat(previousMat.priceBuy) !== parseFloat(nm.priceBuy)) {
+                                    supabaseClient.from('material_price_history').insert({
+                                        organization_id: activeOrganizationId,
+                                        material_id: nm.id,
+                                        price: parseFloat(nm.priceBuy) || 0,
+                                        previous_price: parseFloat(previousMat.priceBuy) || 0,
+                                        supplier_name: nm.supplier || null
+                                    }).then(({ error }) => { if (error) console.warn('[Price History] Échec de journalisation:', error); });
+                                }
+                            }} className="space-y-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="md:col-span-2"><label className="app-label">Nom complet</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={matForm.name} onChange={e => setMatForm({...matForm, name: e.target.value})} /></div>
                                     <div><label className="app-label">Catégorie</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.category} onChange={e => setMatForm({...matForm, category: e.target.value})} /></div>

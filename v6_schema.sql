@@ -708,6 +708,17 @@ DROP POLICY IF EXISTS "Audit logs select" ON public.audit_logs;
 CREATE POLICY "Audit logs select" ON public.audit_logs
     FOR SELECT USING (public.has_org_permission(organization_id, ARRAY['owner', 'admin']));
 
+-- 12b. Material Price History — ajouté le 2026-08-17 (PROJECT_MASTER_TRACKER.md § 16) :
+-- RLS était actif sans policy (table totalement inaccessible), pendant que
+-- PriceHistoryModal affichait des données inventées à sa place (Règle d'Or #3).
+DROP POLICY IF EXISTS "Material price history select" ON public.material_price_history;
+CREATE POLICY "Material price history select" ON public.material_price_history
+    FOR SELECT USING (organization_id IN (SELECT public.get_my_organization_ids()));
+
+DROP POLICY IF EXISTS "Material price history insert" ON public.material_price_history;
+CREATE POLICY "Material price history insert" ON public.material_price_history
+    FOR INSERT WITH CHECK (public.has_org_permission(organization_id, ARRAY['owner', 'admin', 'estimator']));
+
 -- 13. Suppliers
 DROP POLICY IF EXISTS "Suppliers select" ON public.suppliers;
 CREATE POLICY "Suppliers select" ON public.suppliers
