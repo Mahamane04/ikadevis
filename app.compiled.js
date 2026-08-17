@@ -1643,6 +1643,7 @@ function QuoteWorkspace({
   isReadOnlyDueToDowngrade,
   savedQuotes = [],
   showToast,
+  confirmAction,
   saveQuoteStatus = "idle",
   saveQuoteError = null
 }) {
@@ -1924,6 +1925,26 @@ function QuoteWorkspace({
     const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
     onPreviewQuote(savedQ);
   };
+  const guardUnsavedQuote = (action) => {
+    if (!hasUnsavedChanges || !confirmAction) {
+      action();
+      return;
+    }
+    const ref = calculatedQuote.number || "Le devis en cours";
+    confirmAction({
+      title: "Modifications non enregistr\xE9es",
+      message: `${ref} contient des modifications qui ne sont pas enregistr\xE9es.
+Elles seront perdues si vous continuez.`,
+      secondaryLabel: "Enregistrer d'abord",
+      onSecondary: () => {
+        handleSaveQuoteAction();
+        action();
+      },
+      confirmLabel: "Continuer sans enregistrer",
+      isDanger: true,
+      onConfirm: action
+    });
+  };
   const handleLoadR1 = () => {
     setHybridQuote(R1_TEMPLATE_QUOTE);
     setActiveLotIndex(0);
@@ -1982,22 +2003,22 @@ function QuoteWorkspace({
     {
       isOpen: isWizardOpen,
       onClose: () => setIsWizardOpen(false),
-      onLoadTemplate: (tpl) => {
+      onLoadTemplate: (tpl) => guardUnsavedQuote(() => {
         pushState();
         setHybridQuote(tpl);
         setActiveLotIndex(0);
         showToast(`Mod\xE8le \xAB ${tpl.projectRef || tpl.number} \xBB charg\xE9 !`, "success");
-      },
-      onGenerateFromQuickEstimate: (estQ) => {
+      }),
+      onGenerateFromQuickEstimate: (estQ) => guardUnsavedQuote(() => {
         pushState();
         setHybridQuote(estQ);
         setActiveLotIndex(0);
         showToast("Devis g\xE9n\xE9r\xE9 depuis l'estimation rapide !", "success");
-      },
-      onInitBlankQuote: () => {
+      }),
+      onInitBlankQuote: () => guardUnsavedQuote(() => {
         pushState();
         handleReset();
-      },
+      }),
       currency: companyInfo.currency
     }
   ), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-h-0 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto overflow-y-auto lg:overflow-hidden custom-scroll" }, /* @__PURE__ */ React.createElement("div", { className: `${inspectorItemIndex !== null ? "hidden lg:flex" : "flex"} lg:h-full lg:min-h-0` }, /* @__PURE__ */ React.createElement(
@@ -4763,6 +4784,18 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
           companyInfo,
           saveQuoteStatus,
           saveQuoteError,
+          confirmAction: ({ onConfirm, onSecondary, ...rest }) => setConfirmDialog({
+            isOpen: true,
+            ...rest,
+            onConfirm: onConfirm ? () => {
+              closeConfirm();
+              onConfirm();
+            } : null,
+            onSecondary: onSecondary ? () => {
+              closeConfirm();
+              onSecondary();
+            } : null
+          }),
           onSaveQuote: async (savedQ) => {
             setSaveQuoteStatus("saving");
             setSaveQuoteError(null);
@@ -6385,7 +6418,7 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     LS.clearLegacyData();
     setShowImportBanner(false);
     showToast("Base locale r\xE9initialis\xE9e. Compte cloud propre.");
-  }, className: "btn-secondary w-full py-3 text-neutral-600 hover:text-red-600" }, "Ignorer & D\xE9marrer sur un compte propre")))), confirmDialog.isOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center" }, /* @__PURE__ */ React.createElement("div", { className: `w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? "bg-red-50 text-brand-500" : "bg-brand-50 text-brand-500"}` }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid ${confirmDialog.isDanger ? "fa-trash-can" : "fa-circle-question"} text-2xl` })), /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-xl mb-2" }, confirmDialog.title), /* @__PURE__ */ React.createElement("p", { className: "text-neutral-500 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line" }, confirmDialog.message), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-3 w-full" }, /* @__PURE__ */ React.createElement("button", { onClick: closeConfirm, className: "btn-secondary flex-1 py-3" }, "Annuler"), confirmDialog.onConfirm && /* @__PURE__ */ React.createElement("button", { onClick: confirmDialog.onConfirm, className: "flex flex-1 items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95" }, "Confirmer")))), toast && /* @__PURE__ */ React.createElement("div", { key: toast.id, className: "fixed bottom-24 md:bottom-8 right-0 md:right-8 left-0 md:left-auto mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up" }, /* @__PURE__ */ React.createElement("div", { className: "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check" })), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-sm leading-tight" }, toast.message)));
+  }, className: "btn-secondary w-full py-3 text-neutral-600 hover:text-red-600" }, "Ignorer & D\xE9marrer sur un compte propre")))), confirmDialog.isOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center" }, /* @__PURE__ */ React.createElement("div", { className: `w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? "bg-red-50 text-brand-500" : "bg-brand-50 text-brand-500"}` }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid ${confirmDialog.isDanger ? "fa-trash-can" : "fa-circle-question"} text-2xl` })), /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-xl mb-2" }, confirmDialog.title), /* @__PURE__ */ React.createElement("p", { className: "text-neutral-500 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line" }, confirmDialog.message), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-3 w-full" }, /* @__PURE__ */ React.createElement("button", { onClick: closeConfirm, className: "btn-secondary flex-1 py-3" }, "Annuler"), confirmDialog.onSecondary && /* @__PURE__ */ React.createElement("button", { onClick: confirmDialog.onSecondary, className: "btn-secondary flex-1 py-3 font-bold border-brand-300 text-brand-700" }, confirmDialog.secondaryLabel || "Enregistrer"), confirmDialog.onConfirm && /* @__PURE__ */ React.createElement("button", { onClick: confirmDialog.onConfirm, className: "flex flex-1 items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95" }, confirmDialog.confirmLabel || "Confirmer")))), toast && /* @__PURE__ */ React.createElement("div", { key: toast.id, className: "fixed bottom-24 md:bottom-8 right-0 md:right-8 left-0 md:left-auto mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up" }, /* @__PURE__ */ React.createElement("div", { className: "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check" })), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-sm leading-tight" }, toast.message)));
 }
 function AppShell() {
   const [session, setSession] = useState(null);

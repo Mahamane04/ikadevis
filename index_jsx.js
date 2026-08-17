@@ -2485,6 +2485,7 @@ function QuoteWorkspace({
     isReadOnlyDueToDowngrade,
     savedQuotes = [],
     showToast,
+    confirmAction,
     saveQuoteStatus = 'idle',
     saveQuoteError = null
 }) {
@@ -2800,6 +2801,30 @@ function QuoteWorkspace({
         onPreviewQuote(savedQ);
     };
 
+    // B4 (2026-08-17) — Garde-fou avant tout remplacement du devis en cours.
+    // L'assistant, le chargement d'un modèle et la réinitialisation appelaient
+    // setHybridQuote() directement, sans jamais consulter hasUnsavedChanges :
+    // un devis en cours de chiffrage disparaissait sans un mot. pushState() est
+    // bien appelé, donc Cmd+Z pouvait le récupérer — encore fallait-il le savoir.
+    // On nomme le devis menacé dans le message : « le devis en cours » est trop
+    // vague pour qu'on ose confirmer.
+    const guardUnsavedQuote = (action) => {
+        if (!hasUnsavedChanges || !confirmAction) { action(); return; }
+        const ref = calculatedQuote.number || 'Le devis en cours';
+        confirmAction({
+            title: 'Modifications non enregistrées',
+            message: `${ref} contient des modifications qui ne sont pas enregistrées.\nElles seront perdues si vous continuez.`,
+            secondaryLabel: "Enregistrer d'abord",
+            onSecondary: () => {
+                handleSaveQuoteAction();
+                action();
+            },
+            confirmLabel: 'Continuer sans enregistrer',
+            isDanger: true,
+            onConfirm: action
+        });
+    };
+
     const handleLoadR1 = () => {
         setHybridQuote(R1_TEMPLATE_QUOTE);
         setActiveLotIndex(0);
@@ -2858,22 +2883,22 @@ function QuoteWorkspace({
             <NewQuoteWizardModal
                 isOpen={isWizardOpen}
                 onClose={() => setIsWizardOpen(false)}
-                onLoadTemplate={(tpl) => {
+                onLoadTemplate={(tpl) => guardUnsavedQuote(() => {
                     pushState();
                     setHybridQuote(tpl);
                     setActiveLotIndex(0);
                     showToast(`Modèle « ${tpl.projectRef || tpl.number} » chargé !`, "success");
-                }}
-                onGenerateFromQuickEstimate={(estQ) => {
+                })}
+                onGenerateFromQuickEstimate={(estQ) => guardUnsavedQuote(() => {
                     pushState();
                     setHybridQuote(estQ);
                     setActiveLotIndex(0);
                     showToast("Devis généré depuis l'estimation rapide !", "success");
-                }}
-                onInitBlankQuote={() => {
+                })}
+                onInitBlankQuote={() => guardUnsavedQuote(() => {
                     pushState();
                     handleReset();
-                }}
+                })}
                 currency={companyInfo.currency}
             />
 
@@ -6363,6 +6388,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     companyInfo={companyInfo}
                     saveQuoteStatus={saveQuoteStatus}
                     saveQuoteError={saveQuoteError}
+                    // B4 — La boîte de confirmation vit dans App ; on l'expose au
+                    // plan de travail en refermant nous-mêmes avant d'exécuter,
+                    // pour que l'appelant n'ait pas à connaître closeConfirm.
+                    confirmAction={({ onConfirm, onSecondary, ...rest }) => setConfirmDialog({
+                        isOpen: true,
+                        ...rest,
+                        onConfirm: onConfirm ? () => { closeConfirm(); onConfirm(); } : null,
+                        onSecondary: onSecondary ? () => { closeConfirm(); onSecondary(); } : null
+                    })}
                     onSaveQuote={async (savedQ) => {
                         setSaveQuoteStatus('saving');
                         setSaveQuoteError(null);
@@ -9988,10 +10022,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                         <h3 className="font-extrabold text-neutral-900 text-xl mb-2">{confirmDialog.title}</h3>
                         <p className="text-neutral-500 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">{confirmDialog.message}</p>
+                        {/* B4 (2026-08-17) — Action secondaire optionnelle : permet de
+                            proposer « Enregistrer d'abord » à côté de « Continuer sans
+                            enregistrer », au lieu du seul couple Annuler / Confirmer. */}
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <button onClick={closeConfirm} className="btn-secondary flex-1 py-3">Annuler</button>
+                            {confirmDialog.onSecondary && (
+                                <button onClick={confirmDialog.onSecondary} className="btn-secondary flex-1 py-3 font-bold border-brand-300 text-brand-700">
+                                    {confirmDialog.secondaryLabel || 'Enregistrer'}
+                                </button>
+                            )}
                             {confirmDialog.onConfirm && (
-                                <button onClick={confirmDialog.onConfirm} className="flex flex-1 items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95">Confirmer</button>
+                                <button onClick={confirmDialog.onConfirm} className="flex flex-1 items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95">
+                                    {confirmDialog.confirmLabel || 'Confirmer'}
+                                </button>
                             )}
                         </div>
                     </div>
