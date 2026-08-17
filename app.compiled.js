@@ -711,7 +711,7 @@ function QuoteHeader({
       "aria-label": "Statut du devis"
     },
     statusOptions.map((opt) => /* @__PURE__ */ React.createElement("option", { key: opt.value, value: opt.value }, opt.label))
-  ), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none opacity-60" })), /* @__PURE__ */ React.createElement("div", { className: "hidden xl:flex items-center gap-1.5 text-[11px] shrink-0 font-medium" }, isSaving ? /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-spinner fa-spin text-brand-500" }), /* @__PURE__ */ React.createElement("span", null, "Sauvegarde\u2026")) : hasUnsavedChanges ? /* @__PURE__ */ React.createElement("span", { className: "text-amber-600 flex items-center gap-1 font-bold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-dot text-amber-500 text-[9px]" }), /* @__PURE__ */ React.createElement("span", null, "Modifications non enregistr\xE9es")) : /* @__PURE__ */ React.createElement("span", { className: "text-emerald-600 flex items-center gap-1 font-bold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-cloud-check text-emerald-500" }), /* @__PURE__ */ React.createElement("span", null, autosaveTime ? `Enregistr\xE9 \xE0 ${autosaveTime}` : "Enregistr\xE9 localement")))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0 self-end lg:self-center" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none opacity-60" })), /* @__PURE__ */ React.createElement("div", { className: "hidden xl:flex items-center gap-1.5 text-[11px] shrink-0 font-medium" }, isSaving ? /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-spinner fa-spin text-brand-500" }), /* @__PURE__ */ React.createElement("span", null, "Sauvegarde\u2026")) : hasUnsavedChanges ? /* @__PURE__ */ React.createElement("span", { className: "text-amber-600 flex items-center gap-1 font-bold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-dot text-amber-500 text-[9px]" }), /* @__PURE__ */ React.createElement("span", null, "Modifications non enregistr\xE9es")) : /* @__PURE__ */ React.createElement("span", { className: "text-emerald-600 flex items-center gap-1 font-bold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-cloud-check text-emerald-500" }), /* @__PURE__ */ React.createElement("span", null, autosaveTime ? `Enregistr\xE9 \xE0 ${autosaveTime}` : "Enregistr\xE9 localement")))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center justify-end gap-2 lg:shrink-0 self-stretch lg:self-center" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -825,49 +825,54 @@ function LotNavigator({
     const isActive = originalIndex === activeLotIndex;
     const itemsCount = lot.items?.length || 0;
     const subtotal = lot.lotTotalHT || 0;
-    return /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: lot.id,
-        className: `group relative rounded-xl p-2.5 transition-all cursor-pointer border ${isActive ? "bg-white border-brand-500 shadow-sm ring-2 ring-brand-500/10" : "bg-white/60 hover:bg-white border-neutral-200/80 hover:border-neutral-300"}`,
-        onClick: () => onSelectLot(originalIndex),
-        role: "button",
-        tabIndex: 0,
-        onKeyDown: (e) => {
-          if (e.key === "Enter" || e.key === " ") onSelectLot(originalIndex);
-        },
-        "aria-current": isActive ? "true" : "false"
-      },
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${isActive ? "bg-brand-600 text-white" : "bg-neutral-200 text-neutral-700"}` }, lot.code || String(originalIndex + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" }, originalIndex > 0 && /* @__PURE__ */ React.createElement(
-        "button",
+    return (
+      // P0.17 (2026-08-17) — Cartes de lot trop hautes (5 lignes
+      // empilées) : ~4 lots visibles seulement sur un devis qui en
+      // compte 9+. Passées en rangée de liste compacte (2 lignes,
+      // ~52px) : code + nom + montant, méta et flèches de
+      // réordonnancement condensées. Aucune action perdue.
+      /* @__PURE__ */ React.createElement(
+        "div",
         {
-          type: "button",
-          onClick: (e) => {
-            e.stopPropagation();
-            onMoveLot(originalIndex, -1);
+          key: lot.id,
+          className: `group relative rounded-lg px-2.5 py-2 transition-all cursor-pointer border ${isActive ? "bg-white border-brand-500 shadow-sm ring-1 ring-brand-500/10" : "bg-white/60 hover:bg-white border-neutral-200/80 hover:border-neutral-300"}`,
+          onClick: () => onSelectLot(originalIndex),
+          role: "button",
+          tabIndex: 0,
+          onKeyDown: (e) => {
+            if (e.key === "Enter" || e.key === " ") onSelectLot(originalIndex);
           },
-          className: "p-1 text-neutral-400 hover:text-neutral-700 text-[10px]",
-          title: "Monter le lot",
-          "aria-label": "Monter le lot"
+          "aria-current": isActive ? "true" : "false"
         },
-        /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-up" })
-      ), originalIndex < lots.length - 1 && /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          type: "button",
-          onClick: (e) => {
-            e.stopPropagation();
-            onMoveLot(originalIndex, 1);
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${isActive ? "bg-brand-600 text-white" : "bg-neutral-200 text-neutral-700"}` }, lot.code || String(originalIndex + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-900 truncate flex-1 min-w-0 leading-tight" }, lot.name || `Lot ${originalIndex + 1}`), /* @__PURE__ */ React.createElement("div", { className: "hidden group-hover:flex items-center shrink-0" }, originalIndex > 0 && /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: (e) => {
+              e.stopPropagation();
+              onMoveLot(originalIndex, -1);
+            },
+            className: "px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]",
+            title: "Monter le lot",
+            "aria-label": "Monter le lot"
           },
-          className: "p-1 text-neutral-400 hover:text-neutral-700 text-[10px]",
-          title: "Descendre le lot",
-          "aria-label": "Descendre le lot"
-        },
-        /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-down" })
-      ))),
-      /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-900 mt-1 line-clamp-2 leading-tight" }, lot.name || `Lot ${originalIndex + 1}`),
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mt-2 pt-1.5 border-t border-neutral-100 text-[10px]" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 font-medium" }, itemsCount, " ", itemsCount > 1 ? "ouvrages" : "ouvrage"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900" }, formatMoney(subtotal, currency))),
-      lot.isComplete ? /* @__PURE__ */ React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold text-emerald-600" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-check mr-1" }), "Pr\xEAt") : itemsCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold text-amber-600" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation mr-1" }), "\xC0 v\xE9rifier") : null
+          /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-up" })
+        ), originalIndex < lots.length - 1 && /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: (e) => {
+              e.stopPropagation();
+              onMoveLot(originalIndex, 1);
+            },
+            className: "px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]",
+            title: "Descendre le lot",
+            "aria-label": "Descendre le lot"
+          },
+          /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-down" })
+        ))),
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2 mt-0.5 pl-[26px] text-[10px]" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 font-medium truncate" }, itemsCount, " ", itemsCount > 1 ? "ouvrages" : "ouvrage", lot.isComplete ? /* @__PURE__ */ React.createElement("span", { className: "text-emerald-600 font-bold ml-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-check" })) : itemsCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "text-amber-600 font-bold ml-1.5", title: "\xC0 v\xE9rifier" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation" })) : null), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 shrink-0" }, formatMoney(subtotal, currency)))
+      )
     );
   }), filteredLots.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "p-4 text-center text-xs text-neutral-400" }, "Aucun lot trouv\xE9")));
 }
@@ -894,61 +899,67 @@ function ActiveLotHeader({
       onUpdateLot({ name: titleInput.trim() });
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: "w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-black text-sm shrink-0" }, lot.code || String(lotIndex + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, isEditingTitle ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "text",
-      value: titleInput,
-      onChange: (e) => setTitleInput(e.target.value),
-      onBlur: handleSaveTitle,
-      onKeyDown: (e) => {
-        if (e.key === "Enter") handleSaveTitle();
+  return (
+    // P0.17 (2026-08-17) — `flex-wrap` + largeur minimale sur le bloc titre :
+    // sans ça, les boutons d'action (whitespace-nowrap, donc incompressibles)
+    // écrasaient le titre et la ligne "Sous-total HT · Marge · ouvrages" en
+    // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
+    /* @__PURE__ */ React.createElement("div", { className: "bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 flex-1 min-w-full sm:min-w-[240px]" }, /* @__PURE__ */ React.createElement("span", { className: "w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-black text-sm shrink-0" }, lot.code || String(lotIndex + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, isEditingTitle ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        value: titleInput,
+        onChange: (e) => setTitleInput(e.target.value),
+        onBlur: handleSaveTitle,
+        onKeyDown: (e) => {
+          if (e.key === "Enter") handleSaveTitle();
+        },
+        autoFocus: true,
+        className: "border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-extrabold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
+      }
+    ), /* @__PURE__ */ React.createElement("button", { onClick: handleSaveTitle, className: "p-1 text-emerald-600 font-bold text-xs" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check" }))) : /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 group cursor-pointer", onClick: () => setIsEditingTitle(true) }, /* @__PURE__ */ React.createElement("h2", { className: "text-base sm:text-lg font-black text-neutral-900 truncate" }, lot.name || `Lot ${lotIndex + 1}`), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors" })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-3 mt-1 text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900" }, "Sous-total HT : ", /* @__PURE__ */ React.createElement("strong", { className: "text-brand-600 font-black" }, formatMoney(lot.lotTotalHT || 0, currency))), lot.lotMarginPct !== void 0 && /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 font-medium" }, "\u2022 Marge : ", /* @__PURE__ */ React.createElement("span", { className: "font-bold text-emerald-600" }, lot.lotMarginPct, "%")), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 font-medium" }, "\u2022 ", lot.items?.length || 0, " ouvrage(s)")))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onOpenPicker,
+        className: "btn-primary text-xs py-2 px-3.5 font-extrabold flex items-center justify-center gap-1.5 shadow-sm shadow-brand-500/20 flex-1 sm:flex-initial whitespace-nowrap",
+        "aria-label": "Ajouter un ouvrage depuis le catalogue"
       },
-      autoFocus: true,
-      className: "border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-extrabold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
-    }
-  ), /* @__PURE__ */ React.createElement("button", { onClick: handleSaveTitle, className: "p-1 text-emerald-600 font-bold text-xs" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check" }))) : /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 group cursor-pointer", onClick: () => setIsEditingTitle(true) }, /* @__PURE__ */ React.createElement("h2", { className: "text-base sm:text-lg font-black text-neutral-900 truncate" }, lot.name || `Lot ${lotIndex + 1}`), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors" })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-3 mt-1 text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900" }, "Sous-total HT : ", /* @__PURE__ */ React.createElement("strong", { className: "text-brand-600 font-black" }, formatMoney(lot.lotTotalHT || 0, currency))), lot.lotMarginPct !== void 0 && /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 font-medium" }, "\u2022 Marge : ", /* @__PURE__ */ React.createElement("span", { className: "font-bold text-emerald-600" }, lot.lotMarginPct, "%")), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 font-medium" }, "\u2022 ", lot.items?.length || 0, " ouvrage(s)")))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 w-full sm:w-auto" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onOpenPicker,
-      className: "btn-primary text-xs py-2 px-3.5 font-extrabold flex items-center justify-center gap-1.5 shadow-sm shadow-brand-500/20 flex-1 sm:flex-initial whitespace-nowrap",
-      "aria-label": "Ajouter un ouvrage depuis le catalogue"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }),
-    /* @__PURE__ */ React.createElement("span", null, "+ Ajouter un Ouvrage")
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onAddCustomLine,
-      className: "btn-secondary text-xs py-2 px-3 font-bold flex items-center justify-center gap-1.5",
-      title: "Ajouter une ligne libre non catalogu\xE9e",
-      "aria-label": "Ajouter une ligne libre"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-ruler text-neutral-500" }),
-    /* @__PURE__ */ React.createElement("span", null, "+ Ligne Libre")
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onDuplicateLot,
-      className: "p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs",
-      title: "Dupliquer ce lot",
-      "aria-label": "Dupliquer ce lot"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clone" })
-  ), lotsCount > 1 && /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onDeleteLot,
-      className: "p-2 rounded-xl border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all text-xs",
-      title: "Supprimer ce lot",
-      "aria-label": "Supprimer ce lot"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash-can" })
-  )));
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }),
+      /* @__PURE__ */ React.createElement("span", null, "+ Ajouter un Ouvrage")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onAddCustomLine,
+        className: "btn-secondary text-xs py-2 px-3 font-bold flex items-center justify-center gap-1.5",
+        title: "Ajouter une ligne libre non catalogu\xE9e",
+        "aria-label": "Ajouter une ligne libre"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-ruler text-neutral-500" }),
+      /* @__PURE__ */ React.createElement("span", null, "+ Ligne Libre")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onDuplicateLot,
+        className: "p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs",
+        title: "Dupliquer ce lot",
+        "aria-label": "Dupliquer ce lot"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clone" })
+    ), lotsCount > 1 && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onDeleteLot,
+        className: "p-2 rounded-xl border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all text-xs",
+        title: "Supprimer ce lot",
+        "aria-label": "Supprimer ce lot"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash-can" })
+    )))
+  );
 }
 function WorkItemTable({
   items,
@@ -1559,26 +1570,33 @@ function QuoteTotalsBar({
   const marginVal = quote.totalMargeVal || 0;
   const kFactor = quote.salesMultiplierK || (totalDebourse > 0 ? (totalHT / totalDebourse).toFixed(2) : 1);
   const isLowProfit = marginPct > 0 && marginPct < 15;
-  return /* @__PURE__ */ React.createElement("div", { className: "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 z-20 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-3 sm:gap-5 text-xs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "D\xE9bours\xE9 Sec"), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold text-neutral-700 text-sm" }, formatMoney(totalDebourse, currency))), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Coeff K"), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200" }, "K=", kFactor)), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Total Net HT"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm sm:text-base" }, formatMoney(totalHT, currency))), /* @__PURE__ */ React.createElement("div", { className: "hidden sm:block pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1" }, "Marge R\xE9elle", isLowProfit && /* @__PURE__ */ React.createElement("span", { className: "text-amber-600 font-bold", title: "Marge faible (< 15%)" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation" }))), /* @__PURE__ */ React.createElement("span", { className: `font-bold text-sm sm:text-base ${isLowProfit ? "text-amber-600" : "text-emerald-600"}` }, "+", formatMoney(marginVal, currency), " (", marginPct, "%)")), /* @__PURE__ */ React.createElement("div", { className: "hidden md:block pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "TVA (", quote.vatRate || 18, "%)"), /* @__PURE__ */ React.createElement("span", { className: "font-medium text-neutral-600 text-sm" }, "+", formatMoney(totalTVA, currency))), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l-2 border-neutral-900" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-brand-600 block uppercase font-black" }, "TOTAL TTC"), /* @__PURE__ */ React.createElement("span", { className: "font-black text-brand-600 text-base sm:text-xl" }, formatMoney(totalTTC, currency)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onPreviewQuote,
-      className: "btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye text-neutral-500" }),
-    /* @__PURE__ */ React.createElement("span", null, "Aper\xE7u Client & PDF")
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      disabled: isReadOnlyDueToDowngrade,
-      onClick: onSaveQuote,
-      className: "btn-primary text-xs py-2.5 px-5 font-extrabold flex items-center gap-2 shadow-md shadow-brand-500/20"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-floppy-disk" }),
-    /* @__PURE__ */ React.createElement("span", null, "Enregistrer le Devis")
-  ))));
+  return (
+    // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
+    // passait donc SOUS la sidebar de navigation et sous la barre d'onglets
+    // mobile. `.quote-totals-bar` (index.html) la cale à droite de la
+    // sidebar (72px en tablette, --sidebar-width en desktop) et au-dessus
+    // de la barre d'onglets sur mobile.
+    /* @__PURE__ */ React.createElement("div", { className: "quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-3 sm:gap-5 text-xs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "D\xE9bours\xE9 Sec"), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold text-neutral-700 text-sm" }, formatMoney(totalDebourse, currency))), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Coeff K"), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200" }, "K=", kFactor)), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Total Net HT"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-900 text-sm sm:text-base" }, formatMoney(totalHT, currency))), /* @__PURE__ */ React.createElement("div", { className: "hidden sm:block pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1" }, "Marge R\xE9elle", isLowProfit && /* @__PURE__ */ React.createElement("span", { className: "text-amber-600 font-bold", title: "Marge faible (< 15%)" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation" }))), /* @__PURE__ */ React.createElement("span", { className: `font-bold text-sm sm:text-base ${isLowProfit ? "text-amber-600" : "text-emerald-600"}` }, "+", formatMoney(marginVal, currency), " (", marginPct, "%)")), /* @__PURE__ */ React.createElement("div", { className: "hidden md:block pl-3 border-l border-neutral-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "TVA (", quote.vatRate || 18, "%)"), /* @__PURE__ */ React.createElement("span", { className: "font-medium text-neutral-600 text-sm" }, "+", formatMoney(totalTVA, currency))), /* @__PURE__ */ React.createElement("div", { className: "pl-3 border-l-2 border-neutral-900" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-brand-600 block uppercase font-black" }, "TOTAL TTC"), /* @__PURE__ */ React.createElement("span", { className: "font-black text-brand-600 text-base sm:text-xl" }, formatMoney(totalTTC, currency)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onPreviewQuote,
+        className: "btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye text-neutral-500" }),
+      /* @__PURE__ */ React.createElement("span", null, "Aper\xE7u Client & PDF")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        disabled: isReadOnlyDueToDowngrade,
+        onClick: onSaveQuote,
+        className: "btn-primary text-xs py-2.5 px-5 font-extrabold flex items-center gap-2 shadow-md shadow-brand-500/20"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-floppy-disk" }),
+      /* @__PURE__ */ React.createElement("span", null, "Enregistrer le Devis")
+    ))))
+  );
 }
 function QuoteWorkspace({
   hybridQuote,
@@ -2591,6 +2609,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const [newProjectForm, setNewProjectForm] = useState({ name: "", clientId: "", siteAddress: "", city: "Dakar", budgetEstimated: "" });
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [newClientForm, setNewClientForm] = useState({ name: "", contactPerson: "", taxId: "", phone: "", email: "", address: "", city: "Dakar" });
+  const [editingClientId, setEditingClientId] = useState(null);
+  const [quotesClientFilter, setQuotesClientFilter] = useState(null);
   const [saveQuoteStatus, setSaveQuoteStatus] = useState("idle");
   const [saveQuoteError, setSaveQuoteError] = useState(null);
   const [sbSyncStatus, setSbSyncStatus] = useState("idle");
@@ -5124,162 +5144,206 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     ), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none" })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1" }, filteredClients.map((c) => {
       const cQuotesCount = savedQuotes.filter((q) => q.clientId === c.id || q.clientName === c.name).length;
       return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => setSelectedClientId(c.id), className: `flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? "border-brand-500 shadow-sm" : "border-transparent hover:border-neutral-200 shadow-sm"}`, "aria-label": `S\xE9lectionner ${c.name}` }, /* @__PURE__ */ React.createElement("div", { className: `w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-black text-xs ${selectedClientId === c.id ? "bg-brand-100 text-brand-600" : "bg-neutral-100 text-neutral-500"}` }, c.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("p", { className: `font-bold text-sm truncate ${selectedClientId === c.id ? "text-neutral-900" : "text-neutral-700"}` }, c.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, c.contactPerson || "Sans contact renseign\xE9")), cQuotesCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded shrink-0" }, cQuotesCount));
-    }), filteredClients.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucun client trouv\xE9."))), /* @__PURE__ */ React.createElement("div", { className: `${selectedClient ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col` }, !selectedClient ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-users text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez un client pour voir sa fiche")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedClientId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0" }, selectedClient.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedClient.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 truncate" }, selectedClient.contactPerson || "Sans contact renseign\xE9"))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    }), filteredClients.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic text-center py-6" }, "Aucun client trouv\xE9."))), /* @__PURE__ */ React.createElement("div", { className: `${selectedClient ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col` }, !selectedClient ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-users text-3xl mb-3 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez un client pour voir sa fiche")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedClientId(null), className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0" }, selectedClient.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, selectedClient.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 truncate" }, selectedClient.contactPerson || "Sans contact renseign\xE9"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setEditingClientId(selectedClient.id);
+      setNewClientForm({
+        name: selectedClient.name || "",
+        contactPerson: selectedClient.contactPerson || "",
+        taxId: selectedClient.taxId || "",
+        phone: selectedClient.phone || "",
+        email: selectedClient.email || "",
+        address: selectedClient.address || "",
+        city: selectedClient.city || ""
+      });
+      setIsNewClientModalOpen(true);
+    }, className: "btn-icon", title: "Modifier la fiche client", "aria-label": `Modifier ${selectedClient.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen" })), /* @__PURE__ */ React.createElement("button", { onClick: () => {
       setCalcForm((cf) => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
       setActiveView("calculator");
       showToast(`Client ${selectedClient.name} s\xE9lectionn\xE9 pour le devis !`);
-    }, className: "btn-primary py-2 px-3 text-xs font-extrabold shrink-0", "aria-label": `Cr\xE9er un devis pour ${selectedClient.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Cr\xE9er Devis")), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 rounded-2xl p-4 text-sm space-y-2 text-neutral-700 border border-neutral-100" }, selectedClient.taxId && /* @__PURE__ */ React.createElement("p", { className: "font-mono text-xs text-neutral-500" }, /* @__PURE__ */ React.createElement("strong", null, "NIF/RCCM :"), " ", selectedClient.taxId), selectedClient.phone && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-phone mr-2 text-neutral-400 w-4" }), " ", selectedClient.phone), selectedClient.email && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-envelope mr-2 text-neutral-400 w-4" }), " ", selectedClient.email), selectedClient.address && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-2 text-neutral-400 w-4" }), " ", selectedClient.address, selectedClient.city ? `, ${selectedClient.city}` : ""), !selectedClient.taxId && !selectedClient.phone && !selectedClient.email && !selectedClient.address && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic" }, "Aucune coordonn\xE9e renseign\xE9e pour ce client.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-neutral-200 rounded-2xl p-4 text-center" }, /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-black text-neutral-900 block" }, selectedClientProjects.length), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400" }, "Affaires")), /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-neutral-200 rounded-2xl p-4 text-center" }, /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-black text-neutral-900 block" }, selectedClientQuotes.length), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400" }, "Devis"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-neutral-700 uppercase tracking-wider" }, "Devis & Avenants"), selectedClientQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, selectedClientQuotes.map((q) => /* @__PURE__ */ React.createElement("div", { key: q.id, className: "flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-800 mr-2" }, q.number), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400" }, q.date)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-900 font-mono" }, formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    }, className: "btn-primary py-2 px-3 text-xs font-extrabold", "aria-label": `Cr\xE9er un devis pour ${selectedClient.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Cr\xE9er Devis"))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 rounded-2xl p-4 text-sm space-y-2 text-neutral-700 border border-neutral-100" }, selectedClient.taxId && /* @__PURE__ */ React.createElement("p", { className: "font-mono text-xs text-neutral-500" }, /* @__PURE__ */ React.createElement("strong", null, "NIF/RCCM :"), " ", selectedClient.taxId), selectedClient.phone && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-phone mr-2 text-neutral-400 w-4" }), " ", selectedClient.phone), selectedClient.email && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-envelope mr-2 text-neutral-400 w-4" }), " ", selectedClient.email), selectedClient.address && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-2 text-neutral-400 w-4" }), " ", selectedClient.address, selectedClient.city ? `, ${selectedClient.city}` : ""), !selectedClient.taxId && !selectedClient.phone && !selectedClient.email && !selectedClient.address && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-400 italic" }, "Aucune coordonn\xE9e renseign\xE9e pour ce client.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setProjectSearchQuery(selectedClient.name);
+          setSelectedProjectId(selectedClientProjects[0]?.id || null);
+          setActiveView("projects");
+        },
+        className: "bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group",
+        "aria-label": `Voir les ${selectedClientProjects.length} affaires de ${selectedClient.name}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors" }, selectedClientProjects.length),
+      /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors" }, "Affaires ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity" }))
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setQuotesClientFilter({ id: selectedClient.id, name: selectedClient.name });
+          setActiveView("savedQuotes");
+        },
+        className: "bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group",
+        "aria-label": `Voir les ${selectedClientQuotes.length} devis de ${selectedClient.name}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors" }, selectedClientQuotes.length),
+      /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors" }, "Devis ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity" }))
+    )), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-neutral-700 uppercase tracking-wider" }, "Affaires du client"), selectedClientProjects.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, selectedClientProjects.map((p) => /* @__PURE__ */ React.createElement("button", { key: p.id, onClick: () => {
+      setSelectedProjectId(p.id);
+      setProjectSearchQuery("");
+      setActiveView("projects");
+    }, className: "w-full flex justify-between items-center text-xs bg-neutral-50 hover:bg-brand-50/50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-all text-left", "aria-label": `Ouvrir l'affaire ${p.name}` }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-800 mr-2" }, p.code), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-600" }, p.name)), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-right text-neutral-300 text-[10px] shrink-0" })))) : /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 italic" }, "Aucune affaire li\xE9e pour l'instant.")), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-neutral-700 uppercase tracking-wider" }, "Devis & Avenants"), selectedClientQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, selectedClientQuotes.map((q) => /* @__PURE__ */ React.createElement("div", { key: q.id, className: "flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-800 mr-2" }, q.number), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400" }, q.date)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-900 font-mono" }, formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
       setViewingSavedQuote(q);
       setIsCommercialMode(true);
     }, className: "text-brand-600 hover:text-brand-800 p-1", title: "Voir PDF" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf text-xs" })))))) : /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 italic" }, "Aucun devis li\xE9 pour l'instant."))))));
   };
-  const renderSavedQuotes = () => /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-[1400px] mx-auto" }, /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-bold text-neutral-800" }, "Mes Devis Enregistr\xE9s"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-neutral-500 mt-1 font-medium" }, "Historique des devis cr\xE9\xE9s, consultation de l'\xE9tude interne et impression du PDF client.")), /* @__PURE__ */ React.createElement("span", { className: "bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg text-xs font-bold" }, savedQuotes.length, " devis enregistr\xE9s (Prochain : DEV-", (/* @__PURE__ */ new Date()).getFullYear(), "-", String(nextQuoteSeq).padStart(3, "0"), ")")), /* @__PURE__ */ React.createElement("div", { className: "block lg:hidden p-4 space-y-3" }, savedQuotes.map((sq) => /* @__PURE__ */ React.createElement("div", { key: sq.id, className: "bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "inline-block px-2.5 py-0.5 rounded-full text-xs font-black bg-brand-100 text-brand-700 mb-1" }, sq.number), /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-base" }, sq.clientName || "Client sans nom"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500" }, sq.projectRef || "Sans r\xE9f\xE9rence projet")), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-medium text-neutral-400" }, sq.date)), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-neutral-200/80 text-xs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Net HT"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-700" }, formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Total TTC"), /* @__PURE__ */ React.createElement("span", { className: "font-black text-brand-600 text-sm" }, formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 pt-1" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
-        setHybridQuote(hq);
-        setUseHybridEditor(true);
-        setActiveView("calculator");
-        showToast(`Devis ${sq.number} ouvert dans l'\xC9diteur Hybride !`);
+  const renderSavedQuotes = () => {
+    const visibleQuotes = quotesClientFilter ? savedQuotes.filter((q) => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name) : savedQuotes;
+    return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-[1400px] mx-auto" }, /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-bold text-neutral-800" }, "Mes Devis Enregistr\xE9s"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-neutral-500 mt-1 font-medium" }, "Historique des devis cr\xE9\xE9s, consultation de l'\xE9tude interne et impression du PDF client.")), /* @__PURE__ */ React.createElement("span", { className: "bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg text-xs font-bold" }, savedQuotes.length, " devis enregistr\xE9s (Prochain : DEV-", (/* @__PURE__ */ new Date()).getFullYear(), "-", String(nextQuoteSeq).padStart(3, "0"), ")")), quotesClientFilter && /* @__PURE__ */ React.createElement("div", { className: "px-5 sm:px-6 py-3 bg-brand-50/60 border-b border-brand-100 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-filter shrink-0" }), /* @__PURE__ */ React.createElement("span", { className: "truncate" }, "Devis de \xAB ", quotesClientFilter.name, " \xBB \u2014 ", visibleQuotes.length, " r\xE9sultat(s)")), /* @__PURE__ */ React.createElement("button", { onClick: () => setQuotesClientFilter(null), className: "text-xs font-bold text-brand-700 hover:underline shrink-0", "aria-label": "Retirer le filtre client" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark mr-1" }), " Voir tous")), /* @__PURE__ */ React.createElement("div", { className: "block lg:hidden p-4 space-y-3" }, visibleQuotes.map((sq) => /* @__PURE__ */ React.createElement("div", { key: sq.id, className: "bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "inline-block px-2.5 py-0.5 rounded-full text-xs font-black bg-brand-100 text-brand-700 mb-1" }, sq.number), /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-base" }, sq.clientName || "Client sans nom"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500" }, sq.projectRef || "Sans r\xE9f\xE9rence projet")), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-medium text-neutral-400" }, sq.date)), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-neutral-200/80 text-xs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Net HT"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-700" }, formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Total TTC"), /* @__PURE__ */ React.createElement("span", { className: "font-black text-brand-600 text-sm" }, formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 pt-1" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
+          setHybridQuote(hq);
+          setUseHybridEditor(true);
+          setActiveView("calculator");
+          showToast(`Devis ${sq.number} ouvert dans l'\xC9diteur Hybride !`);
+        },
+        className: "btn-primary flex-1 py-2 px-3 text-xs font-bold justify-center bg-brand-600 hover:bg-brand-700 text-white",
+        "aria-label": `Modifier dans l'\xE9diteur hybride ${sq.number}`
       },
-      className: "btn-primary flex-1 py-2 px-3 text-xs font-bold justify-center bg-brand-600 hover:bg-brand-700 text-white",
-      "aria-label": `Modifier dans l'\xE9diteur hybride ${sq.number}`
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-to-square mr-1.5" }),
-    " Modifier (V6)"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        setViewingSavedQuote(sq);
-        setIsCommercialMode(true);
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-to-square mr-1.5" }),
+      " Modifier (V6)"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setViewingSavedQuote(sq);
+          setIsCommercialMode(true);
+        },
+        className: "btn-secondary flex-1 py-2 px-3 text-xs font-bold justify-center",
+        "aria-label": `Voir le devis client PDF ${sq.number}`
       },
-      className: "btn-secondary flex-1 py-2 px-3 text-xs font-bold justify-center",
-      "aria-label": `Voir le devis client PDF ${sq.number}`
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf mr-1.5" }),
-    " PDF"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        setViewingSavedQuote(sq);
-        setIsCommercialMode(false);
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf mr-1.5" }),
+      " PDF"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setViewingSavedQuote(sq);
+          setIsCommercialMode(false);
+        },
+        className: "btn-secondary py-2 px-3 text-xs font-bold justify-center",
+        "aria-label": `Voir l'\xE9tude de prix interne ${sq.number}`
       },
-      className: "btn-secondary py-2 px-3 text-xs font-bold justify-center",
-      "aria-label": `Voir l'\xE9tude de prix interne ${sq.number}`
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye" })
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      disabled: isReadOnlyDueToDowngrade,
-      onClick: () => setConfirmDialog({
-        isOpen: true,
-        title: "Supprimer Devis",
-        message: `Supprimer d\xE9finitivement le devis ${sq.number} ?`,
-        isDanger: true,
-        onConfirm: () => {
-          updateSavedQuotes(savedQuotes.filter((x) => x.id !== sq.id));
-          closeConfirm();
-          showToast("Devis supprim\xE9");
-        }
-      }),
-      className: "btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 p-2",
-      "aria-label": `Supprimer le devis ${sq.number}`,
-      title: "Supprimer"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })
-  )))), savedQuotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "p-8 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-open text-4xl mb-3 block opacity-30" }), "Aucun devis enregistr\xE9 pour le moment.")), /* @__PURE__ */ React.createElement("div", { className: "hidden lg:block app-table-wrapper rounded-none border-0" }, /* @__PURE__ */ React.createElement("table", { className: "app-table" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50/80" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "app-th pl-6" }, "N\xB0 Devis"), /* @__PURE__ */ React.createElement("th", { className: "app-th" }, "Date"), /* @__PURE__ */ React.createElement("th", { className: "app-th" }, "Client & Projet"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Net HT"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Total TTC"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right pr-6 w-48" }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, savedQuotes.map((sq) => /* @__PURE__ */ React.createElement("tr", { key: sq.id, className: "app-td border-b border-neutral-100 hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-4 pl-6 font-extrabold text-brand-600" }, sq.number), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-xs font-medium text-neutral-500" }, sq.date), /* @__PURE__ */ React.createElement("td", { className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-neutral-800" }, sq.clientName), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-neutral-500" }, sq.projectRef)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right font-bold text-neutral-700" }, formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right font-extrabold text-neutral-900" }, formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)), /* @__PURE__ */ React.createElement("td", { className: "p-4 pr-6 text-right" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-end items-center gap-1.5" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
-        setHybridQuote(hq);
-        setUseHybridEditor(true);
-        setActiveView("calculator");
-        showToast(`Devis ${sq.number} ouvert dans l'\xC9diteur Hybride !`);
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye" })
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        disabled: isReadOnlyDueToDowngrade,
+        onClick: () => setConfirmDialog({
+          isOpen: true,
+          title: "Supprimer Devis",
+          message: `Supprimer d\xE9finitivement le devis ${sq.number} ?`,
+          isDanger: true,
+          onConfirm: () => {
+            updateSavedQuotes(savedQuotes.filter((x) => x.id !== sq.id));
+            closeConfirm();
+            showToast("Devis supprim\xE9");
+          }
+        }),
+        className: "btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 p-2",
+        "aria-label": `Supprimer le devis ${sq.number}`,
+        title: "Supprimer"
       },
-      className: "btn-secondary py-1 px-2.5 text-xs font-bold text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100 flex items-center gap-1",
-      title: "Modifier dans l'\xC9diteur Hybride V6"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-to-square text-brand-600" }),
-    " \xC9diter"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        const currentVersion = sq.versionNumber || 1;
-        const nextVersion = currentVersion + 1;
-        const baseNum = sq.number.replace(/-V\d+$/, "");
-        const newVersionNum = `${baseNum}-V${nextVersion}`;
-        const newId = Date.now() + Math.floor(Math.random() * 1e5);
-        const newVersionQuote = {
-          ...JSON.parse(JSON.stringify(sq)),
-          id: newId,
-          number: newVersionNum,
-          versionNumber: nextVersion,
-          parentQuoteId: sq.id,
-          status: "draft",
-          signedAt: null,
-          signedByName: null,
-          signatureData: null,
-          date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")
-        };
-        if (newVersionQuote.hybridQuoteSnapshot) {
-          newVersionQuote.hybridQuoteSnapshot.id = newId;
-          newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
-        }
-        updateSavedQuotes([newVersionQuote, ...savedQuotes]);
-        showToast(`\u2713 Nouvelle r\xE9vision ${newVersionNum} cr\xE9\xE9e (V${currentVersion} pr\xE9serv\xE9e) !`, "success");
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })
+    )))), visibleQuotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "p-8 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-open text-4xl mb-3 block opacity-30" }), "Aucun devis enregistr\xE9 pour le moment.")), /* @__PURE__ */ React.createElement("div", { className: "hidden lg:block app-table-wrapper rounded-none border-0" }, /* @__PURE__ */ React.createElement("table", { className: "app-table" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50/80" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "app-th pl-6" }, "N\xB0 Devis"), /* @__PURE__ */ React.createElement("th", { className: "app-th" }, "Date"), /* @__PURE__ */ React.createElement("th", { className: "app-th" }, "Client & Projet"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Net HT"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Total TTC"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right pr-6 w-48" }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, visibleQuotes.map((sq) => /* @__PURE__ */ React.createElement("tr", { key: sq.id, className: "app-td border-b border-neutral-100 hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-4 pl-6 font-extrabold text-brand-600" }, sq.number), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-xs font-medium text-neutral-500" }, sq.date), /* @__PURE__ */ React.createElement("td", { className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-neutral-800" }, sq.clientName), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-neutral-500" }, sq.projectRef)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right font-bold text-neutral-700" }, formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right font-extrabold text-neutral-900" }, formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)), /* @__PURE__ */ React.createElement("td", { className: "p-4 pr-6 text-right" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-end items-center gap-1.5" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
+          setHybridQuote(hq);
+          setUseHybridEditor(true);
+          setActiveView("calculator");
+          showToast(`Devis ${sq.number} ouvert dans l'\xC9diteur Hybride !`);
+        },
+        className: "btn-secondary py-1 px-2.5 text-xs font-bold text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100 flex items-center gap-1",
+        title: "Modifier dans l'\xC9diteur Hybride V6"
       },
-      className: "btn-secondary py-1 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1",
-      title: "Cr\xE9er une nouvelle r\xE9vision (V2, V3) sans \xE9craser la version envoy\xE9e"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-code-branch text-indigo-600" }),
-    " R\xE9vision (V",
-    (sq.versionNumber || 1) + 1,
-    ")"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
-        const newId = Date.now() + Math.floor(Math.random() * 1e5);
-        const nextNum = generateNextQuoteNumber(savedQuotes);
-        const duplicated = {
-          ...JSON.parse(JSON.stringify(sq)),
-          id: newId,
-          number: nextNum,
-          clientName: `${sq.clientName} (Copie)`,
-          date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")
-        };
-        if (duplicated.hybridQuoteSnapshot) {
-          duplicated.hybridQuoteSnapshot.id = newId;
-          duplicated.hybridQuoteSnapshot.number = nextNum;
-          duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
-        }
-        updateSavedQuotes([duplicated, ...savedQuotes]);
-        updateNextQuoteSeq(nextQuoteSeq + 1);
-        showToast(`Devis ${sq.number} dupliqu\xE9 avec succ\xE8s !`, "success");
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen-to-square text-brand-600" }),
+      " \xC9diter"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          const currentVersion = sq.versionNumber || 1;
+          const nextVersion = currentVersion + 1;
+          const baseNum = sq.number.replace(/-V\d+$/, "");
+          const newVersionNum = `${baseNum}-V${nextVersion}`;
+          const newId = Date.now() + Math.floor(Math.random() * 1e5);
+          const newVersionQuote = {
+            ...JSON.parse(JSON.stringify(sq)),
+            id: newId,
+            number: newVersionNum,
+            versionNumber: nextVersion,
+            parentQuoteId: sq.id,
+            status: "draft",
+            signedAt: null,
+            signedByName: null,
+            signatureData: null,
+            date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")
+          };
+          if (newVersionQuote.hybridQuoteSnapshot) {
+            newVersionQuote.hybridQuoteSnapshot.id = newId;
+            newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
+          }
+          updateSavedQuotes([newVersionQuote, ...savedQuotes]);
+          showToast(`\u2713 Nouvelle r\xE9vision ${newVersionNum} cr\xE9\xE9e (V${currentVersion} pr\xE9serv\xE9e) !`, "success");
+        },
+        className: "btn-secondary py-1 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1",
+        title: "Cr\xE9er une nouvelle r\xE9vision (V2, V3) sans \xE9craser la version envoy\xE9e"
       },
-      className: "btn-icon text-neutral-600 hover:bg-neutral-100",
-      title: "Dupliquer ce devis",
-      "aria-label": `Dupliquer ${sq.number}`
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clone" })
-  ), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    setViewingSavedQuote(sq);
-    setIsCommercialMode(true);
-  }, className: "btn-icon text-indigo-600 hover:bg-indigo-50", title: "Aper\xE7u Devis Client (PDF)", "aria-label": `Aper\xE7u devis client ${sq.number}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf" })), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    setViewingSavedQuote(sq);
-    setIsCommercialMode(false);
-  }, className: "btn-icon text-brand-600 hover:bg-brand-50", title: "Vue Interne \xC9tude de Prix", "aria-label": `\xC9tude interne ${sq.number}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => setConfirmDialog({ isOpen: true, title: "Supprimer Devis", message: `Supprimer le devis ${sq.number} ?`, isDanger: true, onConfirm: () => {
-    updateSavedQuotes(savedQuotes.filter((x) => x.id !== sq.id));
-    closeConfirm();
-    showToast("Devis supprim\xE9");
-  } }), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed text-neutral-300" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, "aria-label": `Supprimer ${sq.number}`, title: "Supprimer" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))), savedQuotes.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "6", className: "p-12 text-center text-neutral-400 font-medium" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-open text-4xl mb-3 block opacity-30" }), "Aucun devis enregistr\xE9 pour le moment.", /* @__PURE__ */ React.createElement("br", null), 'Cr\xE9ez un devis dans le calculateur puis cliquez sur "Enregistrer le Devis".')))))));
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-code-branch text-indigo-600" }),
+      " R\xE9vision (V",
+      (sq.versionNumber || 1) + 1,
+      ")"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+          const newId = Date.now() + Math.floor(Math.random() * 1e5);
+          const nextNum = generateNextQuoteNumber(savedQuotes);
+          const duplicated = {
+            ...JSON.parse(JSON.stringify(sq)),
+            id: newId,
+            number: nextNum,
+            clientName: `${sq.clientName} (Copie)`,
+            date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")
+          };
+          if (duplicated.hybridQuoteSnapshot) {
+            duplicated.hybridQuoteSnapshot.id = newId;
+            duplicated.hybridQuoteSnapshot.number = nextNum;
+            duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
+          }
+          updateSavedQuotes([duplicated, ...savedQuotes]);
+          updateNextQuoteSeq(nextQuoteSeq + 1);
+          showToast(`Devis ${sq.number} dupliqu\xE9 avec succ\xE8s !`, "success");
+        },
+        className: "btn-icon text-neutral-600 hover:bg-neutral-100",
+        title: "Dupliquer ce devis",
+        "aria-label": `Dupliquer ${sq.number}`
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clone" })
+    ), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setViewingSavedQuote(sq);
+      setIsCommercialMode(true);
+    }, className: "btn-icon text-indigo-600 hover:bg-indigo-50", title: "Aper\xE7u Devis Client (PDF)", "aria-label": `Aper\xE7u devis client ${sq.number}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf" })), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setViewingSavedQuote(sq);
+      setIsCommercialMode(false);
+    }, className: "btn-icon text-brand-600 hover:bg-brand-50", title: "Vue Interne \xC9tude de Prix", "aria-label": `\xC9tude interne ${sq.number}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-eye" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => setConfirmDialog({ isOpen: true, title: "Supprimer Devis", message: `Supprimer le devis ${sq.number} ?`, isDanger: true, onConfirm: () => {
+      updateSavedQuotes(savedQuotes.filter((x) => x.id !== sq.id));
+      closeConfirm();
+      showToast("Devis supprim\xE9");
+    } }), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed text-neutral-300" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, "aria-label": `Supprimer ${sq.number}`, title: "Supprimer" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))), visibleQuotes.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "6", className: "p-12 text-center text-neutral-400 font-medium" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-folder-open text-4xl mb-3 block opacity-30" }), "Aucun devis enregistr\xE9 pour le moment.", /* @__PURE__ */ React.createElement("br", null), 'Cr\xE9ez un devis dans le calculateur puis cliquez sur "Enregistrer le Devis".')))))));
+  };
   const renderRecipes = () => /* @__PURE__ */ React.createElement("div", { className: "flex flex-col lg:flex-row gap-6 w-full max-w-[1400px] mx-auto items-start" }, /* @__PURE__ */ React.createElement("div", { className: "w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-1" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-bold text-neutral-800" }, "Catalogue des Ouvrages"), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
     setSolutionModalForm({ id: null, name: "", icon: "fa-cube", allowedModes: ["rectangle", "surface", "linear"] });
     setIsSolutionModalOpen(true);
@@ -5633,28 +5697,43 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       onChange: (e) => setNewProjectForm({ ...newProjectForm, clientId: e.target.value }),
       options: clients.map((c) => ({ value: c.id, label: c.name }))
     }
-  ) : /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 italic" }, "Aucun client enregistr\xE9 \u2014 cr\xE9ez d'abord une fiche client.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse chantier"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Plateau, Rue Carnot", value: newProjectForm.siteAddress, onChange: (e) => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newProjectForm.city, onChange: (e) => setNewProjectForm({ ...newProjectForm, city: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Budget estim\xE9 (", companyInfo.currency || "FCFA", ")"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", className: "app-input font-bold", placeholder: "0", value: newProjectForm.budgetEstimated, onChange: (e) => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value }) })))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsNewProjectModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newProjectForm", className: "btn-primary", "aria-label": "Cr\xE9er l'affaire" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Cr\xE9er l'affaire")))), isNewClientModalOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, "Nouveau Client"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsNewClientModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "newClientForm", onSubmit: (e) => {
+  ) : /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 italic" }, "Aucun client enregistr\xE9 \u2014 cr\xE9ez d'abord une fiche client.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse chantier"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Plateau, Rue Carnot", value: newProjectForm.siteAddress, onChange: (e) => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newProjectForm.city, onChange: (e) => setNewProjectForm({ ...newProjectForm, city: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Budget estim\xE9 (", companyInfo.currency || "FCFA", ")"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", className: "app-input font-bold", placeholder: "0", value: newProjectForm.budgetEstimated, onChange: (e) => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value }) })))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsNewProjectModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newProjectForm", className: "btn-primary", "aria-label": "Cr\xE9er l'affaire" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Cr\xE9er l'affaire")))), isNewClientModalOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, editingClientId ? "Modifier le Client" : "Nouveau Client"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setIsNewClientModalOpen(false);
+    setEditingClientId(null);
+  }, className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "newClientForm", onSubmit: (e) => {
     e.preventDefault();
     const name = newClientForm.name.trim();
     if (!name) {
       showToast("Le nom du client est requis.", "error");
       return;
     }
-    const newC = {
-      id: `cli-${Date.now()}`,
+    const payload = {
       name,
       contactPerson: newClientForm.contactPerson.trim(),
       taxId: newClientForm.taxId.trim(),
       phone: newClientForm.phone.trim(),
       email: newClientForm.email.trim(),
       address: newClientForm.address.trim(),
-      city: newClientForm.city.trim() || "Dakar",
-      notes: ""
+      city: newClientForm.city.trim()
     };
-    updateClients([newC, ...clients]);
-    showToast("\u2713 Fiche client cr\xE9\xE9e !", "success");
+    if (editingClientId) {
+      const previous = clients.find((c) => c.id === editingClientId);
+      updateClients(clients.map((c) => c.id === editingClientId ? { ...c, ...payload } : c));
+      if (previous && previous.name !== name) {
+        updateProjects(projects.map((p) => p.clientId === editingClientId || p.clientName === previous.name ? { ...p, clientName: name } : p));
+        updateSavedQuotes(savedQuotes.map((q) => q.clientId === editingClientId || q.clientName === previous.name ? { ...q, clientName: name } : q));
+      }
+      showToast("\u2713 Fiche client mise \xE0 jour !", "success");
+    } else {
+      updateClients([{ id: `cli-${Date.now()}`, ...payload, city: payload.city || "Dakar", notes: "" }, ...clients]);
+      showToast("\u2713 Fiche client cr\xE9\xE9e !", "success");
+    }
     setIsNewClientModalOpen(false);
-  }, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom du client / raison sociale"), /* @__PURE__ */ React.createElement("input", { required: true, type: "text", className: "app-input font-bold", placeholder: "Ex: SARL COMATEX", value: newClientForm.name, onChange: (e) => setNewClientForm({ ...newClientForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Contact principal"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: M. Amadou DIOP (Directeur G\xE9n\xE9ral)", value: newClientForm.contactPerson, onChange: (e) => setNewClientForm({ ...newClientForm, contactPerson: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "NIF / RCCM"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input font-mono", placeholder: "Ex: NIF-00482910-A", value: newClientForm.taxId, onChange: (e) => setNewClientForm({ ...newClientForm, taxId: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "T\xE9l\xE9phone"), /* @__PURE__ */ React.createElement("input", { type: "tel", className: "app-input", placeholder: "Ex: +221 77 654 32 10", value: newClientForm.phone, onChange: (e) => setNewClientForm({ ...newClientForm, phone: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Email"), /* @__PURE__ */ React.createElement("input", { type: "email", className: "app-input", placeholder: "Ex: contact@entreprise.com", value: newClientForm.email, onChange: (e) => setNewClientForm({ ...newClientForm, email: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Boulevard de la R\xE9publique", value: newClientForm.address, onChange: (e) => setNewClientForm({ ...newClientForm, address: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newClientForm.city, onChange: (e) => setNewClientForm({ ...newClientForm, city: e.target.value }) }))))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsNewClientModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newClientForm", className: "btn-primary", "aria-label": "Cr\xE9er le client" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Cr\xE9er le client")))), isMatCsvModalOpen && /* @__PURE__ */ React.createElement(
+    setEditingClientId(null);
+  }, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom du client / raison sociale"), /* @__PURE__ */ React.createElement("input", { required: true, type: "text", className: "app-input font-bold", placeholder: "Ex: SARL COMATEX", value: newClientForm.name, onChange: (e) => setNewClientForm({ ...newClientForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Contact principal"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: M. Amadou DIOP (Directeur G\xE9n\xE9ral)", value: newClientForm.contactPerson, onChange: (e) => setNewClientForm({ ...newClientForm, contactPerson: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "NIF / RCCM"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input font-mono", placeholder: "Ex: NIF-00482910-A", value: newClientForm.taxId, onChange: (e) => setNewClientForm({ ...newClientForm, taxId: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "T\xE9l\xE9phone"), /* @__PURE__ */ React.createElement("input", { type: "tel", className: "app-input", placeholder: "Ex: +221 77 654 32 10", value: newClientForm.phone, onChange: (e) => setNewClientForm({ ...newClientForm, phone: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Email"), /* @__PURE__ */ React.createElement("input", { type: "email", className: "app-input", placeholder: "Ex: contact@entreprise.com", value: newClientForm.email, onChange: (e) => setNewClientForm({ ...newClientForm, email: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Boulevard de la R\xE9publique", value: newClientForm.address, onChange: (e) => setNewClientForm({ ...newClientForm, address: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newClientForm.city, onChange: (e) => setNewClientForm({ ...newClientForm, city: e.target.value }) }))))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
+    setIsNewClientModalOpen(false);
+    setEditingClientId(null);
+  }, className: "btn-secondary", "aria-label": "Annuler" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newClientForm", className: "btn-primary", "aria-label": editingClientId ? "Enregistrer les modifications" : "Cr\xE9er le client" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " ", editingClientId ? "Enregistrer" : "Cr\xE9er le client")))), isMatCsvModalOpen && /* @__PURE__ */ React.createElement(
     MaterialCsvModal,
     {
       isOpen: isMatCsvModalOpen,

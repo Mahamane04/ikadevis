@@ -1041,7 +1041,11 @@ function QuoteHeader({
                 </div>
 
                 {/* Ligne 2 : Actions principales & Assistant Nouveau Devis */}
-                <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                {/* P0.17 (2026-08-17) — `shrink-0 self-end` sans `flex-wrap` :
+                    sur mobile la rangée, plus large que l'écran et alignée à
+                    droite, débordait par la GAUCHE (bouton "+ Nouveau Devis"
+                    coupé hors viewport). Elle passe désormais à la ligne. */}
+                <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 self-stretch lg:self-center">
                     {/* Bouton Nouveau Devis Intelligent */}
                     <button
                         type="button"
@@ -1174,11 +1178,16 @@ function LotNavigator({
                     const subtotal = lot.lotTotalHT || 0;
 
                     return (
+                        // P0.17 (2026-08-17) — Cartes de lot trop hautes (5 lignes
+                        // empilées) : ~4 lots visibles seulement sur un devis qui en
+                        // compte 9+. Passées en rangée de liste compacte (2 lignes,
+                        // ~52px) : code + nom + montant, méta et flèches de
+                        // réordonnancement condensées. Aucune action perdue.
                         <div
                             key={lot.id}
-                            className={`group relative rounded-xl p-2.5 transition-all cursor-pointer border ${
+                            className={`group relative rounded-lg px-2.5 py-2 transition-all cursor-pointer border ${
                                 isActive
-                                    ? 'bg-white border-brand-500 shadow-sm ring-2 ring-brand-500/10'
+                                    ? 'bg-white border-brand-500 shadow-sm ring-1 ring-brand-500/10'
                                     : 'bg-white/60 hover:bg-white border-neutral-200/80 hover:border-neutral-300'
                             }`}
                             onClick={() => onSelectLot(originalIndex)}
@@ -1187,18 +1196,21 @@ function LotNavigator({
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectLot(originalIndex); }}
                             aria-current={isActive ? 'true' : 'false'}
                         >
-                            <div className="flex items-start justify-between gap-1.5">
-                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${
                                     isActive ? 'bg-brand-600 text-white' : 'bg-neutral-200 text-neutral-700'
                                 }`}>
                                     {lot.code || String(originalIndex + 1).padStart(2, '0')}
                                 </span>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <p className="text-xs font-bold text-neutral-900 truncate flex-1 min-w-0 leading-tight">
+                                    {lot.name || `Lot ${originalIndex + 1}`}
+                                </p>
+                                <div className="hidden group-hover:flex items-center shrink-0">
                                     {originalIndex > 0 && (
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); onMoveLot(originalIndex, -1); }}
-                                            className="p-1 text-neutral-400 hover:text-neutral-700 text-[10px]"
+                                            className="px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]"
                                             title="Monter le lot"
                                             aria-label="Monter le lot"
                                         >
@@ -1209,7 +1221,7 @@ function LotNavigator({
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); onMoveLot(originalIndex, 1); }}
-                                            className="p-1 text-neutral-400 hover:text-neutral-700 text-[10px]"
+                                            className="px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]"
                                             title="Descendre le lot"
                                             aria-label="Descendre le lot"
                                         >
@@ -1219,28 +1231,19 @@ function LotNavigator({
                                 </div>
                             </div>
 
-                            <p className="text-xs font-bold text-neutral-900 mt-1 line-clamp-2 leading-tight">
-                                {lot.name || `Lot ${originalIndex + 1}`}
-                            </p>
-
-                            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-neutral-100 text-[10px]">
-                                <span className="text-neutral-500 font-medium">
+                            <div className="flex items-center justify-between gap-2 mt-0.5 pl-[26px] text-[10px]">
+                                <span className="text-neutral-500 font-medium truncate">
                                     {itemsCount} {itemsCount > 1 ? 'ouvrages' : 'ouvrage'}
+                                    {lot.isComplete ? (
+                                        <span className="text-emerald-600 font-bold ml-1.5"><i className="fa-solid fa-circle-check"></i></span>
+                                    ) : itemsCount > 0 ? (
+                                        <span className="text-amber-600 font-bold ml-1.5" title="À vérifier"><i className="fa-solid fa-circle-exclamation"></i></span>
+                                    ) : null}
                                 </span>
-                                <span className="font-extrabold text-neutral-900">
+                                <span className="font-extrabold text-neutral-900 shrink-0">
                                     {formatMoney(subtotal, currency)}
                                 </span>
                             </div>
-
-                            {lot.isComplete ? (
-                                <span className="inline-block mt-1 text-[9px] font-bold text-emerald-600">
-                                    <i className="fa-solid fa-circle-check mr-1"></i>Prêt
-                                </span>
-                            ) : itemsCount > 0 ? (
-                                <span className="inline-block mt-1 text-[9px] font-bold text-amber-600">
-                                    <i className="fa-solid fa-circle-exclamation mr-1"></i>À vérifier
-                                </span>
-                            ) : null}
                         </div>
                     );
                 })}
@@ -1282,8 +1285,12 @@ function ActiveLotHeader({
     };
 
     return (
-        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+        // P0.17 (2026-08-17) — `flex-wrap` + largeur minimale sur le bloc titre :
+        // sans ça, les boutons d'action (whitespace-nowrap, donc incompressibles)
+        // écrasaient le titre et la ligne "Sous-total HT · Marge · ouvrages" en
+        // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
+        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-full sm:min-w-[240px]">
                 <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-black text-sm shrink-0">
                     {lot.code || String(lotIndex + 1).padStart(2, '0')}
                 </span>
@@ -1330,7 +1337,7 @@ function ActiveLotHeader({
             </div>
 
             {/* Boutons d'action du lot */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
                 <button
                     type="button"
                     onClick={onOpenPicker}
@@ -2348,7 +2355,12 @@ function QuoteTotalsBar({
     const isLowProfit = marginPct > 0 && marginPct < 15;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 z-20 shadow-floating">
+        // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
+        // passait donc SOUS la sidebar de navigation et sous la barre d'onglets
+        // mobile. `.quote-totals-bar` (index.html) la cale à droite de la
+        // sidebar (72px en tablette, --sidebar-width en desktop) et au-dessus
+        // de la barre d'onglets sur mobile.
+        <div className="quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating">
             <div className="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
                 {/* Métriques Financières BTP */}
                 <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
@@ -3948,6 +3960,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+    // P0.16 (2026-08-17) — Le même formulaire sert à créer ET à modifier une
+    // fiche client (demandé par l'utilisateur : "avoir la possibilité de
+    // modifier les infos du client"). null = mode création.
+    const [editingClientId, setEditingClientId] = useState(null);
+    // Filtre "voir les devis de ce client" depuis la fiche CRM.
+    const [quotesClientFilter, setQuotesClientFilter] = useState(null);
 
     // STRICT SERVER SAVE STATUS (Anti-Faux Succès)
     const [saveQuoteStatus, setSaveQuoteStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
@@ -7099,13 +7117,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <p className="text-xs text-neutral-500 truncate">{selectedClient.contactPerson || 'Sans contact renseigné'}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => {
-                                    setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
-                                    setActiveView('calculator');
-                                    showToast(`Client ${selectedClient.name} sélectionné pour le devis !`);
-                                }} className="btn-primary py-2 px-3 text-xs font-extrabold shrink-0" aria-label={`Créer un devis pour ${selectedClient.name}`}>
-                                    <i className="fa-solid fa-plus"></i> Créer Devis
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button onClick={() => {
+                                        setEditingClientId(selectedClient.id);
+                                        setNewClientForm({
+                                            name: selectedClient.name || '', contactPerson: selectedClient.contactPerson || '',
+                                            taxId: selectedClient.taxId || '', phone: selectedClient.phone || '',
+                                            email: selectedClient.email || '', address: selectedClient.address || '',
+                                            city: selectedClient.city || ''
+                                        });
+                                        setIsNewClientModalOpen(true);
+                                    }} className="btn-icon" title="Modifier la fiche client" aria-label={`Modifier ${selectedClient.name}`}>
+                                        <i className="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button onClick={() => {
+                                        setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
+                                        setActiveView('calculator');
+                                        showToast(`Client ${selectedClient.name} sélectionné pour le devis !`);
+                                    }} className="btn-primary py-2 px-3 text-xs font-extrabold" aria-label={`Créer un devis pour ${selectedClient.name}`}>
+                                        <i className="fa-solid fa-plus"></i> Créer Devis
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="p-5 sm:p-6 space-y-5">
@@ -7119,15 +7151,44 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
 
+                                {/* P0.16 — Tuiles cliquables : accès direct aux affaires et
+                                    aux devis rattachés au client (demandé par l'utilisateur). */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white border border-neutral-200 rounded-2xl p-4 text-center">
-                                        <span className="text-2xl font-black text-neutral-900 block">{selectedClientProjects.length}</span>
-                                        <span className="text-[10px] uppercase font-bold text-neutral-400">Affaires</span>
-                                    </div>
-                                    <div className="bg-white border border-neutral-200 rounded-2xl p-4 text-center">
-                                        <span className="text-2xl font-black text-neutral-900 block">{selectedClientQuotes.length}</span>
-                                        <span className="text-[10px] uppercase font-bold text-neutral-400">Devis</span>
-                                    </div>
+                                    <button
+                                        onClick={() => { setProjectSearchQuery(selectedClient.name); setSelectedProjectId(selectedClientProjects[0]?.id || null); setActiveView('projects'); }}
+                                        className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
+                                        aria-label={`Voir les ${selectedClientProjects.length} affaires de ${selectedClient.name}`}
+                                    >
+                                        <span className="text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientProjects.length}</span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Affaires <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setQuotesClientFilter({ id: selectedClient.id, name: selectedClient.name }); setActiveView('savedQuotes'); }}
+                                        className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
+                                        aria-label={`Voir les ${selectedClientQuotes.length} devis de ${selectedClient.name}`}
+                                    >
+                                        <span className="text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientQuotes.length}</span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Devis <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Affaires du client</h4>
+                                    {selectedClientProjects.length > 0 ? (
+                                        <div className="space-y-1.5">
+                                            {selectedClientProjects.map(p => (
+                                                <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setProjectSearchQuery(''); setActiveView('projects'); }} className="w-full flex justify-between items-center text-xs bg-neutral-50 hover:bg-brand-50/50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-all text-left" aria-label={`Ouvrir l'affaire ${p.name}`}>
+                                                    <div className="min-w-0">
+                                                        <span className="font-extrabold text-neutral-800 mr-2">{p.code}</span>
+                                                        <span className="text-neutral-600">{p.name}</span>
+                                                    </div>
+                                                    <i className="fa-solid fa-chevron-right text-neutral-300 text-[10px] shrink-0"></i>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-neutral-400 italic">Aucune affaire liée pour l'instant.</p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -7161,7 +7222,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
-    const renderSavedQuotes = () => (
+    const renderSavedQuotes = () => {
+        // P0.16 — Filtre "devis de ce client", posé depuis la fiche CRM.
+        const visibleQuotes = quotesClientFilter
+            ? savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name)
+            : savedQuotes;
+        return (
         <div className="w-full max-w-[1400px] mx-auto">
             <div className="app-card flex flex-col">
                 <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
@@ -7174,9 +7240,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </span>
                 </div>
 
+                {quotesClientFilter && (
+                    <div className="px-5 sm:px-6 py-3 bg-brand-50/60 border-b border-brand-100 flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0">
+                            <i className="fa-solid fa-filter shrink-0"></i>
+                            <span className="truncate">Devis de « {quotesClientFilter.name} » — {visibleQuotes.length} résultat(s)</span>
+                        </span>
+                        <button onClick={() => setQuotesClientFilter(null)} className="text-xs font-bold text-brand-700 hover:underline shrink-0" aria-label="Retirer le filtre client">
+                            <i className="fa-solid fa-xmark mr-1"></i> Voir tous
+                        </button>
+                    </div>
+                )}
+
                 {/* VUE CARTES SOUS 1024px */}
                 <div className="block lg:hidden p-4 space-y-3">
-                    {savedQuotes.map(sq => (
+                    {visibleQuotes.map(sq => (
                         <div key={sq.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -7250,7 +7328,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         </div>
                     ))}
-                    {savedQuotes.length === 0 && (
+                    {visibleQuotes.length === 0 && (
                         <div className="p-8 text-center text-neutral-400">
                             <i className="fa-solid fa-folder-open text-4xl mb-3 block opacity-30"></i>
                             Aucun devis enregistré pour le moment.
@@ -7272,7 +7350,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {savedQuotes.map(sq => (
+                            {visibleQuotes.map(sq => (
                                 <tr key={sq.id} className="app-td border-b border-neutral-100 hover:bg-neutral-50/50">
                                     <td className="p-4 pl-6 font-extrabold text-brand-600">{sq.number}</td>
                                     <td className="p-4 text-xs font-medium text-neutral-500">{sq.date}</td>
@@ -7365,7 +7443,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </td>
                                 </tr>
                             ))}
-                            {savedQuotes.length === 0 && (
+                            {visibleQuotes.length === 0 && (
                                 <tr>
                                     <td colSpan="6" className="p-12 text-center text-neutral-400 font-medium">
                                         <i className="fa-solid fa-folder-open text-4xl mb-3 block opacity-30"></i>
@@ -7379,7 +7457,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     const renderRecipes = () => (
         <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1400px] mx-auto items-start">
@@ -8372,28 +8451,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <h3 className="font-bold text-neutral-800 text-lg">Nouveau Client</h3>
-                            <button onClick={() => setIsNewClientModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                            <h3 className="font-bold text-neutral-800 text-lg">{editingClientId ? 'Modifier le Client' : 'Nouveau Client'}</h3>
+                            <button onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                             <form id="newClientForm" onSubmit={(e) => {
                                 e.preventDefault();
                                 const name = newClientForm.name.trim();
                                 if (!name) { showToast("Le nom du client est requis.", "error"); return; }
-                                const newC = {
-                                    id: `cli-${Date.now()}`,
+                                const payload = {
                                     name,
                                     contactPerson: newClientForm.contactPerson.trim(),
                                     taxId: newClientForm.taxId.trim(),
                                     phone: newClientForm.phone.trim(),
                                     email: newClientForm.email.trim(),
                                     address: newClientForm.address.trim(),
-                                    city: newClientForm.city.trim() || 'Dakar',
-                                    notes: ''
+                                    city: newClientForm.city.trim()
                                 };
-                                updateClients([newC, ...clients]);
-                                showToast("✓ Fiche client créée !", "success");
+                                if (editingClientId) {
+                                    // P0.16 — Modification d'une fiche existante. Les affaires
+                                    // rattachées portent une copie dénormalisée du nom du client
+                                    // (clientName) : la propager pour ne pas casser l'affichage
+                                    // ni le rapprochement par nom des devis déjà enregistrés.
+                                    const previous = clients.find(c => c.id === editingClientId);
+                                    updateClients(clients.map(c => c.id === editingClientId ? { ...c, ...payload } : c));
+                                    if (previous && previous.name !== name) {
+                                        updateProjects(projects.map(p => (p.clientId === editingClientId || p.clientName === previous.name) ? { ...p, clientName: name } : p));
+                                        updateSavedQuotes(savedQuotes.map(q => (q.clientId === editingClientId || q.clientName === previous.name) ? { ...q, clientName: name } : q));
+                                    }
+                                    showToast("✓ Fiche client mise à jour !", "success");
+                                } else {
+                                    updateClients([{ id: `cli-${Date.now()}`, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
+                                    showToast("✓ Fiche client créée !", "success");
+                                }
                                 setIsNewClientModalOpen(false);
+                                setEditingClientId(null);
                             }} className="space-y-4">
                                 <div>
                                     <label className="app-label">Nom du client / raison sociale</label>
@@ -8430,8 +8522,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsNewClientModalOpen(false)} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
-                            <button type="submit" form="newClientForm" className="btn-primary" aria-label="Créer le client"><i className="fa-solid fa-check mr-1"></i> Créer le client</button>
+                            <button type="button" onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); }} className="btn-secondary" aria-label="Annuler">Annuler</button>
+                            <button type="submit" form="newClientForm" className="btn-primary" aria-label={editingClientId ? 'Enregistrer les modifications' : 'Créer le client'}><i className="fa-solid fa-check mr-1"></i> {editingClientId ? 'Enregistrer' : 'Créer le client'}</button>
                         </div>
                     </div>
                 </div>

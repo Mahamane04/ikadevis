@@ -9,7 +9,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260817l">
+    <link rel="stylesheet" href="tailwind.css?v=20260817n">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -149,6 +149,24 @@
         }
         .sidebar-item-collapsed-wrap:hover .sidebar-tooltip { opacity: 1; }
 
+        /* P0.17 (2026-08-17) — Barre de totaux du devis. Auparavant
+           `fixed left-0 right-0` : elle s'étendait sous la sidebar de
+           navigation (et sous la barre d'onglets mobile). Elle démarre
+           désormais après la sidebar et s'arrête au-dessus des onglets. */
+        .quote-totals-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+            z-index: 20;
+        }
+        @media (min-width: 768px) {
+            .quote-totals-bar { left: var(--sidebar-collapsed-width); bottom: 0; }
+        }
+        @media (min-width: 1024px) {
+            .quote-totals-bar { left: var(--sidebar-width); }
+        }
+
         /* P1.2 DEPARTURE A4 PRINT STYLESHEET */
         @media print {
             body * { visibility: hidden !important; }
@@ -170,9 +188,9 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260817l"></script>
-    <script src="js/utils.js?v=20260817l"></script>
-    <script src="js/quote-templates.js?v=20260817l"></script>
-    <script src="app.compiled.js?v=20260817l"></script>
+    <script src="js/calc-engine.js?v=20260817n"></script>
+    <script src="js/utils.js?v=20260817n"></script>
+    <script src="js/quote-templates.js?v=20260817n"></script>
+    <script src="app.compiled.js?v=20260817n"></script>
 </body>
 </html>
