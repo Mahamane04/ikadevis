@@ -2371,40 +2371,6 @@ Cordialement.`;
     /* @__PURE__ */ React.createElement("span", null, "Email")
   ))), /* @__PURE__ */ React.createElement("div", { className: "pt-2 flex justify-end" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: onClose, className: "btn-secondary text-xs py-2 px-5 font-bold" }, "Fermer")))));
 }
-function PriceHistoryModal({ isOpen, onClose, material, supabaseClient, organizationId }) {
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const isCloudOrg = organizationId && !organizationId.startsWith("org_default") && !organizationId.startsWith("org_local");
-  useEffect(() => {
-    if (!isOpen || !material) return;
-    setIsLoading(true);
-    setLoadError(false);
-    (async () => {
-      if (!supabaseClient || !isCloudOrg) {
-        setHistory([]);
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const { data, error } = await supabaseClient.from("material_price_history").select("*").eq("material_id", material.id).eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(20);
-        if (error) throw error;
-        setHistory(data || []);
-      } catch (e) {
-        console.warn("[Price History] \xC9chec de la requ\xEAte Supabase:", e);
-        setLoadError(true);
-        setHistory([]);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [isOpen, material, supabaseClient, organizationId, isCloudOrg]);
-  if (!isOpen || !material) return null;
-  const currentPrice = material.priceBuy || material.priceCalc;
-  const lastRecorded = history[0];
-  const variationPct = lastRecorded && lastRecorded.previous_price ? (lastRecorded.price - lastRecorded.previous_price) / lastRecorded.previous_price * 100 : null;
-  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 border-b border-neutral-100 flex justify-between items-center bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("div", { className: "w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chart-line" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-sm" }, material.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 font-mono" }, "R\xE9f : ", material.reference || `MAT-${material.id}`))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700", "aria-label": "Fermer" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-lg" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 space-y-4 bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-white rounded-2xl border border-neutral-200 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block" }, "Prix d'Achat Actuel"), /* @__PURE__ */ React.createElement("span", { className: "text-xl font-black text-brand-600 font-mono" }, formatMoney(currentPrice)), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-neutral-500 block" }, "par ", material.unitBuy || material.unitCalc)), variationPct !== null && /* @__PURE__ */ React.createElement("div", { className: "text-right" }, /* @__PURE__ */ React.createElement("span", { className: `px-2.5 py-1 rounded-xl text-xs font-black border ${variationPct >= 0 ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-red-100 text-red-800 border-red-300"}` }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid fa-arrow-trend-${variationPct >= 0 ? "up" : "down"} mr-1` }), " ", variationPct >= 0 ? "+" : "", variationPct.toFixed(1), "%"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-neutral-700 block" }, "\xC9volution Historique des Prix :"), !isCloudOrg ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-cloud text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, "Historique disponible uniquement en mode connect\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Connectez-vous \xE0 votre organisation cloud pour suivre l'\xE9volution r\xE9elle des prix.")) : isLoading ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-notch fa-spin text-xl text-amber-500" })) : history.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, loadError ? "Historique indisponible pour le moment" : "Aucun changement de prix enregistr\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Chaque modification du prix d'achat de cette mati\xE8re sera journalis\xE9e ici.")) : /* @__PURE__ */ React.createElement("div", { className: "border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-left text-xs" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 pl-3" }, "Date"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5" }, "Fournisseur"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right pr-3" }, "Tarif HT"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, history.map((h) => /* @__PURE__ */ React.createElement("tr", { key: h.id, className: "hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 pl-3 font-mono text-neutral-500" }, new Date(h.created_at).toLocaleDateString("fr-FR")), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, h.supplier_name || "Non renseign\xE9"), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right pr-3 font-mono font-bold text-neutral-900" }, formatMoney(h.price)))))))), /* @__PURE__ */ React.createElement("div", { className: "pt-2 flex justify-end" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: onClose, className: "btn-secondary text-xs py-2 px-5 font-bold" }, "Fermer")))));
-}
 function MaterialCsvModal({
   isOpen,
   onClose,
@@ -2716,11 +2682,45 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
       setDowngradeWarning(`\u{1F512} Mode Lecture Seule V5.7 : Votre base locale a \xE9t\xE9 cr\xE9\xE9e avec un sch\xE9ma plus r\xE9cent (V${userSchemaInfo.storedInt}). Aucune \xE9criture n'est autoris\xE9e.`);
     }
   }, [userSchemaInfo]);
-  const [isMatModalOpen, setIsMatModalOpen] = useState(false);
   const [matForm, setMatForm] = useState(null);
-  const [priceHistoryMaterial, setPriceHistoryMaterial] = useState(null);
-  const [isLaborModalOpen, setIsLaborModalOpen] = useState(false);
   const [laborForm, setLaborForm] = useState(null);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(null);
+  const [selectedLaborId, setSelectedLaborId] = useState(null);
+  const [isResourceEditMode, setIsResourceEditMode] = useState(false);
+  const [resourceDetailTab, setResourceDetailTab] = useState("overview");
+  const [materialHistory, setMaterialHistory] = useState([]);
+  const [materialHistoryLoading, setMaterialHistoryLoading] = useState(false);
+  const [materialHistoryError, setMaterialHistoryError] = useState(false);
+  const isCloudOrgActive = activeOrganizationId && !activeOrganizationId.startsWith("org_default") && !activeOrganizationId.startsWith("org_local");
+  useEffect(() => {
+    if (resourceDetailTab !== "history" || !selectedMaterialId) return;
+    setMaterialHistoryLoading(true);
+    setMaterialHistoryError(false);
+    if (!supabaseClient || !isCloudOrgActive) {
+      setMaterialHistory([]);
+      setMaterialHistoryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabaseClient.from("material_price_history").select("*").eq("material_id", selectedMaterialId).eq("organization_id", activeOrganizationId).order("created_at", { ascending: false }).limit(20);
+        if (error) throw error;
+        if (!cancelled) setMaterialHistory(data || []);
+      } catch (e) {
+        console.warn("[Price History] \xC9chec de la requ\xEAte Supabase:", e);
+        if (!cancelled) {
+          setMaterialHistoryError(true);
+          setMaterialHistory([]);
+        }
+      } finally {
+        if (!cancelled) setMaterialHistoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resourceDetailTab, selectedMaterialId, supabaseClient, activeOrganizationId, isCloudOrgActive]);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [solutionSearchQuery, setSolutionSearchQuery] = useState("");
   const [isMatCsvModalOpen, setIsMatCsvModalOpen] = useState(false);
@@ -3859,6 +3859,10 @@ Veuillez d'abord la retirer de ces recettes pour pouvoir la supprimer.`,
         isDanger: true,
         onConfirm: () => {
           updateMaterials(materials.filter((x) => x.id !== m.id));
+          if (selectedMaterialId === m.id) {
+            setSelectedMaterialId(null);
+            setIsResourceEditMode(false);
+          }
           closeConfirm();
           showToast("Ressource supprim\xE9e");
         }
@@ -3891,6 +3895,10 @@ Veuillez d'abord la retirer de ces recettes pour pouvoir la supprimer.`,
         isDanger: true,
         onConfirm: () => {
           updateLabor(labor.filter((x) => x.id !== l.id));
+          if (selectedLaborId === l.id) {
+            setSelectedLaborId(null);
+            setIsResourceEditMode(false);
+          }
           closeConfirm();
           showToast("Prestation supprim\xE9e");
         }
@@ -5253,79 +5261,159 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       closeConfirm();
     } }), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed text-neutral-300" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, title: "Retirer", "aria-label": `Retirer ${r.label}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))));
   }), recipes.filter((r) => r.solutionId === selectedSolutionForEdit.id).length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "4", className: "p-8 text-center text-neutral-500 font-medium" }, `Cet ouvrage n'a aucun composant. Cliquez sur "Ajouter un composant" pour commencer.`))))))));
-  const renderMaterials = () => /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-[1400px] mx-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex border-b border-neutral-200 mb-6 gap-2 bg-white p-2 rounded-xl border" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => setResourceTab("materials"),
-      className: `px-5 py-3 font-bold text-sm rounded-lg transition-all flex items-center gap-2 ${resourceTab === "materials" ? "bg-brand-50 text-brand-600" : "text-neutral-500 hover:text-neutral-800"}`,
-      "aria-label": "Voir la liste des mati\xE8res premi\xE8res"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-box text-sm" }),
-    " Mati\xE8res Premi\xE8res (",
-    materials.length,
-    ")"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => setResourceTab("labor"),
-      className: `px-5 py-3 font-bold text-sm rounded-lg transition-all flex items-center gap-2 ${resourceTab === "labor" ? "bg-brand-50 text-brand-600" : "text-neutral-500 hover:text-neutral-800"}`,
-      "aria-label": "Voir la liste de la main-d'\u0153uvre"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user-gear text-sm" }),
-    " Main-d'\u0153uvre & Prestations (",
-    labor.length,
-    ")"
-  )), resourceTab === "materials" ? /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-bold text-neutral-800" }, "Catalogue des Mati\xE8res Premi\xE8res & Mat\xE9riaux"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-neutral-500 mt-1 font-medium" }, "G\xE9rez vos prix d'achat fournisseurs, conditionnements et rendements mati\xE8res.")), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0" }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => setIsMatCsvModalOpen(true),
-      className: "btn-secondary py-2 px-3 text-xs font-bold flex items-center gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-700",
-      title: "Importer des mati\xE8res premi\xE8res depuis un fichier CSV avec contr\xF4le strict",
-      "aria-label": "Importer un fichier CSV"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-csv text-emerald-600 text-sm" }),
-    /* @__PURE__ */ React.createElement("span", null, "Importer CSV")
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => {
-        const csvContent = "data:text/csv;charset=utf-8,ID;Nom;Cat\xE9gorie;Unit\xE9 Achat;Taille Unit\xE9;Unit\xE9 Calcul;Prix Achat;Perte (%);Rendement (m\xB2)\n" + materials.map((m) => `"${m.id}";"${m.name}";"${m.category}";"${m.unitBuy}";"${m.unitSize}";"${m.unitCalc}";"${m.priceBuy}";"${m.waste}";"${m.yieldRate || 0}"`).join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `ikadevis_matieres_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast("Exportation CSV t\xE9l\xE9charg\xE9e !");
+  const renderMaterials = () => {
+    const selectedMaterial = materials.find((m) => m.id === selectedMaterialId) || null;
+    const selectedLaborItem = labor.find((l) => l.id === selectedLaborId) || null;
+    const editingIsNew = isResourceEditMode && (resourceTab === "materials" ? matForm && !materials.some((m) => m.id === matForm.id) : laborForm && !labor.some((l) => l.id === laborForm.id));
+    const selectedItem = resourceTab === "materials" ? selectedMaterial || (editingIsNew ? matForm : null) : selectedLaborItem || (editingIsNew ? laborForm : null);
+    const openMaterialDetail = (m) => {
+      setSelectedMaterialId(m.id);
+      setIsResourceEditMode(false);
+      setResourceDetailTab("overview");
+    };
+    const openLaborDetail = (l) => {
+      setSelectedLaborId(l.id);
+      setIsResourceEditMode(false);
+    };
+    const startEditMaterial = (m) => {
+      setMatForm({ ...m });
+      setSelectedMaterialId(m.id);
+      setIsResourceEditMode(true);
+    };
+    const startEditLabor = (l) => {
+      setLaborForm({ ...l });
+      setSelectedLaborId(l.id);
+      setIsResourceEditMode(true);
+    };
+    const startNewMaterial = () => {
+      const draft = { id: Date.now(), name: "", category: "Fer", unitBuy: "Barre (6m)", unitSize: 6, unitCalc: "m", priceBuy: "", waste: 5, yieldRate: 0, purchaseMode: "pack" };
+      setMatForm(draft);
+      setSelectedMaterialId(draft.id);
+      setIsResourceEditMode(true);
+      setResourceDetailTab("overview");
+    };
+    const startNewLabor = () => {
+      const draft = { id: Date.now(), name: "", calcMode: "unite", unit: "h", rate: "", yieldRate: 0 };
+      setLaborForm(draft);
+      setSelectedLaborId(draft.id);
+      setIsResourceEditMode(true);
+    };
+    const closeDetail = () => {
+      if (resourceTab === "materials") setSelectedMaterialId(null);
+      else setSelectedLaborId(null);
+      setIsResourceEditMode(false);
+    };
+    const cancelEdit = () => {
+      if (editingIsNew) {
+        closeDetail();
+      } else {
+        setIsResourceEditMode(false);
+      }
+    };
+    const saveMaterial = (e) => {
+      e.preventDefault();
+      if (isReadOnlyDueToDowngrade) return;
+      const p = (parseFloat(matForm.priceBuy) || 0) / (parseFloat(matForm.unitSize) || 1);
+      const nm = { ...matForm, priceCalc: p, waste: parseFloat(matForm.waste) || 0, yieldRate: parseFloat(matForm.yieldRate) || 0 };
+      const previousMat = materials.find((m) => m.id === nm.id);
+      updateMaterials(previousMat ? materials.map((m) => m.id === nm.id ? nm : m) : [...materials, nm]);
+      setSelectedMaterialId(nm.id);
+      setIsResourceEditMode(false);
+      showToast("Ressource enregistr\xE9e");
+      if (previousMat && isCloudOrgActive && supabaseClient && parseFloat(previousMat.priceBuy) !== parseFloat(nm.priceBuy)) {
+        supabaseClient.from("material_price_history").insert({
+          organization_id: activeOrganizationId,
+          material_id: nm.id,
+          price: parseFloat(nm.priceBuy) || 0,
+          previous_price: parseFloat(previousMat.priceBuy) || 0,
+          supplier_name: nm.supplier || null
+        }).then(({ error }) => {
+          if (error) console.warn("[Price History] \xC9chec de journalisation:", error);
+        });
+      }
+    };
+    const saveLabor = (e) => {
+      e.preventDefault();
+      if (isReadOnlyDueToDowngrade) return;
+      const nl = { ...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate) || 0 };
+      updateLabor(labor.find((x) => x.id === nl.id) ? labor.map((x) => x.id === nl.id ? nl : x) : [...labor, nl]);
+      setSelectedLaborId(nl.id);
+      setIsResourceEditMode(false);
+      showToast("Prestation enregistr\xE9e !");
+    };
+    const lastHistoryEntry = materialHistory[0];
+    const historyVariationPct = lastHistoryEntry && lastHistoryEntry.previous_price ? (lastHistoryEntry.price - lastHistoryEntry.previous_price) / lastHistoryEntry.previous_price * 100 : null;
+    return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start" }, /* @__PURE__ */ React.createElement("div", { className: `${selectedItem ? "hidden lg:flex" : "flex"} lg:w-[380px] w-full shrink-0 flex-col gap-4` }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 bg-white p-2 rounded-xl border border-neutral-200" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setResourceTab("materials"),
+        className: `flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === "materials" ? "bg-brand-50 text-brand-600" : "text-neutral-500 hover:text-neutral-800"}`,
+        "aria-label": "Voir la liste des mati\xE8res premi\xE8res"
       },
-      className: "btn-secondary py-2 px-3 text-xs font-bold flex items-center gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-700",
-      title: "Exporter le catalogue des mati\xE8res au format CSV",
-      "aria-label": "Exporter au format CSV"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-arrow-down text-brand-600 text-sm" }),
-    /* @__PURE__ */ React.createElement("span", null, "Exporter CSV")
-  ), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setMatForm({ id: Date.now(), name: "", category: "Fer", unitBuy: "Barre (6m)", unitSize: 6, unitCalc: "m", priceBuy: "", waste: 5, yieldRate: 0, purchaseMode: "pack" });
-    setIsMatModalOpen(true);
-  }, className: `btn-primary ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : ""}`, "aria-label": "Ajouter une nouvelle mati\xE8re" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Nouvelle Mati\xE8re"))), /* @__PURE__ */ React.createElement("div", { className: "block lg:hidden p-4 space-y-3" }, materials.map((m) => /* @__PURE__ */ React.createElement("div", { key: m.id, className: "bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-start" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-base" }, m.name), /* @__PURE__ */ React.createElement("span", { className: "inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border border-neutral-200 bg-white text-neutral-600 mt-1" }, m.category)), m.waste > 0 && /* @__PURE__ */ React.createElement("span", { className: "px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 bg-red-50 text-red-600" }, "Perte: ", m.waste, "%")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-neutral-200/80 text-xs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Achat Fournisseur"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, formatMoney(m.priceBuy, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[10px] text-neutral-500" }, "pour ", m.unitSize, " ", m.unitCalc, " (", m.unitBuy, ")")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Co\xFBt Unitaire Net"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-brand-600 text-sm" }, formatMoney(m.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[10px] text-neutral-500" }, "/ ", m.unitCalc))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2 pt-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setPriceHistoryMaterial(m), className: "btn-icon text-neutral-400 hover:text-amber-600 p-1.5", title: "Historique des prix", "aria-label": `Historique des prix de ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chart-line" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setMatForm({ ...m });
-    setIsMatModalOpen(true);
-  }, className: "btn-secondary py-1.5 px-3 text-xs font-bold", "aria-label": `Modifier ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen mr-1" }), " Modifier"), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => handleDeleteMaterial(m), className: "btn-icon text-neutral-400 hover:text-red-600 p-1.5", "aria-label": `Supprimer ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))), /* @__PURE__ */ React.createElement("div", { className: "hidden lg:block app-table-wrapper rounded-none border-0" }, /* @__PURE__ */ React.createElement("table", { className: "app-table" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50/80" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "app-th pl-6" }, "D\xE9signation"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-center" }, "Rendement Mati\xE8re"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Achat / Cond."), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Co\xFBt Unitaire Calcul\xE9"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-center" }, "Perte"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right pr-6 w-24" }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, materials.map((m) => /* @__PURE__ */ React.createElement("tr", { key: m.id, className: "app-td border-b border-neutral-100 hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-4 pl-6" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-neutral-800" }, m.name), /* @__PURE__ */ React.createElement("span", { className: "inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border border-neutral-200 bg-neutral-100 text-neutral-600 mt-1.5" }, m.category)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-center font-bold text-xs text-brand-700 bg-brand-50/30" }, m.yieldRate > 0 ? `${m.yieldRate} m\xB2/${m.unitCalc}` : "-"), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right whitespace-nowrap" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-neutral-700" }, formatMoney(m.priceBuy, companyInfo.currency)), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-medium text-neutral-500 mt-0.5" }, "pour ", m.unitSize, " ", m.unitCalc, " (", m.unitBuy, ")")), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right bg-brand-50/30 whitespace-nowrap" }, /* @__PURE__ */ React.createElement("span", { className: "text-brand-700 font-extrabold text-sm" }, formatMoney(m.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 text-xs ml-1" }, "/ ", m.unitCalc)), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-center" }, m.waste > 0 ? /* @__PURE__ */ React.createElement("span", { className: "inline-block px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 bg-red-50 text-red-600" }, m.waste, "%") : /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400" }, "-")), /* @__PURE__ */ React.createElement("td", { className: "p-4 pr-6 text-right" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setPriceHistoryMaterial(m), className: "btn-icon text-neutral-400 hover:text-amber-600 hover:bg-amber-50", title: "Historique des prix", "aria-label": `Historique des prix de ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chart-line" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setMatForm({ ...m });
-    setIsMatModalOpen(true);
-  }, className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : ""}`, title: "Modifier", "aria-label": `Modifier ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => handleDeleteMaterial(m), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, title: "Supprimer", "aria-label": `Supprimer ${m.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))))))) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-bold text-neutral-800" }, "Prestations & Main-d'\u0153uvre Chantiers"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-neutral-500 mt-1 font-medium" }, "Modifier la vitesse d'ex\xE9cution d'une prestation recalcule les co\xFBts en temps r\xE9el.")), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setLaborForm({ id: Date.now(), name: "", calcMode: "unite", unit: "h", rate: "", yieldRate: 0 });
-    setIsLaborModalOpen(true);
-  }, className: `btn-primary w-full sm:w-auto shrink-0 ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : ""}`, "aria-label": "Ajouter une nouvelle prestation" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Nouvelle Prestation")), /* @__PURE__ */ React.createElement("div", { className: "block lg:hidden p-4 space-y-3" }, labor.map((l) => /* @__PURE__ */ React.createElement("div", { key: l.id, className: "bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-start" }, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-neutral-900 text-base" }, l.name), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-lg" }, formatMoney(l.rate, companyInfo.currency), " / ", l.unit || "u")), /* @__PURE__ */ React.createElement("div", { className: "bg-white p-3 rounded-xl border border-neutral-200/80 text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Vitesse d'Ex\xE9cution"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, l.yieldRate > 0 ? `${l.yieldRate} m\xB2/${l.unit}` : "Au forfait unitaire")), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2 pt-1" }, /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setLaborForm({ ...l });
-    setIsLaborModalOpen(true);
-  }, className: "btn-secondary py-1.5 px-3 text-xs font-bold", "aria-label": `Modifier ${l.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen mr-1" }), " Modifier"), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => handleDeleteLabor(l), className: "btn-icon text-neutral-400 hover:text-red-600 p-1.5", "aria-label": `Supprimer ${l.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))), /* @__PURE__ */ React.createElement("div", { className: "hidden lg:block app-table-wrapper rounded-none border-0" }, /* @__PURE__ */ React.createElement("table", { className: "app-table" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50/80" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "app-th pl-6" }, "Description"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-center" }, "Vitesse d'Ex\xE9cution"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right" }, "Unit\xE9"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right bg-brand-50/20" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("th", { className: "app-th text-right pr-6 w-24" }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, labor.map((l) => /* @__PURE__ */ React.createElement("tr", { key: l.id, className: "app-td border-b border-neutral-100 hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-4 pl-6 font-bold text-neutral-800" }, l.name), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-center font-bold text-xs text-brand-700 bg-brand-50/30" }, l.yieldRate > 0 ? `${l.yieldRate} m\xB2/${l.unit}` : "-"), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right text-neutral-600 font-bold" }, l.unit || "u"), /* @__PURE__ */ React.createElement("td", { className: "p-4 text-right bg-brand-50/20 whitespace-nowrap" }, /* @__PURE__ */ React.createElement("span", { className: "text-brand-700 font-extrabold text-sm" }, formatMoney(l.rate, companyInfo.currency)), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 text-xs ml-1" }, "/ ", l.unit || "u")), /* @__PURE__ */ React.createElement("td", { className: "p-4 pr-6 text-right" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-1" }, /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
-    setLaborForm({ ...l });
-    setIsLaborModalOpen(true);
-  }, className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : ""}`, title: "Modifier", "aria-label": `Modifier ${l.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => handleDeleteLabor(l), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, title: "Supprimer", "aria-label": `Supprimer ${l.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))))))))));
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-box text-sm" }),
+      " Mati\xE8res (",
+      materials.length,
+      ")"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setResourceTab("labor"),
+        className: `flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === "labor" ? "bg-brand-50 text-brand-600" : "text-neutral-500 hover:text-neutral-800"}`,
+        "aria-label": "Voir la liste de la main-d'\u0153uvre"
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user-gear text-sm" }),
+      " Main-d'\u0153uvre (",
+      labor.length,
+      ")"
+    )), resourceTab === "materials" && /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsMatCsvModalOpen(true), className: "btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5", title: "Importer un CSV", "aria-label": "Importer un fichier CSV" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-csv text-emerald-600" }), " CSV"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
+      const csvContent = "data:text/csv;charset=utf-8,ID;Nom;Cat\xE9gorie;Unit\xE9 Achat;Taille Unit\xE9;Unit\xE9 Calcul;Prix Achat;Perte (%);Rendement (m\xB2)\n" + materials.map((m) => `"${m.id}";"${m.name}";"${m.category}";"${m.unitBuy}";"${m.unitSize}";"${m.unitCalc}";"${m.priceBuy}";"${m.waste}";"${m.yieldRate || 0}"`).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `ikadevis_matieres_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("Exportation CSV t\xE9l\xE9charg\xE9e !");
+    }, className: "btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5", title: "Exporter en CSV", "aria-label": "Exporter au format CSV" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-arrow-down text-brand-600" }), " Export")), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: resourceTab === "materials" ? startNewMaterial : startNewLabor, className: `btn-primary w-full justify-center ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : ""}`, "aria-label": resourceTab === "materials" ? "Ajouter une nouvelle mati\xE8re" : "Ajouter une nouvelle prestation" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " ", resourceTab === "materials" ? "Nouvelle Mati\xE8re" : "Nouvelle Prestation"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2 max-h-[65vh] overflow-y-auto custom-scroll pr-1" }, resourceTab === "materials" ? materials.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.id, onClick: () => openMaterialDetail(m), className: `flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedMaterialId === m.id ? "border-brand-500 shadow-sm" : "border-transparent hover:border-neutral-200 shadow-sm"}`, "aria-label": `S\xE9lectionner ${m.name}` }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("p", { className: `font-bold text-sm truncate ${selectedMaterialId === m.id ? "text-neutral-900" : "text-neutral-700"}` }, m.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, m.category)), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-extrabold text-brand-600 shrink-0" }, formatMoney(m.priceBuy, companyInfo.currency)))) : labor.map((l) => /* @__PURE__ */ React.createElement("button", { key: l.id, onClick: () => openLaborDetail(l), className: `flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedLaborId === l.id ? "border-brand-500 shadow-sm" : "border-transparent hover:border-neutral-200 shadow-sm"}`, "aria-label": `S\xE9lectionner ${l.name}` }, /* @__PURE__ */ React.createElement("p", { className: `font-bold text-sm truncate ${selectedLaborId === l.id ? "text-neutral-900" : "text-neutral-700"}` }, l.name), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-extrabold text-brand-600 shrink-0" }, formatMoney(l.rate, companyInfo.currency), " / ", l.unit || "u"))))), /* @__PURE__ */ React.createElement("div", { className: `${selectedItem ? "flex" : "hidden lg:flex"} flex-1 min-w-0 w-full flex-col` }, !selectedItem ? /* @__PURE__ */ React.createElement("div", { className: "app-card p-16 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid ${resourceTab === "materials" ? "fa-box" : "fa-user-gear"} text-3xl mb-3 text-neutral-300` }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-neutral-600" }, "S\xE9lectionnez ", resourceTab === "materials" ? "une mati\xE8re" : "une prestation", " pour voir son d\xE9tail")) : /* @__PURE__ */ React.createElement("div", { className: "app-card flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("button", { onClick: closeDetail, className: "lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0", "aria-label": "Retour \xE0 la liste" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })), /* @__PURE__ */ React.createElement("h2", { className: "text-lg sm:text-xl font-bold text-neutral-800 truncate" }, isResourceEditMode ? editingIsNew ? `Nouvelle ${resourceTab === "materials" ? "mati\xE8re" : "prestation"}` : `Modifier \xAB ${selectedItem.name} \xBB` : selectedItem.name)), !isResourceEditMode && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 shrink-0" }, /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => resourceTab === "materials" ? startEditMaterial(selectedItem) : startEditLabor(selectedItem), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : ""}`, title: "Modifier", "aria-label": `Modifier ${selectedItem.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-pen" })), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => resourceTab === "materials" ? handleDeleteMaterial(selectedItem) : handleDeleteLabor(selectedItem), className: `btn-icon ${isReadOnlyDueToDowngrade ? "opacity-40 cursor-not-allowed" : "text-neutral-400 hover:text-red-600 hover:bg-red-50"}`, title: "Supprimer", "aria-label": `Supprimer ${selectedItem.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-trash" })))), !isResourceEditMode && resourceTab === "materials" && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 px-5 sm:px-6 pt-3 border-b border-neutral-100" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setResourceDetailTab("overview"), className: `px-3 py-2 text-xs font-bold border-b-2 transition-colors ${resourceDetailTab === "overview" ? "border-brand-500 text-brand-600" : "border-transparent text-neutral-500 hover:text-neutral-800"}` }, "Vue d'ensemble"), /* @__PURE__ */ React.createElement("button", { onClick: () => setResourceDetailTab("history"), className: `px-3 py-2 text-xs font-bold border-b-2 transition-colors ${resourceDetailTab === "history" ? "border-brand-500 text-brand-600" : "border-transparent text-neutral-500 hover:text-neutral-800"}` }, "Historique des prix")), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6" }, isResourceEditMode ? resourceTab === "materials" ? /* @__PURE__ */ React.createElement("form", { onSubmit: saveMaterial, className: "space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-5" }, /* @__PURE__ */ React.createElement("div", { className: "md:col-span-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom complet"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input font-bold", value: matForm.name, onChange: (e) => setMatForm({ ...matForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Cat\xE9gorie"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.category, onChange: (e) => setMatForm({ ...matForm, category: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 d'achat (ex: Barre)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.unitBuy, onChange: (e) => setMatForm({ ...matForm, unitBuy: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taille (ex: 6)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", step: "0.01", min: "0.01", className: "app-input", value: matForm.unitSize, onChange: (e) => setMatForm({ ...matForm, unitSize: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 calcul (ex: m)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.unitCalc, onChange: (e) => setMatForm({ ...matForm, unitCalc: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Prix d'Achat Brut"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", className: "app-input font-bold text-brand-700 pr-12", value: matForm.priceBuy, onChange: (e) => setMatForm({ ...matForm, priceBuy: e.target.value }) }), /* @__PURE__ */ React.createElement("span", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold" }, companyInfo.currency || "FCFA"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement Mati\xE8re (m\xB2/unit\xE9)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", step: "0.1", min: "0", className: "app-input font-bold", value: matForm.yieldRate || "", onChange: (e) => setMatForm({ ...matForm, yieldRate: e.target.value }), placeholder: "ex: 10 (m\xB2/L)" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taux de perte (%)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", max: "100", className: "app-input", value: matForm.waste, onChange: (e) => setMatForm({ ...matForm, waste: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Strat\xE9gie d'Achat BTP"), /* @__PURE__ */ React.createElement("select", { disabled: isReadOnlyDueToDowngrade, className: "app-input font-bold", value: matForm.purchaseMode || "pack", onChange: (e) => setMatForm({ ...matForm, purchaseMode: e.target.value }) }, /* @__PURE__ */ React.createElement("option", { value: "pack" }, "Conditionnement Entier (Barre/Feuille/Pot)"), /* @__PURE__ */ React.createElement("option", { value: "real" }, "Quantit\xE9 R\xE9elle Exacte (au m\xB2, m, L)"), /* @__PURE__ */ React.createElement("option", { value: "step" }, "Pas Commercial Ajustable"))), matForm.purchaseMode === "step" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Pas Commercial (ex: 0.5)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", step: "0.01", min: "0.01", className: "app-input font-bold text-brand-600", value: matForm.purchaseStep || 0.5, onChange: (e) => setMatForm({ ...matForm, purchaseStep: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 pt-2 border-t border-neutral-100" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: cancelEdit, className: "btn-secondary", "aria-label": "Annuler la modification" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn-primary", "aria-label": "Enregistrer la ressource" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Enregistrer"))) : /* @__PURE__ */ React.createElement("form", { onSubmit: saveLabor, className: "space-y-5" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Intitul\xE9 / M\xE9tier"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input font-bold", value: laborForm.name, onChange: (e) => setLaborForm({ ...laborForm, name: e.target.value }), placeholder: "Ex: Application Peinture" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Mode de calcul"), /* @__PURE__ */ React.createElement(
+      CustomSelect,
+      {
+        disabled: isReadOnlyDueToDowngrade,
+        value: laborForm.calcMode,
+        onChange: (e) => setLaborForm({ ...laborForm, calcMode: e.target.value }),
+        options: [
+          { value: "unite", label: "Unit\xE9 (Quantit\xE9)" },
+          { value: "surface", label: "Surface (L x H m\xB2)" },
+          { value: "volume", label: "Volume (L x H x P m\xB3)" },
+          { value: "perimetre", label: "P\xE9rim\xE8tre / Lin\xE9aire ml" },
+          { value: "forfait", label: "Forfait Fixe" }
+        ]
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 de mesure"), /* @__PURE__ */ React.createElement(
+      CustomSelect,
+      {
+        disabled: isReadOnlyDueToDowngrade,
+        value: laborForm.unit || "h",
+        onChange: (e) => setLaborForm({ ...laborForm, unit: e.target.value }),
+        options: [
+          { value: "h", label: "h (heures)" },
+          { value: "j", label: "j (jours)" },
+          { value: "j-eq", label: "j-eq (jour-\xE9quipe)" },
+          { value: "m\xB3", label: "m\xB3 (m\xE8tre cube)" },
+          { value: "kg", label: "kg (kilogramme)" },
+          { value: "t", label: "t (tonne)" },
+          { value: "sac", label: "sac" },
+          { value: "L", label: "L (litre)" },
+          { value: "ml", label: "ml (m\xE8tre lin\xE9aire)" },
+          { value: "m\xB2", label: "m\xB2" },
+          { value: "u", label: "u (unit\xE9s / pi\xE8ces)" },
+          { value: "ens", label: "ens (ensemble)" },
+          { value: "pt", label: "pt (point / poste)" },
+          { value: "forfait", label: "forfait" }
+        ]
+      }
+    ))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", className: "app-input font-bold text-brand-700 pr-12", value: laborForm.rate, onChange: (e) => setLaborForm({ ...laborForm, rate: e.target.value }) }), /* @__PURE__ */ React.createElement("span", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold" }, companyInfo.currency || "FCFA"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement (Vitesse d'Ex\xE9cution)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", min: "0", className: "app-input font-bold text-brand-700", value: laborForm.yieldRate || "", onChange: (e) => setLaborForm({ ...laborForm, yieldRate: e.target.value }), placeholder: "ex: 80 (m\xB2/j)" }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 pt-2 border-t border-neutral-100" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: cancelEdit, className: "btn-secondary", "aria-label": "Annuler la modification" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn-primary", "aria-label": "Enregistrer la prestation" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Enregistrer"))) : resourceTab === "materials" && resourceDetailTab === "history" ? /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-neutral-50 rounded-2xl border border-neutral-200 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block" }, "Prix d'Achat Actuel"), /* @__PURE__ */ React.createElement("span", { className: "text-xl font-black text-brand-600 font-mono" }, formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-neutral-500 block" }, "par ", selectedItem.unitBuy || selectedItem.unitCalc)), historyVariationPct !== null && /* @__PURE__ */ React.createElement("span", { className: `px-2.5 py-1 rounded-xl text-xs font-black border ${historyVariationPct >= 0 ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-red-100 text-red-800 border-red-300"}` }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid fa-arrow-trend-${historyVariationPct >= 0 ? "up" : "down"} mr-1` }), " ", historyVariationPct >= 0 ? "+" : "", historyVariationPct.toFixed(1), "%")), !isCloudOrgActive ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-cloud text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, "Historique disponible uniquement en mode connect\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Connectez-vous \xE0 votre organisation cloud pour suivre l'\xE9volution r\xE9elle des prix.")) : materialHistoryLoading ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-notch fa-spin text-xl text-amber-500" })) : materialHistory.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, materialHistoryError ? "Historique indisponible pour le moment" : "Aucun changement de prix enregistr\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Chaque modification du prix d'achat sera journalis\xE9e ici.")) : /* @__PURE__ */ React.createElement("div", { className: "border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-left text-xs" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 pl-3" }, "Date"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5" }, "Fournisseur"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right pr-3" }, "Tarif HT"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, materialHistory.map((h) => /* @__PURE__ */ React.createElement("tr", { key: h.id, className: "hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 pl-3 font-mono text-neutral-500" }, new Date(h.created_at).toLocaleDateString("fr-FR")), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, h.supplier_name || "Non renseign\xE9"), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right pr-3 font-mono font-bold text-neutral-900" }, formatMoney(h.price)))))))) : resourceTab === "materials" ? /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Achat Fournisseur"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, formatMoney(selectedItem.priceBuy, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "pour ", selectedItem.unitSize, " ", selectedItem.unitCalc, " (", selectedItem.unitBuy, ")")), /* @__PURE__ */ React.createElement("div", { className: "bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Co\xFBt Unitaire Net"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-brand-600 text-base" }, formatMoney(selectedItem.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "/ ", selectedItem.unitCalc)), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Rendement Mati\xE8re"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m\xB2/${selectedItem.unitCalc}` : "Non renseign\xE9")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Taux de perte"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.waste > 0 ? `${selectedItem.waste}%` : "Aucune")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Strat\xE9gie d'Achat BTP"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.purchaseMode === "real" ? "Quantit\xE9 R\xE9elle Exacte" : selectedItem.purchaseMode === "step" ? `Pas Commercial Ajustable (${selectedItem.purchaseStep || 0.5})` : "Conditionnement Entier"))) : /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-brand-600 text-base" }, formatMoney(selectedItem.rate, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "/ ", selectedItem.unit || "u")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Vitesse d'Ex\xE9cution"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m\xB2/${selectedItem.unit}` : "Au forfait unitaire")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Mode de Calcul"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800 capitalize" }, selectedItem.calcMode)))))));
+  };
   const NavItem = ({ id, icon, label, onClickExtra }) => {
     const isActive = activeView === id;
     return /* @__PURE__ */ React.createElement(
@@ -5426,15 +5514,6 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       supabaseClient,
       currentRole: activeOrganizationRole
     }
-  ), priceHistoryMaterial && /* @__PURE__ */ React.createElement(
-    PriceHistoryModal,
-    {
-      isOpen: !!priceHistoryMaterial,
-      onClose: () => setPriceHistoryMaterial(null),
-      material: priceHistoryMaterial,
-      organizationId: activeOrganizationId,
-      supabaseClient
-    }
   ), isCreateOrgModalOpen && /* @__PURE__ */ React.createElement(
     CreateOrganizationModal,
     {
@@ -5487,72 +5566,7 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
         }
       }
     ), /* @__PURE__ */ React.createElement("span", { className: "ml-3 text-sm font-bold text-neutral-800" }, mode.label));
-  })), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setIsAllowedModesModalOpen(false), className: "btn-primary", "aria-label": "Fermer la bo\xEEte de dialogue" }, "Fermer")))), isVarModalOpen && selectedSolutionForEdit && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, "Nouvelle Variable Dynamique (ex: PROFONDEUR)"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsVarModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddCustomVarSubmit }, /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-neutral-50/50 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_code_name", className: "app-label" }, "Nom Code Variable (ex: PROFONDEUR)"), /* @__PURE__ */ React.createElement("input", { id: "var_code_name", disabled: isReadOnlyDueToDowngrade, autoFocus: true, required: true, type: "text", className: "app-input font-bold font-mono uppercase", value: varForm.name, onChange: (e) => setVarForm({ ...varForm, name: e.target.value }), placeholder: "PROFONDEUR, COUCHES, NB_PORTES..." })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_display_label", className: "app-label" }, "Libell\xE9 d'affichage (ex: Profondeur caisson)"), /* @__PURE__ */ React.createElement("input", { id: "var_display_label", disabled: isReadOnlyDueToDowngrade, type: "text", className: "app-input font-bold", value: varForm.label, onChange: (e) => setVarForm({ ...varForm, label: e.target.value }), placeholder: "Ex: Profondeur meuble" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_default_val", className: "app-label" }, "Valeur par d\xE9faut (0 autoris\xE9)"), /* @__PURE__ */ React.createElement("input", { id: "var_default_val", disabled: isReadOnlyDueToDowngrade, required: true, type: "number", step: "0.1", className: "app-input font-bold", value: varForm.defaultValue, onChange: (e) => setVarForm({ ...varForm, defaultValue: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_unit", className: "app-label" }, "Unit\xE9 (m, cm, u, etc.)"), /* @__PURE__ */ React.createElement("input", { id: "var_unit", disabled: isReadOnlyDueToDowngrade, type: "text", className: "app-input font-bold", value: varForm.unit, onChange: (e) => setVarForm({ ...varForm, unit: e.target.value }) })))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsVarModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation de variable" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn-primary", "aria-label": "Cr\xE9er la variable" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus mr-1" }), " Cr\xE9er la variable"))))), isMatModalOpen && matForm && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-2xl flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, matForm.id > 1e5 ? "Nouvelle ressource" : "Modifier la ressource"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsMatModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "matForm", onSubmit: (e) => {
-    e.preventDefault();
-    if (isReadOnlyDueToDowngrade) return;
-    const p = (parseFloat(matForm.priceBuy) || 0) / (parseFloat(matForm.unitSize) || 1);
-    const nm = { ...matForm, priceCalc: p, waste: parseFloat(matForm.waste) || 0, yieldRate: parseFloat(matForm.yieldRate) || 0 };
-    const previousMat = materials.find((m) => m.id === nm.id);
-    updateMaterials(previousMat ? materials.map((m) => m.id === nm.id ? nm : m) : [...materials, { ...nm, id: Date.now() }]);
-    setIsMatModalOpen(false);
-    showToast("Ressource enregistr\xE9e");
-    const isCloudOrg = activeOrganizationId && !activeOrganizationId.startsWith("org_default") && !activeOrganizationId.startsWith("org_local");
-    if (previousMat && isCloudOrg && supabaseClient && parseFloat(previousMat.priceBuy) !== parseFloat(nm.priceBuy)) {
-      supabaseClient.from("material_price_history").insert({
-        organization_id: activeOrganizationId,
-        material_id: nm.id,
-        price: parseFloat(nm.priceBuy) || 0,
-        previous_price: parseFloat(previousMat.priceBuy) || 0,
-        supplier_name: nm.supplier || null
-      }).then(({ error }) => {
-        if (error) console.warn("[Price History] \xC9chec de journalisation:", error);
-      });
-    }
-  }, className: "space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-5" }, /* @__PURE__ */ React.createElement("div", { className: "md:col-span-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom complet"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input font-bold", value: matForm.name, onChange: (e) => setMatForm({ ...matForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Cat\xE9gorie"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.category, onChange: (e) => setMatForm({ ...matForm, category: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 d'achat (ex: Barre)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.unitBuy, onChange: (e) => setMatForm({ ...matForm, unitBuy: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taille (ex: 6)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", step: "0.01", min: "0.01", className: "app-input", value: matForm.unitSize, onChange: (e) => setMatForm({ ...matForm, unitSize: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 calcul (ex: m)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input", value: matForm.unitCalc, onChange: (e) => setMatForm({ ...matForm, unitCalc: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Prix d'Achat Brut"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", className: "app-input font-bold text-brand-700 pr-12", value: matForm.priceBuy, onChange: (e) => setMatForm({ ...matForm, priceBuy: e.target.value }) }), /* @__PURE__ */ React.createElement("span", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold" }, companyInfo.currency || "FCFA"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement Mati\xE8re (m\xB2/unit\xE9)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", step: "0.1", min: "0", className: "app-input font-bold", value: matForm.yieldRate || "", onChange: (e) => setMatForm({ ...matForm, yieldRate: e.target.value }), placeholder: "ex: 10 (m\xB2/L)" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taux de perte (%)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", max: "100", className: "app-input", value: matForm.waste, onChange: (e) => setMatForm({ ...matForm, waste: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Strat\xE9gie d'Achat BTP"), /* @__PURE__ */ React.createElement("select", { disabled: isReadOnlyDueToDowngrade, className: "app-input font-bold", value: matForm.purchaseMode || "pack", onChange: (e) => setMatForm({ ...matForm, purchaseMode: e.target.value }) }, /* @__PURE__ */ React.createElement("option", { value: "pack" }, "Conditionnement Entier (Barre/Feuille/Pot)"), /* @__PURE__ */ React.createElement("option", { value: "real" }, "Quantit\xE9 R\xE9elle Exacte (au m\xB2, m, L)"), /* @__PURE__ */ React.createElement("option", { value: "step" }, "Pas Commercial Ajustable"))), matForm.purchaseMode === "step" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Pas Commercial (ex: 0.5)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", step: "0.01", min: "0.01", className: "app-input font-bold text-brand-600", value: matForm.purchaseStep || 0.5, onChange: (e) => setMatForm({ ...matForm, purchaseStep: e.target.value }) }))))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsMatModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la modification" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", form: "matForm", className: "btn-primary", "aria-label": "Enregistrer la ressource" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Enregistrer")))), isLaborModalOpen && laborForm && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, laborForm.id > 1e5 ? "Nouvelle prestation" : "Modifier la prestation"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsLaborModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "laborForm", onSubmit: (e) => {
-    e.preventDefault();
-    if (isReadOnlyDueToDowngrade) return;
-    const nl = { ...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate) || 0 };
-    updateLabor(labor.find((x) => x.id === nl.id) ? labor.map((x) => x.id === nl.id ? nl : x) : [...labor, { ...nl, id: Date.now() }]);
-    setIsLaborModalOpen(false);
-    showToast("Prestation enregistr\xE9e !");
-  }, className: "space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Intitul\xE9 / M\xE9tier"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "text", className: "app-input font-bold", value: laborForm.name, onChange: (e) => setLaborForm({ ...laborForm, name: e.target.value }), placeholder: "Ex: Application Peinture" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Mode de calcul"), /* @__PURE__ */ React.createElement(
-    CustomSelect,
-    {
-      disabled: isReadOnlyDueToDowngrade,
-      value: laborForm.calcMode,
-      onChange: (e) => setLaborForm({ ...laborForm, calcMode: e.target.value }),
-      options: [
-        { value: "unite", label: "Unit\xE9 (Quantit\xE9)" },
-        { value: "surface", label: "Surface (L x H m\xB2)" },
-        { value: "volume", label: "Volume (L x H x P m\xB3)" },
-        { value: "perimetre", label: "P\xE9rim\xE8tre / Lin\xE9aire ml" },
-        { value: "forfait", label: "Forfait Fixe" }
-      ]
-    }
-  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 de mesure"), /* @__PURE__ */ React.createElement(
-    CustomSelect,
-    {
-      disabled: isReadOnlyDueToDowngrade,
-      value: laborForm.unit || "h",
-      onChange: (e) => setLaborForm({ ...laborForm, unit: e.target.value }),
-      options: [
-        { value: "h", label: "h (heures)" },
-        { value: "j", label: "j (jours)" },
-        { value: "j-eq", label: "j-eq (jour-\xE9quipe)" },
-        { value: "m\xB3", label: "m\xB3 (m\xE8tre cube)" },
-        { value: "kg", label: "kg (kilogramme)" },
-        { value: "t", label: "t (tonne)" },
-        { value: "sac", label: "sac" },
-        { value: "L", label: "L (litre)" },
-        { value: "ml", label: "ml (m\xE8tre lin\xE9aire)" },
-        { value: "m\xB2", label: "m\xB2" },
-        { value: "u", label: "u (unit\xE9s / pi\xE8ces)" },
-        { value: "ens", label: "ens (ensemble)" },
-        { value: "pt", label: "pt (point / poste)" },
-        { value: "forfait", label: "forfait" }
-      ]
-    }
-  ))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", className: "app-input font-bold text-brand-700 pr-12", value: laborForm.rate, onChange: (e) => setLaborForm({ ...laborForm, rate: e.target.value }) }), /* @__PURE__ */ React.createElement("span", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold" }, companyInfo.currency || "FCFA"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement (Vitesse d'Ex\xE9cution)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", min: "0", className: "app-input font-bold text-brand-700", value: laborForm.yieldRate || "", onChange: (e) => setLaborForm({ ...laborForm, yieldRate: e.target.value }), placeholder: "ex: 80 (m\xB2/j)" })))))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsLaborModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la modification" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", form: "laborForm", className: "btn-primary", "aria-label": "Enregistrer la prestation" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Enregistrer")))), isRecipeModalOpen && recipeForm && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, recipeForm.id > 1e5 ? "Nouveau composant" : "Modifier le composant"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsRecipeModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-neutral-50/50 overflow-y-auto custom-scroll pb-32" }, /* @__PURE__ */ React.createElement("form", { id: "recipeForm", onSubmit: (e) => {
+  })), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setIsAllowedModesModalOpen(false), className: "btn-primary", "aria-label": "Fermer la bo\xEEte de dialogue" }, "Fermer")))), isVarModalOpen && selectedSolutionForEdit && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, "Nouvelle Variable Dynamique (ex: PROFONDEUR)"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsVarModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddCustomVarSubmit }, /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-neutral-50/50 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_code_name", className: "app-label" }, "Nom Code Variable (ex: PROFONDEUR)"), /* @__PURE__ */ React.createElement("input", { id: "var_code_name", disabled: isReadOnlyDueToDowngrade, autoFocus: true, required: true, type: "text", className: "app-input font-bold font-mono uppercase", value: varForm.name, onChange: (e) => setVarForm({ ...varForm, name: e.target.value }), placeholder: "PROFONDEUR, COUCHES, NB_PORTES..." })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_display_label", className: "app-label" }, "Libell\xE9 d'affichage (ex: Profondeur caisson)"), /* @__PURE__ */ React.createElement("input", { id: "var_display_label", disabled: isReadOnlyDueToDowngrade, type: "text", className: "app-input font-bold", value: varForm.label, onChange: (e) => setVarForm({ ...varForm, label: e.target.value }), placeholder: "Ex: Profondeur meuble" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_default_val", className: "app-label" }, "Valeur par d\xE9faut (0 autoris\xE9)"), /* @__PURE__ */ React.createElement("input", { id: "var_default_val", disabled: isReadOnlyDueToDowngrade, required: true, type: "number", step: "0.1", className: "app-input font-bold", value: varForm.defaultValue, onChange: (e) => setVarForm({ ...varForm, defaultValue: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { htmlFor: "var_unit", className: "app-label" }, "Unit\xE9 (m, cm, u, etc.)"), /* @__PURE__ */ React.createElement("input", { id: "var_unit", disabled: isReadOnlyDueToDowngrade, type: "text", className: "app-input font-bold", value: varForm.unit, onChange: (e) => setVarForm({ ...varForm, unit: e.target.value }) })))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsVarModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation de variable" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn-primary", "aria-label": "Cr\xE9er la variable" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus mr-1" }), " Cr\xE9er la variable"))))), isRecipeModalOpen && recipeForm && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, recipeForm.id > 1e5 ? "Nouveau composant" : "Modifier le composant"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsRecipeModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-neutral-50/50 overflow-y-auto custom-scroll pb-32" }, /* @__PURE__ */ React.createElement("form", { id: "recipeForm", onSubmit: (e) => {
     e.preventDefault();
     if (isReadOnlyDueToDowngrade) return;
     if (!recipeForm.refId) return;

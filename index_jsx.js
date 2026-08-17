@@ -3529,139 +3529,6 @@ Cordialement.`;
 }
 
 
-function PriceHistoryModal({ isOpen, onClose, material, supabaseClient, organizationId }) {
-    const [history, setHistory] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
-    const isCloudOrg = organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local');
-
-    useEffect(() => {
-        if (!isOpen || !material) return;
-        setIsLoading(true);
-        setLoadError(false);
-        (async () => {
-            if (!supabaseClient || !isCloudOrg) {
-                // Mode Invité/local : aucun historique cloud à afficher. L'état vide
-                // honnête ci-dessous s'en charge — ne JAMAIS inventer de données de
-                // remplacement (Règle d'Or #3, Zéro Faux Succès).
-                setHistory([]);
-                setIsLoading(false);
-                return;
-            }
-            try {
-                const { data, error } = await supabaseClient
-                    .from('material_price_history')
-                    .select('*')
-                    .eq('material_id', material.id)
-                    .eq('organization_id', organizationId)
-                    .order('created_at', { ascending: false })
-                    .limit(20);
-                if (error) throw error;
-                setHistory(data || []);
-            } catch (e) {
-                console.warn('[Price History] Échec de la requête Supabase:', e);
-                setLoadError(true);
-                setHistory([]);
-            } finally {
-                setIsLoading(false);
-            }
-        })();
-    }, [isOpen, material, supabaseClient, organizationId, isCloudOrg]);
-
-    if (!isOpen || !material) return null;
-
-    const currentPrice = material.priceBuy || material.priceCalc;
-    const lastRecorded = history[0];
-    const variationPct = lastRecorded && lastRecorded.previous_price
-        ? ((lastRecorded.price - lastRecorded.previous_price) / lastRecorded.previous_price) * 100
-        : null;
-
-    return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up">
-                <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
-                            <i className="fa-solid fa-chart-line"></i>
-                        </div>
-                        <div>
-                            <h3 className="font-extrabold text-neutral-900 text-sm">{material.name}</h3>
-                            <p className="text-[11px] text-neutral-500 font-mono">Réf : {material.reference || `MAT-${material.id}`}</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-                <div className="p-6 space-y-4 bg-neutral-50/50">
-                    <div className="p-4 bg-white rounded-2xl border border-neutral-200 flex items-center justify-between">
-                        <div>
-                            <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
-                            <span className="text-xl font-black text-brand-600 font-mono">{formatMoney(currentPrice)}</span>
-                            <span className="text-[11px] text-neutral-500 block">par {material.unitBuy || material.unitCalc}</span>
-                        </div>
-                        {variationPct !== null && (
-                            <div className="text-right">
-                                <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${variationPct >= 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
-                                    <i className={`fa-solid fa-arrow-trend-${variationPct >= 0 ? 'up' : 'down'} mr-1`}></i> {variationPct >= 0 ? '+' : ''}{variationPct.toFixed(1)}%
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
-                        <span className="text-xs font-bold text-neutral-700 block">Évolution Historique des Prix :</span>
-                        {!isCloudOrg ? (
-                            <div className="p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200">
-                                <i className="fa-solid fa-cloud text-2xl mb-2 text-neutral-300"></i>
-                                <p className="text-xs font-bold text-neutral-600">Historique disponible uniquement en mode connecté</p>
-                                <p className="text-[11px] text-neutral-400 mt-1">Connectez-vous à votre organisation cloud pour suivre l'évolution réelle des prix.</p>
-                            </div>
-                        ) : isLoading ? (
-                            <div className="p-6 text-center text-neutral-400">
-                                <i className="fa-solid fa-circle-notch fa-spin text-xl text-amber-500"></i>
-                            </div>
-                        ) : history.length === 0 ? (
-                            <div className="p-6 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200">
-                                <i className="fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300"></i>
-                                <p className="text-xs font-bold text-neutral-600">
-                                    {loadError ? 'Historique indisponible pour le moment' : 'Aucun changement de prix enregistré'}
-                                </p>
-                                <p className="text-[11px] text-neutral-400 mt-1">Chaque modification du prix d'achat de cette matière sera journalisée ici.</p>
-                            </div>
-                        ) : (
-                            <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
-                                <table className="w-full text-left text-xs">
-                                    <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase">
-                                        <tr>
-                                            <th className="p-2.5 pl-3">Date</th>
-                                            <th className="p-2.5">Fournisseur</th>
-                                            <th className="p-2.5 text-right pr-3">Tarif HT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-neutral-100">
-                                        {history.map((h) => (
-                                            <tr key={h.id} className="hover:bg-neutral-50/50">
-                                                <td className="p-2.5 pl-3 font-mono text-neutral-500">{new Date(h.created_at).toLocaleDateString('fr-FR')}</td>
-                                                <td className="p-2.5 font-bold text-neutral-800">{h.supplier_name || 'Non renseigné'}</td>
-                                                <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney(h.price)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                    <div className="pt-2 flex justify-end">
-                        <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-5 font-bold">Fermer</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-
 function MaterialCsvModal({
     isOpen,
     onClose,
@@ -4183,11 +4050,58 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [userSchemaInfo]);
 
-    const [isMatModalOpen, setIsMatModalOpen] = useState(false);
+    // P0.10 (2026-08-17) — Ressources & Prix : passage d'une modale d'édition à
+    // un panneau liste+détail inline (référence Zoho Books partagée par
+    // l'utilisateur), même pattern que celui déjà utilisé par le Catalogue
+    // Ouvrages (`selectedSolutionForEdit`). matForm/laborForm restent le
+    // brouillon en cours d'édition ; isMatModalOpen/isLaborModalOpen sont
+    // retirés (plus de modale pour ce flux).
     const [matForm, setMatForm] = useState(null);
-    const [priceHistoryMaterial, setPriceHistoryMaterial] = useState(null);
-    const [isLaborModalOpen, setIsLaborModalOpen] = useState(false);
     const [laborForm, setLaborForm] = useState(null);
+    const [selectedMaterialId, setSelectedMaterialId] = useState(null);
+    const [selectedLaborId, setSelectedLaborId] = useState(null);
+    const [isResourceEditMode, setIsResourceEditMode] = useState(false);
+    const [resourceDetailTab, setResourceDetailTab] = useState('overview'); // 'overview' | 'history' (matières uniquement)
+    const [materialHistory, setMaterialHistory] = useState([]);
+    const [materialHistoryLoading, setMaterialHistoryLoading] = useState(false);
+    const [materialHistoryError, setMaterialHistoryError] = useState(false);
+
+    const isCloudOrgActive = activeOrganizationId && !activeOrganizationId.startsWith('org_default') && !activeOrganizationId.startsWith('org_local');
+
+    // Historique des prix de la matière sélectionnée (repris de PriceHistoryModal,
+    // maintenant un onglet du panneau détail plutôt qu'une modale séparée).
+    // Toujours un état vide honnête si pas de session cloud réelle — jamais de
+    // données inventées (Règle d'Or #3).
+    useEffect(() => {
+        if (resourceDetailTab !== 'history' || !selectedMaterialId) return;
+        setMaterialHistoryLoading(true);
+        setMaterialHistoryError(false);
+        if (!supabaseClient || !isCloudOrgActive) {
+            setMaterialHistory([]);
+            setMaterialHistoryLoading(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('material_price_history')
+                    .select('*')
+                    .eq('material_id', selectedMaterialId)
+                    .eq('organization_id', activeOrganizationId)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                if (!cancelled) setMaterialHistory(data || []);
+            } catch (e) {
+                console.warn('[Price History] Échec de la requête Supabase:', e);
+                if (!cancelled) { setMaterialHistoryError(true); setMaterialHistory([]); }
+            } finally {
+                if (!cancelled) setMaterialHistoryLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [resourceDetailTab, selectedMaterialId, supabaseClient, activeOrganizationId, isCloudOrgActive]);
     const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
     const [solutionSearchQuery, setSolutionSearchQuery] = useState('');
     const [isMatCsvModalOpen, setIsMatCsvModalOpen] = useState(false);
@@ -5380,6 +5294,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 isDanger: true,
                 onConfirm: () => {
                     updateMaterials(materials.filter(x => x.id !== m.id));
+                    if (selectedMaterialId === m.id) { setSelectedMaterialId(null); setIsResourceEditMode(false); }
                     closeConfirm();
                     showToast("Ressource supprimée");
                 }
@@ -5408,6 +5323,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 isDanger: true,
                 onConfirm: () => {
                     updateLabor(labor.filter(x => x.id !== l.id));
+                    if (selectedLaborId === l.id) { setSelectedLaborId(null); setIsResourceEditMode(false); }
                     closeConfirm();
                     showToast("Prestation supprimée");
                 }
@@ -7482,229 +7398,380 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         </div>
     );
 
-    const renderMaterials = () => (
-        <div className="w-full max-w-[1400px] mx-auto">
-            <div className="flex border-b border-neutral-200 mb-6 gap-2 bg-white p-2 rounded-xl border">
-                <button onClick={() => setResourceTab('materials')}
-                        className={`px-5 py-3 font-bold text-sm rounded-lg transition-all flex items-center gap-2 ${resourceTab === 'materials' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
-                        aria-label="Voir la liste des matières premières">
-                    <i className="fa-solid fa-box text-sm"></i> Matières Premières ({materials.length})
-                </button>
-                <button onClick={() => setResourceTab('labor')}
-                        className={`px-5 py-3 font-bold text-sm rounded-lg transition-all flex items-center gap-2 ${resourceTab === 'labor' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
-                        aria-label="Voir la liste de la main-d'œuvre">
-                    <i className="fa-solid fa-user-gear text-sm"></i> Main-d'œuvre & Prestations ({labor.length})
-                </button>
-            </div>
+    const renderMaterials = () => {
+        const selectedMaterial = materials.find(m => m.id === selectedMaterialId) || null;
+        const selectedLaborItem = labor.find(l => l.id === selectedLaborId) || null;
+        const editingIsNew = isResourceEditMode && (
+            resourceTab === 'materials' ? (matForm && !materials.some(m => m.id === matForm.id)) : (laborForm && !labor.some(l => l.id === laborForm.id))
+        );
+        // Un brouillon "nouveau" n'existe pas encore dans materials/labor — sans ce
+        // fallback, selectedItem resterait null et le panneau détail resterait sur
+        // l'état vide au lieu d'afficher le formulaire de création.
+        const selectedItem = resourceTab === 'materials'
+            ? (selectedMaterial || (editingIsNew ? matForm : null))
+            : (selectedLaborItem || (editingIsNew ? laborForm : null));
 
-            {resourceTab === 'materials' ? (
-                <div className="app-card flex flex-col">
-                    <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
-                        <div>
-                            <h2 className="text-xl font-bold text-neutral-800">Catalogue des Matières Premières & Matériaux</h2>
-                            <p className="text-sm text-neutral-500 mt-1 font-medium">Gérez vos prix d'achat fournisseurs, conditionnements et rendements matières.</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setIsMatCsvModalOpen(true)}
-                                className="btn-secondary py-2 px-3 text-xs font-bold flex items-center gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-700"
-                                title="Importer des matières premières depuis un fichier CSV avec contrôle strict"
-                                aria-label="Importer un fichier CSV"
-                            >
-                                <i className="fa-solid fa-file-csv text-emerald-600 text-sm"></i>
-                                <span>Importer CSV</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const csvContent = "data:text/csv;charset=utf-8," + 
-                                        "ID;Nom;Catégorie;Unité Achat;Taille Unité;Unité Calcul;Prix Achat;Perte (%);Rendement (m²)\n" +
-                                        materials.map(m => `"${m.id}";"${m.name}";"${m.category}";"${m.unitBuy}";"${m.unitSize}";"${m.unitCalc}";"${m.priceBuy}";"${m.waste}";"${m.yieldRate || 0}"`).join("\n");
-                                    const encodedUri = encodeURI(csvContent);
-                                    const link = document.createElement("a");
-                                    link.setAttribute("href", encodedUri);
-                                    link.setAttribute("download", `ikadevis_matieres_${new Date().toISOString().slice(0,10)}.csv`);
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    showToast("Exportation CSV téléchargée !");
-                                }}
-                                className="btn-secondary py-2 px-3 text-xs font-bold flex items-center gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-700"
-                                title="Exporter le catalogue des matières au format CSV"
-                                aria-label="Exporter au format CSV"
-                            >
-                                <i className="fa-solid fa-file-arrow-down text-brand-600 text-sm"></i>
-                                <span>Exporter CSV</span>
-                            </button>
-                            <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setMatForm({ id: Date.now(), name: '', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: '', waste: 5, yieldRate: 0, purchaseMode: 'pack' }); setIsMatModalOpen(true); }} className={`btn-primary ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Ajouter une nouvelle matière">
-                                <i className="fa-solid fa-plus"></i> Nouvelle Matière
-                            </button>
-                        </div>
-                    </div>
+        const openMaterialDetail = (m) => { setSelectedMaterialId(m.id); setIsResourceEditMode(false); setResourceDetailTab('overview'); };
+        const openLaborDetail = (l) => { setSelectedLaborId(l.id); setIsResourceEditMode(false); };
+        const startEditMaterial = (m) => { setMatForm({ ...m }); setSelectedMaterialId(m.id); setIsResourceEditMode(true); };
+        const startEditLabor = (l) => { setLaborForm({ ...l }); setSelectedLaborId(l.id); setIsResourceEditMode(true); };
+        const startNewMaterial = () => {
+            const draft = { id: Date.now(), name: '', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: '', waste: 5, yieldRate: 0, purchaseMode: 'pack' };
+            setMatForm(draft); setSelectedMaterialId(draft.id); setIsResourceEditMode(true); setResourceDetailTab('overview');
+        };
+        const startNewLabor = () => {
+            const draft = { id: Date.now(), name: '', calcMode: 'unite', unit: 'h', rate: '', yieldRate: 0 };
+            setLaborForm(draft); setSelectedLaborId(draft.id); setIsResourceEditMode(true);
+        };
+        const closeDetail = () => {
+            if (resourceTab === 'materials') setSelectedMaterialId(null); else setSelectedLaborId(null);
+            setIsResourceEditMode(false);
+        };
+        const cancelEdit = () => {
+            if (editingIsNew) { closeDetail(); } else { setIsResourceEditMode(false); }
+        };
 
-                    {/* CARTES SOUS 1024px */}
-                    <div className="block lg:hidden p-4 space-y-3">
-                        {materials.map(m => (
-                            <div key={m.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="font-extrabold text-neutral-900 text-base">{m.name}</h3>
-                                        <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border border-neutral-200 bg-white text-neutral-600 mt-1">{m.category}</span>
-                                    </div>
-                                    {m.waste > 0 && <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 bg-red-50 text-red-600">Perte: {m.waste}%</span>}
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-neutral-200/80 text-xs">
-                                    <div>
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Achat Fournisseur</span>
-                                        <span className="font-bold text-neutral-800">{formatMoney(m.priceBuy, companyInfo.currency)}</span>
-                                        <p className="text-[10px] text-neutral-500">pour {m.unitSize} {m.unitCalc} ({m.unitBuy})</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Coût Unitaire Net</span>
-                                        <span className="font-extrabold text-brand-600 text-sm">{formatMoney(m.priceCalc, companyInfo.currency)}</span>
-                                        <p className="text-[10px] text-neutral-500">/ {m.unitCalc}</p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2 pt-1">
-                                    <button onClick={() => setPriceHistoryMaterial(m)} className="btn-icon text-neutral-400 hover:text-amber-600 p-1.5" title="Historique des prix" aria-label={`Historique des prix de ${m.name}`}>
-                                        <i className="fa-solid fa-chart-line"></i>
-                                    </button>
-                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setMatForm({...m}); setIsMatModalOpen(true); }} className="btn-secondary py-1.5 px-3 text-xs font-bold" aria-label={`Modifier ${m.name}`}>
-                                        <i className="fa-solid fa-pen mr-1"></i> Modifier
-                                    </button>
-                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteMaterial(m)} className="btn-icon text-neutral-400 hover:text-red-600 p-1.5" aria-label={`Supprimer ${m.name}`}>
-                                        <i className="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+        const saveMaterial = (e) => {
+            e.preventDefault();
+            if (isReadOnlyDueToDowngrade) return;
+            const p = (parseFloat(matForm.priceBuy) || 0) / (parseFloat(matForm.unitSize) || 1);
+            const nm = { ...matForm, priceCalc: p, waste: parseFloat(matForm.waste) || 0, yieldRate: parseFloat(matForm.yieldRate) || 0 };
+            const previousMat = materials.find(m => m.id === nm.id);
+            updateMaterials(previousMat ? materials.map(m => m.id === nm.id ? nm : m) : [...materials, nm]);
+            setSelectedMaterialId(nm.id);
+            setIsResourceEditMode(false);
+            showToast("Ressource enregistrée");
+            // Journalisation réelle de l'historique de prix (Règle d'Or #3, Zéro Faux
+            // Succès) : uniquement si le prix a changé pour une matière existante, en
+            // organisation cloud réelle. Non bloquant.
+            if (previousMat && isCloudOrgActive && supabaseClient && parseFloat(previousMat.priceBuy) !== parseFloat(nm.priceBuy)) {
+                supabaseClient.from('material_price_history').insert({
+                    organization_id: activeOrganizationId,
+                    material_id: nm.id,
+                    price: parseFloat(nm.priceBuy) || 0,
+                    previous_price: parseFloat(previousMat.priceBuy) || 0,
+                    supplier_name: nm.supplier || null
+                }).then(({ error }) => { if (error) console.warn('[Price History] Échec de journalisation:', error); });
+            }
+        };
+        const saveLabor = (e) => {
+            e.preventDefault();
+            if (isReadOnlyDueToDowngrade) return;
+            const nl = { ...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate) || 0 };
+            updateLabor(labor.find(x => x.id === nl.id) ? labor.map(x => x.id === nl.id ? nl : x) : [...labor, nl]);
+            setSelectedLaborId(nl.id);
+            setIsResourceEditMode(false);
+            showToast("Prestation enregistrée !");
+        };
 
-                    {/* TABLEAU LARGE DESKTOP (≥ 1024px) */}
-                    <div className="hidden lg:block app-table-wrapper rounded-none border-0">
-                        <table className="app-table">
-                            <thead className="bg-neutral-50/80">
-                                <tr>
-                                    <th className="app-th pl-6">Désignation</th>
-                                    <th className="app-th text-center">Rendement Matière</th>
-                                    <th className="app-th text-right">Achat / Cond.</th>
-                                    <th className="app-th text-right">Coût Unitaire Calculé</th>
-                                    <th className="app-th text-center">Perte</th>
-                                    <th className="app-th text-right pr-6 w-24">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {materials.map(m => (
-                                    <tr key={m.id} className="app-td border-b border-neutral-100 hover:bg-neutral-50/50">
-                                        <td className="p-4 pl-6">
-                                            <div className="font-bold text-neutral-800">{m.name}</div>
-                                            <span className="inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border border-neutral-200 bg-neutral-100 text-neutral-600 mt-1.5">{m.category}</span>
-                                        </td>
-                                        <td className="p-4 text-center font-bold text-xs text-brand-700 bg-brand-50/30">
-                                            {m.yieldRate > 0 ? `${m.yieldRate} m²/${m.unitCalc}` : '-'}
-                                        </td>
-                                        <td className="p-4 text-right whitespace-nowrap">
-                                            <div className="font-bold text-neutral-700">{formatMoney(m.priceBuy, companyInfo.currency)}</div>
-                                            <div className="text-[11px] font-medium text-neutral-500 mt-0.5">pour {m.unitSize} {m.unitCalc} ({m.unitBuy})</div>
-                                        </td>
-                                        <td className="p-4 text-right bg-brand-50/30 whitespace-nowrap">
-                                            <span className="text-brand-700 font-extrabold text-sm">{formatMoney(m.priceCalc, companyInfo.currency)}</span> 
-                                            <span className="text-neutral-500 text-xs ml-1">/ {m.unitCalc}</span>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            {m.waste > 0 ? <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 bg-red-50 text-red-600">{m.waste}%</span> : <span className="text-neutral-400">-</span>}
-                                        </td>
-                                        <td className="p-4 pr-6 text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <button onClick={() => setPriceHistoryMaterial(m)} className="btn-icon text-neutral-400 hover:text-amber-600 hover:bg-amber-50" title="Historique des prix" aria-label={`Historique des prix de ${m.name}`}><i className="fa-solid fa-chart-line"></i></button>
-                                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setMatForm({...m}); setIsMatModalOpen(true); }} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : ''}`} title="Modifier" aria-label={`Modifier ${m.name}`}><i className="fa-solid fa-pen"></i></button>
-                                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteMaterial(m)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${m.name}`}><i className="fa-solid fa-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+        const lastHistoryEntry = materialHistory[0];
+        const historyVariationPct = lastHistoryEntry && lastHistoryEntry.previous_price
+            ? ((lastHistoryEntry.price - lastHistoryEntry.previous_price) / lastHistoryEntry.previous_price) * 100
+            : null;
+
+        return (
+        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+            {/* COLONNE LISTE — masquée sur mobile quand un détail est ouvert (P0.10, pattern Zoho Books) */}
+            <div className={`${selectedItem ? 'hidden lg:flex' : 'flex'} lg:w-[380px] w-full shrink-0 flex-col gap-4`}>
+                <div className="flex gap-2 bg-white p-2 rounded-xl border border-neutral-200">
+                    <button onClick={() => setResourceTab('materials')}
+                            className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'materials' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            aria-label="Voir la liste des matières premières">
+                        <i className="fa-solid fa-box text-sm"></i> Matières ({materials.length})
+                    </button>
+                    <button onClick={() => setResourceTab('labor')}
+                            className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'labor' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            aria-label="Voir la liste de la main-d'œuvre">
+                        <i className="fa-solid fa-user-gear text-sm"></i> Main-d'œuvre ({labor.length})
+                    </button>
                 </div>
-            ) : (
-                <div className="app-card flex flex-col">
-                    <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
-                        <div>
-                            <h2 className="text-xl font-bold text-neutral-800">Prestations & Main-d'œuvre Chantiers</h2>
-                            <p className="text-sm text-neutral-500 mt-1 font-medium">Modifier la vitesse d'exécution d'une prestation recalcule les coûts en temps réel.</p>
-                        </div>
-                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setLaborForm({ id: Date.now(), name: '', calcMode: 'unite', unit: 'h', rate: '', yieldRate: 0 }); setIsLaborModalOpen(true); }} className={`btn-primary w-full sm:w-auto shrink-0 ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Ajouter une nouvelle prestation">
-                            <i className="fa-solid fa-plus"></i> Nouvelle Prestation
+
+                {resourceTab === 'materials' && (
+                    <div className="flex gap-2">
+                        <button type="button" onClick={() => setIsMatCsvModalOpen(true)} className="btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5" title="Importer un CSV" aria-label="Importer un fichier CSV">
+                            <i className="fa-solid fa-file-csv text-emerald-600"></i> CSV
+                        </button>
+                        <button type="button" onClick={() => {
+                            const csvContent = "data:text/csv;charset=utf-8," +
+                                "ID;Nom;Catégorie;Unité Achat;Taille Unité;Unité Calcul;Prix Achat;Perte (%);Rendement (m²)\n" +
+                                materials.map(m => `"${m.id}";"${m.name}";"${m.category}";"${m.unitBuy}";"${m.unitSize}";"${m.unitCalc}";"${m.priceBuy}";"${m.waste}";"${m.yieldRate || 0}"`).join("\n");
+                            const encodedUri = encodeURI(csvContent);
+                            const link = document.createElement("a");
+                            link.setAttribute("href", encodedUri);
+                            link.setAttribute("download", `ikadevis_matieres_${new Date().toISOString().slice(0,10)}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            showToast("Exportation CSV téléchargée !");
+                        }} className="btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5" title="Exporter en CSV" aria-label="Exporter au format CSV">
+                            <i className="fa-solid fa-file-arrow-down text-brand-600"></i> Export
                         </button>
                     </div>
+                )}
 
-                    {/* CARTES SOUS 1024px */}
-                    <div className="block lg:hidden p-4 space-y-3">
-                        {labor.map(l => (
-                            <div key={l.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-extrabold text-neutral-900 text-base">{l.name}</h3>
-                                    <span className="text-xs font-bold text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-lg">
-                                        {formatMoney(l.rate, companyInfo.currency)} / {l.unit || 'u'}
-                                    </span>
-                                </div>
-                                <div className="bg-white p-3 rounded-xl border border-neutral-200/80 text-xs">
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Vitesse d'Exécution</span>
-                                    <span className="font-bold text-neutral-800">{l.yieldRate > 0 ? `${l.yieldRate} m²/${l.unit}` : 'Au forfait unitaire'}</span>
-                                </div>
-                                <div className="flex justify-end gap-2 pt-1">
-                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setLaborForm({...l}); setIsLaborModalOpen(true); }} className="btn-secondary py-1.5 px-3 text-xs font-bold" aria-label={`Modifier ${l.name}`}>
-                                        <i className="fa-solid fa-pen mr-1"></i> Modifier
+                <button disabled={isReadOnlyDueToDowngrade} onClick={resourceTab === 'materials' ? startNewMaterial : startNewLabor} className={`btn-primary w-full justify-center ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label={resourceTab === 'materials' ? "Ajouter une nouvelle matière" : "Ajouter une nouvelle prestation"}>
+                    <i className="fa-solid fa-plus"></i> {resourceTab === 'materials' ? 'Nouvelle Matière' : 'Nouvelle Prestation'}
+                </button>
+
+                <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto custom-scroll pr-1">
+                    {resourceTab === 'materials' ? materials.map(m => (
+                        <button key={m.id} onClick={() => openMaterialDetail(m)} className={`flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedMaterialId === m.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${m.name}`}>
+                            <div className="min-w-0">
+                                <p className={`font-bold text-sm truncate ${selectedMaterialId === m.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{m.name}</p>
+                                <p className="text-[11px] text-neutral-500 truncate">{m.category}</p>
+                            </div>
+                            <span className="text-xs font-extrabold text-brand-600 shrink-0">{formatMoney(m.priceBuy, companyInfo.currency)}</span>
+                        </button>
+                    )) : labor.map(l => (
+                        <button key={l.id} onClick={() => openLaborDetail(l)} className={`flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedLaborId === l.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${l.name}`}>
+                            <p className={`font-bold text-sm truncate ${selectedLaborId === l.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{l.name}</p>
+                            <span className="text-xs font-extrabold text-brand-600 shrink-0">{formatMoney(l.rate, companyInfo.currency)} / {l.unit || 'u'}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* COLONNE DÉTAIL — visible sur mobile uniquement quand un élément est sélectionné ;
+                toujours visible côte-à-côte à partir de lg (≥1024px), état vide sinon. */}
+            <div className={`${selectedItem ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+                {!selectedItem ? (
+                    <div className="app-card p-16 text-center text-neutral-400">
+                        <i className={`fa-solid ${resourceTab === 'materials' ? 'fa-box' : 'fa-user-gear'} text-3xl mb-3 text-neutral-300`}></i>
+                        <p className="text-sm font-bold text-neutral-600">Sélectionnez {resourceTab === 'materials' ? 'une matière' : 'une prestation'} pour voir son détail</p>
+                    </div>
+                ) : (
+                    <div className="app-card flex flex-col">
+                        <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <button onClick={closeDetail} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                    <i className="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">
+                                    {isResourceEditMode ? (editingIsNew ? `Nouvelle ${resourceTab === 'materials' ? 'matière' : 'prestation'}` : `Modifier « ${selectedItem.name} »`) : selectedItem.name}
+                                </h2>
+                            </div>
+                            {!isResourceEditMode && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => resourceTab === 'materials' ? startEditMaterial(selectedItem) : startEditLabor(selectedItem)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : ''}`} title="Modifier" aria-label={`Modifier ${selectedItem.name}`}>
+                                        <i className="fa-solid fa-pen"></i>
                                     </button>
-                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteLabor(l)} className="btn-icon text-neutral-400 hover:text-red-600 p-1.5" aria-label={`Supprimer ${l.name}`}>
+                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => resourceTab === 'materials' ? handleDeleteMaterial(selectedItem) : handleDeleteLabor(selectedItem)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${selectedItem.name}`}>
                                         <i className="fa-solid fa-trash"></i>
                                     </button>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* TABLEAU LARGE DESKTOP (≥ 1024px) */}
-                    <div className="hidden lg:block app-table-wrapper rounded-none border-0">
-                        <table className="app-table">
-                            <thead className="bg-neutral-50/80">
-                                <tr>
-                                    <th className="app-th pl-6">Description</th>
-                                    <th className="app-th text-center">Vitesse d'Exécution</th>
-                                    <th className="app-th text-right">Unité</th>
-                                    <th className="app-th text-right bg-brand-50/20">Tarif Unitaire</th>
-                                    <th className="app-th text-right pr-6 w-24">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {labor.map(l => (
-                                    <tr key={l.id} className="app-td border-b border-neutral-100 hover:bg-neutral-50/50">
-                                        <td className="p-4 pl-6 font-bold text-neutral-800">{l.name}</td>
-                                        <td className="p-4 text-center font-bold text-xs text-brand-700 bg-brand-50/30">
-                                            {l.yieldRate > 0 ? `${l.yieldRate} m²/${l.unit}` : '-'}
-                                        </td>
-                                        <td className="p-4 text-right text-neutral-600 font-bold">{l.unit || 'u'}</td>
-                                        <td className="p-4 text-right bg-brand-50/20 whitespace-nowrap">
-                                            <span className="text-brand-700 font-extrabold text-sm">{formatMoney(l.rate, companyInfo.currency)}</span>
-                                            <span className="text-neutral-500 text-xs ml-1">/ {l.unit || 'u'}</span>
-                                        </td>
-                                        <td className="p-4 pr-6 text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setLaborForm({...l}); setIsLaborModalOpen(true); }} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : ''}`} title="Modifier" aria-label={`Modifier ${l.name}`}><i className="fa-solid fa-pen"></i></button>
-                                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteLabor(l)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${l.name}`}><i className="fa-solid fa-trash"></i></button>
+                        {!isResourceEditMode && resourceTab === 'materials' && (
+                            <div className="flex gap-1 px-5 sm:px-6 pt-3 border-b border-neutral-100">
+                                <button onClick={() => setResourceDetailTab('overview')} className={`px-3 py-2 text-xs font-bold border-b-2 transition-colors ${resourceDetailTab === 'overview' ? 'border-brand-500 text-brand-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'}`}>Vue d'ensemble</button>
+                                <button onClick={() => setResourceDetailTab('history')} className={`px-3 py-2 text-xs font-bold border-b-2 transition-colors ${resourceDetailTab === 'history' ? 'border-brand-500 text-brand-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'}`}>Historique des prix</button>
+                            </div>
+                        )}
+
+                        <div className="p-5 sm:p-6">
+                            {isResourceEditMode ? (
+                                resourceTab === 'materials' ? (
+                                    <form onSubmit={saveMaterial} className="space-y-5">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div className="md:col-span-2"><label className="app-label">Nom complet</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={matForm.name} onChange={e => setMatForm({ ...matForm, name: e.target.value })} /></div>
+                                            <div><label className="app-label">Catégorie</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.category} onChange={e => setMatForm({ ...matForm, category: e.target.value })} /></div>
+                                            <div><label className="app-label">Unité d'achat (ex: Barre)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitBuy} onChange={e => setMatForm({ ...matForm, unitBuy: e.target.value })} /></div>
+                                            <div><label className="app-label">Taille (ex: 6)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" step="0.01" min="0.01" className="app-input" value={matForm.unitSize} onChange={e => setMatForm({ ...matForm, unitSize: e.target.value })} /></div>
+                                            <div><label className="app-label">Unité calcul (ex: m)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitCalc} onChange={e => setMatForm({ ...matForm, unitCalc: e.target.value })} /></div>
+                                            <div>
+                                                <label className="app-label">Prix d'Achat Brut</label>
+                                                <div className="relative">
+                                                    <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={matForm.priceBuy} onChange={e => setMatForm({ ...matForm, priceBuy: e.target.value })} />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
+                                                </div>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                            <div><label className="app-label">Rendement Matière (m²/unité)</label><input disabled={isReadOnlyDueToDowngrade} type="number" step="0.1" min="0" className="app-input font-bold" value={matForm.yieldRate || ''} onChange={e => setMatForm({ ...matForm, yieldRate: e.target.value })} placeholder="ex: 10 (m²/L)" /></div>
+                                            <div><label className="app-label">Taux de perte (%)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" max="100" className="app-input" value={matForm.waste} onChange={e => setMatForm({ ...matForm, waste: e.target.value })} /></div>
+                                            <div>
+                                                <label className="app-label">Stratégie d'Achat BTP</label>
+                                                <select disabled={isReadOnlyDueToDowngrade} className="app-input font-bold" value={matForm.purchaseMode || 'pack'} onChange={e => setMatForm({ ...matForm, purchaseMode: e.target.value })}>
+                                                    <option value="pack">Conditionnement Entier (Barre/Feuille/Pot)</option>
+                                                    <option value="real">Quantité Réelle Exacte (au m², m, L)</option>
+                                                    <option value="step">Pas Commercial Ajustable</option>
+                                                </select>
+                                            </div>
+                                            {(matForm.purchaseMode === 'step') && (
+                                                <div>
+                                                    <label className="app-label">Pas Commercial (ex: 0.5)</label>
+                                                    <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.01" min="0.01" className="app-input font-bold text-brand-600" value={matForm.purchaseStep || 0.5} onChange={e => setMatForm({ ...matForm, purchaseStep: e.target.value })} />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                                            {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la ressource"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <form onSubmit={saveLabor} className="space-y-5">
+                                        <div>
+                                            <label className="app-label">Intitulé / Métier</label>
+                                            <input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={laborForm.name} onChange={e => setLaborForm({ ...laborForm, name: e.target.value })} placeholder="Ex: Application Peinture" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="app-label">Mode de calcul</label>
+                                                <CustomSelect
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    value={laborForm.calcMode}
+                                                    onChange={e => setLaborForm({ ...laborForm, calcMode: e.target.value })}
+                                                    options={[
+                                                        { value: 'unite', label: 'Unité (Quantité)' },
+                                                        { value: 'surface', label: 'Surface (L x H m²)' },
+                                                        { value: 'volume', label: 'Volume (L x H x P m³)' },
+                                                        { value: 'perimetre', label: 'Périmètre / Linéaire ml' },
+                                                        { value: 'forfait', label: 'Forfait Fixe' }
+                                                    ]}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="app-label">Unité de mesure</label>
+                                                <CustomSelect
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    value={laborForm.unit || 'h'}
+                                                    onChange={e => setLaborForm({ ...laborForm, unit: e.target.value })}
+                                                    options={[
+                                                        { value: 'h', label: 'h (heures)' },
+                                                        { value: 'j', label: 'j (jours)' },
+                                                        { value: 'j-eq', label: 'j-eq (jour-équipe)' },
+                                                        { value: 'm³', label: 'm³ (mètre cube)' },
+                                                        { value: 'kg', label: 'kg (kilogramme)' },
+                                                        { value: 't', label: 't (tonne)' },
+                                                        { value: 'sac', label: 'sac' },
+                                                        { value: 'L', label: 'L (litre)' },
+                                                        { value: 'ml', label: 'ml (mètre linéaire)' },
+                                                        { value: 'm²', label: 'm²' },
+                                                        { value: 'u', label: 'u (unités / pièces)' },
+                                                        { value: 'ens', label: 'ens (ensemble)' },
+                                                        { value: 'pt', label: 'pt (point / poste)' },
+                                                        { value: 'forfait', label: 'forfait' }
+                                                    ]}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="app-label">Tarif Unitaire</label>
+                                                <div className="relative">
+                                                    <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={laborForm.rate} onChange={e => setLaborForm({ ...laborForm, rate: e.target.value })} />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="app-label">Rendement (Vitesse d'Exécution)</label>
+                                                <input disabled={isReadOnlyDueToDowngrade} type="number" min="0" className="app-input font-bold text-brand-700" value={laborForm.yieldRate || ''} onChange={e => setLaborForm({ ...laborForm, yieldRate: e.target.value })} placeholder="ex: 80 (m²/j)" />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                                            {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la prestation"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
+                                        </div>
+                                    </form>
+                                )
+                            ) : resourceTab === 'materials' && resourceDetailTab === 'history' ? (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
+                                            <span className="text-xl font-black text-brand-600 font-mono">{formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)}</span>
+                                            <span className="text-[11px] text-neutral-500 block">par {selectedItem.unitBuy || selectedItem.unitCalc}</span>
+                                        </div>
+                                        {historyVariationPct !== null && (
+                                            <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${historyVariationPct >= 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                                <i className={`fa-solid fa-arrow-trend-${historyVariationPct >= 0 ? 'up' : 'down'} mr-1`}></i> {historyVariationPct >= 0 ? '+' : ''}{historyVariationPct.toFixed(1)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!isCloudOrgActive ? (
+                                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200">
+                                            <i className="fa-solid fa-cloud text-2xl mb-2 text-neutral-300"></i>
+                                            <p className="text-xs font-bold text-neutral-600">Historique disponible uniquement en mode connecté</p>
+                                            <p className="text-[11px] text-neutral-400 mt-1">Connectez-vous à votre organisation cloud pour suivre l'évolution réelle des prix.</p>
+                                        </div>
+                                    ) : materialHistoryLoading ? (
+                                        <div className="p-6 text-center text-neutral-400"><i className="fa-solid fa-circle-notch fa-spin text-xl text-amber-500"></i></div>
+                                    ) : materialHistory.length === 0 ? (
+                                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200">
+                                            <i className="fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300"></i>
+                                            <p className="text-xs font-bold text-neutral-600">{materialHistoryError ? 'Historique indisponible pour le moment' : 'Aucun changement de prix enregistré'}</p>
+                                            <p className="text-[11px] text-neutral-400 mt-1">Chaque modification du prix d'achat sera journalisée ici.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
+                                            <table className="w-full text-left text-xs">
+                                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase">
+                                                    <tr><th className="p-2.5 pl-3">Date</th><th className="p-2.5">Fournisseur</th><th className="p-2.5 text-right pr-3">Tarif HT</th></tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-100">
+                                                    {materialHistory.map((h) => (
+                                                        <tr key={h.id} className="hover:bg-neutral-50/50">
+                                                            <td className="p-2.5 pl-3 font-mono text-neutral-500">{new Date(h.created_at).toLocaleDateString('fr-FR')}</td>
+                                                            <td className="p-2.5 font-bold text-neutral-800">{h.supplier_name || 'Non renseigné'}</td>
+                                                            <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney(h.price)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : resourceTab === 'materials' ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Achat Fournisseur</span>
+                                        <span className="font-bold text-neutral-800">{formatMoney(selectedItem.priceBuy, companyInfo.currency)}</span>
+                                        <p className="text-[11px] text-neutral-500 mt-0.5">pour {selectedItem.unitSize} {selectedItem.unitCalc} ({selectedItem.unitBuy})</p>
+                                    </div>
+                                    <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Coût Unitaire Net</span>
+                                        <span className="font-extrabold text-brand-600 text-base">{formatMoney(selectedItem.priceCalc, companyInfo.currency)}</span>
+                                        <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unitCalc}</p>
+                                    </div>
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Rendement Matière</span>
+                                        <span className="font-bold text-neutral-800">{selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m²/${selectedItem.unitCalc}` : 'Non renseigné'}</span>
+                                    </div>
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Taux de perte</span>
+                                        <span className="font-bold text-neutral-800">{selectedItem.waste > 0 ? `${selectedItem.waste}%` : 'Aucune'}</span>
+                                    </div>
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Stratégie d'Achat BTP</span>
+                                        <span className="font-bold text-neutral-800">
+                                            {selectedItem.purchaseMode === 'real' ? 'Quantité Réelle Exacte' : selectedItem.purchaseMode === 'step' ? `Pas Commercial Ajustable (${selectedItem.purchaseStep || 0.5})` : 'Conditionnement Entier'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Tarif Unitaire</span>
+                                        <span className="font-extrabold text-brand-600 text-base">{formatMoney(selectedItem.rate, companyInfo.currency)}</span>
+                                        <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unit || 'u'}</p>
+                                    </div>
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Vitesse d'Exécution</span>
+                                        <span className="font-bold text-neutral-800">{selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m²/${selectedItem.unit}` : 'Au forfait unitaire'}</span>
+                                    </div>
+                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2">
+                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Mode de Calcul</span>
+                                        <span className="font-bold text-neutral-800 capitalize">{selectedItem.calcMode}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
-    );
+        );
+    };
 
     const NavItem = ({ id, icon, label, onClickExtra }) => {
         const isActive = activeView === id;
@@ -8015,16 +8082,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 />
             )}
 
-            {priceHistoryMaterial && (
-                <PriceHistoryModal
-                    isOpen={!!priceHistoryMaterial}
-                    onClose={() => setPriceHistoryMaterial(null)}
-                    material={priceHistoryMaterial}
-                    organizationId={activeOrganizationId}
-                    supabaseClient={supabaseClient}
-                />
-            )}
-
             {isCreateOrgModalOpen && (
                 <CreateOrganizationModal
                     isOpen={isCreateOrgModalOpen}
@@ -8197,164 +8254,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Créer la variable"><i className="fa-solid fa-plus mr-1"></i> Créer la variable</button>}
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-
-            {isMatModalOpen && matForm && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-2xl flex flex-col max-h-[90dvh] overflow-hidden">
-                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <h3 className="font-bold text-neutral-800 text-lg">{matForm.id > 100000 ? 'Nouvelle ressource' : 'Modifier la ressource'}</h3>
-                            <button onClick={() => setIsMatModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
-                        </div>
-                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                            <form id="matForm" onSubmit={(e) => {
-                                e.preventDefault();
-                                if (isReadOnlyDueToDowngrade) return;
-                                const p = (parseFloat(matForm.priceBuy)||0)/(parseFloat(matForm.unitSize)||1);
-                                const nm = {...matForm, priceCalc:p, waste:parseFloat(matForm.waste)||0, yieldRate:parseFloat(matForm.yieldRate)||0};
-                                const previousMat = materials.find(m=>m.id===nm.id);
-                                updateMaterials(previousMat ? materials.map(m=>m.id===nm.id?nm:m) : [...materials, {...nm, id:Date.now()}]);
-                                setIsMatModalOpen(false);
-                                showToast("Ressource enregistrée");
-                                // Journalisation réelle de l'historique de prix (Règle d'Or #3, Zéro Faux
-                                // Succès) : uniquement si le prix a changé pour une matière existante, en
-                                // organisation cloud réelle. Non bloquant — un échec réseau ici ne doit
-                                // jamais empêcher la sauvegarde de la matière elle-même.
-                                const isCloudOrg = activeOrganizationId && !activeOrganizationId.startsWith('org_default') && !activeOrganizationId.startsWith('org_local');
-                                if (previousMat && isCloudOrg && supabaseClient && parseFloat(previousMat.priceBuy) !== parseFloat(nm.priceBuy)) {
-                                    supabaseClient.from('material_price_history').insert({
-                                        organization_id: activeOrganizationId,
-                                        material_id: nm.id,
-                                        price: parseFloat(nm.priceBuy) || 0,
-                                        previous_price: parseFloat(previousMat.priceBuy) || 0,
-                                        supplier_name: nm.supplier || null
-                                    }).then(({ error }) => { if (error) console.warn('[Price History] Échec de journalisation:', error); });
-                                }
-                            }} className="space-y-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="md:col-span-2"><label className="app-label">Nom complet</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={matForm.name} onChange={e => setMatForm({...matForm, name: e.target.value})} /></div>
-                                    <div><label className="app-label">Catégorie</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.category} onChange={e => setMatForm({...matForm, category: e.target.value})} /></div>
-                                    <div><label className="app-label">Unité d'achat (ex: Barre)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitBuy} onChange={e => setMatForm({...matForm, unitBuy: e.target.value})} /></div>
-                                    <div><label className="app-label">Taille (ex: 6)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" step="0.01" min="0.01" className="app-input" value={matForm.unitSize} onChange={e => setMatForm({...matForm, unitSize: e.target.value})} /></div>
-                                    <div><label className="app-label">Unité calcul (ex: m)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitCalc} onChange={e => setMatForm({...matForm, unitCalc: e.target.value})} /></div>
-                                    <div>
-                                        <label className="app-label">Prix d'Achat Brut</label>
-                                        <div className="relative">
-                                            <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={matForm.priceBuy} onChange={e => setMatForm({...matForm, priceBuy: e.target.value})} />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
-                                        </div>
-                                    </div>
-                                    <div><label className="app-label">Rendement Matière (m²/unité)</label><input disabled={isReadOnlyDueToDowngrade} type="number" step="0.1" min="0" className="app-input font-bold" value={matForm.yieldRate||''} onChange={e => setMatForm({...matForm, yieldRate: e.target.value})} placeholder="ex: 10 (m²/L)" /></div>
-                                    <div><label className="app-label">Taux de perte (%)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" max="100" className="app-input" value={matForm.waste} onChange={e => setMatForm({...matForm, waste: e.target.value})} /></div>
-                                    <div>
-                                        <label className="app-label">Stratégie d'Achat BTP</label>
-                                        <select disabled={isReadOnlyDueToDowngrade} className="app-input font-bold" value={matForm.purchaseMode || 'pack'} onChange={e => setMatForm({...matForm, purchaseMode: e.target.value})}>
-                                            <option value="pack">Conditionnement Entier (Barre/Feuille/Pot)</option>
-                                            <option value="real">Quantité Réelle Exacte (au m², m, L)</option>
-                                            <option value="step">Pas Commercial Ajustable</option>
-                                        </select>
-                                    </div>
-                                    {(matForm.purchaseMode === 'step') && (
-                                        <div>
-                                            <label className="app-label">Pas Commercial (ex: 0.5)</label>
-                                            <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.01" min="0.01" className="app-input font-bold text-brand-600" value={matForm.purchaseStep || 0.5} onChange={e => setMatForm({...matForm, purchaseStep: e.target.value})} />
-                                        </div>
-                                    )}
-                                </div>
-                            </form>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsMatModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
-                            {!isReadOnlyDueToDowngrade && <button type="submit" form="matForm" className="btn-primary" aria-label="Enregistrer la ressource"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isLaborModalOpen && laborForm && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
-                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <h3 className="font-bold text-neutral-800 text-lg">{laborForm.id > 100000 ? 'Nouvelle prestation' : 'Modifier la prestation'}</h3>
-                            <button onClick={() => setIsLaborModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
-                        </div>
-                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                            <form id="laborForm" onSubmit={(e) => { 
-                                e.preventDefault(); 
-                                if (isReadOnlyDueToDowngrade) return;
-                                const nl = {...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate)||0}; 
-                                updateLabor(labor.find(x => x.id === nl.id) ? labor.map(x => x.id === nl.id ? nl : x) : [...labor, {...nl, id: Date.now()}]); 
-                                setIsLaborModalOpen(false); 
-                                showToast("Prestation enregistrée !"); 
-                            }} className="space-y-5">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="app-label">Intitulé / Métier</label>
-                                        <input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={laborForm.name} onChange={e => setLaborForm({...laborForm, name: e.target.value})} placeholder="Ex: Application Peinture" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="app-label">Mode de calcul</label>
-                                            <CustomSelect 
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                value={laborForm.calcMode} 
-                                                onChange={e => setLaborForm({...laborForm, calcMode: e.target.value})}
-                                                options={[
-                                                    { value: 'unite', label: 'Unité (Quantité)' },
-                                                    { value: 'surface', label: 'Surface (L x H m²)' },
-                                                    { value: 'volume', label: 'Volume (L x H x P m³)' },
-                                                    { value: 'perimetre', label: 'Périmètre / Linéaire ml' },
-                                                    { value: 'forfait', label: 'Forfait Fixe' }
-                                                ]}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="app-label">Unité de mesure</label>
-                                            <CustomSelect 
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                value={laborForm.unit || 'h'} 
-                                                onChange={e => setLaborForm({...laborForm, unit: e.target.value})}
-                                                options={[
-                                                    { value: 'h', label: 'h (heures)' },
-                                                    { value: 'j', label: 'j (jours)' },
-                                                    { value: 'j-eq', label: 'j-eq (jour-équipe)' },
-                                                    { value: 'm³', label: 'm³ (mètre cube)' },
-                                                    { value: 'kg', label: 'kg (kilogramme)' },
-                                                    { value: 't', label: 't (tonne)' },
-                                                    { value: 'sac', label: 'sac' },
-                                                    { value: 'L', label: 'L (litre)' },
-                                                    { value: 'ml', label: 'ml (mètre linéaire)' },
-                                                    { value: 'm²', label: 'm²' },
-                                                    { value: 'u', label: 'u (unités / pièces)' },
-                                                    { value: 'ens', label: 'ens (ensemble)' },
-                                                    { value: 'pt', label: 'pt (point / poste)' },
-                                                    { value: 'forfait', label: 'forfait' }
-                                                ]}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="app-label">Tarif Unitaire</label>
-                                            <div className="relative">
-                                                <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={laborForm.rate} onChange={e => setLaborForm({...laborForm, rate: e.target.value})} />
-                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="app-label">Rendement (Vitesse d'Exécution)</label>
-                                            <input disabled={isReadOnlyDueToDowngrade} type="number" min="0" className="app-input font-bold text-brand-700" value={laborForm.yieldRate||''} onChange={e => setLaborForm({...laborForm, yieldRate: e.target.value})} placeholder="ex: 80 (m²/j)" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsLaborModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
-                            {!isReadOnlyDueToDowngrade && <button type="submit" form="laborForm" className="btn-primary" aria-label="Enregistrer la prestation"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
-                        </div>
                     </div>
                 </div>
             )}
