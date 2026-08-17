@@ -41,9 +41,10 @@
 >   par défaut). **`development` n'est PAS isolé — pointe vers la même base
 >   que la production**, décision explicite de l'utilisateur de reporter la
 >   création d'un 3ᵉ projet dédié à après que le SaaS soit jugé prêt.
-> - **Super-admin plateforme livré et testé sur staging** (§ 19) : écran
+> - **Super-admin plateforme livré, testé et EN PRODUCTION** (§ 19) : écran
 >   Administration en lecture seule, auto-promotion impossible, accès
->   journalisés. Reste à appliquer `v6_platform_admin.sql` en production.
+>   journalisés. `v6_platform_admin.sql` appliqué sur staging ET production
+>   le 2026-08-17 ; `officemicro89@gmail.com` désigné premier admin.
 > - Prochaines pistes ouvertes : isoler `development`, pousser le dépôt vers
 >   un remote, migrer `savedQuotes`/`nextQuoteSeq` vers la vraie table
 >   `quotes` (§ 16), appliquer la migration RLS `material_price_history` sur
@@ -782,13 +783,33 @@ Scénario monté avec 2 puis 3 organisations distinctes et 2 comptes :
 Toutes les données de test ont été supprimées de staging après vérification
 (staging est revenu à 0 organisation / 0 utilisateur).
 
-### 19.4 Reste à faire
+### 19.4 Mise en production (2026-08-17)
 
-- **Appliquer `v6_platform_admin.sql` sur la production** — fait sur staging
-  uniquement. La production est en `--read-only` dans `.mcp.json` : il faut
-  retirer le drapeau, appliquer, puis le remettre (procédure § 13).
-- **Désigner le premier admin réel** une fois la migration en production :
-  créer un compte normal dans l'app, puis dans le SQL Editor du dashboard :
-  `SELECT public.grant_platform_admin('email@exemple.com', 'Éditeur du SaaS');`
+`v6_platform_admin.sql` appliqué sur **production** (`SuperDevisMO`) selon la
+procédure du § 13 : `--read-only` retiré de `.mcp.json`, redémarrage,
+migration, puis `--read-only` remis immédiatement après. Vérifications
+post-migration, identiques à celles de staging :
+
+| Contrôle | Résultat en production |
+| :--- | :--- |
+| `platform_admins` / `platform_admin_audit` | créées, RLS actif |
+| Policies d'écriture sur ces 2 tables | **aucune** (SELECT seul) → auto-promotion impossible |
+| Policies tenant existantes | intactes (clients 4, quotes 4, materials 2, organizations 2, audit_logs 1) |
+| Policy `Platform admin read` | 1 par table métier, ajoutée sans toucher aux autres |
+| Premier admin désigné | `officemicro89@gmail.com` (seul compte de la base, créé le 2026-08-14) |
+
+> L'octroi a été fait via `SELECT public.grant_platform_admin(...)` exécuté en
+> `service_role`. La fonction est `SECURITY INVOKER` **et** a un `REVOKE
+> EXECUTE ... FROM anon, authenticated` : elle n'est pas appelable depuis le
+> navigateur, quel que soit le compte.
+
+### 19.5 Reste à faire
+
+- **Vérifier l'écran en conditions réelles sur la production** : non fait.
+  L'écran a été validé de bout en bout sur staging (connexion admin réelle,
+  données cross-tenant affichées), mais personne ne s'est encore connecté à
+  la production depuis la migration. À faire à la prochaine connexion :
+  se déconnecter/reconnecter pour que `is_platform_admin()` soit réévalué,
+  puis ouvrir *Plateforme → Administration*.
 - Pistes d'extension non faites : détail par organisation (drill-in),
   suspension d'un compte client, métriques d'usage dans le temps.
