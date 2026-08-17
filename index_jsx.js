@@ -3964,7 +3964,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // fiche client (demandé par l'utilisateur : "avoir la possibilité de
     // modifier les infos du client"). null = mode création.
     const [editingClientId, setEditingClientId] = useState(null);
-    // Filtre "voir les devis de ce client" depuis la fiche CRM.
+    // Filtre de la page Devis Enregistrés, posé depuis une autre vue :
+    //   { kind: 'client', id, name }  → tous les devis d'un client (fiche CRM)
+    //   { kind: 'quote',  id, name }  → le dossier d'un devis précis (fiche
+    //                                   affaire ou fiche client)
     const [quotesClientFilter, setQuotesClientFilter] = useState(null);
 
     // STRICT SERVER SAVE STATUS (Anti-Faux Succès)
@@ -7007,14 +7010,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {selectedProjectQuotes.length > 0 ? (
                                     <div className="space-y-1.5">
                                         {selectedProjectQuotes.map(q => (
-                                            <div key={q.id} className="flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
-                                                <div>
-                                                    <span className="font-extrabold text-neutral-800 mr-2">{q.number}</span>
+                                            // P0.20 (2026-08-17) — La ligne n'offrait que l'aperçu PDF ;
+                                            // elle ouvre désormais le dossier du devis (page Devis
+                                            // Enregistrés, filtrée sur ce devis) où se trouvent l'édition,
+                                            // la révision V2 et les autres actions. Le bouton PDF reste
+                                            // en accès direct.
+                                            <div key={q.id} className="flex justify-between items-center gap-2 text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-colors">
+                                                <button
+                                                    onClick={() => { setQuotesClientFilter({ kind: 'quote', id: q.id, name: q.number }); setActiveView('savedQuotes'); }}
+                                                    className="flex items-center gap-2 min-w-0 flex-1 text-left group"
+                                                    aria-label={`Ouvrir le dossier du devis ${q.number}`}
+                                                    title="Ouvrir le dossier du devis"
+                                                >
+                                                    <span className="font-extrabold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
                                                     <span className="text-[10px] text-neutral-400">{q.date}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
+                                                    <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
+                                                </button>
+                                                <div className="flex items-center gap-2 shrink-0">
                                                     <span className="font-bold text-neutral-900 font-mono">{formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)}</span>
-                                                    <button onClick={() => { setViewingSavedQuote(q); setIsCommercialMode(true); }} className="text-brand-600 hover:text-brand-800 p-1" title="Voir PDF">
+                                                    <button onClick={() => { setViewingSavedQuote(q); setIsCommercialMode(true); }} className="text-brand-600 hover:text-brand-800 p-1" title="Voir PDF" aria-label={`Aperçu PDF du devis ${q.number}`}>
                                                         <i className="fa-solid fa-file-pdf text-xs"></i>
                                                     </button>
                                                 </div>
@@ -7168,7 +7182,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Affaires <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
                                     </button>
                                     <button
-                                        onClick={() => { setQuotesClientFilter({ id: selectedClient.id, name: selectedClient.name }); setActiveView('savedQuotes'); }}
+                                        onClick={() => { setQuotesClientFilter({ kind: 'client', id: selectedClient.id, name: selectedClient.name }); setActiveView('savedQuotes'); }}
                                         className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
                                         aria-label={`Voir les ${selectedClientQuotes.length} devis de ${selectedClient.name}`}
                                     >
@@ -7201,14 +7215,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     {selectedClientQuotes.length > 0 ? (
                                         <div className="space-y-1.5">
                                             {selectedClientQuotes.map(q => (
-                                                <div key={q.id} className="flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
-                                                    <div>
-                                                        <span className="font-extrabold text-neutral-800 mr-2">{q.number}</span>
+                                                // P0.20 — Même lien vers le dossier du devis que sur la fiche affaire.
+                                                <div key={q.id} className="flex justify-between items-center gap-2 text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-colors">
+                                                    <button
+                                                        onClick={() => { setQuotesClientFilter({ kind: 'quote', id: q.id, name: q.number }); setActiveView('savedQuotes'); }}
+                                                        className="flex items-center gap-2 min-w-0 flex-1 text-left group"
+                                                        aria-label={`Ouvrir le dossier du devis ${q.number}`}
+                                                        title="Ouvrir le dossier du devis"
+                                                    >
+                                                        <span className="font-extrabold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
                                                         <span className="text-[10px] text-neutral-400">{q.date}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
+                                                        <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
+                                                    </button>
+                                                    <div className="flex items-center gap-2 shrink-0">
                                                         <span className="font-bold text-neutral-900 font-mono">{formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)}</span>
-                                                        <button onClick={() => { setViewingSavedQuote(q); setIsCommercialMode(true); }} className="text-brand-600 hover:text-brand-800 p-1" title="Voir PDF">
+                                                        <button onClick={() => { setViewingSavedQuote(q); setIsCommercialMode(true); }} className="text-brand-600 hover:text-brand-800 p-1" title="Voir PDF" aria-label={`Aperçu PDF du devis ${q.number}`}>
                                                             <i className="fa-solid fa-file-pdf text-xs"></i>
                                                         </button>
                                                     </div>
@@ -7229,9 +7250,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const renderSavedQuotes = () => {
         // P0.16 — Filtre "devis de ce client", posé depuis la fiche CRM.
-        const visibleQuotes = quotesClientFilter
-            ? savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name)
-            : savedQuotes;
+        const visibleQuotes = !quotesClientFilter
+            ? savedQuotes
+            : quotesClientFilter.kind === 'quote'
+                ? savedQuotes.filter(q => q.id === quotesClientFilter.id)
+                : savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name);
         return (
         <div className="w-full max-w-[1400px] mx-auto h-full min-h-0 overflow-y-auto custom-scroll">
             <div className="app-card flex flex-col">
@@ -7249,9 +7272,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="px-5 sm:px-6 py-3 bg-brand-50/60 border-b border-brand-100 flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0">
                             <i className="fa-solid fa-filter shrink-0"></i>
-                            <span className="truncate">Devis de « {quotesClientFilter.name} » — {visibleQuotes.length} résultat(s)</span>
+                            <span className="truncate">
+                                {quotesClientFilter.kind === 'quote'
+                                    ? `Dossier du devis ${quotesClientFilter.name}`
+                                    : `Devis de « ${quotesClientFilter.name} » — ${visibleQuotes.length} résultat(s)`}
+                            </span>
                         </span>
-                        <button onClick={() => setQuotesClientFilter(null)} className="text-xs font-bold text-brand-700 hover:underline shrink-0" aria-label="Retirer le filtre client">
+                        <button onClick={() => setQuotesClientFilter(null)} className="text-xs font-bold text-brand-700 hover:underline shrink-0" aria-label="Retirer le filtre">
                             <i className="fa-solid fa-xmark mr-1"></i> Voir tous
                         </button>
                     </div>
