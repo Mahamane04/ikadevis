@@ -6,7 +6,7 @@
 // scripts SQL, la suite de tests et le tracker. Rien de tout cela n'a à être
 // servi publiquement — et le SQL comme la doc interne n'ont surtout PAS à
 // l'être. On ne copie donc que ce dont le navigateur a besoin.
-import { cpSync, mkdirSync, rmSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, existsSync, statSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -21,6 +21,8 @@ const A_PUBLIER = [
     'config.js',
     'favicon.ico',
     'vendor',
+    'js',   // modules extraits (calc-engine, utils, quote-templates) chargés
+            // en <script> par index.html — leur absence casse le moteur de calcul
 ];
 
 rmSync(dist, { recursive: true, force: true });
@@ -44,7 +46,31 @@ if (manquants.length) {
     process.exit(1);
 }
 
-// Garde-fou : rien de sensible ne doit se retrouver dans dist/
+// Garde-fou n°1 — DÉRIVE DE LA LISTE BLANCHE.
+// Une liste blanche écrite à la main se périme dès qu'on ajoute un <script>
+// ou un <link> à index.html : le fichier manque alors silencieusement en
+// production. C'est exactement ce qui est arrivé le 2026-08-17 avec les
+// modules js/ (dont calc-engine.js, qui porte le parser AST) — le site se
+// chargeait, mais le moteur de calcul était mort.
+// On relit donc index.html et on vérifie que chaque ressource locale qu'il
+// référence est bien présente dans dist/.
+const html = readFileSync(path.join(dist, 'index.html'), 'utf-8');
+const references = [...html.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)]
+    .map((m) => m[1])
+    .filter((u) => !/^(https?:)?\/\//.test(u) && !u.startsWith('data:') && !u.startsWith('#'))
+    .map((u) => u.split('?')[0].replace(/^\.?\//, ''))
+    .filter(Boolean);
+
+const introuvables = [...new Set(references)].filter((r) => !existsSync(path.join(dist, r)));
+if (introuvables.length) {
+    console.error(`\n✗ ARRÊT : index.html référence des fichiers absents de dist/ :`);
+    for (const f of introuvables) console.error(`    ${f}`);
+    console.error(`  → ajoutez le fichier ou son dossier parent à A_PUBLIER dans ce script.`);
+    process.exit(1);
+}
+console.log(`  ${[...new Set(references)].length} ressources référencées par index.html : toutes présentes`);
+
+// Garde-fou n°2 : rien de sensible ne doit se retrouver dans dist/
 const INTERDITS = ['.env', '.env.development', '.env.staging', '.env.production',
                    'v6_schema.sql', 'v6_platform_admin.sql', 'PROJECT_MASTER_TRACKER.md'];
 const fuites = INTERDITS.filter((f) => existsSync(path.join(dist, f)));
