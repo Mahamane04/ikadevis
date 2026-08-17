@@ -2765,6 +2765,12 @@ function QuoteWorkspace({
         }
     };
 
+    // M1 (2026-08-17) — Un seul chemin d'enregistrement.
+    // L'en-tête enveloppait cette fonction pour remettre l'indicateur à zéro,
+    // la barre de totaux basse recevait la fonction nue : le devis était bien
+    // enregistré mais « Modifications non enregistrées » restait affiché, et
+    // l'utilisateur re-cliquait en croyant avoir perdu son travail. L'état est
+    // maintenant remis à zéro ici, donc quel que soit le bouton appelant.
     const handleSaveQuoteAction = () => {
         if (!calculatedQuote.clientName?.trim()) {
             showToast("Veuillez indiquer le nom du client avant d'enregistrer.", "error");
@@ -2772,6 +2778,8 @@ function QuoteWorkspace({
         }
         const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
         onSaveQuote(savedQ);
+        setHasUnsavedChanges(false);
+        setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     };
 
     const handlePreviewQuoteAction = () => {
@@ -2818,11 +2826,7 @@ function QuoteWorkspace({
             <QuoteHeader
                 quote={calculatedQuote}
                 onUpdateQuote={(patch) => { pushState(); handleUpdateQuote(patch); }}
-                onSaveQuote={() => {
-                    handleSaveQuoteAction();
-                    setHasUnsavedChanges(false);
-                    setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-                }}
+                onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onOpenWizard={() => setIsWizardOpen(true)}
                 onUndo={handleUndo}

@@ -1911,6 +1911,8 @@ function QuoteWorkspace({
     }
     const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
     onSaveQuote(savedQ);
+    setHasUnsavedChanges(false);
+    setAutosaveTime((/* @__PURE__ */ new Date()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   };
   const handlePreviewQuoteAction = () => {
     const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
@@ -1955,11 +1957,7 @@ function QuoteWorkspace({
         pushState();
         handleUpdateQuote(patch);
       },
-      onSaveQuote: () => {
-        handleSaveQuoteAction();
-        setHasUnsavedChanges(false);
-        setAutosaveTime((/* @__PURE__ */ new Date()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      },
+      onSaveQuote: handleSaveQuoteAction,
       onPreviewQuote: handlePreviewQuoteAction,
       onOpenWizard: () => setIsWizardOpen(true),
       onUndo: handleUndo,
