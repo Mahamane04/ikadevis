@@ -3939,6 +3939,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
+    // P0.13 (2026-08-17) — "+ Nouvelle Affaire"/"+ Nouveau Client" inséraient
+    // directement des données factices (nom générique, NIF-000000, client au
+    // hasard) sans jamais demander les vraies informations. Remplacé par un
+    // vrai formulaire de création, cohérent avec le reste de l'app (Nouvel
+    // Ouvrage, Nouveau composant...).
+    const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+    const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+    const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+
     // STRICT SERVER SAVE STATUS (Anti-Faux Succès)
     const [saveQuoteStatus, setSaveQuoteStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
     const [saveQuoteError, setSaveQuoteError] = useState(null);
@@ -6853,8 +6863,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // ═══════════════════════════════════════════════════════════════
     // VUE 1 : GESTION DES AFFAIRES & PROJETS (7.2)
     // ═══════════════════════════════════════════════════════════════
+    // P0.13 (2026-08-17) — Le badge de statut ne traduisait que 'active' ; tout
+    // autre statut (ex: 'in_progress' venant des données de démo) s'affichait
+    // brut ("IN_PROGRESS"). Table de correspondance complète, avec repli
+    // lisible pour une valeur totalement inconnue plutôt que d'afficher le
+    // code technique tel quel.
+    const PROJECT_STATUS_LABELS = {
+        active: { label: 'En cours', className: 'bg-emerald-50 text-emerald-700' },
+        in_progress: { label: 'En cours', className: 'bg-emerald-50 text-emerald-700' },
+        on_hold: { label: 'En pause', className: 'bg-amber-50 text-amber-700' },
+        completed: { label: 'Terminée', className: 'bg-neutral-100 text-neutral-600' },
+        cancelled: { label: 'Annulée', className: 'bg-red-50 text-red-700' }
+    };
+    const getProjectStatusBadge = (status) => PROJECT_STATUS_LABELS[status] || { label: 'Statut inconnu', className: 'bg-neutral-100 text-neutral-500' };
+
     const renderProjects = () => {
-        const filteredProjects = projects.filter(p => 
+        const filteredProjects = projects.filter(p =>
             p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
             p.code.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
             (p.clientName && p.clientName.toLowerCase().includes(projectSearchQuery.toLowerCase()))
@@ -6883,21 +6907,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                         <button
                             onClick={() => {
-                                const newCode = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`;
-                                const newP = {
-                                    id: `prj-${Date.now()}`,
-                                    code: newCode,
-                                    name: 'Nouvelle Affaire',
-                                    clientId: clients[0]?.id || '',
-                                    clientName: clients[0]?.name || 'Client',
-                                    siteAddress: '',
-                                    city: 'Dakar',
-                                    status: 'active',
-                                    budgetEstimated: 0,
-                                    createdAt: new Date().toISOString().split('T')[0]
-                                };
-                                updateProjects([newP, ...projects]);
-                                showToast(`✓ Affaire ${newCode} créée avec succès !`, 'success');
+                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+                                setIsNewProjectModalOpen(true);
                             }}
                             className="btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
                         >
@@ -6920,8 +6931,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">
                                                 {prj.code}
                                             </span>
-                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${prj.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
-                                                {prj.status === 'active' ? 'En cours' : prj.status}
+                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(prj.status).className}`}>
+                                                {getProjectStatusBadge(prj.status).label}
                                             </span>
                                         </div>
                                         <h3 className="text-base font-black text-neutral-900 mt-1">{prj.name}</h3>
@@ -7004,19 +7015,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                         <button
                             onClick={() => {
-                                const newC = {
-                                    id: `cli-${Date.now()}`,
-                                    name: 'Nouveau Client',
-                                    contactPerson: 'Contact Principal',
-                                    taxId: 'NIF-000000',
-                                    email: 'contact@client.com',
-                                    phone: '+221 77 000 00 00',
-                                    address: 'Adresse de Facturation',
-                                    city: 'Dakar',
-                                    notes: ''
-                                };
-                                updateClients([newC, ...clients]);
-                                showToast("✓ Fiche client créée !", "success");
+                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                setIsNewClientModalOpen(true);
                             }}
                             className="btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
                         >
@@ -8195,6 +8195,150 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     onCreateOrg={handleCreateOrganization}
                     isReadOnly={isReadOnlyDueToDowngrade}
                 />
+            )}
+
+            {/* P0.13 (2026-08-17) — Formulaire de création d'affaire (remplace
+                l'insertion directe de données factices) */}
+            {isNewProjectModalOpen && (
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
+                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+                            <h3 className="font-bold text-neutral-800 text-lg">Nouvelle Affaire</h3>
+                            <button onClick={() => setIsNewProjectModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                        </div>
+                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                            <form id="newProjectForm" onSubmit={(e) => {
+                                e.preventDefault();
+                                const name = newProjectForm.name.trim();
+                                if (!name) { showToast("Le nom de l'affaire est requis.", "error"); return; }
+                                const selectedClient = clients.find(c => c.id === newProjectForm.clientId);
+                                if (!selectedClient) { showToast("Sélectionnez un client pour cette affaire.", "error"); return; }
+                                const newCode = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`;
+                                const newP = {
+                                    id: `prj-${Date.now()}`,
+                                    code: newCode,
+                                    name,
+                                    clientId: selectedClient.id,
+                                    clientName: selectedClient.name,
+                                    siteAddress: newProjectForm.siteAddress.trim(),
+                                    city: newProjectForm.city.trim() || 'Dakar',
+                                    status: 'active',
+                                    budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+                                    createdAt: new Date().toISOString().split('T')[0]
+                                };
+                                updateProjects([newP, ...projects]);
+                                showToast(`✓ Affaire ${newCode} créée avec succès !`, 'success');
+                                setIsNewProjectModalOpen(false);
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="app-label">Nom de l'affaire</label>
+                                    <input required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Client / Donneur d'ordres</label>
+                                    {clients.length > 0 ? (
+                                        <CustomSelect
+                                            value={newProjectForm.clientId}
+                                            onChange={e => setNewProjectForm({ ...newProjectForm, clientId: e.target.value })}
+                                            options={clients.map(c => ({ value: c.id, label: c.name }))}
+                                        />
+                                    ) : (
+                                        <p className="text-xs text-neutral-500 italic">Aucun client enregistré — créez d'abord une fiche client.</p>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="app-label">Adresse chantier</label>
+                                        <input type="text" className="app-input" placeholder="Ex: Plateau, Rue Carnot" value={newProjectForm.siteAddress} onChange={e => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Ville</label>
+                                        <input type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
+                                    <input type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
+                                </div>
+                            </form>
+                        </div>
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={() => setIsNewProjectModalOpen(false)} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
+                            <button type="submit" form="newProjectForm" className="btn-primary" aria-label="Créer l'affaire"><i className="fa-solid fa-check mr-1"></i> Créer l'affaire</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* P0.13 (2026-08-17) — Formulaire de création de fiche client
+                (remplace l'insertion directe de données factices) */}
+            {isNewClientModalOpen && (
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
+                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+                            <h3 className="font-bold text-neutral-800 text-lg">Nouveau Client</h3>
+                            <button onClick={() => setIsNewClientModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                        </div>
+                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                            <form id="newClientForm" onSubmit={(e) => {
+                                e.preventDefault();
+                                const name = newClientForm.name.trim();
+                                if (!name) { showToast("Le nom du client est requis.", "error"); return; }
+                                const newC = {
+                                    id: `cli-${Date.now()}`,
+                                    name,
+                                    contactPerson: newClientForm.contactPerson.trim(),
+                                    taxId: newClientForm.taxId.trim(),
+                                    phone: newClientForm.phone.trim(),
+                                    email: newClientForm.email.trim(),
+                                    address: newClientForm.address.trim(),
+                                    city: newClientForm.city.trim() || 'Dakar',
+                                    notes: ''
+                                };
+                                updateClients([newC, ...clients]);
+                                showToast("✓ Fiche client créée !", "success");
+                                setIsNewClientModalOpen(false);
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="app-label">Nom du client / raison sociale</label>
+                                    <input required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Contact principal</label>
+                                    <input type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="app-label">NIF / RCCM</label>
+                                        <input type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Téléphone</label>
+                                        <input type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="app-label">Email</label>
+                                    <input type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="app-label">Adresse</label>
+                                        <input type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Ville</label>
+                                        <input type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={() => setIsNewClientModalOpen(false)} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
+                            <button type="submit" form="newClientForm" className="btn-primary" aria-label="Créer le client"><i className="fa-solid fa-check mr-1"></i> Créer le client</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {isMatCsvModalOpen && (

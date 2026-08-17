@@ -2587,6 +2587,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const [activeOrganizationRole, setActiveOrganizationRole] = useState(() => sbUser && sbUser.id !== "guest" ? null : "owner");
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [newProjectForm, setNewProjectForm] = useState({ name: "", clientId: "", siteAddress: "", city: "Dakar", budgetEstimated: "" });
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({ name: "", contactPerson: "", taxId: "", phone: "", email: "", address: "", city: "Dakar" });
   const [saveQuoteStatus, setSaveQuoteStatus] = useState("idle");
   const [saveQuoteError, setSaveQuoteError] = useState(null);
   const [sbSyncStatus, setSbSyncStatus] = useState("idle");
@@ -5041,6 +5045,14 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       /* @__PURE__ */ React.createElement("span", null, workingLots.length > 0 ? `Enregistrer le Devis (${workingLots.length + 1} lots)` : "Enregistrer le Devis")
     ))));
   };
+  const PROJECT_STATUS_LABELS = {
+    active: { label: "En cours", className: "bg-emerald-50 text-emerald-700" },
+    in_progress: { label: "En cours", className: "bg-emerald-50 text-emerald-700" },
+    on_hold: { label: "En pause", className: "bg-amber-50 text-amber-700" },
+    completed: { label: "Termin\xE9e", className: "bg-neutral-100 text-neutral-600" },
+    cancelled: { label: "Annul\xE9e", className: "bg-red-50 text-red-700" }
+  };
+  const getProjectStatusBadge = (status) => PROJECT_STATUS_LABELS[status] || { label: "Statut inconnu", className: "bg-neutral-100 text-neutral-500" };
   const renderProjects = () => {
     const filteredProjects = projects.filter(
       (p) => p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(projectSearchQuery.toLowerCase()) || p.clientName && p.clientName.toLowerCase().includes(projectSearchQuery.toLowerCase())
@@ -5058,21 +5070,8 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       "button",
       {
         onClick: () => {
-          const newCode = `PRJ-${(/* @__PURE__ */ new Date()).getFullYear()}-${String(projects.length + 1).padStart(3, "0")}`;
-          const newP = {
-            id: `prj-${Date.now()}`,
-            code: newCode,
-            name: "Nouvelle Affaire",
-            clientId: clients[0]?.id || "",
-            clientName: clients[0]?.name || "Client",
-            siteAddress: "",
-            city: "Dakar",
-            status: "active",
-            budgetEstimated: 0,
-            createdAt: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
-          };
-          updateProjects([newP, ...projects]);
-          showToast(`\u2713 Affaire ${newCode} cr\xE9\xE9e avec succ\xE8s !`, "success");
+          setNewProjectForm({ name: "", clientId: clients[0]?.id || "", siteAddress: "", city: "Dakar", budgetEstimated: "" });
+          setIsNewProjectModalOpen(true);
         },
         className: "btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
       },
@@ -5081,7 +5080,7 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     ))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" }, filteredProjects.map((prj) => {
       const projectQuotes = savedQuotes.filter((q) => q.projectRef === prj.name || q.projectId && q.projectId === prj.id);
       const totalProjectCA = projectQuotes.reduce((acc, q) => acc + (q.quoteData?.totalTTCConsomme || 0), 0);
-      return /* @__PURE__ */ React.createElement("div", { key: prj.id, className: "bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-start" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200" }, prj.code), /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${prj.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-600"}` }, prj.status === "active" ? "En cours" : prj.status)), /* @__PURE__ */ React.createElement("h3", { className: "text-base font-black text-neutral-900 mt-1" }, prj.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 font-medium" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user mr-1 text-neutral-400" }), " ", prj.clientName, " \u2022 ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-1 text-neutral-400" }), " ", prj.siteAddress || prj.city)), /* @__PURE__ */ React.createElement("div", { className: "text-right" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 block" }, "CA Cumul\xE9 Affaire"), /* @__PURE__ */ React.createElement("span", { className: "text-base font-black text-brand-600 font-mono" }, formatMoney(totalProjectCA, companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100 space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center text-xs font-bold text-neutral-700" }, /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-lines text-brand-500" }), "Devis & Avenants Rattach\xE9s (", projectQuotes.length, ")")), projectQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, projectQuotes.map((q) => /* @__PURE__ */ React.createElement("div", { key: q.id, className: "flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-neutral-200/60" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-800 mr-2" }, q.number), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400" }, q.date)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-900 font-mono" }, formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      return /* @__PURE__ */ React.createElement("div", { key: prj.id, className: "bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-start" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200" }, prj.code), /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(prj.status).className}` }, getProjectStatusBadge(prj.status).label)), /* @__PURE__ */ React.createElement("h3", { className: "text-base font-black text-neutral-900 mt-1" }, prj.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 font-medium" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-user mr-1 text-neutral-400" }), " ", prj.clientName, " \u2022 ", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-1 text-neutral-400" }), " ", prj.siteAddress || prj.city)), /* @__PURE__ */ React.createElement("div", { className: "text-right" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] uppercase font-bold text-neutral-400 block" }, "CA Cumul\xE9 Affaire"), /* @__PURE__ */ React.createElement("span", { className: "text-base font-black text-brand-600 font-mono" }, formatMoney(totalProjectCA, companyInfo.currency)))), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100 space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center text-xs font-bold text-neutral-700" }, /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-lines text-brand-500" }), "Devis & Avenants Rattach\xE9s (", projectQuotes.length, ")")), projectQuotes.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, projectQuotes.map((q) => /* @__PURE__ */ React.createElement("div", { key: q.id, className: "flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-neutral-200/60" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-neutral-800 mr-2" }, q.number), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400" }, q.date)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-900 font-mono" }, formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
         setViewingSavedQuote(q);
         setIsCommercialMode(true);
       }, className: "text-brand-600 hover:text-brand-800 p-1", title: "Voir PDF" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-file-pdf text-xs" })))))) : /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 italic" }, "Aucun devis li\xE9 pour l'instant.")));
@@ -5104,19 +5103,8 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       "button",
       {
         onClick: () => {
-          const newC = {
-            id: `cli-${Date.now()}`,
-            name: "Nouveau Client",
-            contactPerson: "Contact Principal",
-            taxId: "NIF-000000",
-            email: "contact@client.com",
-            phone: "+221 77 000 00 00",
-            address: "Adresse de Facturation",
-            city: "Dakar",
-            notes: ""
-          };
-          updateClients([newC, ...clients]);
-          showToast("\u2713 Fiche client cr\xE9\xE9e !", "success");
+          setNewClientForm({ name: "", contactPerson: "", taxId: "", phone: "", email: "", address: "", city: "Dakar" });
+          setIsNewClientModalOpen(true);
         },
         className: "btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
       },
@@ -5597,7 +5585,63 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       onCreateOrg: handleCreateOrganization,
       isReadOnly: isReadOnlyDueToDowngrade
     }
-  ), isMatCsvModalOpen && /* @__PURE__ */ React.createElement(
+  ), isNewProjectModalOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, "Nouvelle Affaire"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsNewProjectModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "newProjectForm", onSubmit: (e) => {
+    e.preventDefault();
+    const name = newProjectForm.name.trim();
+    if (!name) {
+      showToast("Le nom de l'affaire est requis.", "error");
+      return;
+    }
+    const selectedClient = clients.find((c) => c.id === newProjectForm.clientId);
+    if (!selectedClient) {
+      showToast("S\xE9lectionnez un client pour cette affaire.", "error");
+      return;
+    }
+    const newCode = `PRJ-${(/* @__PURE__ */ new Date()).getFullYear()}-${String(projects.length + 1).padStart(3, "0")}`;
+    const newP = {
+      id: `prj-${Date.now()}`,
+      code: newCode,
+      name,
+      clientId: selectedClient.id,
+      clientName: selectedClient.name,
+      siteAddress: newProjectForm.siteAddress.trim(),
+      city: newProjectForm.city.trim() || "Dakar",
+      status: "active",
+      budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
+    };
+    updateProjects([newP, ...projects]);
+    showToast(`\u2713 Affaire ${newCode} cr\xE9\xE9e avec succ\xE8s !`, "success");
+    setIsNewProjectModalOpen(false);
+  }, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom de l'affaire"), /* @__PURE__ */ React.createElement("input", { required: true, type: "text", className: "app-input font-bold", placeholder: "Ex: Construction Villa R+1", value: newProjectForm.name, onChange: (e) => setNewProjectForm({ ...newProjectForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Client / Donneur d'ordres"), clients.length > 0 ? /* @__PURE__ */ React.createElement(
+    CustomSelect,
+    {
+      value: newProjectForm.clientId,
+      onChange: (e) => setNewProjectForm({ ...newProjectForm, clientId: e.target.value }),
+      options: clients.map((c) => ({ value: c.id, label: c.name }))
+    }
+  ) : /* @__PURE__ */ React.createElement("p", { className: "text-xs text-neutral-500 italic" }, "Aucun client enregistr\xE9 \u2014 cr\xE9ez d'abord une fiche client.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse chantier"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Plateau, Rue Carnot", value: newProjectForm.siteAddress, onChange: (e) => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newProjectForm.city, onChange: (e) => setNewProjectForm({ ...newProjectForm, city: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Budget estim\xE9 (", companyInfo.currency || "FCFA", ")"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", className: "app-input font-bold", placeholder: "0", value: newProjectForm.budgetEstimated, onChange: (e) => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value }) })))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsNewProjectModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newProjectForm", className: "btn-primary", "aria-label": "Cr\xE9er l'affaire" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Cr\xE9er l'affaire")))), isNewClientModalOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-neutral-800 text-lg" }, "Nouveau Client"), /* @__PURE__ */ React.createElement("button", { onClick: () => setIsNewClientModalOpen(false), className: "btn-icon w-8 h-8", "aria-label": "Fermer la bo\xEEte de dialogue" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-xl" }))), /* @__PURE__ */ React.createElement("div", { className: "p-6 overflow-y-auto custom-scroll bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("form", { id: "newClientForm", onSubmit: (e) => {
+    e.preventDefault();
+    const name = newClientForm.name.trim();
+    if (!name) {
+      showToast("Le nom du client est requis.", "error");
+      return;
+    }
+    const newC = {
+      id: `cli-${Date.now()}`,
+      name,
+      contactPerson: newClientForm.contactPerson.trim(),
+      taxId: newClientForm.taxId.trim(),
+      phone: newClientForm.phone.trim(),
+      email: newClientForm.email.trim(),
+      address: newClientForm.address.trim(),
+      city: newClientForm.city.trim() || "Dakar",
+      notes: ""
+    };
+    updateClients([newC, ...clients]);
+    showToast("\u2713 Fiche client cr\xE9\xE9e !", "success");
+    setIsNewClientModalOpen(false);
+  }, className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Nom du client / raison sociale"), /* @__PURE__ */ React.createElement("input", { required: true, type: "text", className: "app-input font-bold", placeholder: "Ex: SARL COMATEX", value: newClientForm.name, onChange: (e) => setNewClientForm({ ...newClientForm, name: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Contact principal"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: M. Amadou DIOP (Directeur G\xE9n\xE9ral)", value: newClientForm.contactPerson, onChange: (e) => setNewClientForm({ ...newClientForm, contactPerson: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "NIF / RCCM"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input font-mono", placeholder: "Ex: NIF-00482910-A", value: newClientForm.taxId, onChange: (e) => setNewClientForm({ ...newClientForm, taxId: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "T\xE9l\xE9phone"), /* @__PURE__ */ React.createElement("input", { type: "tel", className: "app-input", placeholder: "Ex: +221 77 654 32 10", value: newClientForm.phone, onChange: (e) => setNewClientForm({ ...newClientForm, phone: e.target.value }) }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Email"), /* @__PURE__ */ React.createElement("input", { type: "email", className: "app-input", placeholder: "Ex: contact@entreprise.com", value: newClientForm.email, onChange: (e) => setNewClientForm({ ...newClientForm, email: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Adresse"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", placeholder: "Ex: Boulevard de la R\xE9publique", value: newClientForm.address, onChange: (e) => setNewClientForm({ ...newClientForm, address: e.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Ville"), /* @__PURE__ */ React.createElement("input", { type: "text", className: "app-input", value: newClientForm.city, onChange: (e) => setNewClientForm({ ...newClientForm, city: e.target.value }) }))))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setIsNewClientModalOpen(false), className: "btn-secondary", "aria-label": "Annuler la cr\xE9ation" }, "Annuler"), /* @__PURE__ */ React.createElement("button", { type: "submit", form: "newClientForm", className: "btn-primary", "aria-label": "Cr\xE9er le client" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Cr\xE9er le client")))), isMatCsvModalOpen && /* @__PURE__ */ React.createElement(
     MaterialCsvModal,
     {
       isOpen: isMatCsvModalOpen,
