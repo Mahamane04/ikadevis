@@ -2887,6 +2887,103 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 3, name: "Atelier Vitrerie Miroiterie & Tremp\xE9", trade: "Vitrerie", phone: "+223 70 88 99 00", defaultMarkup: 18 },
     { id: 4, name: "Soci\xE9t\xE9 VRD & Assainissement BTP", trade: "Terrassement Lourd", phone: "+223 75 44 22 11", defaultMarkup: 12 }
   ];
+  const initialClients = [
+    {
+      id: "cli-001",
+      name: "Soci\xE9t\xE9 Immobili\xE8re NBB",
+      contactPerson: "M. Amadou DIOP (Directeur G\xE9n\xE9ral)",
+      taxId: "NIF-00482910-A",
+      email: "contact@nbb-immo.com",
+      phone: "+221 77 654 32 10",
+      address: "Boulevard de la R\xE9publique",
+      city: "Dakar",
+      notes: "Grand compte immobilier, projets tertiaires & r\xE9sidentiels."
+    },
+    {
+      id: "cli-002",
+      name: "R\xE9sidence Les Almadies",
+      contactPerson: "Mme Fatou SOW (Syndic)",
+      taxId: "NIF-00918234-B",
+      email: "syndic@almadies-residence.sn",
+      phone: "+221 78 432 19 87",
+      address: "Route des Almadies",
+      city: "Dakar",
+      notes: "R\xE9novations r\xE9guli\xE8res et \xE9tanch\xE9it\xE9 fa\xE7ades."
+    }
+  ];
+  const initialProjects = [
+    {
+      id: "prj-001",
+      code: "PRJ-2026-001",
+      name: "Construction Si\xE8ge NBB",
+      clientId: "cli-001",
+      clientName: "Soci\xE9t\xE9 Immobili\xE8re NBB",
+      siteAddress: "Plateau, Rue Carnot",
+      city: "Dakar",
+      status: "active",
+      budgetEstimated: 15e7,
+      createdAt: "2026-01-15"
+    },
+    {
+      id: "prj-002",
+      code: "PRJ-2026-002",
+      name: "R\xE9novation Fa\xE7ades ACM & Enseignes LED",
+      clientId: "cli-002",
+      clientName: "R\xE9sidence Les Almadies",
+      siteAddress: "Corniche Ouest",
+      city: "Dakar",
+      status: "in_progress",
+      budgetEstimated: 45e6,
+      createdAt: "2026-02-01"
+    }
+  ];
+  const initialSavedQuotes = [
+    {
+      id: 101,
+      number: `DEV-${(/* @__PURE__ */ new Date()).getFullYear()}-001`,
+      versionNumber: 1,
+      clientName: "Soci\xE9t\xE9 Immobili\xE8re NBB",
+      projectRef: "Construction Si\xE8ge NBB",
+      date: (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR"),
+      status: "approved",
+      vatRate: 18,
+      quoteData: {
+        netHTConsomme: 125e5,
+        tvaConsomme: 225e4,
+        totalTTCConsomme: 1475e4,
+        totalDebourseConsomme: 85e5,
+        fraisGenerauxConsomme: 6e5,
+        margeValeurConsomme: 34e5,
+        margePctConsommeReelle: 27.2,
+        lots: [
+          {
+            id: "lot-1",
+            lotName: "Lot 03 \u2014 Gros \u0152uvre & B\xE9ton Arm\xE9",
+            quoteData: {
+              netHTConsomme: 125e5,
+              totalTTCConsomme: 1475e4,
+              totalDebourseConsomme: 85e5
+            }
+          }
+        ],
+        commercialItems: [
+          {
+            name: "Lot 03 \u2014 Gros \u0152uvre & B\xE9ton Arm\xE9 B25",
+            billedQty: 1,
+            unit: "forfait",
+            sellingUnitHT: 125e5,
+            sellingTotalHT: 125e5
+          }
+        ]
+      },
+      companyInfoSnapshot: {
+        name: "MicroOffice BTP Ing\xE9nierie",
+        currency: "FCFA",
+        paymentTerms: "40% acompte, 30% avancement, 20% finitions, 10% solde",
+        quoteValidity: "30 jours"
+      }
+    }
+  ];
   const initialSuppliers = [
     { id: "sup_1", name: "MATFORCE BTP & MAT\xC9RIAUX", phone: "+223 20 22 00 00", rating: 5, address: "Zone Industrielle Sotuba" },
     { id: "sup_2", name: "SOGEA MAT\xC9RIAUX DU MALI", phone: "+223 20 23 11 22", rating: 5, address: "Bd du 22 Octobre" },
@@ -3252,18 +3349,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     }
     return loadedRecipes;
   });
-  const [clients, setClients] = useState(() => {
-    const stored = LS.get("clients", activeOrganizationId);
-    return Array.isArray(stored) ? stored : [];
-  });
+  const estModeDemo = !sbUser || sbUser.id === "guest";
+  const donneesInitiales = (stored, jeuDemo) => Array.isArray(stored) ? stored : estModeDemo ? jeuDemo : [];
+  const [clients, setClients] = useState(() => donneesInitiales(LS.get("clients", activeOrganizationId), initialClients));
   const updateClients = (newClients) => {
     setClients(newClients);
     LS.set("clients", newClients, activeOrganizationId);
   };
-  const [projects, setProjects] = useState(() => {
-    const stored = LS.get("projects", activeOrganizationId);
-    return Array.isArray(stored) ? stored : [];
-  });
+  const [projects, setProjects] = useState(() => donneesInitiales(LS.get("projects", activeOrganizationId), initialProjects));
   const updateProjects = (newProjects) => {
     setProjects(newProjects);
     LS.set("projects", newProjects, activeOrganizationId);
@@ -3273,8 +3366,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [savedQuotes, setSavedQuotes] = useState(() => {
-    const loaded = loadLocalData("savedQuotes", []);
-    return Array.isArray(loaded) ? loaded : [];
+    return donneesInitiales(LS.get("savedQuotes", sbUser?.id), initialSavedQuotes);
   });
   useEffect(() => {
     if (savedQuotes.some((q) => q.number === hybridQuote.number)) {

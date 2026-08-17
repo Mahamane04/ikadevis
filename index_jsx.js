@@ -4312,6 +4312,111 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             { id: 4, name: 'Société VRD & Assainissement BTP', trade: 'Terrassement Lourd', phone: '+223 75 44 22 11', defaultMarkup: 12 }
         ];
 
+        // ── DONNÉES DE DÉMONSTRATION — MODE INVITÉ UNIQUEMENT ─────────────
+        // Servent à faire découvrir l'app sans créer de compte. Elles ne
+        // doivent JAMAIS apparaître sur un compte réel : voir estModeDemo
+        // plus bas, qui conditionne leur usage.
+
+        const initialClients = [
+            {
+                id: 'cli-001',
+                name: 'Société Immobilière NBB',
+                contactPerson: 'M. Amadou DIOP (Directeur Général)',
+                taxId: 'NIF-00482910-A',
+                email: 'contact@nbb-immo.com',
+                phone: '+221 77 654 32 10',
+                address: 'Boulevard de la République',
+                city: 'Dakar',
+                notes: 'Grand compte immobilier, projets tertiaires & résidentiels.'
+            },
+            {
+                id: 'cli-002',
+                name: 'Résidence Les Almadies',
+                contactPerson: 'Mme Fatou SOW (Syndic)',
+                taxId: 'NIF-00918234-B',
+                email: 'syndic@almadies-residence.sn',
+                phone: '+221 78 432 19 87',
+                address: 'Route des Almadies',
+                city: 'Dakar',
+                notes: 'Rénovations régulières et étanchéité façades.'
+            }
+        ];
+
+        const initialProjects = [
+            {
+                id: 'prj-001',
+                code: 'PRJ-2026-001',
+                name: 'Construction Siège NBB',
+                clientId: 'cli-001',
+                clientName: 'Société Immobilière NBB',
+                siteAddress: 'Plateau, Rue Carnot',
+                city: 'Dakar',
+                status: 'active',
+                budgetEstimated: 150000000,
+                createdAt: '2026-01-15'
+            },
+            {
+                id: 'prj-002',
+                code: 'PRJ-2026-002',
+                name: 'Rénovation Façades ACM & Enseignes LED',
+                clientId: 'cli-002',
+                clientName: 'Résidence Les Almadies',
+                siteAddress: 'Corniche Ouest',
+                city: 'Dakar',
+                status: 'in_progress',
+                budgetEstimated: 45000000,
+                createdAt: '2026-02-01'
+            }
+        ];
+
+        const initialSavedQuotes = [
+            {
+                id: 101,
+                number: `DEV-${new Date().getFullYear()}-001`,
+                versionNumber: 1,
+                clientName: 'Société Immobilière NBB',
+                projectRef: 'Construction Siège NBB',
+                date: new Date().toLocaleDateString('fr-FR'),
+                status: 'approved',
+                vatRate: 18,
+                quoteData: {
+                    netHTConsomme: 12500000,
+                    tvaConsomme: 2250000,
+                    totalTTCConsomme: 14750000,
+                    totalDebourseConsomme: 8500000,
+                    fraisGenerauxConsomme: 600000,
+                    margeValeurConsomme: 3400000,
+                    margePctConsommeReelle: 27.2,
+                    lots: [
+                        {
+                            id: 'lot-1',
+                            lotName: 'Lot 03 — Gros Œuvre & Béton Armé',
+                            quoteData: {
+                                netHTConsomme: 12500000,
+                                totalTTCConsomme: 14750000,
+                                totalDebourseConsomme: 8500000
+                            }
+                        }
+                    ],
+                    commercialItems: [
+                        {
+                            name: 'Lot 03 — Gros Œuvre & Béton Armé B25',
+                            billedQty: 1,
+                            unit: 'forfait',
+                            sellingUnitHT: 12500000,
+                            sellingTotalHT: 12500000
+                        }
+                    ]
+                },
+                companyInfoSnapshot: {
+                    name: 'MicroOffice BTP Ingénierie',
+                    currency: 'FCFA',
+                    paymentTerms: '40% acompte, 30% avancement, 20% finitions, 10% solde',
+                    quoteValidity: '30 jours'
+                }
+            }
+        ];
+
 
 
 
@@ -4711,34 +4816,39 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return loadedRecipes;
     });
 
-    // P0.8 (2026-08-17) — Plus aucune donnée de démonstration injectée.
+    // P0.8 (2026-08-17) — Données de démonstration réservées au Mode Invité.
     //
     // L'ancienne logique était : `stored.length > 0 ? stored : initialClients`,
     // c'est-à-dire « si l'utilisateur n'a aucun client, affiche les clients
-    // fictifs ». Trois problèmes, constatés sur le site déployé :
-    //   1. Un nouveau client découvrait des fiches sénégalaises qui n'étaient
+    // fictifs » — sans distinguer un compte réel d'une simple démo. Trois
+    // problèmes, constatés sur le site déployé :
+    //   1. Un client payant découvrait des fiches sénégalaises qui n'étaient
     //      pas les siennes (Société Immobilière NBB, Résidence Les Almadies…).
     //   2. Ces fiches n'existent QUE dans localStorage — jamais en base. Un
     //      devis rattaché à l'une d'elles pointait vers un client fantôme.
     //   3. La condition `length > 0` rendait le zéro impossible : supprimer
     //      tous ses clients faisait RÉAPPARAÎTRE les données de démo.
     //
-    // On distingue désormais explicitement « rien de stocké » (nouveau compte)
-    // de « stocké et vide » (tout supprimé) : dans les deux cas, tableau vide.
-    // Les vues affichent un état vide dédié avec un appel à l'action.
-    const [clients, setClients] = useState(() => {
-        const stored = LS.get('clients', activeOrganizationId);
-        return Array.isArray(stored) ? stored : [];
-    });
+    // Désormais :
+    //   · Mode Invité   → jeu de démonstration au premier lancement, pour
+    //                     faire découvrir l'app sans créer de compte.
+    //   · Compte réel   → toujours vide au départ, avec un état vide dédié.
+    //   · Dans les deux cas, `Array.isArray(stored)` distingue « rien de
+    //     stocké » (premier lancement) de « stocké et vide » (tout supprimé),
+    //     ce qui règle la réapparition après suppression.
+    const estModeDemo = !sbUser || sbUser.id === 'guest';
+    const donneesInitiales = (stored, jeuDemo) =>
+        Array.isArray(stored) ? stored : (estModeDemo ? jeuDemo : []);
+
+    const [clients, setClients] = useState(() =>
+        donneesInitiales(LS.get('clients', activeOrganizationId), initialClients));
     const updateClients = (newClients) => {
         setClients(newClients);
         LS.set('clients', newClients, activeOrganizationId);
     };
 
-    const [projects, setProjects] = useState(() => {
-        const stored = LS.get('projects', activeOrganizationId);
-        return Array.isArray(stored) ? stored : [];
-    });
+    const [projects, setProjects] = useState(() =>
+        donneesInitiales(LS.get('projects', activeOrganizationId), initialProjects));
     const updateProjects = (newProjects) => {
         setProjects(newProjects);
         LS.set('projects', newProjects, activeOrganizationId);
@@ -4753,11 +4863,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [selectedProjectId, setSelectedProjectId] = useState(null);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
-        // P0.8 — même correctif que clients/projects : plus de devis de
-        // démonstration injecté, et supprimer tous ses devis ne les fait
-        // plus réapparaître.
-        const loaded = loadLocalData('savedQuotes', []);
-        return Array.isArray(loaded) ? loaded : [];
+        // P0.8 — même règle que clients/projects : jeu de démonstration en
+        // Mode Invité uniquement, jamais sur un compte réel.
+        // NB : loadLocalData applique déjà sa valeur par défaut quand rien
+        // n'est stocké, on lit donc directement LS pour distinguer
+        // « rien de stocké » de « stocké et vide ».
+        return donneesInitiales(LS.get('savedQuotes', sbUser?.id), initialSavedQuotes);
     });
 
     // P0.11 (2026-08-17) — Bug trouvé en testant 3 devis à la suite : le devis

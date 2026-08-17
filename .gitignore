@@ -8,3 +8,4 @@ config.js
 *.log
 .DS_Store
 dist/
+.claude/
