@@ -4096,6 +4096,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [selectedMaterialId, setSelectedMaterialId] = useState(null);
     const [selectedLaborId, setSelectedLaborId] = useState(null);
     const [isResourceEditMode, setIsResourceEditMode] = useState(false);
+    // P0.19 — Bascule "liste guidée" ↔ "saisie libre" pour catégorie et
+    // conditionnement : la liste couvre l'existant, la saisie libre reste
+    // possible pour un cas nouveau, sans imposer l'un ou l'autre.
+    const [isCustomCategory, setIsCustomCategory] = useState(false);
+    const [isCustomPackaging, setIsCustomPackaging] = useState(false);
     const [resourceDetailTab, setResourceDetailTab] = useState('overview'); // 'overview' | 'history' (matières uniquement)
     const [materialHistory, setMaterialHistory] = useState([]);
     const [materialHistoryLoading, setMaterialHistoryLoading] = useState(false);
@@ -7682,7 +7687,38 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         </div>
     );
 
+    // P0.19 (2026-08-17) — Le formulaire "Nouvelle matière" était en saisie
+    // libre sur des champs que le moteur de calcul interprète, pas de simples
+    // libellés :
+    //   · `unitCalc` est l'unité utilisée par TOUTES les formules de recette et
+    //     par convertUnit()/getUnitCategory() — une saisie hors du vocabulaire
+    //     connu ("mètre" au lieu de "m") casse silencieusement la conversion
+    //     d'unités, sans erreur visible ;
+    //   · `category` alimente le regroupement du catalogue — une faute de
+    //     frappe crée une catégorie fantôme en double.
+    // Les options viennent donc de la source de vérité existante : les unités
+    // déclarées dans BTP_UNIT_CATEGORIES (js/calc-engine.js) et les catégories
+    // réellement présentes dans la base, pas d'une liste inventée en dur.
+    const CALC_UNIT_GROUP_LABELS = {
+        length: 'Longueur', surface: 'Surface', volume: 'Volume',
+        weight: 'Poids', time: 'Temps', count: 'Unités & conditionnements'
+    };
+    const calcUnitOptions = Object.entries(BTP_UNIT_CATEGORIES).flatMap(([groupKey, group]) =>
+        Object.keys(group.units).map(u => ({ value: u, label: `${CALC_UNIT_GROUP_LABELS[groupKey] || groupKey} · ${u}` }))
+    );
+    // Conditionnements d'achat rencontrés dans le BTP. Alimenté par ce qui
+    // existe déjà en base pour ne pas perdre les libellés composés
+    // ("Barre (6m)", "Carton (1.44m²)"…) saisis avant ce correctif.
+    const PACKAGING_SUGGESTIONS = ['Unité', 'Barre', 'Plaque', 'Feuille', 'Carton', 'Sac', 'Pot', 'Seau', 'Rouleau', 'Couronne', 'Palette', 'm', 'm²', 'm³', 'kg', 'L'];
+
     const renderMaterials = () => {
+        const existingCategories = [...new Set(materials.map(m => (m.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+        const categoryOptionsList = [...existingCategories.map(c => ({ value: c, label: c })), { value: '__new__', label: '＋ Nouvelle catégorie…' }];
+        const existingPackagings = [...new Set(materials.map(m => (m.unitBuy || '').trim()).filter(Boolean))];
+        const packagingOptionsList = [
+            ...[...new Set([...existingPackagings, ...PACKAGING_SUGGESTIONS])].sort((a, b) => a.localeCompare(b, 'fr')).map(u => ({ value: u, label: u })),
+            { value: '__new__', label: '＋ Autre conditionnement…' }
+        ];
         const selectedMaterial = materials.find(m => m.id === selectedMaterialId) || null;
         const selectedLaborItem = labor.find(l => l.id === selectedLaborId) || null;
         const editingIsNew = isResourceEditMode && (
@@ -7697,11 +7733,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         const openMaterialDetail = (m) => { setSelectedMaterialId(m.id); setIsResourceEditMode(false); setResourceDetailTab('overview'); };
         const openLaborDetail = (l) => { setSelectedLaborId(l.id); setIsResourceEditMode(false); };
-        const startEditMaterial = (m) => { setMatForm({ ...m }); setSelectedMaterialId(m.id); setIsResourceEditMode(true); };
+        const startEditMaterial = (m) => { setMatForm({ ...m }); setSelectedMaterialId(m.id); setIsResourceEditMode(true); setIsCustomCategory(false); setIsCustomPackaging(false); };
         const startEditLabor = (l) => { setLaborForm({ ...l }); setSelectedLaborId(l.id); setIsResourceEditMode(true); };
         const startNewMaterial = () => {
-            const draft = { id: Date.now(), name: '', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: '', waste: 5, yieldRate: 0, purchaseMode: 'pack' };
-            setMatForm(draft); setSelectedMaterialId(draft.id); setIsResourceEditMode(true); setResourceDetailTab('overview');
+            const draft = { id: Date.now(), name: '', category: existingCategories[0] || 'BTP', unitBuy: 'Barre', unitSize: 6, unitCalc: 'm', priceBuy: '', waste: 5, yieldRate: 0, purchaseMode: 'pack' };
+            setMatForm(draft); setSelectedMaterialId(draft.id); setIsResourceEditMode(true); setResourceDetailTab('overview'); setIsCustomCategory(false); setIsCustomPackaging(false);
         };
         const startNewLabor = () => {
             const draft = { id: Date.now(), name: '', calcMode: 'unite', unit: 'h', rate: '', yieldRate: 0 };
@@ -7858,35 +7894,161 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 resourceTab === 'materials' ? (
                                     <form onSubmit={saveMaterial} className="space-y-5">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div className="md:col-span-2"><label className="app-label">Nom complet</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={matForm.name} onChange={e => setMatForm({ ...matForm, name: e.target.value })} /></div>
-                                            <div><label className="app-label">Catégorie</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.category} onChange={e => setMatForm({ ...matForm, category: e.target.value })} /></div>
-                                            <div><label className="app-label">Unité d'achat (ex: Barre)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitBuy} onChange={e => setMatForm({ ...matForm, unitBuy: e.target.value })} /></div>
-                                            <div><label className="app-label">Taille (ex: 6)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" step="0.01" min="0.01" className="app-input" value={matForm.unitSize} onChange={e => setMatForm({ ...matForm, unitSize: e.target.value })} /></div>
-                                            <div><label className="app-label">Unité calcul (ex: m)</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input" value={matForm.unitCalc} onChange={e => setMatForm({ ...matForm, unitCalc: e.target.value })} /></div>
+                                            <div className="md:col-span-2">
+                                                <label className="app-label">Nom complet</label>
+                                                <input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" placeholder="Ex: Tube carré acier 25x25 (Cadres & Renforts)" value={matForm.name} onChange={e => setMatForm({ ...matForm, name: e.target.value })} />
+                                            </div>
+
+                                            <div>
+                                                <label className="app-label">Catégorie</label>
+                                                {isCustomCategory ? (
+                                                    <div className="flex gap-2">
+                                                        <input disabled={isReadOnlyDueToDowngrade} required autoFocus type="text" className="app-input" placeholder="Ex: Étanchéité" value={matForm.category} onChange={e => setMatForm({ ...matForm, category: e.target.value })} />
+                                                        <button type="button" onClick={() => { setIsCustomCategory(false); setMatForm({ ...matForm, category: existingCategories[0] || '' }); }} className="btn-secondary px-3 shrink-0" title="Revenir à la liste" aria-label="Revenir à la liste des catégories">
+                                                            <i className="fa-solid fa-list"></i>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <CustomSelect
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        value={matForm.category}
+                                                        options={categoryOptionsList}
+                                                        onChange={e => {
+                                                            if (e.target.value === '__new__') { setIsCustomCategory(true); setMatForm({ ...matForm, category: '' }); }
+                                                            else setMatForm({ ...matForm, category: e.target.value });
+                                                        }}
+                                                    />
+                                                )}
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Sert au regroupement du catalogue.</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="app-label">Unité de calcul</label>
+                                                <CustomSelect
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    value={matForm.unitCalc}
+                                                    options={calcUnitOptions}
+                                                    onChange={e => setMatForm({ ...matForm, unitCalc: e.target.value })}
+                                                />
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Unité employée par les formules de recette (SURFACE, VOLUME…).</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="app-label">Conditionnement d'achat</label>
+                                                {isCustomPackaging ? (
+                                                    <div className="flex gap-2">
+                                                        <input disabled={isReadOnlyDueToDowngrade} required autoFocus type="text" className="app-input" placeholder="Ex: Couronne (50m)" value={matForm.unitBuy} onChange={e => setMatForm({ ...matForm, unitBuy: e.target.value })} />
+                                                        <button type="button" onClick={() => { setIsCustomPackaging(false); setMatForm({ ...matForm, unitBuy: 'Unité' }); }} className="btn-secondary px-3 shrink-0" title="Revenir à la liste" aria-label="Revenir à la liste des conditionnements">
+                                                            <i className="fa-solid fa-list"></i>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <CustomSelect
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        value={matForm.unitBuy}
+                                                        options={packagingOptionsList}
+                                                        onChange={e => {
+                                                            if (e.target.value === '__new__') { setIsCustomPackaging(true); setMatForm({ ...matForm, unitBuy: '' }); }
+                                                            else setMatForm({ ...matForm, unitBuy: e.target.value });
+                                                        }}
+                                                    />
+                                                )}
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Ce que le fournisseur vous vend.</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="app-label">Contenu d'un conditionnement</label>
+                                                <div className="relative">
+                                                    <input
+                                                        disabled={isReadOnlyDueToDowngrade || matForm.purchaseMode === 'real'}
+                                                        required type="number" step="0.01" min="0.01"
+                                                        className="app-input pr-14"
+                                                        value={matForm.unitSize}
+                                                        onChange={e => setMatForm({ ...matForm, unitSize: e.target.value })}
+                                                    />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                                </div>
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">
+                                                    {matForm.purchaseMode === 'real'
+                                                        ? 'Fixé à 1 : en quantité réelle, on achète exactement l’unité de calcul.'
+                                                        : `Ex : une barre de 6 ${matForm.unitCalc || 'm'} → saisir 6.`}
+                                                </p>
+                                            </div>
+
                                             <div>
                                                 <label className="app-label">Prix d'Achat Brut</label>
                                                 <div className="relative">
-                                                    <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={matForm.priceBuy} onChange={e => setMatForm({ ...matForm, priceBuy: e.target.value })} />
+                                                    <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-16" placeholder="0" value={matForm.priceBuy} onChange={e => setMatForm({ ...matForm, priceBuy: e.target.value })} />
                                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
                                                 </div>
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Prix payé pour UN conditionnement entier.</p>
                                             </div>
-                                            <div><label className="app-label">Rendement Matière (m²/unité)</label><input disabled={isReadOnlyDueToDowngrade} type="number" step="0.1" min="0" className="app-input font-bold" value={matForm.yieldRate || ''} onChange={e => setMatForm({ ...matForm, yieldRate: e.target.value })} placeholder="ex: 10 (m²/L)" /></div>
-                                            <div><label className="app-label">Taux de perte (%)</label><input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" max="100" className="app-input" value={matForm.waste} onChange={e => setMatForm({ ...matForm, waste: e.target.value })} /></div>
+
+                                            <div>
+                                                <label className="app-label">Taux de perte (%)</label>
+                                                <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" max="100" className="app-input" value={matForm.waste} onChange={e => setMatForm({ ...matForm, waste: e.target.value })} />
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Chutes et casse ajoutées à la quantité calculée.</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="app-label">Rendement Matière (optionnel)</label>
+                                                <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.1" min="0" className="app-input font-bold" value={matForm.yieldRate || ''} onChange={e => setMatForm({ ...matForm, yieldRate: e.target.value })} placeholder="ex: 10" />
+                                                <p className="text-[11px] text-neutral-400 mt-1.5">Surface couverte par unité (peinture, colle…). Laisser vide sinon.</p>
+                                            </div>
+
                                             <div>
                                                 <label className="app-label">Stratégie d'Achat BTP</label>
-                                                <select disabled={isReadOnlyDueToDowngrade} className="app-input font-bold" value={matForm.purchaseMode || 'pack'} onChange={e => setMatForm({ ...matForm, purchaseMode: e.target.value })}>
-                                                    <option value="pack">Conditionnement Entier (Barre/Feuille/Pot)</option>
-                                                    <option value="real">Quantité Réelle Exacte (au m², m, L)</option>
-                                                    <option value="step">Pas Commercial Ajustable</option>
-                                                </select>
+                                                <CustomSelect
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    value={matForm.purchaseMode || 'pack'}
+                                                    options={[
+                                                        { value: 'pack', label: 'Conditionnement entier (barre, feuille, pot…)' },
+                                                        { value: 'real', label: 'Quantité réelle exacte (au m², m, L)' },
+                                                        { value: 'step', label: 'Pas commercial ajustable' }
+                                                    ]}
+                                                    onChange={e => {
+                                                        // En quantité réelle, l'unité d'achat EST l'unité de calcul :
+                                                        // unitSize doit valoir 1, sinon priceCalc = priceBuy/unitSize
+                                                        // fausse le coût unitaire (toutes les matières 'real' de la
+                                                        // base respectent déjà cette convention).
+                                                        const next = { ...matForm, purchaseMode: e.target.value };
+                                                        if (e.target.value === 'real') next.unitSize = 1;
+                                                        setMatForm(next);
+                                                    }}
+                                                />
                                             </div>
+
                                             {(matForm.purchaseMode === 'step') && (
                                                 <div>
-                                                    <label className="app-label">Pas Commercial (ex: 0.5)</label>
-                                                    <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.01" min="0.01" className="app-input font-bold text-brand-600" value={matForm.purchaseStep || 0.5} onChange={e => setMatForm({ ...matForm, purchaseStep: e.target.value })} />
+                                                    <label className="app-label">Pas Commercial</label>
+                                                    <div className="relative">
+                                                        <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.01" min="0.01" className="app-input font-bold text-brand-600 pr-14" value={matForm.purchaseStep || 0.5} onChange={e => setMatForm({ ...matForm, purchaseStep: e.target.value })} />
+                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                                    </div>
+                                                    <p className="text-[11px] text-neutral-400 mt-1.5">L’achat est arrondi à ce multiple (ex : 0.5 → 2.5 puis 3).</p>
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Contrôle immédiat : le coût unitaire net est ce que les
+                                            formules de recette consomment (priceCalc = prix / contenu).
+                                            L'afficher en direct rend visible une saisie incohérente
+                                            avant l'enregistrement, au lieu de la découvrir dans un devis. */}
+                                        {(parseFloat(matForm.priceBuy) > 0 && parseFloat(matForm.unitSize) > 0) && (
+                                            <div className="bg-brand-50/50 border border-brand-100 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2">
+                                                <span className="text-xs font-bold text-neutral-600">
+                                                    Coût unitaire net calculé
+                                                    <span className="block text-[11px] font-medium text-neutral-400 mt-0.5">
+                                                        {formatMoney(parseFloat(matForm.priceBuy), companyInfo.currency)} ÷ {matForm.unitSize} {matForm.unitCalc || 'u'}
+                                                    </span>
+                                                </span>
+                                                <span className="text-lg font-black text-brand-600 font-mono">
+                                                    {formatMoney(parseFloat(matForm.priceBuy) / parseFloat(matForm.unitSize), companyInfo.currency)}
+                                                    <span className="text-xs font-bold text-neutral-500"> / {matForm.unitCalc || 'u'}</span>
+                                                </span>
+                                            </div>
+                                        )}
+
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
                                             <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la ressource"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
