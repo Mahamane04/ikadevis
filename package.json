@@ -1,10 +1,11 @@
 {
   "type": "module",
   "scripts": {
+    "start": "python3 -m http.server 8099",
     "test": "node scratch/test_master_saas_100.mjs",
+    "build": "npm run build:css && npm run build:js",
     "build:css": "tailwindcss -i ./tailwind.input.css -o ./tailwind.css --minify",
     "build:js": "esbuild index_jsx.js --outfile=app.compiled.js --loader:.js=jsx --jsx-factory=React.createElement --jsx-fragment=React.Fragment",
-    "build": "npm run build:css && npm run build:js",
     "config": "node scripts/generate-config.mjs"
   },
   "dependencies": {
