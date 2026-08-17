@@ -6193,7 +6193,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const availableModesOptions = allModes.filter(m => allowedModes.includes(m.value));
 
         return (
-        <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-6 pb-20 lg:pb-12">
+        <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-6 pb-20 md:pb-12">
             {/* BANNIÈRE DE BASCULE VERS L'INTERFACE HYBRIDE V6 */}
             <div className="bg-gradient-to-r from-neutral-900 to-brand-950 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-neutral-800">
                 <div className="flex items-center gap-3">
@@ -7723,6 +7723,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
+    // P0.9 (2026-08-17) — Composant dédié au restyle de la sidebar/tiroir de
+    // navigation (desktop, tablette repliée, tiroir mobile). Distinct de
+    // NavItem ci-dessus (qui reste inchangé, utilisé par la barre d'onglets
+    // du bas) pour ne jamais affecter cette dernière. Même state/handlers
+    // (setActiveView, activeView) — aucune logique métier nouvelle.
+    const SidebarNavItem = ({ id, icon, label, onClickExtra, collapsed = false }) => {
+        const isActive = activeView === id;
+        return (
+            <div className={collapsed ? 'relative sidebar-item-collapsed-wrap' : 'relative'}>
+                <button
+                    onClick={() => { setActiveView(id); if (onClickExtra) onClickExtra(); }}
+                    aria-current={isActive ? 'page' : undefined}
+                    aria-label={collapsed ? label : undefined}
+                    className={`sidebar-item outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${collapsed ? 'sidebar-item-collapsed' : ''} ${isActive ? 'sidebar-item-active' : ''}`}
+                >
+                    <i className={`fa-solid ${icon} sidebar-item-icon`}></i>
+                    {!collapsed && <span className="sidebar-item-label">{label}</span>}
+                </button>
+                {collapsed && <span className="sidebar-tooltip" role="tooltip">{label}</span>}
+            </div>
+        );
+    };
+
     return (
         <div className="flex h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
             {/* SKIP LINK ACCESSIBLE POUR NAVIGATION CLAVIER / LECTEURS D'ÉCRAN */}
@@ -7734,7 +7757,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             </a>
 
             {/* SIDEBAR DESKTOP (≥ 1024px) */}
-            <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-neutral-200 z-20 shrink-0">
+            <aside className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
                 <div className="p-4 flex flex-col gap-3 border-b border-neutral-100 shrink-0">
                     <div className="flex items-center justify-between">
                         <LogoSVG className="h-8 w-auto" />
@@ -7754,18 +7777,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         isGuest={!sbUser || sbUser.id === 'guest'}
                     />
                 </div>
-                <nav className="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-1 custom-scroll" aria-label="Menu principal">
-                    <p className="px-4 text-[10px] font-extrabold text-neutral-400 uppercase tracking-widest mb-3">Menu Principal</p>
-                    <NavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" />
-                    <NavItem id="clients" icon="fa-users" label="Clients (CRM)" />
-                    <NavItem id="calculator" icon="fa-calculator" label="Créer un Devis" />
-                    <NavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" />
-                    <NavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" />
-                    <NavItem id="materials" icon="fa-database" label="Ressources & Prix" />
+                <nav className="flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll" aria-label="Menu principal">
+                    <p className="sidebar-section-label">Menu Principal</p>
+                    <SidebarNavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" />
+                    <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" />
+                    <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" />
+                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" />
+                    <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" />
+                    <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" />
                 </nav>
-                <div className="p-4 border-t border-neutral-100 flex flex-col gap-2">
+                <div className="p-4 border-t border-neutral-100 flex flex-col gap-2.5">
                     {sbUser && (
-                        <div className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl text-xs font-semibold border ${
+                        <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${
                             sbSyncStatus === 'saved' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                             sbSyncStatus === 'syncing' ? 'bg-blue-50 text-blue-800 border-blue-200' :
                             sbSyncStatus === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
@@ -7790,40 +7813,85 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                     )}
                     {hasPermission(activeOrganizationRole, 'canViewAudit') && (
-                        <button onClick={() => setIsAuditModalOpen(true)} className="w-full btn-secondary text-xs py-2 px-3 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border-indigo-200 flex items-center justify-center gap-2 font-bold" aria-label="Journal de sécurité et audit">
+                        <button onClick={() => setIsAuditModalOpen(true)} className="w-full btn-secondary text-xs py-2.5 px-3 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border-indigo-200 flex items-center justify-center gap-2 font-bold" aria-label="Journal de sécurité et audit">
                             <i className="fa-solid fa-shield-halved text-indigo-600"></i> Journal d'Audit & Sécurité
                         </button>
                     )}
-                    <button onClick={() => setIsCompanyModalOpen(true)} className="w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres de l'entreprise">
+                    <button onClick={() => setIsCompanyModalOpen(true)} className="w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres de l'entreprise">
                         <i className="fa-solid fa-building text-brand-500"></i> Paramètres Entreprise
                     </button>
                     {onSignOut && (
-                        <button onClick={onSignOut} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
+                        <button onClick={onSignOut} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
                             <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
                         </button>
                     )}
                 </div>
             </aside>
 
-            {/* TIROIR MOBILE / TABLETTE (< 1024px) */}
+            {/* RAIL TABLETTE REPLIÉ (768–1023px) — icônes seules + tooltip au survol,
+                mêmes items/handlers que la sidebar desktop, rien de nouveau côté logique. */}
+            <aside className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4">
+                {/* Repère visuel de marque au format icône seule (rail replié trop
+                    étroit pour le logo complet ikadevis + baseline) */}
+                <svg className="h-7 w-7" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="5" y="5" width="40" height="40" rx="10" fill="#E6222B"/>
+                    <path d="M15 30L23 18L31 30H15Z" fill="white"/>
+                    <circle cx="33" cy="17" r="4" fill="white"/>
+                </svg>
+                <nav className="flex-1 overflow-y-auto flex flex-col gap-[5px] custom-scroll w-full items-center" aria-label="Menu principal (replié)">
+                    <SidebarNavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" collapsed />
+                    <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" collapsed />
+                    <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" collapsed />
+                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" collapsed />
+                    <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" collapsed />
+                    <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" collapsed />
+                </nav>
+                <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
+                    {hasPermission(activeOrganizationRole, 'canViewAudit') && (
+                        <div className="relative sidebar-item-collapsed-wrap">
+                            <button onClick={() => setIsAuditModalOpen(true)} className="btn-icon text-indigo-600 hover:bg-indigo-50" aria-label="Journal de sécurité et audit">
+                                <i className="fa-solid fa-shield-halved"></i>
+                            </button>
+                            <span className="sidebar-tooltip" role="tooltip">Journal d'Audit & Sécurité</span>
+                        </div>
+                    )}
+                    <div className="relative sidebar-item-collapsed-wrap">
+                        <button onClick={() => setIsCompanyModalOpen(true)} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres de l'entreprise">
+                            <i className="fa-solid fa-building"></i>
+                        </button>
+                        <span className="sidebar-tooltip" role="tooltip">Paramètres Entreprise</span>
+                    </div>
+                    {onSignOut && (
+                        <div className="relative sidebar-item-collapsed-wrap">
+                            <button onClick={onSignOut} className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
+                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                            </button>
+                            <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
+                        </div>
+                    )}
+                </div>
+            </aside>
+
+            {/* TIROIR MOBILE (< 768px) — au-delà, le rail tablette/desktop prend le
+                relais (persistant, plus besoin d'un tiroir off-canvas). */}
             {isMobileDrawerOpen && (
-                <div className="fixed inset-0 z-[150] lg:hidden flex" role="dialog" aria-modal="true" aria-label="Menu de navigation mobile">
+                <div className="fixed inset-0 z-[150] md:hidden flex" role="dialog" aria-modal="true" aria-label="Menu de navigation mobile">
                     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
-                    <div className="relative flex flex-col w-72 max-w-[85vw] bg-white h-full shadow-2xl z-10 animate-fade-in">
+                    <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
                         <div className="p-4 flex items-center justify-between border-b border-neutral-100">
                             <LogoSVG className="h-8" />
                             <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
                                 <i className="fa-solid fa-xmark text-xl"></i>
                             </button>
                         </div>
-                        <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2" aria-label="Navigation mobile">
-                            <p className="px-3 text-[10px] font-extrabold text-neutral-400 uppercase tracking-widest mb-1">Navigation</p>
-                            <NavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <NavItem id="clients" icon="fa-users" label="Clients (CRM)" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <NavItem id="calculator" icon="fa-calculator" label="Créer un Devis" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <NavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <NavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <NavItem id="materials" icon="fa-database" label="Ressources & Prix" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                        <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
+                            <p className="sidebar-section-label">Navigation</p>
+                            <SidebarNavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                         </nav>
                         <div className="p-4 border-t border-neutral-100 space-y-2">
                             <button onClick={() => { setIsCompanyModalOpen(true); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres entreprise">
@@ -7840,8 +7908,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             )}
 
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                {/* HEADER SOUS 1024px AVEC BOUTON HAMBURGER */}
-                <header className="lg:hidden shrink-0 h-16 bg-white border-b border-neutral-200 z-30 flex items-center justify-between px-4 shadow-sm">
+                {/* HEADER SOUS 768px AVEC BOUTON HAMBURGER (tablette/desktop ont le rail/la sidebar persistants) */}
+                <header className="md:hidden shrink-0 h-16 bg-white border-b border-neutral-200 z-30 flex items-center justify-between px-4 shadow-sm">
                     <div className="flex items-center gap-3">
                         <button 
                             onClick={() => setIsMobileDrawerOpen(true)} 
@@ -7890,7 +7958,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 )}
 
-                <main id="main-content" className="flex-1 overflow-y-auto w-full custom-scroll pb-28 lg:pb-8">
+                <main id="main-content" className="flex-1 overflow-y-auto w-full custom-scroll pb-28 md:pb-8">
                     <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
                         <header className="hidden lg:flex h-12 items-center justify-between mb-6 shrink-0">
                             <h1 className="text-2xl font-extrabold text-neutral-800 tracking-tight">
@@ -7927,8 +7995,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 </main>
 
-                {/* BOTTOM BAR MOBILE & TABLETTE (< 1024px) */}
-                <nav className="lg:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
+                {/* BOTTOM BAR MOBILE (< 768px) — tablette/desktop ont le rail/la sidebar persistants */}
+                <nav className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
                     <NavItem id="calculator" icon="fa-calculator" label="Calcul" />
                     <NavItem id="savedQuotes" icon="fa-folder-open" label="Mes devis" />
                     <NavItem id="recipes" icon="fa-layer-group" label="Catalogue" />

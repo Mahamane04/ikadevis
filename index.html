@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ikadevis — Calculateur de Devis BTP</title>
-    <link rel="stylesheet" href="tailwind.css">
+    <!-- P0.9 (2026-08-17) — Cache-buster manuel : bump ?v=AAAAMMJJ à chaque
+         build (npm run build) pour forcer les navigateurs à recharger le CSS/JS
+         au lieu de servir une version en cache (piège rencontré en vérifiant le
+         restyle sidebar : un onglet de test ET un appareil utilisateur servaient
+         tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
+    <link rel="stylesheet" href="tailwind.css?v=20260817">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -97,6 +102,53 @@
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
 
+        /* P0.9 (2026-08-17) — Restyle sidebar/tiroir de navigation, contenu et
+           logique inchangés (menus, routes, permissions). Variables isolées ici
+           pour ajuster facilement l'accent (bleu de référence) sans toucher au
+           reste de la palette brand-* (rouge) utilisée ailleurs dans l'app. */
+        :root {
+            --sidebar-width: clamp(250px, 18vw, 300px);
+            --sidebar-collapsed-width: 72px;
+            --sidebar-bg: #f8f8ff;
+            --sidebar-text: #252a44;
+            --sidebar-muted: #646a80;
+            --sidebar-active: #4b8df8;
+            --sidebar-active-text: #ffffff;
+            --sidebar-hover: rgba(88, 98, 170, 0.06);
+            --sidebar-radius: 11px;
+        }
+        .sidebar-shell { width: var(--sidebar-width); background-color: var(--sidebar-bg); }
+        .sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); background-color: var(--sidebar-bg); }
+        .sidebar-section-label {
+            padding: 0 14px; margin-bottom: 6px;
+            font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--sidebar-muted);
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 14px;
+            min-height: 52px; width: 100%; padding: 0 14px;
+            border-radius: var(--sidebar-radius);
+            background: transparent; color: var(--sidebar-text);
+            font-size: 15px; font-weight: 500; text-align: left;
+            transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+        }
+        .sidebar-item:hover { background: var(--sidebar-hover); }
+        .sidebar-item:active { transform: scale(0.98); }
+        .sidebar-item-active, .sidebar-item-active:hover {
+            background: var(--sidebar-active); color: var(--sidebar-active-text); font-weight: 600;
+        }
+        .sidebar-item-collapsed { justify-content: center; padding: 0; gap: 0; }
+        .sidebar-item-icon { width: 22px; font-size: 17px; text-align: center; flex-shrink: 0; }
+        .sidebar-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-tooltip {
+            position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+            background: #1e2033; color: #fff; font-size: 12px; font-weight: 600;
+            padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+            opacity: 0; pointer-events: none; transition: opacity 150ms ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 40;
+        }
+        .sidebar-item-collapsed-wrap:hover .sidebar-tooltip { opacity: 1; }
+
         /* P1.2 DEPARTURE A4 PRINT STYLESHEET */
         @media print {
             body * { visibility: hidden !important; }
@@ -118,9 +170,9 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/quote-templates.js"></script>
-    <script src="app.compiled.js"></script>
+    <script src="js/calc-engine.js?v=20260817"></script>
+    <script src="js/utils.js?v=20260817"></script>
+    <script src="js/quote-templates.js?v=20260817"></script>
+    <script src="app.compiled.js?v=20260817"></script>
 </body>
 </html>
