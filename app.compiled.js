@@ -3279,6 +3279,49 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
       setHybridQuote((prev) => ({ ...prev, number: generateNextQuoteNumber(savedQuotes) }));
     }
   }, []);
+  const resolveClientAndProject = (currentClients, currentProjects, clientNameRaw, projectRefRaw, quoteTotal) => {
+    const clientName = (clientNameRaw || "").trim();
+    const projectRef = (projectRefRaw || "").trim();
+    if (!clientName) return { client: null, project: null, clients: currentClients, projects: currentProjects };
+    let clientsArr = currentClients;
+    let client = clientsArr.find((c) => c.name.trim().toLowerCase() === clientName.toLowerCase());
+    if (!client) {
+      client = {
+        id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: clientName,
+        contactPerson: "",
+        taxId: "",
+        email: "",
+        phone: "",
+        address: "",
+        city: "",
+        notes: "Cr\xE9\xE9 automatiquement depuis un devis."
+      };
+      clientsArr = [client, ...clientsArr];
+    }
+    let projectsArr = currentProjects;
+    let project = null;
+    if (projectRef) {
+      project = projectsArr.find((p) => p.name.trim().toLowerCase() === projectRef.toLowerCase() && (p.clientId === client.id || p.clientName === client.name));
+      if (!project) {
+        const newCode = `PRJ-${(/* @__PURE__ */ new Date()).getFullYear()}-${String(projectsArr.length + 1).padStart(3, "0")}`;
+        project = {
+          id: `prj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          code: newCode,
+          name: projectRef,
+          clientId: client.id,
+          clientName: client.name,
+          siteAddress: "",
+          city: client.city || "Dakar",
+          status: "active",
+          budgetEstimated: quoteTotal || 0,
+          createdAt: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
+        };
+        projectsArr = [project, ...projectsArr];
+      }
+    }
+    return { client, project, clients: clientsArr, projects: projectsArr };
+  };
   const [nextQuoteSeq, setNextQuoteSeq] = useState(() => loadLocalData("nextQuoteSeq", 1));
   const [calcForm, setCalcForm] = useState(() => loadLocalData("calcForm", {
     solutionId: 1,
@@ -3687,6 +3730,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
       if (sbDataLoaded && cloudState === "loaded") saveToSupabase({ saved_quotes: newVal });
     }
   }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+  useEffect(() => {
+    let accClients = clients;
+    let accProjects = projects;
+    let changed = false;
+    const updatedQuotes = savedQuotes.map((q) => {
+      if (!q.clientName || q.clientId) return q;
+      const { client, project, clients: nc, projects: np } = resolveClientAndProject(accClients, accProjects, q.clientName, q.projectRef, q.quoteData?.totalTTCConsomme);
+      accClients = nc;
+      accProjects = np;
+      changed = true;
+      return { ...q, clientId: client?.id || null, projectId: project?.id || null };
+    });
+    if (changed) {
+      updateClients(accClients);
+      updateProjects(accProjects);
+      updateSavedQuotes(updatedQuotes);
+    }
+  }, []);
   const updateNextQuoteSeq = useCallback((newVal) => {
     setNextQuoteSeq(newVal);
     if (!isReadOnlyDueToDowngrade && sbUser) {
@@ -4564,6 +4625,11 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
           onSaveQuote: async (savedQ) => {
             setSaveQuoteStatus("saving");
             setSaveQuoteError(null);
+            const { client, project, clients: resolvedClients, projects: resolvedProjects } = resolveClientAndProject(clients, projects, savedQ.clientName, savedQ.projectRef, savedQ.quoteData?.totalTTCConsomme);
+            if (resolvedClients !== clients) updateClients(resolvedClients);
+            if (resolvedProjects !== projects) updateProjects(resolvedProjects);
+            savedQ.clientId = client?.id || null;
+            savedQ.projectId = project?.id || null;
             if (!supabaseClient || !sbUser || sbUser.id === "guest") {
               const updatedQuotes = [savedQ, ...savedQuotes.filter((q) => q.id !== savedQ.id)];
               updateSavedQuotes(updatedQuotes);
@@ -5058,7 +5124,7 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       /* @__PURE__ */ React.createElement("span", null, "Nouveau Client")
     ))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" }, filteredClients.map((c) => {
       const clientProjects = projects.filter((p) => p.clientId === c.id || p.clientName === c.name);
-      const clientQuotes = savedQuotes.filter((q) => q.clientName === c.name);
+      const clientQuotes = savedQuotes.filter((q) => q.clientId === c.id || q.clientName === c.name);
       return /* @__PURE__ */ React.createElement("div", { key: c.id, className: "bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all flex flex-col justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0" }, c.name.substring(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-sm text-neutral-900 truncate" }, c.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 font-medium truncate" }, c.contactPerson))), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 rounded-2xl p-3 text-xs space-y-1 text-neutral-600 border border-neutral-100" }, c.taxId && /* @__PURE__ */ React.createElement("p", { className: "font-mono text-[10px] text-neutral-500" }, /* @__PURE__ */ React.createElement("strong", null, "NIF :"), " ", c.taxId), c.phone && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-phone mr-1.5 text-neutral-400" }), " ", c.phone), c.email && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-envelope mr-1.5 text-neutral-400" }), " ", c.email), c.address && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-location-dot mr-1.5 text-neutral-400" }), " ", c.address, ", ", c.city))), /* @__PURE__ */ React.createElement("div", { className: "pt-2 border-t border-neutral-100 flex justify-between items-center text-xs text-neutral-500" }, /* @__PURE__ */ React.createElement("span", null, clientProjects.length, " Affaires \u2022 ", clientQuotes.length, " Devis"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
         setCalcForm((cf) => ({ ...cf, clientName: c.name, projectRef: `Projet ${c.name}` }));
         setActiveView("calculator");

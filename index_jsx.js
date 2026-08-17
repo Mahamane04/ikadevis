@@ -4724,6 +4724,51 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // P0.12 (2026-08-17) — Anomalie signalée : les clients/affaires réellement
+    // devisés (Gestion des Affaires, Répertoire Clients) n'apparaissaient
+    // jamais dans le CRM. Le champ "Nom du Client" du devis était un texte
+    // libre jamais relié à `clients`/`projects` — aucune fiche n'était créée
+    // ni mise à jour, le rapprochement se faisant uniquement par comparaison
+    // de chaîne (`q.clientName === c.name`), fragile à la moindre variante.
+    // Résolution pure (pas d'effet de bord) : cherche un client/affaire
+    // existant par nom, sinon en crée un réel (nom du devis, pas de données
+    // factices) et le rattache par ID — utilisé à la fois pour les nouveaux
+    // enregistrements (onSaveQuote) et pour rattraper les devis déjà
+    // enregistrés avant ce correctif (effet de rattrapage ci-dessous).
+    const resolveClientAndProject = (currentClients, currentProjects, clientNameRaw, projectRefRaw, quoteTotal) => {
+        const clientName = (clientNameRaw || '').trim();
+        const projectRef = (projectRefRaw || '').trim();
+        if (!clientName) return { client: null, project: null, clients: currentClients, projects: currentProjects };
+
+        let clientsArr = currentClients;
+        let client = clientsArr.find(c => c.name.trim().toLowerCase() === clientName.toLowerCase());
+        if (!client) {
+            client = {
+                id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                name: clientName, contactPerson: '', taxId: '', email: '', phone: '', address: '', city: '',
+                notes: 'Créé automatiquement depuis un devis.'
+            };
+            clientsArr = [client, ...clientsArr];
+        }
+
+        let projectsArr = currentProjects;
+        let project = null;
+        if (projectRef) {
+            project = projectsArr.find(p => p.name.trim().toLowerCase() === projectRef.toLowerCase() && (p.clientId === client.id || p.clientName === client.name));
+            if (!project) {
+                const newCode = `PRJ-${new Date().getFullYear()}-${String(projectsArr.length + 1).padStart(3, '0')}`;
+                project = {
+                    id: `prj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    code: newCode, name: projectRef, clientId: client.id, clientName: client.name,
+                    siteAddress: '', city: client.city || 'Dakar', status: 'active',
+                    budgetEstimated: quoteTotal || 0, createdAt: new Date().toISOString().split('T')[0]
+                };
+                projectsArr = [project, ...projectsArr];
+            }
+        }
+        return { client, project, clients: clientsArr, projects: projectsArr };
+    };
+
     const [nextQuoteSeq, setNextQuoteSeq] = useState(() => loadLocalData('nextQuoteSeq', 1));
     const [calcForm, setCalcForm] = useState(() => loadLocalData('calcForm', {
         solutionId: 1, takeoffMode: 'rectangle', width: 2, height: 1, lengthDirect: 2, surfaceDirect: 450, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {}
@@ -5145,6 +5190,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             if (sbDataLoaded && cloudState === 'loaded') saveToSupabase({ saved_quotes: newVal });
         }
     }, [isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, saveToSupabase]);
+
+    // P0.12 (2026-08-17) — Rattrapage : relie les devis déjà enregistrés
+    // (avant le correctif resolveClientAndProject ci-dessus) qui n'ont pas
+    // encore de clientId — une seule fois au montage.
+    useEffect(() => {
+        let accClients = clients;
+        let accProjects = projects;
+        let changed = false;
+        const updatedQuotes = savedQuotes.map(q => {
+            if (!q.clientName || q.clientId) return q;
+            const { client, project, clients: nc, projects: np } = resolveClientAndProject(accClients, accProjects, q.clientName, q.projectRef, q.quoteData?.totalTTCConsomme);
+            accClients = nc; accProjects = np; changed = true;
+            return { ...q, clientId: client?.id || null, projectId: project?.id || null };
+        });
+        if (changed) {
+            updateClients(accClients);
+            updateProjects(accProjects);
+            updateSavedQuotes(updatedQuotes);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const updateNextQuoteSeq = useCallback((newVal) => {
         setNextQuoteSeq(newVal);
@@ -6054,6 +6120,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         setSaveQuoteStatus('saving');
                         setSaveQuoteError(null);
 
+                        // P0.12 (2026-08-17) — Relie réellement le devis à une fiche
+                        // client et une affaire (par ID, pas juste par nom en texte
+                        // libre) : crée les fiches manquantes avec le vrai nom saisi
+                        // si elles n'existent pas encore, au lieu de laisser le devis
+                        // invisible du CRM/Affaires.
+                        const { client, project, clients: resolvedClients, projects: resolvedProjects } =
+                            resolveClientAndProject(clients, projects, savedQ.clientName, savedQ.projectRef, savedQ.quoteData?.totalTTCConsomme);
+                        if (resolvedClients !== clients) updateClients(resolvedClients);
+                        if (resolvedProjects !== projects) updateProjects(resolvedProjects);
+                        savedQ.clientId = client?.id || null;
+                        savedQ.projectId = project?.id || null;
+
                         // Mode Local / Invité
                         if (!supabaseClient || !sbUser || sbUser.id === 'guest') {
                             const updatedQuotes = [savedQ, ...savedQuotes.filter(q => q.id !== savedQ.id)];
@@ -6951,7 +7029,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredClients.map(c => {
                         const clientProjects = projects.filter(p => p.clientId === c.id || p.clientName === c.name);
-                        const clientQuotes = savedQuotes.filter(q => q.clientName === c.name);
+                        const clientQuotes = savedQuotes.filter(q => q.clientId === c.id || q.clientName === c.name);
 
                         return (
                             <div key={c.id} className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all flex flex-col justify-between">
