@@ -4703,6 +4703,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const loaded = loadLocalData('savedQuotes', initialSavedQuotes);
         return loaded && Array.isArray(loaded) && loaded.length > 0 ? loaded : initialSavedQuotes;
     });
+
+    // P0.11 (2026-08-17) — Bug trouvé en testant 3 devis à la suite : le devis
+    // vierge initial au démarrage a toujours le numéro codé en dur
+    // `DEV-{année}-001` (déclaré avant que savedQuotes ne soit chargé, donc
+    // impossible à calculer dynamiquement à cet endroit). S'il existe déjà un
+    // devis portant ce numéro (données de démo en mode Invité, ou reprise
+    // d'une session), collision silencieuse à l'enregistrement — deux devis
+    // avec le même numéro. Corrigé une fois au montage, uniquement si le
+    // devis est encore vierge (jamais touché par l'utilisateur).
+    useEffect(() => {
+        // Dépendances vides : ne s'exécute qu'une fois au montage, avant que
+        // l'utilisateur ait pu modifier quoi que ce soit — pas besoin de
+        // vérifier un flag "non modifié" (hasUnsavedChanges vit dans
+        // QuoteWorkspace, pas ici, et n'est de toute façon pas encore pertinent
+        // à ce stade du cycle de vie).
+        if (savedQuotes.some(q => q.number === hybridQuote.number)) {
+            setHybridQuote(prev => ({ ...prev, number: generateNextQuoteNumber(savedQuotes) }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const [nextQuoteSeq, setNextQuoteSeq] = useState(() => loadLocalData('nextQuoteSeq', 1));
     const [calcForm, setCalcForm] = useState(() => loadLocalData('calcForm', {
         solutionId: 1, takeoffMode: 'rectangle', width: 2, height: 1, lengthDirect: 2, surfaceDirect: 450, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {}

@@ -12,7 +12,7 @@ const R1_TEMPLATE_QUOTE = {
     margin: 30,
     marginType: 'reel',
     discountRate: 0,
-    notes: 'Devis tous corps d’état (TCE) pour la construction d’une villa duplex de standing.\\nValidité : 30 jours. Règlement : 40% démarrage, 30% hors d’eau, 20% second œuvre, 10% réception.',
+    notes: 'Devis tous corps d’état (TCE) pour la construction d’une villa duplex de standing.\nValidité : 30 jours. Règlement : 40% démarrage, 30% hors d’eau, 20% second œuvre, 10% réception.',
     lots: [
         {
             id: 'lot_1',
@@ -748,7 +748,7 @@ const ACM_FACADE_TEMPLATE_QUOTE = {
     margin: 30,
     marginType: 'reel',
     discountRate: 0,
-    notes: 'Habillage composite aluminium Alucobond PVDF 4mm résistant aux UV et intempéries.\\nComprend échafaudage, ossature métallique primaire et secondaire, découpes rainurage V, pose en cassettes.',
+    notes: 'Habillage composite aluminium Alucobond PVDF 4mm résistant aux UV et intempéries.\nComprend échafaudage, ossature métallique primaire et secondaire, découpes rainurage V, pose en cassettes.',
     lots: [
         {
             id: 'lot_acm_1',

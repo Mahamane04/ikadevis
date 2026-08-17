@@ -3274,6 +3274,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const loaded = loadLocalData("savedQuotes", initialSavedQuotes);
     return loaded && Array.isArray(loaded) && loaded.length > 0 ? loaded : initialSavedQuotes;
   });
+  useEffect(() => {
+    if (savedQuotes.some((q) => q.number === hybridQuote.number)) {
+      setHybridQuote((prev) => ({ ...prev, number: generateNextQuoteNumber(savedQuotes) }));
+    }
+  }, []);
   const [nextQuoteSeq, setNextQuoteSeq] = useState(() => loadLocalData("nextQuoteSeq", 1));
   const [calcForm, setCalcForm] = useState(() => loadLocalData("calcForm", {
     solutionId: 1,
