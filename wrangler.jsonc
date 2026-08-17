@@ -1,0 +1,22 @@
+{
+  // Déploiement Cloudflare Workers en mode "Static Assets".
+  //
+  // ikadevis est un site 100 % statique (HTML + bundle JS + CSS ; toute la
+  // logique serveur est chez Supabase). Il n'y a donc aucun code Worker à
+  // exécuter : pas de champ "main", uniquement des fichiers à servir.
+  //
+  // Le dossier ./dist est produit par `npm run deploy:build`, qui enchaîne :
+  //   1. scripts/generate-config.mjs production  → config.js depuis les
+  //      variables d'environnement définies dans le dashboard Cloudflare
+  //   2. npm run build                           → tailwind.css + app.compiled.js
+  //   3. scripts/build-dist.mjs                  → assemble dist/ (liste blanche)
+  //
+  // dist/ est volontairement hors du dépôt : le publier reviendrait à
+  // committer config.js, qui porte les identifiants Supabase.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ikadevis",
+  "compatibility_date": "2026-08-17",
+  "assets": {
+    "directory": "./dist"
+  }
+}
