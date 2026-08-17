@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality-and-tests:
-    name: Lint, Test Suite & Build
+    name: Build & Test Suite (7 étalons métier)
     runs-on: ubuntu-latest
 
     steps:
@@ -24,17 +24,26 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Test Suite (fumée, chaîne financière, étalons)
+      # config.js est volontairement gitignoré (il porte les identifiants
+      # Supabase de l'environnement). Sur un checkout neuf il n'existe donc
+      # pas, et index.html le charge en <script> : sans ce fichier, le
+      # navigateur émet un 404 qui fait échouer le test de fumée
+      # ("aucune erreur console au chargement").
+      # La suite de tests tourne intégralement en Mode Démo/Invité, 100 %
+      # local : aucun identifiant réel n'est nécessaire, le gabarit suffit.
+      - name: Générer une config de test (gabarit, sans identifiants réels)
+        run: cp config.example.js config.js
+
+      # Build AVANT les tests : ils doivent valider l'artefact réellement
+      # produit par le pipeline, pas le bundle committé dans le dépôt.
+      - name: Build (Tailwind purgé + bundle esbuild)
+        run: npm run build
+
+      - name: Suite de tests E2E (Chromium headless)
         run: npm test
 
-      - name: Build CSS (Tailwind précompilé)
-        run: npm run build:css
-
-      - name: Compile Distribution Bundle (esbuild)
-        run: npm run build:js
-
-      - name: Verify Bundle & CSS Existence
+      - name: Vérifier la présence des artefacts
         run: |
           test -f app.compiled.js
           test -f tailwind.css
-          echo "Bundle et CSS compilés avec succès."
+          echo "Bundle et CSS générés avec succès."
