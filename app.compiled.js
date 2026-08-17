@@ -138,6 +138,23 @@ function AuthScreen({ onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const handleGoogleAuth = async () => {
+    setError(null);
+    setInfo(null);
+    setGoogleLoading(true);
+    try {
+      if (!sb) throw new Error("Client Supabase non initialis\xE9 \u2014 v\xE9rifiez que vendor/supabase.min.js est charg\xE9.");
+      const { error: err } = await sb.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin }
+      });
+      if (err) throw err;
+    } catch (err) {
+      setError(err.message || "Connexion Google impossible.");
+      setGoogleLoading(false);
+    }
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -212,6 +229,17 @@ function AuthScreen({ onAuthSuccess }) {
       style: { background: loading ? "#666" : "linear-gradient(135deg, #E6222B, #9b1c1c)", boxShadow: "0 4px 20px rgba(230,34,43,0.4)" }
     },
     loading ? /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-spinner fa-spin mr-2" }), "Chargement\u2026") : mode === "login" ? "Se connecter \u2192" : mode === "signup" ? "Cr\xE9er mon compte \u2192" : "Envoyer le lien \u2192"
+  )), mode !== "reset" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 my-5" }, /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-px bg-white/10" }), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 text-[11px] font-bold uppercase tracking-wider" }, "ou"), /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-px bg-white/10" })), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: handleGoogleAuth,
+      disabled: googleLoading,
+      "aria-label": mode === "signup" ? "S'inscrire avec Google" : "Se connecter avec Google",
+      className: "w-full py-3 px-4 rounded-xl font-bold text-sm text-neutral-800 bg-white hover:bg-neutral-100 transition-all border border-white/20 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+    },
+    googleLoading ? /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-spinner fa-spin" }) : /* @__PURE__ */ React.createElement("i", { className: "fa-brands fa-google text-[#4285F4]" }),
+    mode === "signup" ? "S'inscrire avec Google" : "Continuer avec Google"
   )), /* @__PURE__ */ React.createElement("div", { className: "mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 text-center" }, /* @__PURE__ */ React.createElement(
     "button",
     {

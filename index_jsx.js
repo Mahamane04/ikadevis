@@ -137,6 +137,26 @@ function AuthScreen({ onAuthSuccess }) {
     const [error, setError] = useState(null);
     const [info, setInfo] = useState(null);
 
+    const [googleLoading, setGoogleLoading] = useState(false);
+
+    const handleGoogleAuth = async () => {
+        setError(null); setInfo(null); setGoogleLoading(true);
+        try {
+            if (!sb) throw new Error('Client Supabase non initialisé — vérifiez que vendor/supabase.min.js est chargé.');
+            const { error: err } = await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin }
+            });
+            if (err) throw err;
+            // Pas de onAuthSuccess ici : le navigateur quitte la page pour Google,
+            // puis revient sur redirectTo avec la session dans l'URL — déjà géré
+            // par sb.auth.getSession()/onAuthStateChange au chargement (L9494/9508).
+        } catch (err) {
+            setError(err.message || 'Connexion Google impossible.');
+            setGoogleLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null); setInfo(null); setLoading(true);
@@ -230,9 +250,31 @@ function AuthScreen({ onAuthSuccess }) {
                         </button>
                     </form>
 
+                    {mode !== 'reset' && (
+                        <>
+                            <div className="flex items-center gap-3 my-5">
+                                <div className="flex-1 h-px bg-white/10"></div>
+                                <span className="text-neutral-500 text-[11px] font-bold uppercase tracking-wider">ou</span>
+                                <div className="flex-1 h-px bg-white/10"></div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleGoogleAuth}
+                                disabled={googleLoading}
+                                aria-label={mode === 'signup' ? "S'inscrire avec Google" : 'Se connecter avec Google'}
+                                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-neutral-800 bg-white hover:bg-neutral-100 transition-all border border-white/20 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+                            >
+                                {googleLoading
+                                    ? <i className="fa-solid fa-spinner fa-spin"></i>
+                                    : <i className="fa-brands fa-google text-[#4285F4]"></i>}
+                                {mode === 'signup' ? "S'inscrire avec Google" : 'Continuer avec Google'}
+                            </button>
+                        </>
+                    )}
+
                     <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 text-center">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => onAuthSuccess({ user: { id: 'guest', email: 'invite@local.app' } })}
                             className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/10 hover:bg-white/20 transition-all border border-white/20 flex items-center justify-center gap-2"
                         >
