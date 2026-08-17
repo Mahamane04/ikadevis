@@ -1138,7 +1138,7 @@ function LotNavigator({
     );
 
     return (
-        <aside className="w-full lg:w-[220px] bg-neutral-50/80 border-r border-neutral-200 flex flex-col shrink-0">
+        <aside className="w-full lg:w-[220px] lg:h-full lg:min-h-0 bg-neutral-50/80 border-r border-neutral-200 flex flex-col shrink-0">
             {/* Header Colonne des Lots */}
             <div className="p-3 border-b border-neutral-200 bg-white/80 space-y-2">
                 <div className="flex items-center justify-between">
@@ -1170,7 +1170,7 @@ function LotNavigator({
             </div>
 
             {/* Liste scrollable des Lots */}
-            <nav className="flex-1 overflow-y-auto p-2 space-y-1.5 max-h-[calc(100vh-220px)]" aria-label="Navigation des lots de travaux">
+            <nav className="flex-1 min-h-0 overflow-y-auto custom-scroll p-2 space-y-1.5" aria-label="Navigation des lots de travaux">
                 {filteredLots.map((lot, idx) => {
                     const originalIndex = lots.findIndex(l => l.id === lot.id);
                     const isActive = originalIndex === activeLotIndex;
@@ -2771,7 +2771,7 @@ function QuoteWorkspace({
     };
 
     return (
-        <div className="min-h-screen bg-neutral-100 flex flex-col pb-36">
+        <div className="h-full min-h-0 bg-neutral-100 flex flex-col overflow-hidden">
             {/* Header Devis */}
             <QuoteHeader
                 quote={calculatedQuote}
@@ -2819,11 +2819,11 @@ function QuoteWorkspace({
             />
 
             {/* Corps Principal : Colonne des Lots + Table Centrale */}
-            <div className="flex-1 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto">
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto overflow-y-auto lg:overflow-hidden custom-scroll">
                 {/* P0.10 (2026-08-17) — masquée sur mobile pendant l'inspection d'un
                     ouvrage (pattern liste↔détail Zoho Books, cohérent avec Ressources
                     & Prix / Catalogue Ouvrages) ; toujours visible à partir de lg. */}
-                <div className={inspectorItemIndex !== null ? 'hidden lg:flex' : 'flex'}>
+                <div className={`${inspectorItemIndex !== null ? 'hidden lg:flex' : 'flex'} lg:h-full lg:min-h-0`}>
                     <LotNavigator
                         lots={calculatedQuote.lots || []}
                         activeLotIndex={activeLotIndex}
@@ -2836,7 +2836,7 @@ function QuoteWorkspace({
                     />
                 </div>
 
-                <main className="flex-1 min-w-0 bg-white flex flex-col">
+                <main className="flex-1 min-w-0 bg-white flex flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36">
                     {inspectorItemIndex !== null ? (
                         <WorkItemInspector
                             isOpen={true}
@@ -6911,11 +6911,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const selectedProjectCA = selectedProjectQuotes.reduce((acc, q) => acc + (q.quoteData?.totalTTCConsomme || 0), 0);
 
         return (
-            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
                 {/* P0.15 (2026-08-17) — Grille de cartes remplacée par le pattern
                     liste+détail (Ressources & Prix / Catalogue Ouvrages), demandé
                     par l'utilisateur en référence à Zoho Books. */}
-                <div className={`${selectedProject ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]`}>
+                <div className={`${selectedProject ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
                         <h2 className="text-lg font-bold text-neutral-800">Affaires &amp; Projets</h2>
                         <button
@@ -6964,7 +6964,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 {/* COLONNE DÉTAIL — visible sur mobile uniquement quand une affaire
                     est sélectionnée ; toujours visible côte-à-côte à partir de lg. */}
-                <div className={`${selectedProject ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+                <div className={`${selectedProject ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                     {!selectedProject ? (
                         <div className="app-card p-16 text-center text-neutral-400">
                             <i className="fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300"></i>
@@ -7041,11 +7041,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const selectedClientQuotes = selectedClient ? savedQuotes.filter(q => q.clientId === selectedClient.id || q.clientName === selectedClient.name) : [];
 
         return (
-            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
                 {/* P0.15 (2026-08-17) — Grille de cartes remplacée par le pattern
                     liste+détail (Ressources & Prix / Catalogue Ouvrages), demandé
                     par l'utilisateur en référence à Zoho Books. */}
-                <div className={`${selectedClient ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]`}>
+                <div className={`${selectedClient ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
                         <h2 className="text-lg font-bold text-neutral-800">Clients &amp; Donneurs d'Ordres</h2>
                         <button
@@ -7096,7 +7096,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 {/* COLONNE DÉTAIL — visible sur mobile uniquement quand un client est
                     sélectionné ; toujours visible côte-à-côte à partir de lg. */}
-                <div className={`${selectedClient ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+                <div className={`${selectedClient ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                     {!selectedClient ? (
                         <div className="app-card p-16 text-center text-neutral-400">
                             <i className="fa-solid fa-users text-3xl mb-3 text-neutral-300"></i>
@@ -7228,7 +7228,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             ? savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name)
             : savedQuotes;
         return (
-        <div className="w-full max-w-[1400px] mx-auto">
+        <div className="w-full max-w-[1400px] mx-auto h-full min-h-0 overflow-y-auto custom-scroll">
             <div className="app-card flex flex-col">
                 <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
                     <div>
@@ -7461,13 +7461,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     const renderRecipes = () => (
-        <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1400px] mx-auto items-start">
+        // P0.18 — Colonnes à hauteur de coque : sur desktop chaque colonne
+        // défile chez elle, la page ne bouge pas. Sur mobile (colonnes
+        // empilées) le scroll unique de la vue reste le comportement attendu.
+        <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1400px] mx-auto h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
             {/* P0.14 (2026-08-17) — Avec beaucoup d'ouvrages, la colonne liste
                 grossissait sans limite et entraînait toute la page (en-tête,
                 recherche, bouton "Nouvel Ouvrage" compris) dans le scroll.
-                Colonne collée en hauteur de viewport, seule la liste défile en
-                interne — l'en-tête et la recherche restent visibles. */}
-            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+                Seule la liste défile en interne — l'en-tête et la recherche
+                restent visibles. */}
+            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
                 <div className="flex items-center justify-between px-1">
                     <h2 className="text-lg font-bold text-neutral-800">Catalogue des Ouvrages</h2>
                     <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setSolutionModalForm({ id: null, name: '', icon: 'fa-cube', allowedModes: ['rectangle', 'surface', 'linear'] }); setIsSolutionModalOpen(true); }} className={`btn-secondary py-1.5 px-3 text-xs ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : 'text-brand-600 border-brand-200 hover:bg-brand-50'}`} aria-label="Créer un nouvel ouvrage au catalogue">
@@ -7533,7 +7536,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
             </div>
 
-            <div className="flex-1 min-w-0 w-full">
+            <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll">
                 {selectedSolutionForEdit && (
                     <div className="app-card flex flex-col">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
@@ -7751,9 +7754,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             : null;
 
         return (
-        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
             {/* COLONNE LISTE — masquée sur mobile quand un détail est ouvert (P0.10, pattern Zoho Books) */}
-            <div className={`${selectedItem ? 'hidden lg:flex' : 'flex'} lg:w-[380px] w-full shrink-0 flex-col gap-4`}>
+            <div className={`${selectedItem ? 'hidden lg:flex' : 'flex'} lg:w-[380px] w-full shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                 <div className="flex gap-2 bg-white p-2 rounded-xl border border-neutral-200">
                     <button onClick={() => setResourceTab('materials')}
                             className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'materials' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
@@ -7794,7 +7797,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <i className="fa-solid fa-plus"></i> {resourceTab === 'materials' ? 'Nouvelle Matière' : 'Nouvelle Prestation'}
                 </button>
 
-                <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto custom-scroll pr-1">
+                <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
                     {resourceTab === 'materials' ? materials.map(m => (
                         <button key={m.id} onClick={() => openMaterialDetail(m)} className={`flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedMaterialId === m.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${m.name}`}>
                             <div className="min-w-0">
@@ -7814,7 +7817,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
             {/* COLONNE DÉTAIL — visible sur mobile uniquement quand un élément est sélectionné ;
                 toujours visible côte-à-côte à partir de lg (≥1024px), état vide sinon. */}
-            <div className={`${selectedItem ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+            <div className={`${selectedItem ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                 {!selectedItem ? (
                     <div className="app-card p-16 text-center text-neutral-400">
                         <i className={`fa-solid ${resourceTab === 'materials' ? 'fa-box' : 'fa-user-gear'} text-3xl mb-3 text-neutral-300`}></i>
@@ -8306,8 +8309,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 )}
 
-                <main id="main-content" className="flex-1 overflow-y-auto w-full custom-scroll pb-28 md:pb-8">
-                    <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
+                {/* P0.18 (2026-08-17) — Discipline de scroll "app shell" : la coque
+                    ne défile jamais, seules des zones internes définies défilent
+                    (comportement attendu d'une vraie application, pas d'une page
+                    web). `main` était `overflow-y-auto` : n'importe quelle vue un
+                    peu haute faisait apparaître une barre de défilement pleine
+                    hauteur sur tout l'écran, qui emportait aussi l'en-tête de
+                    page. Il est désormais `overflow-hidden` et chaque vue gère
+                    son propre défilement interne. */}
+                <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
+                    <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
                         <header className="hidden lg:flex h-12 items-center justify-between mb-6 shrink-0">
                             <h1 className="text-2xl font-extrabold text-neutral-800 tracking-tight">
                                 {activeView === 'calculator' && 'Création & Chiffrage de Devis BTP'}
@@ -8332,7 +8343,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </button>
                             </div>
                         </header>
-                        <div className="animate-fade-in w-full">
+                        <div className="animate-fade-in w-full flex-1 min-h-0">
                             {activeView === 'calculator' && renderCalculator()}
                             {activeView === 'projects' && renderProjects()}
                             {activeView === 'clients' && renderClients()}
