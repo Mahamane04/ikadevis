@@ -7292,7 +7292,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const renderRecipes = () => (
         <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[1400px] mx-auto items-start">
-            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
+            {/* P0.14 (2026-08-17) — Avec beaucoup d'ouvrages, la colonne liste
+                grossissait sans limite et entraînait toute la page (en-tête,
+                recherche, bouton "Nouvel Ouvrage" compris) dans le scroll.
+                Colonne collée en hauteur de viewport, seule la liste défile en
+                interne — l'en-tête et la recherche restent visibles. */}
+            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
                 <div className="flex items-center justify-between px-1">
                     <h2 className="text-lg font-bold text-neutral-800">Catalogue des Ouvrages</h2>
                     <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setSolutionModalForm({ id: null, name: '', icon: 'fa-cube', allowedModes: ['rectangle', 'surface', 'linear'] }); setIsSolutionModalOpen(true); }} className={`btn-secondary py-1.5 px-3 text-xs ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : 'text-brand-600 border-brand-200 hover:bg-brand-50'}`} aria-label="Créer un nouvel ouvrage au catalogue">
@@ -7339,7 +7344,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     )}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
                     {solutions.filter(s => s.name.toLowerCase().includes(solutionSearchQuery.toLowerCase())).map(s => (
                         <div key={s.id} className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all duration-200 bg-white ${selectedSolutionForEdit?.id === s.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
                             <button onClick={() => setSelectedSolutionForEdit(s)} className="flex items-center text-left gap-3 flex-1 min-w-0 outline-none" aria-label={`Sélectionner l'ouvrage ${s.name}`}>
