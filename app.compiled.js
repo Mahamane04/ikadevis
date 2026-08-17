@@ -2704,11 +2704,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
-        setIsMatModalOpen(false);
-        setIsLaborModalOpen(false);
         setIsCompanyModalOpen(false);
         setIsSaveQuoteModalOpen(false);
         setIsVarModalOpen(false);
+        setIsRecipeModalOpen(false);
+        setIsSolutionModalOpen(false);
+        setIsAllowedModesModalOpen(false);
+        setIsHealthModalOpen(false);
         setViewingSavedQuote(null);
       }
     };
@@ -2823,6 +2825,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
   }, [resourceDetailTab, selectedMaterialId, supabaseClient, activeOrganizationId, isCloudOrgActive]);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [quickResourceDraft, setQuickResourceDraft] = useState(null);
+  useEffect(() => {
+    if (!isRecipeModalOpen) setQuickResourceDraft(null);
+  }, [isRecipeModalOpen]);
   const [solutionSearchQuery, setSolutionSearchQuery] = useState("");
   const [isMatCsvModalOpen, setIsMatCsvModalOpen] = useState(false);
   const [recipeForm, setRecipeForm] = useState(null);
@@ -3860,6 +3866,43 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     setTimeout(() => setToast(null), 3500);
   };
   const closeConfirm = () => setConfirmDialog({ isOpen: false });
+  const createQuickResource = (draft) => {
+    if (isReadOnlyDueToDowngrade) return null;
+    const name = (draft.name || "").trim();
+    if (!name) return null;
+    if (draft.kind === "material") {
+      const unitSize = parseFloat(draft.unitSize) || 1;
+      const priceBuy = parseFloat(draft.priceBuy) || 0;
+      const nm = {
+        id: Date.now(),
+        name,
+        category: (draft.category || "").trim() || "Divers",
+        unitBuy: (draft.unitBuy || "").trim() || "Unit\xE9",
+        unitSize,
+        unitCalc: draft.unitCalc || "u",
+        priceBuy,
+        priceCalc: priceBuy / unitSize,
+        waste: parseFloat(draft.waste) || 0,
+        yieldRate: 0,
+        purchaseMode: unitSize > 1 ? "pack" : "real"
+      };
+      updateMaterials([...materials, nm]);
+      showToast(`Mati\xE8re \xAB ${nm.name} \xBB cr\xE9\xE9e et rattach\xE9e`);
+      return nm;
+    }
+    const isDaily = draft.unit === "j";
+    const nl = {
+      id: Date.now(),
+      name,
+      calcMode: draft.unit === "forfait" ? "forfait" : draft.unit === "u" ? "unite" : "surface",
+      unit: draft.unit || "u",
+      rate: parseFloat(draft.rate) || 0,
+      yieldRate: isDaily ? parseFloat(draft.yieldRate) || 0 : 0
+    };
+    updateLabor([...labor, nl]);
+    showToast(`Prestation \xAB ${nl.name} \xBB cr\xE9\xE9e et rattach\xE9e`);
+    return nl;
+  };
   const systemDiagnostic = useMemo(() => {
     let okCount = 0;
     let invalidRecipeCount = 0;
@@ -6031,7 +6074,10 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     {
       disabled: isReadOnlyDueToDowngrade,
       value: recipeForm.type,
-      onChange: (e) => setRecipeForm({ ...recipeForm, type: e.target.value, costCategory: e.target.value === "material" ? "material" : "labor", refId: e.target.value === "material" ? materials[0]?.id || "" : labor[0]?.id || "" }),
+      onChange: (e) => {
+        setQuickResourceDraft(null);
+        setRecipeForm({ ...recipeForm, type: e.target.value, costCategory: e.target.value === "material" ? "material" : "labor", refId: e.target.value === "material" ? materials[0]?.id || "" : labor[0]?.id || "" });
+      },
       options: [
         { value: "material", label: "Mati\xE8re Premi\xE8re" },
         { value: "labor", label: "Main d'\u0153uvre / Prestation" }
@@ -6055,20 +6101,152 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     "button",
     {
       type: "button",
+      disabled: isReadOnlyDueToDowngrade,
       onClick: () => {
-        if (recipeForm.type === "material") {
-          setMatForm({ id: Date.now(), name: "", category: "Fer", unitBuy: "Barre (6m)", unitSize: 6, unitCalc: "m", priceBuy: "", waste: 5, yieldRate: 0, purchaseMode: "pack" });
-          setIsMatModalOpen(true);
-        } else {
-          setLaborForm({ id: Date.now(), name: "", calcMode: "surface", unit: "m\xB2", rate: "", yieldRate: 0 });
-          setIsLaborModalOpen(true);
+        if (quickResourceDraft) {
+          setQuickResourceDraft(null);
+          return;
         }
+        setQuickResourceDraft(recipeForm.type === "material" ? { kind: "material", name: "", category: "", unitBuy: "", unitSize: 1, unitCalc: "m\xB2", priceBuy: "", waste: 5 } : { kind: "labor", name: "", unit: "j", rate: "", yieldRate: "" });
       },
-      className: "text-xs font-black text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs",
-      title: "Cr\xE9er une nouvelle mati\xE8re ou main-d'\u0153uvre \xE0 la vol\xE9e"
+      className: "text-xs font-black text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40",
+      title: "Cr\xE9er une nouvelle mati\xE8re ou main-d'\u0153uvre sans quitter ce composant"
     },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus text-[10px]" }),
-    /* @__PURE__ */ React.createElement("span", null, "+ Nouvelle ", recipeForm.type === "material" ? "Mati\xE8re" : "Prestation")
+    /* @__PURE__ */ React.createElement("i", { className: `fa-solid ${quickResourceDraft ? "fa-xmark" : "fa-plus"} text-[10px]` }),
+    /* @__PURE__ */ React.createElement("span", null, quickResourceDraft ? "Annuler" : `+ Nouvelle ${recipeForm.type === "material" ? "Mati\xE8re" : "Prestation"}`)
+  )), quickResourceDraft && /* @__PURE__ */ React.createElement("div", { className: "mb-3 p-3.5 bg-brand-50/60 border border-brand-200 rounded-xl space-y-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-black uppercase tracking-wider text-brand-700" }, "Nouvelle ", quickResourceDraft.kind === "material" ? "mati\xE8re" : "prestation"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      autoFocus: true,
+      className: "app-input font-bold",
+      placeholder: quickResourceDraft.kind === "material" ? "Ex : Adh\xE9sif vinyle coul\xE9" : "Ex : Directeur artistique / graphiste",
+      value: quickResourceDraft.name,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, name: e.target.value }),
+      "aria-label": `Nom de la nouvelle ${quickResourceDraft.kind === "material" ? "mati\xE8re" : "prestation"}`
+    }
+  ), quickResourceDraft.kind === "labor" ? /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Tarif factur\xE9 en"), /* @__PURE__ */ React.createElement(
+    CustomSelect,
+    {
+      value: quickResourceDraft.unit,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, unit: e.target.value }),
+      options: [
+        { value: "j", label: "Journ\xE9e (avec rendement)" },
+        { value: "m\xB2", label: "M\xE8tre carr\xE9 (m\xB2)" },
+        { value: "ml", label: "M\xE8tre lin\xE9aire (ml)" },
+        { value: "u", label: "Unit\xE9 / pi\xE8ce (u)" },
+        { value: "forfait", label: "Forfait" }
+      ]
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Tarif (", companyInfo.currency, ")"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      min: "0",
+      className: "app-input font-bold",
+      placeholder: "0",
+      value: quickResourceDraft.rate,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, rate: e.target.value }),
+      "aria-label": "Tarif de la prestation"
+    }
+  )), quickResourceDraft.unit === "j" && /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement (m\xB2 ou ml par jour)"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      min: "0",
+      step: "0.1",
+      className: "app-input font-bold",
+      placeholder: "Ex : 15",
+      value: quickResourceDraft.yieldRate,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, yieldRate: e.target.value }),
+      "aria-label": "Rendement journalier"
+    }
+  ), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-1 leading-snug" }, "Avec un tarif journalier, la formule doit diviser par ", /* @__PURE__ */ React.createElement("code", { className: "font-mono" }, "RENDEMENT_MO"), ". Avec un tarif au m\xB2 / ml / u, elle ne doit pas diviser."))) : /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Cat\xE9gorie"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "app-input",
+      placeholder: "Ex : Impression",
+      value: quickResourceDraft.category,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, category: e.target.value }),
+      "aria-label": "Cat\xE9gorie de la mati\xE8re"
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Unit\xE9 de calcul"), /* @__PURE__ */ React.createElement(
+    CustomSelect,
+    {
+      value: quickResourceDraft.unitCalc,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, unitCalc: e.target.value }),
+      options: [
+        { value: "m\xB2", label: "m\xB2" },
+        { value: "m", label: "m" },
+        { value: "m\xB3", label: "m\xB3" },
+        { value: "kg", label: "kg" },
+        { value: "L", label: "L" },
+        { value: "u", label: "u" }
+      ]
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Conditionnement achet\xE9"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "app-input",
+      placeholder: "Ex : Rouleau (50 m\xB2)",
+      value: quickResourceDraft.unitBuy,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, unitBuy: e.target.value }),
+      "aria-label": "Conditionnement achet\xE9"
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Quantit\xE9 par conditionnement"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      min: "0.01",
+      step: "0.01",
+      className: "app-input font-bold",
+      value: quickResourceDraft.unitSize,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, unitSize: e.target.value }),
+      "aria-label": "Quantit\xE9 par conditionnement"
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Prix d'achat (", companyInfo.currency, ")"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      min: "0",
+      className: "app-input font-bold",
+      placeholder: "0",
+      value: quickResourceDraft.priceBuy,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, priceBuy: e.target.value }),
+      "aria-label": "Prix d'achat"
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Taux de perte (%)"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      min: "0",
+      max: "100",
+      className: "app-input",
+      value: quickResourceDraft.waste,
+      onChange: (e) => setQuickResourceDraft({ ...quickResourceDraft, waste: e.target.value }),
+      "aria-label": "Taux de perte"
+    }
+  ))), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      disabled: !quickResourceDraft.name.trim(),
+      onClick: () => {
+        const created = createQuickResource(quickResourceDraft);
+        if (!created) return;
+        setRecipeForm({
+          ...recipeForm,
+          refId: created.id,
+          label: recipeForm.label?.trim() ? recipeForm.label : created.name
+        });
+        setQuickResourceDraft(null);
+      },
+      className: "btn-primary w-full text-xs py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+    },
+    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1.5" }),
+    "Cr\xE9er et rattacher \xE0 ce composant"
   )), /* @__PURE__ */ React.createElement(
     CustomSelect,
     {

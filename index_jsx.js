@@ -4085,14 +4085,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     }, [supabaseClient]);
 
     // WAI-ARIA : Fermeture des modales par la touche Échap
+    //
+    // M3 (2026-08-17) — Ce gestionnaire appelait encore setIsMatModalOpen et
+    // setIsLaborModalOpen, deux setters supprimés par le refactor P0.10
+    // (Ressources & Prix est passé de modales à un panneau liste+détail inline).
+    // Résultat : une ReferenceError était levée à CHAQUE appui sur Échap, avant
+    // même d'atteindre les lignes suivantes — la fermeture par Échap était donc
+    // morte dans toute l'application, pas seulement sur ces deux modales.
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                setIsMatModalOpen(false);
-                setIsLaborModalOpen(false);
                 setIsCompanyModalOpen(false);
                 setIsSaveQuoteModalOpen(false);
                 setIsVarModalOpen(false);
+                setIsRecipeModalOpen(false);
+                setIsSolutionModalOpen(false);
+                setIsAllowedModesModalOpen(false);
+                setIsHealthModalOpen(false);
                 setViewingSavedQuote(null);
             }
         };
@@ -4240,6 +4249,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return () => { cancelled = true; };
     }, [resourceDetailTab, selectedMaterialId, supabaseClient, activeOrganizationId, isCloudOrgActive]);
     const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+    // M3 (2026-08-17) — Création de ressource « à la volée » depuis la modale de
+    // composant. Depuis le refactor P0.10 il n'existe plus de modale Matière /
+    // Prestation à rouvrir : on saisit donc le strict nécessaire directement dans
+    // la modale, sans quitter le composant en cours d'édition.
+    const [quickResourceDraft, setQuickResourceDraft] = useState(null);
+    useEffect(() => { if (!isRecipeModalOpen) setQuickResourceDraft(null); }, [isRecipeModalOpen]);
     const [solutionSearchQuery, setSolutionSearchQuery] = useState('');
     const [isMatCsvModalOpen, setIsMatCsvModalOpen] = useState(false);
     const [recipeForm, setRecipeForm] = useState(null);
@@ -5400,6 +5415,54 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setTimeout(() => setToast(null), 3500);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
+
+    // M3 (2026-08-17) — Création d'une matière ou d'une prestation depuis la
+    // modale de composant, puis rattachement immédiat au composant en cours.
+    // On ne saisit ici que le minimum nécessaire au chiffrage ; le reste
+    // (fournisseur, stock, historique de prix) se complète dans Ressources & Prix.
+    // Déclarée après showToast : la référencer plus haut la mettrait en zone morte.
+    const createQuickResource = (draft) => {
+        if (isReadOnlyDueToDowngrade) return null;
+        const name = (draft.name || '').trim();
+        if (!name) return null;
+
+        if (draft.kind === 'material') {
+            const unitSize = parseFloat(draft.unitSize) || 1;
+            const priceBuy = parseFloat(draft.priceBuy) || 0;
+            const nm = {
+                id: Date.now(),
+                name,
+                category: (draft.category || '').trim() || 'Divers',
+                unitBuy: (draft.unitBuy || '').trim() || 'Unité',
+                unitSize,
+                unitCalc: draft.unitCalc || 'u',
+                priceBuy,
+                priceCalc: priceBuy / unitSize,
+                waste: parseFloat(draft.waste) || 0,
+                yieldRate: 0,
+                purchaseMode: unitSize > 1 ? 'pack' : 'real'
+            };
+            updateMaterials([...materials, nm]);
+            showToast(`Matière « ${nm.name} » créée et rattachée`);
+            return nm;
+        }
+
+        // Prestation / main-d'œuvre. `unit` porte la nature du tarif : 'j' =
+        // tarif journalier (le rendement en m²/jour devient alors nécessaire),
+        // sinon le tarif est directement à l'unité facturée.
+        const isDaily = draft.unit === 'j';
+        const nl = {
+            id: Date.now(),
+            name,
+            calcMode: draft.unit === 'forfait' ? 'forfait' : (draft.unit === 'u' ? 'unite' : 'surface'),
+            unit: draft.unit || 'u',
+            rate: parseFloat(draft.rate) || 0,
+            yieldRate: isDaily ? (parseFloat(draft.yieldRate) || 0) : 0
+        };
+        updateLabor([...labor, nl]);
+        showToast(`Prestation « ${nl.name} » créée et rattachée`);
+        return nl;
+    };
 
     // P1.A V5.7 — Diagnostic Catalogue Exhaustif : customVars injectés + rendements réels + test sur TOUS les modes autorisés
     const systemDiagnostic = useMemo(() => {
@@ -9256,7 +9319,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <CustomSelect 
                                         disabled={isReadOnlyDueToDowngrade}
                                         value={recipeForm.type} 
-                                        onChange={e => setRecipeForm({...recipeForm, type: e.target.value, costCategory: e.target.value==='material' ? 'material' : 'labor', refId: e.target.value==='material' ? (materials[0]?.id || '') : (labor[0]?.id || '')})}
+                                        onChange={e => { setQuickResourceDraft(null); setRecipeForm({...recipeForm, type: e.target.value, costCategory: e.target.value==='material' ? 'material' : 'labor', refId: e.target.value==='material' ? (materials[0]?.id || '') : (labor[0]?.id || '')}); }}
                                         options={[
                                             { value: 'material', label: 'Matière Première' },
                                             { value: 'labor', label: "Main d'œuvre / Prestation" }
@@ -9283,28 +9346,153 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <label className="app-label mb-0">Ressource liée</label>
                                         <button
                                             type="button"
+                                            disabled={isReadOnlyDueToDowngrade}
                                             onClick={() => {
-                                                if (recipeForm.type === 'material') {
-                                                    setMatForm({ id: Date.now(), name: '', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: '', waste: 5, yieldRate: 0, purchaseMode: 'pack' });
-                                                    setIsMatModalOpen(true);
-                                                } else {
-                                                    setLaborForm({ id: Date.now(), name: '', calcMode: 'surface', unit: 'm²', rate: '', yieldRate: 0 });
-                                                    setIsLaborModalOpen(true);
-                                                }
+                                                if (quickResourceDraft) { setQuickResourceDraft(null); return; }
+                                                setQuickResourceDraft(recipeForm.type === 'material'
+                                                    ? { kind: 'material', name: '', category: '', unitBuy: '', unitSize: 1, unitCalc: 'm²', priceBuy: '', waste: 5 }
+                                                    : { kind: 'labor', name: '', unit: 'j', rate: '', yieldRate: '' });
                                             }}
-                                            className="text-xs font-black text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs"
-                                            title="Créer une nouvelle matière ou main-d'œuvre à la volée"
+                                            className="text-xs font-black text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
+                                            title="Créer une nouvelle matière ou main-d'œuvre sans quitter ce composant"
                                         >
-                                            <i className="fa-solid fa-plus text-[10px]"></i>
-                                            <span>+ Nouvelle {recipeForm.type === 'material' ? 'Matière' : 'Prestation'}</span>
+                                            <i className={`fa-solid ${quickResourceDraft ? 'fa-xmark' : 'fa-plus'} text-[10px]`}></i>
+                                            <span>{quickResourceDraft ? 'Annuler' : `+ Nouvelle ${recipeForm.type === 'material' ? 'Matière' : 'Prestation'}`}</span>
                                         </button>
                                     </div>
-                                    <CustomSelect 
+
+                                    {/* M3 — Bloc de création inline. Volontairement en <div> et non
+                                        en <form> : on est déjà à l'intérieur de #recipeForm, un form
+                                        imbriqué est invalide et déclencherait l'envoi du composant. */}
+                                    {quickResourceDraft && (
+                                        <div className="mb-3 p-3.5 bg-brand-50/60 border border-brand-200 rounded-xl space-y-3">
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-brand-700">
+                                                Nouvelle {quickResourceDraft.kind === 'material' ? 'matière' : 'prestation'}
+                                            </p>
+                                            <input
+                                                type="text" autoFocus className="app-input font-bold"
+                                                placeholder={quickResourceDraft.kind === 'material' ? 'Ex : Adhésif vinyle coulé' : 'Ex : Directeur artistique / graphiste'}
+                                                value={quickResourceDraft.name}
+                                                onChange={e => setQuickResourceDraft({ ...quickResourceDraft, name: e.target.value })}
+                                                aria-label={`Nom de la nouvelle ${quickResourceDraft.kind === 'material' ? 'matière' : 'prestation'}`}
+                                            />
+
+                                            {quickResourceDraft.kind === 'labor' ? (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="app-label">Tarif facturé en</label>
+                                                        <CustomSelect
+                                                            value={quickResourceDraft.unit}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, unit: e.target.value })}
+                                                            options={[
+                                                                { value: 'j', label: 'Journée (avec rendement)' },
+                                                                { value: 'm²', label: 'Mètre carré (m²)' },
+                                                                { value: 'ml', label: 'Mètre linéaire (ml)' },
+                                                                { value: 'u', label: 'Unité / pièce (u)' },
+                                                                { value: 'forfait', label: 'Forfait' }
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Tarif ({companyInfo.currency})</label>
+                                                        <input type="number" min="0" className="app-input font-bold" placeholder="0"
+                                                            value={quickResourceDraft.rate}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, rate: e.target.value })}
+                                                            aria-label="Tarif de la prestation" />
+                                                    </div>
+                                                    {quickResourceDraft.unit === 'j' && (
+                                                        <div className="col-span-2">
+                                                            <label className="app-label">Rendement (m² ou ml par jour)</label>
+                                                            <input type="number" min="0" step="0.1" className="app-input font-bold" placeholder="Ex : 15"
+                                                                value={quickResourceDraft.yieldRate}
+                                                                onChange={e => setQuickResourceDraft({ ...quickResourceDraft, yieldRate: e.target.value })}
+                                                                aria-label="Rendement journalier" />
+                                                            <p className="text-[11px] text-neutral-500 mt-1 leading-snug">
+                                                                Avec un tarif journalier, la formule doit diviser par <code className="font-mono">RENDEMENT_MO</code>.
+                                                                Avec un tarif au m² / ml / u, elle ne doit pas diviser.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="app-label">Catégorie</label>
+                                                        <input type="text" className="app-input" placeholder="Ex : Impression"
+                                                            value={quickResourceDraft.category}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, category: e.target.value })}
+                                                            aria-label="Catégorie de la matière" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Unité de calcul</label>
+                                                        <CustomSelect
+                                                            value={quickResourceDraft.unitCalc}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, unitCalc: e.target.value })}
+                                                            options={[
+                                                                { value: 'm²', label: 'm²' }, { value: 'm', label: 'm' },
+                                                                { value: 'm³', label: 'm³' }, { value: 'kg', label: 'kg' },
+                                                                { value: 'L', label: 'L' }, { value: 'u', label: 'u' }
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Conditionnement acheté</label>
+                                                        <input type="text" className="app-input" placeholder="Ex : Rouleau (50 m²)"
+                                                            value={quickResourceDraft.unitBuy}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, unitBuy: e.target.value })}
+                                                            aria-label="Conditionnement acheté" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Quantité par conditionnement</label>
+                                                        <input type="number" min="0.01" step="0.01" className="app-input font-bold"
+                                                            value={quickResourceDraft.unitSize}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, unitSize: e.target.value })}
+                                                            aria-label="Quantité par conditionnement" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Prix d'achat ({companyInfo.currency})</label>
+                                                        <input type="number" min="0" className="app-input font-bold" placeholder="0"
+                                                            value={quickResourceDraft.priceBuy}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, priceBuy: e.target.value })}
+                                                            aria-label="Prix d'achat" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="app-label">Taux de perte (%)</label>
+                                                        <input type="number" min="0" max="100" className="app-input"
+                                                            value={quickResourceDraft.waste}
+                                                            onChange={e => setQuickResourceDraft({ ...quickResourceDraft, waste: e.target.value })}
+                                                            aria-label="Taux de perte" />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                disabled={!quickResourceDraft.name.trim()}
+                                                onClick={() => {
+                                                    const created = createQuickResource(quickResourceDraft);
+                                                    if (!created) return;
+                                                    setRecipeForm({
+                                                        ...recipeForm,
+                                                        refId: created.id,
+                                                        label: recipeForm.label?.trim() ? recipeForm.label : created.name
+                                                    });
+                                                    setQuickResourceDraft(null);
+                                                }}
+                                                className="btn-primary w-full text-xs py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                <i className="fa-solid fa-check mr-1.5"></i>
+                                                Créer et rattacher à ce composant
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <CustomSelect
                                         disabled={isReadOnlyDueToDowngrade}
-                                        value={recipeForm.refId} 
+                                        value={recipeForm.refId}
                                         onChange={e => setRecipeForm({...recipeForm, refId: e.target.value})}
-                                        options={recipeForm.type === 'material' 
-                                            ? materials.map(m => ({ value: m.id, label: m.name })) 
+                                        options={recipeForm.type === 'material'
+                                            ? materials.map(m => ({ value: m.id, label: m.name }))
                                             : labor.map(l => ({ value: l.id, label: l.name }))}
                                     />
                                 </div>
