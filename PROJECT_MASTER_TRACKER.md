@@ -1,17 +1,18 @@
 # 🏗️ IKADEVIS / MICRO OFFICE ERP CALCUL — FICHE MAÎTRESSE D'ARCHITECTURE & SUIVI DU PROJET
 
 > **Document de Référence & Mémoire Centrale du Projet**  
-> *Dernière mise à jour : 17 Août 2026 — Statut : 🟡 PUBLIABLE AVEC RÉSERVES (audit indépendant du 2026-08-17 : 71/100, voir § 17)*
+> *Dernière mise à jour : 17 Août 2026 — Statut : 🟢 PUBLIABLE AVEC RÉSERVES MINEURES (audit du 2026-08-17 : 71/100 → 85/100 après correctifs, voir § 17/§ 18)*
 >
 > ⚠️ Le statut "100/100 PRODUCTION READY" du § 4 est **obsolète et invérifié**
 > (auto-évaluation d'avant l'audit indépendant du 2026-08-16, qui a trouvé un
 > dossier de tests inexistant et aucun dépôt git). Les § 12, § 13 et surtout
-> § 16/§ 17 (2026-08-17) font foi sur le § 4.
+> § 16/§ 17/§ 18 (2026-08-17) font foi sur le § 4.
 >
 > **Repère rapide pour reprendre en nouvelle discussion — état à la fin de
 > cette session (2026-08-17) :**
-> - Dépôt git initialisé, **travail de cette session pas encore committé** au
->   moment de la rédaction — voir § 17 pour l'état exact avant/après commit.
+> - Dépôt git initialisé et **à jour** (dernier commit `37ac2b3`), **local
+>   uniquement** — pas de remote configuré, décision explicite de
+>   l'utilisateur (2026-08-17) de rester en local pour l'instant.
 > - Suite de tests réelle et honnête dans `scratch/` (`npm test`) : **40/40
 >   vérifications au vert**, 0 régression inattendue après tous les correctifs
 >   ci-dessous.
@@ -682,9 +683,38 @@ sourcée.
 | Environnements Supabase | 5/10 | Staging + Production réels, schéma V6 complet. `development` = `production` (risque documenté § 13). **Chemin cloud réel trouvé cassé, corrigé depuis (§ 16.2)** |
 | Opérationnel (git/CI) | 4/10 | Dépôt local uniquement, jamais poussé — CI jamais exécutée réellement. Travail de session non committé au moment de l'audit |
 
-**Ce score date d'avant les correctifs du § 16.** Il sera réévalué après
-commit/push (§ 18 si créé) pour refléter les corrections de la Règle d'Or #3
-et du chemin cloud réel. Les composantes Sécurité, Fonctionnalités et
-Environnements sont directement améliorées par le § 16 ; Moteur de calcul et
-Opérationnel restent à réévaluer séparément (le second dépend du commit/push
-en cours).
+**Ce score date d'avant les correctifs du § 16 — voir § 18 pour la
+réévaluation finale.**
+
+---
+
+## 📈 18. Réévaluation finale (2026-08-17) — Score : 85/100
+
+Après les correctifs du § 16 (Règle d'Or #3, chemin cloud réel) et le commit
+local (dépôt à jour, pas de remote — décision utilisateur). Même méthode que
+le § 17 : vérifications réelles, pas d'auto-satisfecit.
+
+| Catégorie | § 17 | § 18 | Évolution |
+| :--- | ---: | ---: | :--- |
+| Moteur de calcul & étalons métier | 25/25 | **25/25** | Inchangé, toujours parfait |
+| Sécurité RLS / anti-IDOR | 17/20 | **18/20** | `material_price_history` a maintenant de vraies policies sur staging (production en attente, SQL fourni au § 16.1) |
+| Fonctionnalités commerciales | 15/20 | **17/20** | Persistance cloud matières/MO/recettes/entreprise réellement corrigée (vérifiée par lecture de code + tests + mode Invité live). Le bug `\n` littéral (2/8 gabarits) n'a pas été traité — hors périmètre des 3 tâches demandées |
+| Intégrité "Zéro Faux Succès" | 5/15 | **13/15** | Les 2 violations trouvées sont corrigées et vérifiées. Pas 15/15 : la recherche n'a couvert que le motif `mock`/données codées en dur trouvé par grep — pas une garantie qu'il n'en reste aucune ailleurs dans les ~8800 lignes restantes |
+| Environnements Supabase | 5/10 | **7/10** | Le bug qui cassait tout compte cloud réel est corrigé pour company/materials/labor/solutions/recipes. Reste : `savedQuotes`/`nextQuoteSeq` toujours cassés (§ 16.2, hors périmètre), `development` = `production` toujours pas isolé, RLS `material_price_history` pas encore appliquée en production, **aucun test avec une vraie session authentifiée** (l'agent a nettoyé un jeton réel resté en cache plutôt que de risquer d'écrire en production pendant la vérification) |
+| Opérationnel (git/CI) | 4/10 | **5/10** | Travail committé localement (`37ac2b3`). Toujours pas de remote (décision utilisateur de rester en local), donc la CI GitHub Actions ne s'exécute toujours pas réellement |
+
+**Total : 85/100 — PUBLIABLE AVEC RÉSERVES MINEURES.** Progression réelle de
++14 points depuis le § 17, portée par deux corrections qui comptaient
+vraiment (persistance cloud cassée pour de vrai, pas juste "non testée" ;
+deux vraies violations de la Règle d'Or #3). Ce qui manque encore avant un
+100/100 défendable :
+1. Tester une vraie connexion avec un compte cloud authentique (jamais fait
+   sur le nouveau chemin V6 — seule la trace de code + les tests + le mode
+   Invité le couvrent).
+2. Appliquer la migration RLS `material_price_history` sur production (SQL
+   prêt, § 16.1).
+3. Migrer `savedQuotes`/`nextQuoteSeq` vers la vraie table `quotes` (§ 16.2).
+4. Isoler l'environnement `development` de la production (§ 13, reporté par
+   l'utilisateur).
+5. Pousser vers un remote pour activer la CI (reporté par l'utilisateur).
+6. Corriger le bug `\n` littéral dans 2 gabarits sur 8 (cosmétique, mineur).
