@@ -4708,6 +4708,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [clientSearchQuery, setClientSearchQuery] = useState('');
     const [projectSearchQuery, setProjectSearchQuery] = useState('');
+    // P0.15 (2026-08-17) — Clients (CRM) et Affaires & Projets passent de
+    // grilles de cartes au même pattern liste+détail que Ressources & Prix /
+    // Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur).
+    const [selectedClientId, setSelectedClientId] = useState(null);
+    const [selectedProjectId, setSelectedProjectId] = useState(null);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
         const loaded = loadLocalData('savedQuotes', initialSavedQuotes);
@@ -6883,80 +6888,254 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             p.code.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
             (p.clientName && p.clientName.toLowerCase().includes(projectSearchQuery.toLowerCase()))
         );
+        const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
+        const selectedProjectQuotes = selectedProject ? savedQuotes.filter(q => q.projectRef === selectedProject.name || (q.projectId && q.projectId === selectedProject.id)) : [];
+        const selectedProjectCA = selectedProjectQuotes.reduce((acc, q) => acc + (q.quoteData?.totalTTCConsomme || 0), 0);
 
         return (
-            <div className="w-full max-w-[1400px] mx-auto space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-neutral-200 shadow-sm">
-                    <div>
-                        <h2 className="text-xl font-black text-neutral-900 flex items-center gap-2">
-                            <i className="fa-solid fa-folder-tree text-brand-600"></i>
-                            Gestion des Affaires & Projets BTP
-                        </h2>
-                        <p className="text-xs text-neutral-500 mt-0.5">Regroupez vos devis initiaux (V1), révisions (V2, V3) et avenants par chantier.</p>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:w-64">
-                            <input
-                                type="text"
-                                value={projectSearchQuery}
-                                onChange={(e) => setProjectSearchQuery(e.target.value)}
-                                placeholder="Rechercher une affaire..."
-                                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-1.5 pl-8 text-xs font-bold outline-none focus:border-brand-500"
-                            />
-                            <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
-                        </div>
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+                {/* P0.15 (2026-08-17) — Grille de cartes remplacée par le pattern
+                    liste+détail (Ressources & Prix / Catalogue Ouvrages), demandé
+                    par l'utilisateur en référence à Zoho Books. */}
+                <div className={`${selectedProject ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]`}>
+                    <div className="flex items-center justify-between px-1">
+                        <h2 className="text-lg font-bold text-neutral-800">Affaires &amp; Projets</h2>
                         <button
                             onClick={() => {
                                 setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
                                 setIsNewProjectModalOpen(true);
                             }}
-                            className="btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
+                            className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
+                            aria-label="Créer une nouvelle affaire"
                         >
-                            <i className="fa-solid fa-plus"></i>
-                            <span>Nouvelle Affaire</span>
+                            <i className="fa-solid fa-plus"></i> Nouvelle Affaire
                         </button>
+                    </div>
+
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={projectSearchQuery}
+                            onChange={(e) => setProjectSearchQuery(e.target.value)}
+                            placeholder="Rechercher une affaire..."
+                            className="w-full bg-white border border-neutral-200 focus:border-brand-500 rounded-xl px-3.5 py-2 pl-9 text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all shadow-2xs"
+                            aria-label="Rechercher une affaire"
+                        />
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                    </div>
+
+                    <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
+                        {filteredProjects.map(prj => {
+                            const prjQuotesCount = savedQuotes.filter(q => q.projectRef === prj.name || (q.projectId && q.projectId === prj.id)).length;
+                            return (
+                                <button key={prj.id} onClick={() => setSelectedProjectId(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner l'affaire ${prj.name}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0">{prj.code}</span>
+                                        <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}`}>{getProjectStatusBadge(prj.status).label}</span>
+                                    </div>
+                                    <p className={`font-bold text-sm truncate ${selectedProjectId === prj.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{prj.name}</p>
+                                    <p className="text-[11px] text-neutral-500 truncate">{prj.clientName} {prjQuotesCount > 0 && <span className="text-brand-600 font-bold">· {prjQuotesCount} devis</span>}</p>
+                                </button>
+                            );
+                        })}
+                        {filteredProjects.length === 0 && (
+                            <p className="text-xs text-neutral-400 italic text-center py-6">Aucune affaire trouvée.</p>
+                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredProjects.map(prj => {
-                        const projectQuotes = savedQuotes.filter(q => q.projectRef === prj.name || (q.projectId && q.projectId === prj.id));
-                        const totalProjectCA = projectQuotes.reduce((acc, q) => acc + (q.quoteData?.totalTTCConsomme || 0), 0);
-
-                        return (
-                            <div key={prj.id} className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">
-                                                {prj.code}
-                                            </span>
-                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(prj.status).className}`}>
-                                                {getProjectStatusBadge(prj.status).label}
-                                            </span>
+                {/* COLONNE DÉTAIL — visible sur mobile uniquement quand une affaire
+                    est sélectionnée ; toujours visible côte-à-côte à partir de lg. */}
+                <div className={`${selectedProject ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+                    {!selectedProject ? (
+                        <div className="app-card p-16 text-center text-neutral-400">
+                            <i className="fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300"></i>
+                            <p className="text-sm font-bold text-neutral-600">Sélectionnez une affaire pour voir son détail</p>
+                        </div>
+                    ) : (
+                        <div className="app-card flex flex-col">
+                            <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <button onClick={() => setSelectedProjectId(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                        <i className="fa-solid fa-arrow-left"></i>
+                                    </button>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">{selectedProject.code}</span>
+                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(selectedProject.status).className}`}>{getProjectStatusBadge(selectedProject.status).label}</span>
                                         </div>
-                                        <h3 className="text-base font-black text-neutral-900 mt-1">{prj.name}</h3>
-                                        <p className="text-xs text-neutral-500 font-medium">
-                                            <i className="fa-solid fa-user mr-1 text-neutral-400"></i> {prj.clientName} &bull; <i className="fa-solid fa-location-dot mr-1 text-neutral-400"></i> {prj.siteAddress || prj.city}
+                                        <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">{selectedProject.name}</h2>
+                                        <p className="text-xs text-neutral-500 font-medium truncate">
+                                            <i className="fa-solid fa-user mr-1 text-neutral-400"></i> {selectedProject.clientName} &bull; <i className="fa-solid fa-location-dot mr-1 text-neutral-400"></i> {selectedProject.siteAddress || selectedProject.city}
                                         </p>
                                     </div>
-                                    <div className="text-right">
-                                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">CA Cumulé Affaire</span>
-                                        <span className="text-base font-black text-brand-600 font-mono">{formatMoney(totalProjectCA, companyInfo.currency)}</span>
+                                </div>
+                                <div className="text-left sm:text-right shrink-0">
+                                    <span className="text-[10px] uppercase font-bold text-neutral-400 block">CA Cumulé Affaire</span>
+                                    <span className="text-lg font-black text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
+                                </div>
+                            </div>
+
+                            <div className="p-5 sm:p-6 space-y-2">
+                                <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i className="fa-solid fa-file-lines text-brand-500"></i>
+                                    Devis &amp; Avenants Rattachés ({selectedProjectQuotes.length})
+                                </h4>
+                                {selectedProjectQuotes.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                        {selectedProjectQuotes.map(q => (
+                                            <div key={q.id} className="flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
+                                                <div>
+                                                    <span className="font-extrabold text-neutral-800 mr-2">{q.number}</span>
+                                                    <span className="text-[10px] text-neutral-400">{q.date}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-neutral-900 font-mono">{formatMoney(q.quoteData?.totalTTCConsomme, companyInfo.currency)}</span>
+                                                    <button onClick={() => { setViewingSavedQuote(q); setIsCommercialMode(true); }} className="text-brand-600 hover:text-brand-800 p-1" title="Voir PDF">
+                                                        <i className="fa-solid fa-file-pdf text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-neutral-400 italic">Aucun devis lié pour l'instant.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // VUE 2 : CRM CLIENTS BTP (7.1)
+    // ═══════════════════════════════════════════════════════════════
+    const renderClients = () => {
+        const filteredClients = clients.filter(c =>
+            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+            (c.email && c.email.toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
+            (c.phone && c.phone.includes(clientSearchQuery))
+        );
+        const selectedClient = clients.find(c => c.id === selectedClientId) || null;
+        const selectedClientProjects = selectedClient ? projects.filter(p => p.clientId === selectedClient.id || p.clientName === selectedClient.name) : [];
+        const selectedClientQuotes = selectedClient ? savedQuotes.filter(q => q.clientId === selectedClient.id || q.clientName === selectedClient.name) : [];
+
+        return (
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 items-start">
+                {/* P0.15 (2026-08-17) — Grille de cartes remplacée par le pattern
+                    liste+détail (Ressources & Prix / Catalogue Ouvrages), demandé
+                    par l'utilisateur en référence à Zoho Books. */}
+                <div className={`${selectedClient ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]`}>
+                    <div className="flex items-center justify-between px-1">
+                        <h2 className="text-lg font-bold text-neutral-800">Clients &amp; Donneurs d'Ordres</h2>
+                        <button
+                            onClick={() => {
+                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                setIsNewClientModalOpen(true);
+                            }}
+                            className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
+                            aria-label="Créer un nouveau client"
+                        >
+                            <i className="fa-solid fa-user-plus"></i> Nouveau Client
+                        </button>
+                    </div>
+
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={clientSearchQuery}
+                            onChange={(e) => setClientSearchQuery(e.target.value)}
+                            placeholder="Rechercher un client..."
+                            className="w-full bg-white border border-neutral-200 focus:border-brand-500 rounded-xl px-3.5 py-2 pl-9 text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all shadow-2xs"
+                            aria-label="Rechercher un client"
+                        />
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                    </div>
+
+                    <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
+                        {filteredClients.map(c => {
+                            const cQuotesCount = savedQuotes.filter(q => q.clientId === c.id || q.clientName === c.name).length;
+                            return (
+                                <button key={c.id} onClick={() => setSelectedClientId(c.id)} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${c.name}`}>
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-black text-xs ${selectedClientId === c.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                                        {c.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className={`font-bold text-sm truncate ${selectedClientId === c.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{c.name}</p>
+                                        <p className="text-[11px] text-neutral-500 truncate">{c.contactPerson || 'Sans contact renseigné'}</p>
+                                    </div>
+                                    {cQuotesCount > 0 && <span className="text-[10px] font-extrabold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded shrink-0">{cQuotesCount}</span>}
+                                </button>
+                            );
+                        })}
+                        {filteredClients.length === 0 && (
+                            <p className="text-xs text-neutral-400 italic text-center py-6">Aucun client trouvé.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* COLONNE DÉTAIL — visible sur mobile uniquement quand un client est
+                    sélectionné ; toujours visible côte-à-côte à partir de lg. */}
+                <div className={`${selectedClient ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col`}>
+                    {!selectedClient ? (
+                        <div className="app-card p-16 text-center text-neutral-400">
+                            <i className="fa-solid fa-users text-3xl mb-3 text-neutral-300"></i>
+                            <p className="text-sm font-bold text-neutral-600">Sélectionnez un client pour voir sa fiche</p>
+                        </div>
+                    ) : (
+                        <div className="app-card flex flex-col">
+                            <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <button onClick={() => setSelectedClientId(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                        <i className="fa-solid fa-arrow-left"></i>
+                                    </button>
+                                    <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0">
+                                        {selectedClient.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">{selectedClient.name}</h2>
+                                        <p className="text-xs text-neutral-500 truncate">{selectedClient.contactPerson || 'Sans contact renseigné'}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => {
+                                    setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
+                                    setActiveView('calculator');
+                                    showToast(`Client ${selectedClient.name} sélectionné pour le devis !`);
+                                }} className="btn-primary py-2 px-3 text-xs font-extrabold shrink-0" aria-label={`Créer un devis pour ${selectedClient.name}`}>
+                                    <i className="fa-solid fa-plus"></i> Créer Devis
+                                </button>
+                            </div>
+
+                            <div className="p-5 sm:p-6 space-y-5">
+                                <div className="bg-neutral-50 rounded-2xl p-4 text-sm space-y-2 text-neutral-700 border border-neutral-100">
+                                    {selectedClient.taxId && <p className="font-mono text-xs text-neutral-500"><strong>NIF/RCCM :</strong> {selectedClient.taxId}</p>}
+                                    {selectedClient.phone && <p><i className="fa-solid fa-phone mr-2 text-neutral-400 w-4"></i> {selectedClient.phone}</p>}
+                                    {selectedClient.email && <p><i className="fa-solid fa-envelope mr-2 text-neutral-400 w-4"></i> {selectedClient.email}</p>}
+                                    {selectedClient.address && <p><i className="fa-solid fa-location-dot mr-2 text-neutral-400 w-4"></i> {selectedClient.address}{selectedClient.city ? `, ${selectedClient.city}` : ''}</p>}
+                                    {!selectedClient.taxId && !selectedClient.phone && !selectedClient.email && !selectedClient.address && (
+                                        <p className="text-xs text-neutral-400 italic">Aucune coordonnée renseignée pour ce client.</p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white border border-neutral-200 rounded-2xl p-4 text-center">
+                                        <span className="text-2xl font-black text-neutral-900 block">{selectedClientProjects.length}</span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-400">Affaires</span>
+                                    </div>
+                                    <div className="bg-white border border-neutral-200 rounded-2xl p-4 text-center">
+                                        <span className="text-2xl font-black text-neutral-900 block">{selectedClientQuotes.length}</span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-400">Devis</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100 space-y-2">
-                                    <div className="flex justify-between items-center text-xs font-bold text-neutral-700">
-                                        <span className="flex items-center gap-1.5">
-                                            <i className="fa-solid fa-file-lines text-brand-500"></i>
-                                            Devis &amp; Avenants Rattachés ({projectQuotes.length})
-                                        </span>
-                                    </div>
-                                    {projectQuotes.length > 0 ? (
+                                <div className="space-y-2">
+                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Devis &amp; Avenants</h4>
+                                    {selectedClientQuotes.length > 0 ? (
                                         <div className="space-y-1.5">
-                                            {projectQuotes.map(q => (
-                                                <div key={q.id} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-neutral-200/60">
+                                            {selectedClientQuotes.map(q => (
+                                                <div key={q.id} className="flex justify-between items-center text-xs bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
                                                     <div>
                                                         <span className="font-extrabold text-neutral-800 mr-2">{q.number}</span>
                                                         <span className="text-[10px] text-neutral-400">{q.date}</span>
@@ -6975,96 +7154,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    };
-
-    // ═══════════════════════════════════════════════════════════════
-    // VUE 2 : CRM CLIENTS BTP (7.1)
-    // ═══════════════════════════════════════════════════════════════
-    const renderClients = () => {
-        const filteredClients = clients.filter(c => 
-            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-            (c.email && c.email.toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
-            (c.phone && c.phone.includes(clientSearchQuery))
-        );
-
-        return (
-            <div className="w-full max-w-[1400px] mx-auto space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-neutral-200 shadow-sm">
-                    <div>
-                        <h2 className="text-xl font-black text-neutral-900 flex items-center gap-2">
-                            <i className="fa-solid fa-users text-brand-600"></i>
-                            Répertoire Clients &amp; Donneurs d'Ordres
-                        </h2>
-                        <p className="text-xs text-neutral-500 mt-0.5">Centralisez vos contacts, adresses de chantier, NIF/RCCM et historique d'affaires.</p>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:w-64">
-                            <input
-                                type="text"
-                                value={clientSearchQuery}
-                                onChange={(e) => setClientSearchQuery(e.target.value)}
-                                placeholder="Rechercher un client..."
-                                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-1.5 pl-8 text-xs font-bold outline-none focus:border-brand-500"
-                            />
-                            <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
                         </div>
-                        <button
-                            onClick={() => {
-                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
-                                setIsNewClientModalOpen(true);
-                            }}
-                            className="btn-primary py-2 px-4 text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-md shadow-brand-500/20"
-                        >
-                            <i className="fa-solid fa-user-plus"></i>
-                            <span>Nouveau Client</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredClients.map(c => {
-                        const clientProjects = projects.filter(p => p.clientId === c.id || p.clientName === c.name);
-                        const clientQuotes = savedQuotes.filter(q => q.clientId === c.id || q.clientName === c.name);
-
-                        return (
-                            <div key={c.id} className="bg-white rounded-3xl border border-neutral-200 p-5 shadow-sm space-y-4 hover:border-brand-300 transition-all flex flex-col justify-between">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0">
-                                            {c.name.substring(0, 2).toUpperCase()}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h3 className="font-extrabold text-sm text-neutral-900 truncate">{c.name}</h3>
-                                            <p className="text-[11px] text-neutral-500 font-medium truncate">{c.contactPerson}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-neutral-50 rounded-2xl p-3 text-xs space-y-1 text-neutral-600 border border-neutral-100">
-                                        {c.taxId && <p className="font-mono text-[10px] text-neutral-500"><strong>NIF :</strong> {c.taxId}</p>}
-                                        {c.phone && <p><i className="fa-solid fa-phone mr-1.5 text-neutral-400"></i> {c.phone}</p>}
-                                        {c.email && <p><i className="fa-solid fa-envelope mr-1.5 text-neutral-400"></i> {c.email}</p>}
-                                        {c.address && <p><i className="fa-solid fa-location-dot mr-1.5 text-neutral-400"></i> {c.address}, {c.city}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="pt-2 border-t border-neutral-100 flex justify-between items-center text-xs text-neutral-500">
-                                    <span>{clientProjects.length} Affaires &bull; {clientQuotes.length} Devis</span>
-                                    <button onClick={() => {
-                                        setCalcForm(cf => ({ ...cf, clientName: c.name, projectRef: `Projet ${c.name}` }));
-                                        setActiveView('calculator');
-                                        showToast(`Client ${c.name} sélectionné pour le devis !`);
-                                    }} className="text-brand-600 font-bold hover:underline">
-                                        + Créer Devis
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    )}
                 </div>
             </div>
         );
