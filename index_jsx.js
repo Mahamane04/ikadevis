@@ -1878,11 +1878,20 @@ function WorkItemInspector({
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-neutral-200 animate-scale-up">
-                {/* Header Inspecteur */}
+        <div className="flex-1 min-w-0 w-full bg-white flex flex-col overflow-hidden animate-fade-in">
+                {/* Header Inspecteur — P0.10 (2026-08-17) : panneau inline (plus de
+                    modale/overlay), même pattern liste↔détail que Ressources & Prix
+                    et Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur). */}
                 <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/70">
                     <div className="flex items-center gap-3 min-w-0">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-icon text-neutral-500 hover:text-neutral-800 shrink-0"
+                            aria-label="Retour aux ouvrages du lot"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
+                        </button>
                         <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm shrink-0">
                             <i className="fa-solid fa-sliders"></i>
                         </div>
@@ -1914,15 +1923,6 @@ function WorkItemInspector({
                                 ⚙️ Avancé
                             </button>
                         </div>
-
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-500"
-                            aria-label="Fermer l'inspecteur"
-                        >
-                            <i className="fa-solid fa-xmark text-sm"></i>
-                        </button>
                     </div>
                 </div>
 
@@ -2324,10 +2324,9 @@ function WorkItemInspector({
                         onClick={onClose}
                         className="btn-primary text-xs py-2 px-5 font-extrabold"
                     >
-                        Appliquer &amp; Fermer
+                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour aux ouvrages du lot
                     </button>
                 </div>
-            </div>
         </div>
     );
 }
@@ -2809,40 +2808,61 @@ function QuoteWorkspace({
 
             {/* Corps Principal : Colonne des Lots + Table Centrale */}
             <div className="flex-1 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto">
-                <LotNavigator
-                    lots={calculatedQuote.lots || []}
-                    activeLotIndex={activeLotIndex}
-                    onSelectLot={(idx) => setActiveLotIndex(idx)}
-                    onAddLot={handleAddLot}
-                    onDuplicateLot={handleDuplicateLot}
-                    onMoveLot={handleMoveLot}
-                    onDeleteLot={handleDeleteLot}
-                    currency={companyInfo.currency}
-                />
-
-                <main className="flex-1 min-w-0 bg-white flex flex-col">
-                    <ActiveLotHeader
-                        lot={activeLot}
-                        lotIndex={activeLotIndex}
-                        lotsCount={calculatedQuote.lots?.length || 1}
-                        onUpdateLot={handleUpdateActiveLot}
-                        onOpenPicker={() => setIsPickerOpen(true)}
-                        onOpenBulkPicker={() => setIsPickerOpen(true)}
-                        onAddCustomLine={handleAddCustomLine}
+                {/* P0.10 (2026-08-17) — masquée sur mobile pendant l'inspection d'un
+                    ouvrage (pattern liste↔détail Zoho Books, cohérent avec Ressources
+                    & Prix / Catalogue Ouvrages) ; toujours visible à partir de lg. */}
+                <div className={inspectorItemIndex !== null ? 'hidden lg:flex' : 'flex'}>
+                    <LotNavigator
+                        lots={calculatedQuote.lots || []}
+                        activeLotIndex={activeLotIndex}
+                        onSelectLot={(idx) => { setActiveLotIndex(idx); setInspectorItemIndex(null); }}
+                        onAddLot={handleAddLot}
                         onDuplicateLot={handleDuplicateLot}
+                        onMoveLot={handleMoveLot}
                         onDeleteLot={handleDeleteLot}
                         currency={companyInfo.currency}
                     />
+                </div>
 
-                    <WorkItemTable
-                        items={activeLot.items || []}
-                        onUpdateItem={handleUpdateItem}
-                        onOpenInspector={(idx) => setInspectorItemIndex(idx)}
-                        onDuplicateItem={handleDuplicateItem}
-                        onDeleteItem={handleDeleteItem}
-                        onOpenPicker={() => setIsPickerOpen(true)}
-                        currency={companyInfo.currency}
-                    />
+                <main className="flex-1 min-w-0 bg-white flex flex-col">
+                    {inspectorItemIndex !== null ? (
+                        <WorkItemInspector
+                            isOpen={true}
+                            onClose={() => setInspectorItemIndex(null)}
+                            item={activeLot.items?.[inspectorItemIndex]}
+                            onUpdateItem={(patch) => handleUpdateItem(inspectorItemIndex, patch)}
+                            solutions={solutions}
+                            materials={materials}
+                            labor={labor}
+                            recipes={recipes}
+                            currency={companyInfo.currency}
+                        />
+                    ) : (
+                        <>
+                            <ActiveLotHeader
+                                lot={activeLot}
+                                lotIndex={activeLotIndex}
+                                lotsCount={calculatedQuote.lots?.length || 1}
+                                onUpdateLot={handleUpdateActiveLot}
+                                onOpenPicker={() => setIsPickerOpen(true)}
+                                onOpenBulkPicker={() => setIsPickerOpen(true)}
+                                onAddCustomLine={handleAddCustomLine}
+                                onDuplicateLot={handleDuplicateLot}
+                                onDeleteLot={handleDeleteLot}
+                                currency={companyInfo.currency}
+                            />
+
+                            <WorkItemTable
+                                items={activeLot.items || []}
+                                onUpdateItem={handleUpdateItem}
+                                onOpenInspector={(idx) => setInspectorItemIndex(idx)}
+                                onDuplicateItem={handleDuplicateItem}
+                                onDeleteItem={handleDeleteItem}
+                                onOpenPicker={() => setIsPickerOpen(true)}
+                                currency={companyInfo.currency}
+                            />
+                        </>
+                    )}
                 </main>
             </div>
 
@@ -2864,19 +2884,6 @@ function QuoteWorkspace({
                     onQuickCreateSolution(newSol);
                     handleSelectSolutionForLot(newSol);
                 }}
-            />
-
-            {/* Inspecteur Technique */}
-            <WorkItemInspector
-                isOpen={inspectorItemIndex !== null}
-                onClose={() => setInspectorItemIndex(null)}
-                item={activeLot.items?.[inspectorItemIndex]}
-                onUpdateItem={(patch) => handleUpdateItem(inspectorItemIndex, patch)}
-                solutions={solutions}
-                materials={materials}
-                labor={labor}
-                recipes={recipes}
-                currency={companyInfo.currency}
             />
 
             {/* Barre de Totaux Basse */}

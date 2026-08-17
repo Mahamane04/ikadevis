@@ -1288,7 +1288,16 @@ function WorkItemInspector({
     };
     handleParamChange("customVarValues", customVarValues);
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-neutral-200 animate-scale-up" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/70" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm shrink-0" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-sliders" })), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("h3", { className: "font-black text-sm text-neutral-900 truncate" }, "D\xE9tails : ", item.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, "M\xE9tr\xE9s, composition des co\xFBts et prix client"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-extrabold" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0 w-full bg-white flex flex-col overflow-hidden animate-fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/70" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: onClose,
+      className: "btn-icon text-neutral-500 hover:text-neutral-800 shrink-0",
+      "aria-label": "Retour aux ouvrages du lot"
+    },
+    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left" })
+  ), /* @__PURE__ */ React.createElement("div", { className: "w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm shrink-0" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-sliders" })), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("h3", { className: "font-black text-sm text-neutral-900 truncate" }, "D\xE9tails : ", item.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 truncate" }, "M\xE9tr\xE9s, composition des co\xFBts et prix client"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-extrabold" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -1304,16 +1313,7 @@ function WorkItemInspector({
       className: `px-2.5 py-1 rounded-md transition-all ${inspectorMode === "advanced" ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-600 hover:text-neutral-900"}`
     },
     "\u2699\uFE0F Avanc\xE9"
-  )), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: onClose,
-      className: "w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-500",
-      "aria-label": "Fermer l'inspecteur"
-    },
-    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-sm" })
-  ))), inspectorMode === "simple" ? /* @__PURE__ */ React.createElement("div", { className: "flex-1 overflow-y-auto p-5 space-y-5 animate-fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-black uppercase tracking-wider text-brand-700" }, "Param\xE8tres Essentiels de l'Ouvrage"), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] font-bold text-neutral-500 font-mono" }, "Mode Simple")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "D\xE9signation Ouvrage"), /* @__PURE__ */ React.createElement(
+  )))), inspectorMode === "simple" ? /* @__PURE__ */ React.createElement("div", { className: "flex-1 overflow-y-auto p-5 space-y-5 animate-fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-black uppercase tracking-wider text-brand-700" }, "Param\xE8tres Essentiels de l'Ouvrage"), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] font-bold text-neutral-500 font-mono" }, "Mode Simple")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "D\xE9signation Ouvrage"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
@@ -1540,8 +1540,9 @@ function WorkItemInspector({
       onClick: onClose,
       className: "btn-primary text-xs py-2 px-5 font-extrabold"
     },
-    "Appliquer & Fermer"
-  ))));
+    /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-left mr-1.5" }),
+    " Retour aux ouvrages du lot"
+  )));
 }
 function QuoteTotalsBar({
   quote,
@@ -1949,19 +1950,35 @@ function QuoteWorkspace({
       },
       currency: companyInfo.currency
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "flex-1 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex-1 flex flex-col lg:flex-row max-w-[1700px] w-full mx-auto" }, /* @__PURE__ */ React.createElement("div", { className: inspectorItemIndex !== null ? "hidden lg:flex" : "flex" }, /* @__PURE__ */ React.createElement(
     LotNavigator,
     {
       lots: calculatedQuote.lots || [],
       activeLotIndex,
-      onSelectLot: (idx) => setActiveLotIndex(idx),
+      onSelectLot: (idx) => {
+        setActiveLotIndex(idx);
+        setInspectorItemIndex(null);
+      },
       onAddLot: handleAddLot,
       onDuplicateLot: handleDuplicateLot,
       onMoveLot: handleMoveLot,
       onDeleteLot: handleDeleteLot,
       currency: companyInfo.currency
     }
-  ), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0 bg-white flex flex-col" }, /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0 bg-white flex flex-col" }, inspectorItemIndex !== null ? /* @__PURE__ */ React.createElement(
+    WorkItemInspector,
+    {
+      isOpen: true,
+      onClose: () => setInspectorItemIndex(null),
+      item: activeLot.items?.[inspectorItemIndex],
+      onUpdateItem: (patch) => handleUpdateItem(inspectorItemIndex, patch),
+      solutions,
+      materials,
+      labor,
+      recipes,
+      currency: companyInfo.currency
+    }
+  ) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
     ActiveLotHeader,
     {
       lot: activeLot,
@@ -1986,7 +2003,7 @@ function QuoteWorkspace({
       onOpenPicker: () => setIsPickerOpen(true),
       currency: companyInfo.currency
     }
-  ))), /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement(
     WorkItemPicker,
     {
       isOpen: isPickerOpen,
@@ -2005,19 +2022,6 @@ function QuoteWorkspace({
         onQuickCreateSolution(newSol);
         handleSelectSolutionForLot(newSol);
       }
-    }
-  ), /* @__PURE__ */ React.createElement(
-    WorkItemInspector,
-    {
-      isOpen: inspectorItemIndex !== null,
-      onClose: () => setInspectorItemIndex(null),
-      item: activeLot.items?.[inspectorItemIndex],
-      onUpdateItem: (patch) => handleUpdateItem(inspectorItemIndex, patch),
-      solutions,
-      materials,
-      labor,
-      recipes,
-      currency: companyInfo.currency
     }
   ), /* @__PURE__ */ React.createElement(
     QuoteTotalsBar,
