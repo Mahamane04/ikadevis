@@ -824,6 +824,31 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
 
     const unitSellingPriceHT = qtyVal > 0 ? (netHTConsomme / qtyVal) : netHTConsomme;
 
+    // B1 (2026-08-18) — Le métré réellement utilisé par le calcul, exposé pour
+    // le devis client. Jusqu'ici la ligne commerciale facturait toujours en
+    // « qty » (nombre d'OUVRAGES, souvent 1), jamais en surface/longueur/volume
+    // réels : un mur de 176 m² sortait en « 1,00 u ». On reprend ici exactement
+    // les mêmes valeurs que celles injectées dans evalVars pour les formules
+    // (SURFACE/VOLUME/LONGUEUR), afin que la quantité affichée au client soit
+    // la même que celle qui a servi au calcul du déboursé.
+    let metreValue = calcSurface;
+    let metreUnit = 'm²';
+    let metreSummary = null;
+    if (mode === 'unit') {
+        metreValue = qtyVal;
+        metreUnit = 'u';
+    } else if (mode === 'volume') {
+        metreValue = calcVolume;
+        metreUnit = 'm³';
+        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m × ${depthVal.toFixed(2)} m`;
+    } else if (mode === 'linear') {
+        metreValue = lengthDirectVal;
+        metreUnit = 'ml';
+    } else if (mode === 'rectangle') {
+        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m`;
+    }
+    // mode === 'surface' ou 'floor' : métré direct, pas de L × H à afficher.
+
     return {
         ...item,
         name: item.name || solution.name,
@@ -832,6 +857,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         unitPriceHT: Math.round(unitSellingPriceHT),
         totalHT: Math.round(netHTConsomme),
         calcForm,
+        metre: { value: metreValue, unit: metreUnit, summary: metreSummary },
         quoteData: {
             solutionName: solution.name,
             totalDebourseConsomme: Math.round(totalDebourseConsomme),
@@ -884,15 +910,26 @@ function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
             lotMargeVal += (qd.margeValeurConsomme || 0);
 
             // Commercial item format for customer preview & PDF
+            //
+            // B1 (2026-08-18) — billedQty/unit venaient de calculatedItem.qty,
+            // le nombre d'OUVRAGES (souvent 1), jamais du métré réel. Les lignes
+            // libres (isCustom) n'ont pas de `metre` — elles gardent leur
+            // qty/unit saisis tels quels, c'est déjà ce que l'utilisateur veut
+            // facturer. sellingUnitHT est recalculé pour que
+            // billedQty × sellingUnitHT = sellingTotalHT reste vrai quelle que
+            // soit la quantité affichée.
+            const billedQty = calculatedItem.metre?.value > 0 ? calculatedItem.metre.value : (calculatedItem.qty || 1);
+            const billedUnit = calculatedItem.metre?.unit || calculatedItem.unit || 'u';
             allCommercialItems.push({
                 id: calculatedItem.id,
                 lotCode: lot.code || String(idx + 1).padStart(2, '0'),
                 lotName: lot.name,
                 label: calculatedItem.name,
                 description: calculatedItem.description || '',
-                billedQty: calculatedItem.qty || 1,
-                unit: calculatedItem.unit || 'u',
-                sellingUnitHT: calculatedItem.unitPriceHT || 0,
+                billedQty,
+                unit: billedUnit,
+                dimensionSummary: calculatedItem.metre?.summary || null,
+                sellingUnitHT: billedQty > 0 ? (calculatedItem.totalHT || 0) / billedQty : (calculatedItem.unitPriceHT || 0),
                 sellingTotalHT: calculatedItem.totalHT || 0
             });
 
