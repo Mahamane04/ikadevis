@@ -5458,6 +5458,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
 
+    // F2 (2026-08-17) — Un seul état de connexion, dérivé une fois et affiché
+    // partout pareil. Trois indicateurs se contredisaient sur le même écran :
+    // « Mode Démo (Local) » en en-tête, « Cloud Actif » dans la barre latérale
+    // (le bloc s'affichait pour tout sbUser, invité compris) et une pastille
+    // verte « En ligne » sur mobile — qui ne parlait, elle, que de navigator.onLine.
+    // L'utilisateur ne savait pas si son travail était sur son appareil ou sur
+    // un serveur : la question la plus élémentaire qu'on pose à un outil métier.
+    const connectionState = (() => {
+        if (!sbUser || sbUser.id === 'guest') return {
+            key: 'local', label: 'Démo locale', detail: 'Données sur cet appareil',
+            icon: 'fa-laptop', dot: 'bg-amber-500',
+            chip: 'bg-amber-50 text-amber-900 border-amber-300'
+        };
+        if (!isOnline) return {
+            key: 'offline', label: 'Hors ligne', detail: 'Synchronisation au retour du réseau',
+            icon: 'fa-cloud-slash', dot: 'bg-blue-500',
+            chip: 'bg-blue-50 text-blue-800 border-blue-300'
+        };
+        if (sbSyncStatus === 'syncing') return {
+            key: 'syncing', label: 'Sauvegarde…', detail: sbUser.email,
+            icon: 'fa-arrow-rotate-right fa-spin', dot: 'bg-blue-500',
+            chip: 'bg-blue-50 text-blue-800 border-blue-200'
+        };
+        if (sbSyncStatus === 'error') return {
+            key: 'error', label: 'Erreur de synchronisation', detail: 'Vos données restent sur cet appareil',
+            icon: 'fa-triangle-exclamation', dot: 'bg-red-500',
+            chip: 'bg-red-50 text-red-800 border-red-200'
+        };
+        return {
+            key: 'synced', label: 'Synchronisé', detail: sbUser.email,
+            icon: 'fa-cloud-check', dot: 'bg-emerald-500',
+            chip: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        };
+    })();
+
     // M3 (2026-08-17) — Création d'une matière ou d'une prestation depuis la
     // modale de composant, puis rattachement immédiat au composant en cours.
     // On ne saisit ici que le minimum nécessaire au chiffrage ; le reste
@@ -8745,7 +8780,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <LogoSVG className="h-8 w-auto" />
                     </div>
                     <OrganizationSwitcher
-                        userOrganizations={userOrganizations}
+                        // F2 — L'organisation par défaut s'appelait « Entreprise BTP
+                        // Principale » pendant que l'en-tête affichait la raison sociale
+                        // saisie : deux noms pour la même entreprise sur le même écran.
+                        // Tant que l'utilisateur n'a qu'une organisation, c'est son nom
+                        // à lui qui fait foi.
+                        userOrganizations={userOrganizations.map(o => (
+                            o.id === 'org_default' && companyInfo.name?.trim()
+                                ? { ...o, name: companyInfo.name.trim(), currency: companyInfo.currency || o.currency }
+                                : o
+                        ))}
                         activeOrgId={activeOrganizationId}
                         activeOrgRole={activeOrganizationRole}
                         onSelectOrg={(orgId) => {
@@ -8774,28 +8818,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </nav>
                 <div className="p-4 border-t border-neutral-100 flex flex-col gap-2.5">
                     {sbUser && (
-                        <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${
-                            sbSyncStatus === 'saved' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                            sbSyncStatus === 'syncing' ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                            sbSyncStatus === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
-                            'bg-neutral-50 text-neutral-700 border-neutral-200'
-                        }`}>
+                        <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${connectionState.chip}`}>
                             <div className="flex items-center justify-between">
                                 <span className="flex items-center gap-1.5 font-bold">
-                                    <i className={`fa-solid ${
-                                        sbSyncStatus === 'saved' ? 'fa-cloud-check text-emerald-600' :
-                                        sbSyncStatus === 'syncing' ? 'fa-arrow-rotate-right fa-spin text-blue-600' :
-                                        sbSyncStatus === 'error' ? 'fa-triangle-exclamation text-red-600' :
-                                        'fa-cloud text-neutral-400'
-                                    }`}></i>
-                                    {sbSyncStatus === 'saved' && 'Synchronisé'}
-                                    {sbSyncStatus === 'syncing' && 'Sauvegarde…'}
-                                    {sbSyncStatus === 'error' && 'Erreur Cloud'}
-                                    {sbSyncStatus === 'idle' && 'Cloud Actif'}
+                                    <i className={`fa-solid ${connectionState.icon}`}></i>
+                                    {connectionState.label}
                                 </span>
-                                {lastSavedTime.current && <span className="text-[10px] opacity-75 font-mono">{lastSavedTime.current}</span>}
+                                {connectionState.key === 'synced' && lastSavedTime.current && (
+                                    <span className="text-[10px] opacity-75 font-mono">{lastSavedTime.current}</span>
+                                )}
                             </div>
-                            <span className="truncate text-[11px] opacity-80">{sbUser.email}</span>
+                            <span className="truncate text-[11px] opacity-80">{connectionState.detail}</span>
                         </div>
                     )}
                     {hasPermission(activeOrganizationRole, 'canViewAudit') && (
@@ -8908,9 +8941,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <LogoSVG className="h-7" />
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                            <span>{isOnline ? 'En ligne' : 'Hors-ligne'}</span>
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${connectionState.chip}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${connectionState.dot}`}></span>
+                            <span>{connectionState.label}</span>
                         </div>
                         <button 
                             onClick={() => setIsCompanyModalOpen(true)} 
@@ -8965,11 +8998,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="flex items-center gap-2">
                                 <button 
                                     onClick={() => setIsHealthModalOpen(true)}
-                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${(!sbUser || sbUser.id === 'guest') ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs' : isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 shadow-2xs' : 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100 shadow-2xs'}`} 
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all shadow-2xs hover:brightness-95 ${connectionState.chip}`}
                                     title="Ouvrir le Diagnostic Système & Health Check"
                                 >
-                                    <span className={`w-2 h-2 rounded-full ${(!sbUser || sbUser.id === 'guest') ? 'bg-amber-500' : isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`}></span>
-                                    <span>{(!sbUser || sbUser.id === 'guest') ? 'Mode Démo (Local)' : isOnline ? 'Cloud Connecté' : 'Mode Chantier'}</span>
+                                    <span className={`w-2 h-2 rounded-full ${connectionState.dot} ${connectionState.key === 'synced' ? 'animate-pulse' : ''}`}></span>
+                                    <span>{connectionState.label}</span>
                                 </button>
                                 <button onClick={() => setIsCompanyModalOpen(true)} className="btn-secondary text-xs py-1.5 px-3" aria-label="Paramètres de l'entreprise">
                                     <i className="fa-solid fa-building text-brand-500"></i> {companyInfo.name}
