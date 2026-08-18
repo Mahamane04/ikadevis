@@ -2962,6 +2962,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
   const REQUIRED_LEGAL_FIELDS = ["name", "address", "phone", "email", "nif", "rccm"];
   const getMissingLegalFields = (info) => REQUIRED_LEGAL_FIELDS.filter((k) => !(info?.[k] || "").trim());
+  const getLaborUnitFormulaMismatch = (unit, formula) => {
+    const dividesByYield = /RENDEMENT_MO/.test(formula || "");
+    if (unit === "j" && !dividesByYield) {
+      return "Tarif journalier : la formule doit diviser par RENDEMENT_MO (sinon le tarif/jour est factur\xE9 comme un tarif \xE0 l'unit\xE9, sans tenir compte du rendement).";
+    }
+    if (unit !== "j" && dividesByYield) {
+      return "Tarif \xE0 l'unit\xE9 (pas journalier) : la formule ne doit pas diviser par RENDEMENT_MO (sinon chaque unit\xE9 factur\xE9e est divis\xE9e une seconde fois par le rendement).";
+    }
+    return null;
+  };
   const [isSaveQuoteModalOpen, setIsSaveQuoteModalOpen] = useState(false);
   const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: "", projectRef: "", notes: "" });
   const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
@@ -3157,8 +3167,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 6, name: "Terrassement & Fouille manuelle/m\xE9canique", calcMode: "surface", unit: "m\xB3", rate: 6500, yieldRate: 0 },
     { id: 7, name: "Coulage et vibration du b\xE9ton arm\xE9", calcMode: "surface", unit: "m\xB3", rate: 18e3, yieldRate: 0 },
     { id: 8, name: "Fa\xE7onnage et pose des armatures acier HA", calcMode: "surface", unit: "m", rate: 250, yieldRate: 0 },
-    { id: 9, name: "Ma\xE7onnerie de murs en agglos de 15", calcMode: "surface", unit: "m\xB2", rate: 3500, yieldRate: 15 },
-    { id: 10, name: "Pose et jointoiement carrelage gr\xE8s c\xE9rame", calcMode: "surface", unit: "m\xB2", rate: 4e3, yieldRate: 12 },
+    { id: 9, name: "Ma\xE7onnerie de murs en agglos de 15", calcMode: "surface", unit: "j", rate: 12e3, yieldRate: 15 },
+    { id: 10, name: "Pose et jointoiement carrelage gr\xE8s c\xE9rame", calcMode: "surface", unit: "j", rate: 13e3, yieldRate: 12 },
     { id: 11, name: "Fabrication et pose menuiserie aluminium", calcMode: "unite", unit: "u", rate: 25e3, yieldRate: 0 },
     { id: 12, name: "Usinage rainurage V et pose cassette Alucobond", calcMode: "surface", unit: "m\xB2", rate: 8500, yieldRate: 0 },
     { id: 13, name: "C\xE2blage \xE9lectrique, modules LED et alimentation", calcMode: "unite", unit: "u", rate: 25e3, yieldRate: 0 },
@@ -6285,6 +6295,14 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     if (isReadOnlyDueToDowngrade) return;
     if (!recipeForm.refId) return;
     const newRec = { ...recipeForm, refId: parseInt(recipeForm.refId) };
+    if (newRec.type === "labor") {
+      const lab = labor.find((l) => l.id === newRec.refId);
+      const mismatch = lab && getLaborUnitFormulaMismatch(lab.unit, newRec.formula);
+      if (mismatch) {
+        showToast(mismatch, "error");
+        return;
+      }
+    }
     if (recipes.some((r) => r.id === newRec.id)) {
       updateRecipes(recipes.map((r) => r.id === newRec.id ? newRec : r));
     } else {

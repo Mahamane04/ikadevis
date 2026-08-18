@@ -4456,6 +4456,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const REQUIRED_LEGAL_FIELDS = ['name', 'address', 'phone', 'email', 'nif', 'rccm'];
     const getMissingLegalFields = (info) => REQUIRED_LEGAL_FIELDS.filter(k => !(info?.[k] || '').trim());
 
+    // B2 (2026-08-18) — Garde-fou réutilisable pour TOUTE prestation de
+    // main-d'œuvre, présente ou future (pas seulement maçonnerie/carrelage,
+    // le cas qui a révélé le bug). Le principe : chaque prestation choisit
+    // elle-même son mode de tarification — journalier (unit 'j', un tarif
+    // par équipe/jour) ou direct (m², ml, u, forfait — un tarif par unité
+    // produite). RENDEMENT_MO n'a de sens que pour convertir un métré en
+    // nombre de jours ; l'exiger ou l'interdire selon le mode choisi
+    // empêche le bug source de B2 : un tarif direct traité comme un tarif
+    // journalier (ou l'inverse) sans que rien ne le signale avant l'envoi
+    // d'un devis sous-chiffré au client.
+    const getLaborUnitFormulaMismatch = (unit, formula) => {
+        const dividesByYield = /RENDEMENT_MO/.test(formula || '');
+        if (unit === 'j' && !dividesByYield) {
+            return "Tarif journalier : la formule doit diviser par RENDEMENT_MO (sinon le tarif/jour est facturé comme un tarif à l'unité, sans tenir compte du rendement).";
+        }
+        if (unit !== 'j' && dividesByYield) {
+            return "Tarif à l'unité (pas journalier) : la formule ne doit pas diviser par RENDEMENT_MO (sinon chaque unité facturée est divisée une seconde fois par le rendement).";
+        }
+        return null;
+    };
+
     const [isSaveQuoteModalOpen, setIsSaveQuoteModalOpen] = useState(false);
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
@@ -4669,8 +4690,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 6, name: 'Terrassement & Fouille manuelle/mécanique', calcMode: 'surface', unit: 'm³', rate: 6500, yieldRate: 0 },
     { id: 7, name: 'Coulage et vibration du béton armé', calcMode: 'surface', unit: 'm³', rate: 18000, yieldRate: 0 },
     { id: 8, name: 'Façonnage et pose des armatures acier HA', calcMode: 'surface', unit: 'm', rate: 250, yieldRate: 0 },
-    { id: 9, name: 'Maçonnerie de murs en agglos de 15', calcMode: 'surface', unit: 'm²', rate: 3500, yieldRate: 15 },
-    { id: 10, name: 'Pose et jointoiement carrelage grès cérame', calcMode: 'surface', unit: 'm²', rate: 4000, yieldRate: 12 },
+    { id: 9, name: 'Maçonnerie de murs en agglos de 15', calcMode: 'surface', unit: 'j', rate: 12000, yieldRate: 15 },
+    { id: 10, name: 'Pose et jointoiement carrelage grès cérame', calcMode: 'surface', unit: 'j', rate: 13000, yieldRate: 12 },
     { id: 11, name: 'Fabrication et pose menuiserie aluminium', calcMode: 'unite', unit: 'u', rate: 25000, yieldRate: 0 },
     { id: 12, name: 'Usinage rainurage V et pose cassette Alucobond', calcMode: 'surface', unit: 'm²', rate: 8500, yieldRate: 0 },
     { id: 13, name: 'Câblage électrique, modules LED et alimentation', calcMode: 'unite', unit: 'u', rate: 25000, yieldRate: 0 },
@@ -9622,6 +9643,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 if (isReadOnlyDueToDowngrade) return;
                                 if(!recipeForm.refId) return; 
                                 const newRec = {...recipeForm, refId: parseInt(recipeForm.refId)};
+                                // B2 — Uniquement pour la main-d'œuvre : le tarif choisi
+                                // (journalier ou direct) doit rester cohérent avec la
+                                // formule, sinon le montant facturé ne veut rien dire.
+                                if (newRec.type === 'labor') {
+                                    const lab = labor.find(l => l.id === newRec.refId);
+                                    const mismatch = lab && getLaborUnitFormulaMismatch(lab.unit, newRec.formula);
+                                    if (mismatch) {
+                                        showToast(mismatch, "error");
+                                        return;
+                                    }
+                                }
                                 if (recipes.some(r => r.id === newRec.id)) {
                                     updateRecipes(recipes.map(r => r.id === newRec.id ? newRec : r));
                                 } else {

@@ -37,10 +37,29 @@
 // Ceci ne remet pas en cause le correctif P0.4 (arrondi conditionnement) ni
 // les Étalons A-F : aucune régression sur les 36 autres vérifications de
 // `npm test` suite à ce changement.
+//
+// Recalibré une seconde fois le 2026-08-18 (chantier B2, test d'utilisabilité
+// du 17/08). Le lot Maçonnerie (id 9, 176 m² dans ce modèle 1-clic) et le lot
+// Carrelage (id 10) étaient tarifés en 'm²' à 3 500 / 4 000 FCFA, mais leurs
+// recettes divisaient déjà ce tarif par un rendement m²/jour (formula
+// 'SURFACE / RENDEMENT_MO', exactement le modèle de la peinture, id 5, unit
+// 'j') — un maçon posant 176 m² ne touchait donc que 41 067 FCFA pour 11,7
+// jours de travail, 3 500 FCFA/jour. Les deux ressources sont passées à
+// unit 'j' avec un tarif journalier réaliste (12 000 / 13 000 FCFA, binôme
+// maçon+aide / carreleur qualifié à Bamako) ; le rendement (15 et 12 m²/jour)
+// était déjà juste et n'a pas changé. Voir index_jsx.js, initialLabor id 9/10.
+//
+// Écart mesuré sur ce devis (deux lots concernés, 640 m² maçonnerie +
+// 440 m² carrelage dans le modèle recalibré) : +692 667 FCFA de déboursé,
+// qui remonte à +1 039 000 FCFA de Net HT et +1 226 020 FCFA de TTC via le
+// coefficient K — lui-même INCHANGÉ à 1.51, confirmant que K est une
+// propriété structurelle du barème margin/overhead, indépendante de quelle
+// ligne de coût a varié. Valeurs mesurées via ce test lui-même après le
+// correctif, pas recalculées à la main.
 import { pathToFileURL } from 'node:url';
 import { launchApp, enterGuestMode, loadOneClickTemplate, readFinancials } from './lib/harness.mjs';
 
-const EXPECTED = { debourseSec: 59805084, coeffK: 1.51, netHT: 90307626, totalTTC: 106562999 };
+const EXPECTED = { debourseSec: 60497751, coeffK: 1.51, netHT: 91346626, totalTTC: 107789019 };
 const TOLERANCE = 0;
 
 export async function run() {
