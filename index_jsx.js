@@ -4329,13 +4329,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         nif: '2600123A',
         rccm: 'CI-ABJ-2026-B-12345',
         currency: 'FCFA',
-        paymentTerms: '50% à la commande, solde à la livraison / réception du chantier.',
+        paymentSchedule: [
+            { label: 'Acompte à la signature et démarrage des travaux', pct: 40 },
+            { label: "Situation intermédiaire / Avancement gros œuvre & hors d'eau", pct: 30 },
+            { label: 'Second œuvre, finitions et équipements', pct: 20 },
+            { label: 'Solde à la réception définitive et remise des clés', pct: 10 }
+        ],
         quoteValidity: "30 jours à compter de la date d'émission."
     };
+    const defaultPaymentSchedule = [
+        { label: 'Acompte à la signature et au démarrage', pct: 40 },
+        { label: 'Situation intermédiaire / Avancement des travaux', pct: 30 },
+        { label: 'Finitions et équipements', pct: 20 },
+        { label: 'Solde à la réception', pct: 10 }
+    ];
     const emptyCompany = {
         name: '', tagline: '', phone: '', email: '', address: '', nif: '', rccm: '',
         currency: 'FCFA',
-        paymentTerms: '50% à la commande, solde à la livraison / réception du chantier.',
+        paymentSchedule: defaultPaymentSchedule,
         quoteValidity: "30 jours à compter de la date d'émission."
     };
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
@@ -4856,7 +4867,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     // P0.2 V5.7 — Chargement local user-scoped sans dépendance à _schemaCheck pré-Auth global
-    const [companyInfo, setCompanyInfo] = useState(() => loadLocalData('companyInfo', defaultCompany));
+    const [companyInfo, setCompanyInfo] = useState(() => {
+        const loaded = loadLocalData('companyInfo', defaultCompany);
+        // F5 (2026-08-18) — Un companyInfo enregistré avant l'ajout de
+        // paymentSchedule n'a pas ce champ : loadLocalData renvoie la valeur
+        // stockée TELLE QUELLE, sans la fusionner avec les valeurs par
+        // défaut. Sans ce filet, tout compte existant perdrait purement et
+        // simplement son échéancier à l'ouverture (le tableau se cache dès
+        // que la liste est vide) au lieu de repartir sur des valeurs
+        // par défaut qu'il peut ensuite ajuster.
+        if (!loaded.paymentSchedule || loaded.paymentSchedule.length === 0) {
+            return { ...loaded, paymentSchedule: defaultPaymentSchedule };
+        }
+        return loaded;
+    });
     const [materials, setMaterials] = useState(() => {
         let loaded = loadLocalData('materials', initialMaterials);
         if (Array.isArray(loaded)) {
@@ -5487,6 +5511,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // verte « En ligne » sur mobile — qui ne parlait, elle, que de navigator.onLine.
     // L'utilisateur ne savait pas si son travail était sur son appareil ou sur
     // un serveur : la question la plus élémentaire qu'on pose à un outil métier.
+    // F5 (2026-08-18) — Helpers de l'échéancier de paiement éditable. Le total
+    // est recalculé à chaque rendu (tableau court, 3-4 lignes en pratique :
+    // aucun besoin de mémoïser).
+    const scheduleTotalPct = (companyInfo.paymentSchedule || []).reduce((s, st) => s + (parseFloat(st.pct) || 0), 0);
+    const updatePaymentStage = (idx, patch) => {
+        const next = (companyInfo.paymentSchedule || []).map((s, i) => i === idx ? { ...s, ...patch } : s);
+        updateCompanyInfo({ ...companyInfo, paymentSchedule: next });
+    };
+    const removePaymentStage = (idx) => {
+        updateCompanyInfo({ ...companyInfo, paymentSchedule: (companyInfo.paymentSchedule || []).filter((_, i) => i !== idx) });
+    };
+    const addPaymentStage = () => {
+        updateCompanyInfo({ ...companyInfo, paymentSchedule: [...(companyInfo.paymentSchedule || []), { label: '', pct: 0 }] });
+    };
+
     const connectionState = (() => {
         if (!sbUser || sbUser.id === 'guest') return {
             key: 'local', label: 'Démo locale', detail: 'Données sur cet appareil',
@@ -9308,8 +9347,49 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="company_terms" className="app-label">Conditions de Règlement Client</label>
-                                    <textarea id="company_terms" disabled={isReadOnlyDueToDowngrade} className="app-input font-medium" rows="2" value={companyInfo.paymentTerms} onChange={e => setCompanyInfo({...companyInfo, paymentTerms: e.target.value})} placeholder="Ex : 50% à la commande, 40% à l'avancement, 10% à la livraison."></textarea>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="app-label mb-0">Échéancier de Paiement</label>
+                                        <span className={`text-[11px] font-black ${scheduleTotalPct === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                            Total : {scheduleTotalPct}%
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {(companyInfo.paymentSchedule || []).map((stage, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <input
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    type="text"
+                                                    className="app-input font-medium flex-1"
+                                                    value={stage.label}
+                                                    onChange={e => updatePaymentStage(idx, { label: e.target.value })}
+                                                    placeholder="Ex : Acompte à la signature"
+                                                    aria-label={`Intitulé de l'étape ${idx + 1}`}
+                                                />
+                                                <input
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    type="number" min="0" max="100"
+                                                    className="app-input font-bold w-20 text-center shrink-0"
+                                                    value={stage.pct}
+                                                    onChange={e => updatePaymentStage(idx, { pct: e.target.value })}
+                                                    aria-label={`Pourcentage de l'étape ${idx + 1}`}
+                                                />
+                                                <span className="text-xs text-neutral-400 shrink-0">%</span>
+                                                {!isReadOnlyDueToDowngrade && (
+                                                    <button type="button" onClick={() => removePaymentStage(idx)} className="btn-icon w-8 h-8 text-red-500 shrink-0" aria-label={`Retirer l'étape ${idx + 1}`}>
+                                                        <i className="fa-solid fa-trash-can"></i>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {!isReadOnlyDueToDowngrade && (
+                                        <button type="button" onClick={addPaymentStage} className="btn-secondary text-xs py-1.5 px-3 mt-2">
+                                            <i className="fa-solid fa-plus mr-1.5"></i> Ajouter une étape
+                                        </button>
+                                    )}
+                                    {scheduleTotalPct !== 100 && (
+                                        <p className="text-[11px] text-red-600 mt-1.5 font-semibold">Le total doit être égal à 100% avant d'enregistrer.</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3">
@@ -9807,7 +9887,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     rccm: snap.rccm || companyInfo.rccm
                 };
                 const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
-                const canSend = missingLegal.length === 0;
+                // F5 — Même logique de repli que l'identité légale ci-dessus :
+                // priorité à l'instantané pris avec CE devis, retour à
+                // l'échéancier courant des Paramètres si l'instantané n'en
+                // porte pas (anciens devis enregistrés avant ce correctif).
+                const paymentSchedule = (snap.paymentSchedule && snap.paymentSchedule.length > 0)
+                    ? snap.paymentSchedule
+                    : (companyInfo.paymentSchedule || []);
+                // F5 — Un échéancier qui ne totalise pas 100 % n'est pas
+                // envoyable : chaque champ de ce formulaire (dont les tranches)
+                // se sauvegarde à la frappe (voir le formulaire Paramètres plus
+                // bas), donc rien n'empêchait un total de 110 % de se retrouver
+                // sur un devis client. C'est ICI, à l'endroit qui décide
+                // réellement si le devis part, que l'anomalie doit être arrêtée.
+                const scheduleTotal = paymentSchedule.reduce((s, st) => s + (parseFloat(st.pct) || 0), 0);
+                const scheduleInvalid = paymentSchedule.length > 0 && Math.round(scheduleTotal) !== 100;
+                const canSend = missingLegal.length === 0 && !scheduleInvalid;
                 return (
                 <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
@@ -9845,11 +9940,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <button
                                     onClick={() => setIsCompanyModalOpen(true)}
                                     className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
-                                    title="L'identité de l'entreprise doit être complétée avant tout envoi au client"
-                                    aria-label="Compléter l'identité de l'entreprise avant d'envoyer ce devis"
+                                    title="Ce devis doit être corrigé avant tout envoi au client"
+                                    aria-label="Corriger ce devis avant de l'envoyer"
                                 >
                                     <i className="fa-solid fa-triangle-exclamation"></i>
-                                    <span>Identité à compléter</span>
+                                    <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
                                 </button>
                                 )}
                                 <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -9860,7 +9955,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 shrink-0">
                                 <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">
                                     <i className="fa-solid fa-circle-info"></i>
-                                    Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.
+                                    {missingLegal.length > 0 && (
+                                        <span>Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.</span>
+                                    )}
+                                    {missingLegal.length > 0 && scheduleInvalid && <span className="mx-1">&bull;</span>}
+                                    {scheduleInvalid && (
+                                        <span>L'échéancier de paiement totalise {scheduleTotal}% au lieu de 100% — corrigez-le avant d'envoyer ce devis.</span>
+                                    )}
                                 </p>
                                 <button onClick={() => setIsCompanyModalOpen(true)} className="btn-primary text-xs py-1.5 px-3 shrink-0 font-bold">
                                     Compléter maintenant
@@ -9996,52 +10097,44 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     </div>
 
-                                    {/* BLOC 7/10 : TABLEAU ÉCHÉANCIER DE RÈGLEMENT BTP */}
+                                    {paymentSchedule.length > 0 && (
                                     <div className="pt-4 border-t border-neutral-200">
                                         <h4 className="text-xs font-black text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                             <i className="fa-solid fa-calendar-check text-brand-600"></i>
-                                            Échéancier Prévisionnel des Règlements BTP
+                                            Échéancier Prévisionnel des Règlements
                                         </h4>
                                         <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
                                             <table className="w-full text-left text-xs">
                                                 <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-extrabold text-neutral-500 uppercase">
                                                     <tr>
-                                                        <th className="p-2.5 pl-3">Étape de Travaux</th>
+                                                        <th className="p-2.5 pl-3">Étape</th>
                                                         <th className="p-2.5 text-center">Taux (%)</th>
                                                         <th className="p-2.5 text-right pr-3">Montant TTC</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-neutral-100 font-medium">
-                                                    <tr>
-                                                        <td className="p-2.5 pl-3">Acompte à la signature et démarrage des travaux</td>
-                                                        <td className="p-2.5 text-center font-bold text-neutral-700">40%</td>
-                                                        <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney((viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * 0.40, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-2.5 pl-3">Situation intermédiaire / Avancement gros œuvre &amp; hors d'eau</td>
-                                                        <td className="p-2.5 text-center font-bold text-neutral-700">30%</td>
-                                                        <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney((viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * 0.30, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-2.5 pl-3">Second œuvre, finitions et équipements</td>
-                                                        <td className="p-2.5 text-center font-bold text-neutral-700">20%</td>
-                                                        <td className="p-2.5 text-right pr-3 font-mono font-bold text-neutral-900">{formatMoney((viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * 0.20, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                    </tr>
-                                                    <tr className="bg-neutral-50/60 font-bold">
-                                                        <td className="p-2.5 pl-3 text-brand-700">Solde à la réception définitive et remise des clés</td>
-                                                        <td className="p-2.5 text-center text-brand-700">10%</td>
-                                                        <td className="p-2.5 text-right pr-3 font-mono text-brand-700">{formatMoney((viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * 0.10, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                    </tr>
+                                                    {paymentSchedule.map((stage, idx) => {
+                                                        const isLast = idx === paymentSchedule.length - 1;
+                                                        const pct = parseFloat(stage.pct) || 0;
+                                                        const amount = (viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * (pct / 100);
+                                                        return (
+                                                            <tr key={idx} className={isLast ? 'bg-neutral-50/60 font-bold' : undefined}>
+                                                                <td className={`p-2.5 pl-3 ${isLast ? 'text-brand-700' : ''}`}>{stage.label}</td>
+                                                                <td className={`p-2.5 text-center ${isLast ? 'text-brand-700' : 'font-bold text-neutral-700'}`}>{pct}%</td>
+                                                                <td className={`p-2.5 text-right pr-3 font-mono ${isLast ? 'text-brand-700' : 'font-bold text-neutral-900'}`}>{formatMoney(amount, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
+                                    )}
 
                                     <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
                                         <div>
-                                            <p className="font-bold text-neutral-700 mb-1">Conditions de règlement :</p>
-                                            <p>{viewingSavedQuote.companyInfoSnapshot?.paymentTerms || companyInfo.paymentTerms}</p>
-                                            <p className="mt-1">Validité de l'offre : {viewingSavedQuote.companyInfoSnapshot?.quoteValidity || companyInfo.quoteValidity}</p>
+                                            <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
+                                            <p>{viewingSavedQuote.companyInfoSnapshot?.quoteValidity || companyInfo.quoteValidity}</p>
                                         </div>
                                         <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
                                             <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
@@ -10121,7 +10214,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <button onClick={() => window.print()} className="btn-secondary"><i className="fa-solid fa-print"></i> Imprimer Devis</button>
                             ) : (
                                 <button onClick={() => setIsCompanyModalOpen(true)} className="btn-secondary text-amber-900 bg-amber-50 border-amber-300 hover:bg-amber-100">
-                                    <i className="fa-solid fa-triangle-exclamation"></i> Compléter l'identité pour imprimer
+                                    <i className="fa-solid fa-triangle-exclamation"></i> {missingLegal.length > 0 ? "Compléter l'identité pour imprimer" : "Corriger l'échéancier pour imprimer"}
                                 </button>
                             )}
                             <button onClick={() => setViewingSavedQuote(null)} className="btn-primary">Fermer</button>
