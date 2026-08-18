@@ -1463,7 +1463,101 @@ function WorkItemTable({
 
     return (
         <div className="p-4 sm:p-6 space-y-4">
-            <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
+            {/* M8 (2026-08-18) — Le tableau desktop était réutilisé tel quel en
+                mobile : désignations tronquées à un mot, colonne prix hors écran,
+                contenu qui débordait son conteneur (624px dans 337px mesurés lors
+                du test d'utilisabilité). Une carte par ouvrage sous sm, le tableau
+                au-dessus — c'est justement ce qu'on relit sur le chantier. */}
+            <div className="sm:hidden space-y-3">
+                {items.map((item, idx) => {
+                    const unitPrice = item.unitPriceHT || 0;
+                    const total = item.totalHT || 0;
+                    return (
+                        <div key={item.id || idx} className="border border-neutral-200 rounded-2xl bg-white shadow-xs p-3.5 space-y-3">
+                            <div className="flex items-start gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs shrink-0 mt-1">
+                                    <i className="fa-solid fa-cube"></i>
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    <input
+                                        type="text"
+                                        value={item.name || ''}
+                                        onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
+                                        placeholder="Désignation de l'ouvrage ou ligne..."
+                                        className="w-full font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
+                                        aria-label={`Désignation pour ${item.name}`}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={item.description || ''}
+                                        onChange={(e) => onUpdateItem(idx, { description: e.target.value })}
+                                        placeholder="Précisions ou description..."
+                                        className="w-full text-xs text-neutral-500 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-2 py-0.5 outline-none transition-all placeholder-neutral-300"
+                                        aria-label={`Description pour ${item.name}`}
+                                    />
+                                    {item.calcForm && (
+                                        <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
+                                            Mode: {item.calcForm.takeoffMode || 'rectangle'} &bull; {item.calcForm.width}m × {item.calcForm.height}m
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-neutral-100">
+                                <div>
+                                    <label className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block mb-1">Quantité</label>
+                                    <div className="flex items-center gap-1.5">
+                                        <input
+                                            type="number" min="1" step="any"
+                                            value={item.qty || 1}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value) || 1;
+                                                onUpdateItem(idx, { qty: val, calcForm: { ...(item.calcForm || {}), qty: val } });
+                                            }}
+                                            className="w-full text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                            aria-label={`Quantité pour ${item.name}`}
+                                        />
+                                        <span className="px-2 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] shrink-0">{item.unit || 'u'}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
+                                    <input
+                                        type="number" min="0" step="any"
+                                        value={item.unitPriceHT || 0}
+                                        onChange={(e) => {
+                                            const val = parseFloat(e.target.value) || 0;
+                                            onUpdateItem(idx, { unitPriceHT: val, totalHT: val * (item.qty || 1), isCustom: true });
+                                        }}
+                                        className="w-full text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                        aria-label={`Prix unitaire pour ${item.name}`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                                <div>
+                                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Total Net HT</span>
+                                    <span className="font-black text-neutral-900 text-base">{formatMoney(total, currency)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <button type="button" onClick={() => onOpenInspector(idx)} className="p-2 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-sm transition-all" title="Voir et modifier les détails techniques & métrés" aria-label={`Détails techniques de ${item.name}`}>
+                                        <i className="fa-solid fa-sliders"></i>
+                                    </button>
+                                    <button type="button" onClick={() => onDuplicateItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-sm transition-all" title="Dupliquer cette ligne" aria-label={`Dupliquer ${item.name}`}>
+                                        <i className="fa-solid fa-copy"></i>
+                                    </button>
+                                    <button type="button" onClick={() => onDeleteItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 text-sm transition-all" title="Supprimer cette ligne" aria-label={`Supprimer ${item.name}`}>
+                                        <i className="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-extrabold uppercase tracking-wider text-[10px]">
