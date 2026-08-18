@@ -1132,9 +1132,11 @@ function WorkItemPicker({
     { id: "paint", label: "\u{1F3A8} Peinture & Finitions" },
     { id: "menuiserie", label: "\u{1FAB5} Menuiserie & Alu" }
   ];
+  const normalizedQuery = normalizeSearchText(searchQuery);
   const filteredSolutions = solutions.filter((s) => {
-    const matchesQuery = s.name.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesQuery) return false;
+    const matchesName = normalizeSearchText(s.name).includes(normalizedQuery);
+    const matchesKeyword = (s.keywords || []).some((k) => normalizeSearchText(k).includes(normalizedQuery));
+    if (!matchesName && !matchesKeyword) return false;
     if (selectedCategory === "all") return true;
     if (selectedCategory === "btp") return s.name.toLowerCase().includes("b\xE9ton") || s.name.toLowerCase().includes("cadre") || s.name.toLowerCase().includes("btp");
     if (selectedCategory === "event") return s.name.toLowerCase().includes("panneau") || s.name.toLowerCase().includes("b\xE2che") || s.name.toLowerCase().includes("podium");
@@ -3152,7 +3154,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
       name: "Ma\xE7onnerie en Murs d\u2019Agglos de 15",
       icon: "fa-trowel-bricks",
       allowedModes: ["surface"],
-      customVars: []
+      customVars: [],
+      keywords: ["cl\xF4ture", "muret", "mur de s\xE9paration", "parpaing", "agglo"]
     },
     {
       id: 6,
@@ -5685,7 +5688,24 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
     }, className: `btn-secondary py-2 px-3 text-xs ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : "border-brand-200 text-brand-700 hover:bg-brand-50"}`, "aria-label": "G\xE9rer les variables sp\xE9cifiques" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-sliders" }), " Variables du Chantier"), /* @__PURE__ */ React.createElement("button", { disabled: isReadOnlyDueToDowngrade, onClick: () => {
       setRecipeForm({ id: Date.now(), solutionId: selectedSolutionForEdit.id, type: "material", refId: materials[0]?.id || "", formula: "SURFACE", costCategory: "material", label: "" });
       setIsRecipeModalOpen(true);
-    }, className: `btn-primary py-2 px-3 text-xs ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : ""}`, "aria-label": "Ajouter un composant \xE0 l'ouvrage" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Ajouter un composant"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-brand-50/40 border-b border-neutral-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-brand-700 uppercase tracking-wider" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-sliders mr-1" }), "Variables Personnalis\xE9es de l'Ouvrage"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    }, className: `btn-primary py-2 px-3 text-xs ${isReadOnlyDueToDowngrade ? "opacity-50 cursor-not-allowed" : ""}`, "aria-label": "Ajouter un composant \xE0 l'ouvrage" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-plus" }), " Ajouter un composant"))), /* @__PURE__ */ React.createElement("div", { className: "px-5 sm:px-6 py-3 border-b border-neutral-100 bg-white" }, /* @__PURE__ */ React.createElement("label", { htmlFor: "ouvrage_keywords", className: "app-label flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-tags text-neutral-400" }), "Mots-cl\xE9s de recherche"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        id: "ouvrage_keywords",
+        key: selectedSolutionForEdit.id,
+        disabled: isReadOnlyDueToDowngrade,
+        type: "text",
+        className: "app-input text-sm",
+        defaultValue: (selectedSolutionForEdit.keywords || []).join(", "),
+        onBlur: (e) => {
+          const kws = e.target.value.split(",").map((k) => k.trim()).filter(Boolean);
+          const updated = solutions.map((s) => s.id === selectedSolutionForEdit.id ? { ...s, keywords: kws } : s);
+          updateSolutions(updated);
+          setSelectedSolutionForEdit({ ...selectedSolutionForEdit, keywords: kws });
+        },
+        placeholder: "Ex : cl\xF4ture, muret, mur de s\xE9paration, parpaing"
+      }
+    ), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "S\xE9par\xE9s par une virgule \u2014 aide le client \xE0 retrouver cet ouvrage m\xEAme sans en conna\xEEtre le nom exact.")), /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-brand-50/40 border-b border-neutral-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("h4", { className: "text-xs font-bold text-brand-700 uppercase tracking-wider" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-sliders mr-1" }), "Variables Personnalis\xE9es de l'Ouvrage"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { onClick: () => {
       setVarForm({ name: "", label: "", defaultValue: 0, unit: "u" });
       setIsVarModalOpen(true);
     }, className: "text-[11px] font-bold text-brand-600 hover:underline", "aria-label": "Ajouter une variable personnalis\xE9e" }, "+ Ajouter une variable")), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, selectedSolutionForEdit.customVars && selectedSolutionForEdit.customVars.map((cv) => /* @__PURE__ */ React.createElement("span", { key: cv.name, className: "inline-flex items-center gap-1.5 bg-white border border-brand-200 text-brand-900 px-2.5 py-1 rounded-lg text-xs font-mono font-bold shadow-sm" }, /* @__PURE__ */ React.createElement("span", null, cv.name), /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 font-normal" }, "= ", cv.defaultValue, " ", cv.unit), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { onClick: () => handleDeleteCustomVar(cv.name), className: "ml-1 text-neutral-400 hover:text-red-600", "aria-label": `Supprimer la variable ${cv.name}` }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark text-[10px]" })))), (!selectedSolutionForEdit.customVars || selectedSolutionForEdit.customVars.length === 0) && /* @__PURE__ */ React.createElement("span", { className: "text-xs text-neutral-400 italic" }, "Aucune variable sp\xE9cifique configur\xE9e (ex : PROFONDEUR, COUCHES)."))), /* @__PURE__ */ React.createElement("div", { className: "block lg:hidden p-4 space-y-3" }, recipes.filter((r) => r.solutionId === selectedSolutionForEdit.id).map((r) => {

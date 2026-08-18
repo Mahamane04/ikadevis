@@ -1640,9 +1640,11 @@ function WorkItemPicker({
         { id: 'menuiserie', label: '🪵 Menuiserie & Alu' }
     ];
 
+    const normalizedQuery = normalizeSearchText(searchQuery);
     const filteredSolutions = solutions.filter(s => {
-        const matchesQuery = s.name.toLowerCase().includes(searchQuery.toLowerCase());
-        if (!matchesQuery) return false;
+        const matchesName = normalizeSearchText(s.name).includes(normalizedQuery);
+        const matchesKeyword = (s.keywords || []).some(k => normalizeSearchText(k).includes(normalizedQuery));
+        if (!matchesName && !matchesKeyword) return false;
         if (selectedCategory === 'all') return true;
         if (selectedCategory === 'btp') return s.name.toLowerCase().includes('béton') || s.name.toLowerCase().includes('cadre') || s.name.toLowerCase().includes('btp');
         if (selectedCategory === 'event') return s.name.toLowerCase().includes('panneau') || s.name.toLowerCase().includes('bâche') || s.name.toLowerCase().includes('podium');
@@ -4623,7 +4625,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         name: 'Maçonnerie en Murs d’Agglos de 15',
         icon: 'fa-trowel-bricks',
         allowedModes: ['surface'],
-        customVars: []
+        customVars: [],
+        keywords: ['clôture', 'muret', 'mur de séparation', 'parpaing', 'agglo']
     },
     {
         id: 6,
@@ -8125,6 +8128,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <i className="fa-solid fa-plus"></i> Ajouter un composant
                                 </button>
                             </div>
+                        </div>
+
+                        {/* M2 (2026-08-18) — Mots-clés de recherche : un client tape le
+                            mot de son métier ("clôture"), pas forcément le nom exact de
+                            la fiche catalogue ("Maçonnerie en Murs d'Agglos de 15"). Ce
+                            champ alimente filteredSolutions (recherche du sélecteur
+                            d'ouvrages) en plus du nom. */}
+                        <div className="px-5 sm:px-6 py-3 border-b border-neutral-100 bg-white">
+                            <label htmlFor="ouvrage_keywords" className="app-label flex items-center gap-1.5">
+                                <i className="fa-solid fa-tags text-neutral-400"></i>
+                                Mots-clés de recherche
+                            </label>
+                            <input
+                                id="ouvrage_keywords"
+                                key={selectedSolutionForEdit.id}
+                                disabled={isReadOnlyDueToDowngrade}
+                                type="text"
+                                className="app-input text-sm"
+                                defaultValue={(selectedSolutionForEdit.keywords || []).join(', ')}
+                                onBlur={e => {
+                                    const kws = e.target.value.split(',').map(k => k.trim()).filter(Boolean);
+                                    const updated = solutions.map(s => s.id === selectedSolutionForEdit.id ? { ...s, keywords: kws } : s);
+                                    updateSolutions(updated);
+                                    setSelectedSolutionForEdit({ ...selectedSolutionForEdit, keywords: kws });
+                                }}
+                                placeholder="Ex : clôture, muret, mur de séparation, parpaing"
+                            />
+                            <p className="text-[11px] text-neutral-400 mt-1">Séparés par une virgule — aide le client à retrouver cet ouvrage même sans en connaître le nom exact.</p>
                         </div>
 
                         <div className="p-4 bg-brand-50/40 border-b border-neutral-100">
