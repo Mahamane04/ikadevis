@@ -1715,6 +1715,8 @@ function WorkItemPicker({
 
     useEffect(() => {
         if (isOpen) {
+            setSearchQuery('');
+            setSelectedCategory('all');
             setTimeout(() => searchInputRef.current?.focus(), 100);
         }
     }, [isOpen]);
@@ -9444,14 +9446,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="company_nif" className="app-label flex justify-between items-center">
+                                        <label htmlFor="company_nif" className="app-label app-label--split">
                                             <span>NIF (Identifiant Fiscal)</span>
                                             <span className="text-[10px] text-neutral-400 font-normal">Numéro Fiscal</span>
                                         </label>
                                         <input id="company_nif" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.nif} onChange={e => updateCompanyInfo({...companyInfo, nif: e.target.value})} placeholder="Ex : 084123456A" />
                                     </div>
                                     <div>
-                                        <label htmlFor="company_rccm" className="app-label flex justify-between items-center">
+                                        <label htmlFor="company_rccm" className="app-label app-label--split">
                                             <span>RCCM (Registre du Commerce)</span>
                                             <span className="text-[10px] text-neutral-400 font-normal">Immatriculation</span>
                                         </label>
@@ -9464,7 +9466,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <input id="company_currency" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.currency} onChange={e => updateCompanyInfo({...companyInfo, currency: e.target.value})} placeholder="FCFA, EUR, USD..." />
                                     </div>
                                     <div>
-                                        <label htmlFor="company_validity" className="app-label flex justify-between items-center">
+                                        <label htmlFor="company_validity" className="app-label app-label--split">
                                             <span>Validité de l'offre</span>
                                             <span className="text-[10px] text-neutral-400 font-normal">Sur devis client</span>
                                         </label>
@@ -9908,7 +9910,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <form onSubmit={handleSaveQuoteSubmit}>
                             <div className="p-6 bg-neutral-50/50 space-y-4">
                                 <div>
-                                    <label htmlFor="save_quote_client_name" className="app-label flex justify-between items-center">
+                                    <label htmlFor="save_quote_client_name" className="app-label app-label--split">
                                         <span>Nom du Client / Entreprise <span className="text-red-500">*</span></span>
                                         {clientNameError && <span className="text-red-600 font-bold text-xs animate-shake" role="alert"><i className="fa-solid fa-circle-exclamation mr-1"></i>Champ requis</span>}
                                     </label>
