@@ -717,7 +717,7 @@ function QuoteHeader({
       value: quote.clientName || "",
       onChange: (e) => onUpdateQuote({ clientName: e.target.value }),
       placeholder: "Nom du Client (ex: M. KOUASSI, BTP SARL)\u2026",
-      className: "bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 transition-all",
+      className: "bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all",
       "aria-label": "Nom du client"
     }
   ), /* @__PURE__ */ React.createElement(
@@ -727,7 +727,7 @@ function QuoteHeader({
       value: quote.projectRef || "",
       onChange: (e) => onUpdateQuote({ projectRef: e.target.value }),
       placeholder: "Chantier / Projet (ex: Villa R+1 Cocody)\u2026",
-      className: "hidden sm:block bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 transition-all",
+      className: "hidden sm:block bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all",
       "aria-label": "R\xE9f\xE9rence du chantier"
     }
   )), /* @__PURE__ */ React.createElement("div", { className: "relative shrink-0" }, /* @__PURE__ */ React.createElement(
