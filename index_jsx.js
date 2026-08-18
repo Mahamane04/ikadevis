@@ -4312,7 +4312,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isAllowedModesModalOpen, setIsAllowedModesModalOpen] = useState(false);
 
     const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-    const defaultCompany = {
+    // B3 (2026-08-18) — Cette identité n'a plus vocation à être écrite dans un
+    // vrai devis : un compte réel démarre avec des champs légaux VIDES (voir
+    // emptyCompany plus bas), suivant le même garde estModeDemo que les
+    // clients/projets/devis de démonstration (cf. commit "Réserver les
+    // données de démonstration au Mode Invité"). demoCompany ne sert plus
+    // qu'à peupler le Mode Invité, pour que la démo reste utilisable sans
+    // qu'un utilisateur réel puisse envoyer un devis sous un NIF ivoirien
+    // fictif sans même s'en rendre compte.
+    const demoCompany = {
         name: 'IKADEVIS BTP',
         tagline: 'BTP - Fabrications - Aménagement - Signalétique',
         phone: '+225 07 00 00 00',
@@ -4324,6 +4332,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         paymentTerms: '50% à la commande, solde à la livraison / réception du chantier.',
         quoteValidity: "30 jours à compter de la date d'émission."
     };
+    const emptyCompany = {
+        name: '', tagline: '', phone: '', email: '', address: '', nif: '', rccm: '',
+        currency: 'FCFA',
+        paymentTerms: '50% à la commande, solde à la livraison / réception du chantier.',
+        quoteValidity: "30 jours à compter de la date d'émission."
+    };
+    const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
+    const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
+
+    // B3 — Champs légaux obligatoires avant tout envoi au client : sans eux,
+    // le devis engagerait l'entreprise sous une identité incomplète ou
+    // (pire, avant ce correctif) sous celle, fictive, de la démo.
+    const REQUIRED_LEGAL_FIELDS = ['name', 'address', 'phone', 'email', 'nif', 'rccm'];
+    const getMissingLegalFields = (info) => REQUIRED_LEGAL_FIELDS.filter(k => !(info?.[k] || '').trim());
 
     const [isSaveQuoteModalOpen, setIsSaveQuoteModalOpen] = useState(false);
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
@@ -9223,7 +9245,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             )}
 
             {isCompanyModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+                // B3 (2026-08-18) — Relevé à z-[140] : « Compléter maintenant »,
+                // depuis l'aperçu client (z-[120]), ouvrait ce panneau
+                // Paramètres Entreprise DERRIÈRE l'aperçu, donc invisible.
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[140] p-4">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
                             <h3 className="font-bold text-neutral-800 text-lg"><i className="fa-solid fa-building text-brand-500 mr-2"></i>Paramètres Entreprise</h3>
@@ -9758,7 +9783,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 showToast={showToast}
             />
 
-            {viewingSavedQuote && (
+            {viewingSavedQuote && (() => {
+                // B3 (2026-08-18) — Un devis ne quitte l'app (impression, partage,
+                // signature) qu'avec une identité légale complète. On lit
+                // companyInfoSnapshot en priorité : c'est l'identité telle
+                // qu'enregistrée AVEC ce devis précis, pas l'état courant des
+                // réglages (qui a pu changer depuis). Un devis prévisualisé avant
+                // le premier enregistrement n'a pas encore de snapshot : on se
+                // rabat alors sur companyInfo, seule source disponible.
+                // Même repli champ par champ que celui déjà utilisé dans tout
+                // le corps imprimé (voir plus bas : `snapshot?.name || companyInfo.name`,
+                // etc.) — sinon le bandeau pouvait rester bloqué en réclamant un
+                // champ que l'utilisateur venait de compléter dans les
+                // Paramètres, simplement parce que l'ancien instantané (pris à
+                // l'ouverture de l'aperçu) l'avait figé vide.
+                const snap = viewingSavedQuote.companyInfoSnapshot || {};
+                const effectiveCompanyInfo = {
+                    name: snap.name || companyInfo.name,
+                    address: snap.address || companyInfo.address,
+                    phone: snap.phone || companyInfo.phone,
+                    email: snap.email || companyInfo.email,
+                    nif: snap.nif || companyInfo.nif,
+                    rccm: snap.rccm || companyInfo.rccm
+                };
+                const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
+                const canSend = missingLegal.length === 0;
+                return (
                 <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
@@ -9778,6 +9828,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         Devis Commercial Client Clean
                                     </button>
                                 </div>
+                                {canSend ? (<>
                                 <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold" title="Partager le devis au client" aria-label="Partager le devis">
                                     <i className="fa-solid fa-share-nodes text-brand-600"></i>
                                     <span>Partager</span>
@@ -9790,9 +9841,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <i className="fa-solid fa-print"></i>
                                     <span>Imprimer / PDF</span>
                                 </button>
+                                </>) : (
+                                <button
+                                    onClick={() => setIsCompanyModalOpen(true)}
+                                    className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
+                                    title="L'identité de l'entreprise doit être complétée avant tout envoi au client"
+                                    aria-label="Compléter l'identité de l'entreprise avant d'envoyer ce devis"
+                                >
+                                    <i className="fa-solid fa-triangle-exclamation"></i>
+                                    <span>Identité à compléter</span>
+                                </button>
+                                )}
                                 <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                             </div>
                         </div>
+
+                        {!canSend && (
+                            <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 shrink-0">
+                                <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">
+                                    <i className="fa-solid fa-circle-info"></i>
+                                    Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.
+                                </p>
+                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-primary text-xs py-1.5 px-3 shrink-0 font-bold">
+                                    Compléter maintenant
+                                </button>
+                            </div>
+                        )}
 
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-6">
                             {isCommercialMode ? (
@@ -9997,12 +10071,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
 
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button onClick={() => window.print()} className="btn-secondary"><i className="fa-solid fa-print"></i> Imprimer Devis</button>
+                            {canSend ? (
+                                <button onClick={() => window.print()} className="btn-secondary"><i className="fa-solid fa-print"></i> Imprimer Devis</button>
+                            ) : (
+                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-secondary text-amber-900 bg-amber-50 border-amber-300 hover:bg-amber-100">
+                                    <i className="fa-solid fa-triangle-exclamation"></i> Compléter l'identité pour imprimer
+                                </button>
+                            )}
                             <button onClick={() => setViewingSavedQuote(null)} className="btn-primary">Fermer</button>
                         </div>
                     </div>
                 </div>
-            )}
+                ); })()}
 
             {/* P0.1 V5.2 — Modal d'Importation Explicite des Données Locales */}
             {showImportBanner && (
