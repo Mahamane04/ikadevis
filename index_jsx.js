@@ -9907,31 +9907,77 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     )}
 
-                                    <table className="w-full text-left text-xs border-collapse">
-                                        <thead>
-                                            <tr className="bg-neutral-900 text-white font-bold uppercase">
-                                                <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
-                                                <th className="p-3.5 text-center">Quantité</th>
-                                                <th className="p-3.5 text-right">Prix Unitaire HT</th>
-                                                <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-neutral-100">
-                                            {viewingSavedQuote.quoteData?.commercialItems?.map(item => (
-                                                <tr key={item.id}>
-                                                    <td className="p-3.5">
-                                                        <p className="font-bold text-neutral-900">{item.label}</p>
-                                                        {item.dimensionSummary && (
-                                                            <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
-                                                    <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                    <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    {/* F4 (2026-08-18) — Le tableau aplatissait toutes les lignes en
+                                        une seule liste, sans intitulé de lot ni sous-total, alors que
+                                        commercialItems porte déjà lotCode/lotName depuis leur création
+                                        (js/calc-engine.js). C'est pourtant la découpe en lots qui permet
+                                        au client d'arbitrer (« je prends le mur, je reporte l'enseigne »)
+                                        — la norme d'un bordereau BTP. Un seul lot ne montre pas d'en-tête
+                                        ni de sous-total : la redondance n'apporterait rien face au total
+                                        général juste en dessous. */}
+                                    {(() => {
+                                        const printCurrency = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
+                                        const items = viewingSavedQuote.quoteData?.commercialItems || [];
+                                        const lotsMap = new Map();
+                                        items.forEach(item => {
+                                            const code = item.lotCode || '01';
+                                            if (!lotsMap.has(code)) lotsMap.set(code, { lotCode: code, lotName: item.lotName || `Lot ${code}`, items: [] });
+                                            lotsMap.get(code).items.push(item);
+                                        });
+                                        const lots = [...lotsMap.values()];
+                                        const showLotHeaders = lots.length > 1;
+                                        return (
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead>
+                                                    <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                                        <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
+                                                        <th className="p-3.5 text-center">Quantité</th>
+                                                        <th className="p-3.5 text-right">Prix Unitaire HT</th>
+                                                        <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-100">
+                                                    {lots.map(lot => {
+                                                        const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
+                                                        return (
+                                                            <React.Fragment key={lot.lotCode}>
+                                                                {showLotHeaders && (
+                                                                    <tr className="bg-neutral-50">
+                                                                        <td colSpan={4} className="px-3.5 py-2 font-extrabold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                                            {lot.lotName}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                                {lot.items.map(item => (
+                                                                    <tr key={item.id}>
+                                                                        <td className="p-3.5">
+                                                                            <p className="font-bold text-neutral-900">{item.label}</p>
+                                                                            {item.dimensionSummary && (
+                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
+                                                                        <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
+                                                                        <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                                {showLotHeaders && (
+                                                                    <tr className="bg-neutral-50/60">
+                                                                        <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                                            Sous-total Lot {lot.lotCode} HT
+                                                                        </td>
+                                                                        <td className="px-3.5 py-2 text-right font-extrabold text-neutral-800">
+                                                                            {formatMoney(lotSubtotal, printCurrency)}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        );
+                                    })()}
 
                                     <div className="flex justify-end pt-4 border-t border-neutral-200">
                                         <div className="w-72 space-y-2 text-xs">
