@@ -1492,6 +1492,7 @@ function WorkItemTable({
     onDuplicateItem,
     onDeleteItem,
     onOpenPicker,
+    onAddCustomLine,
     currency = 'FCFA'
 }) {
     if (!items || items.length === 0) {
@@ -1780,6 +1781,33 @@ function WorkItemTable({
                         })}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Demandé par l'utilisateur (2026-08-19) — avec beaucoup d'ouvrages
+                dans un lot, "+ Ajouter un Ouvrage" (dans l'en-tête, en haut) sort
+                de l'écran une fois qu'on a scrollé jusqu'en bas de la liste :
+                obligeait à remonter tout en haut pour ajouter la ligne suivante.
+                Reprend les deux mêmes actions que l'en-tête, juste après la
+                dernière ligne. */}
+            <div className="flex items-center justify-center gap-3 pt-1">
+                <button
+                    type="button"
+                    onClick={onOpenPicker}
+                    className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-2 text-brand-600 border-brand-200 hover:bg-brand-50"
+                    aria-label="Ajouter un autre ouvrage depuis le catalogue"
+                >
+                    <i className="fa-solid fa-plus"></i> Ajouter un Ouvrage
+                </button>
+                {onAddCustomLine && (
+                    <button
+                        type="button"
+                        onClick={onAddCustomLine}
+                        className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-2"
+                        aria-label="Ajouter une ligne libre"
+                    >
+                        <i className="fa-solid fa-wand-magic-sparkles"></i> Ligne Libre
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -3239,6 +3267,7 @@ function QuoteWorkspace({
                                 onDuplicateItem={handleDuplicateItem}
                                 onDeleteItem={handleDeleteItem}
                                 onOpenPicker={() => setIsPickerOpen(true)}
+                                onAddCustomLine={handleAddCustomLine}
                                 currency={companyInfo.currency}
                             />
                         </>
