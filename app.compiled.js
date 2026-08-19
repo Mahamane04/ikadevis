@@ -414,19 +414,44 @@ function NewQuoteWizardModal({
       template: SIGNAGE_BRANDING_TEMPLATE_QUOTE
     }
   ];
+  const scaleCalcFormToRatio = (calcForm, ratio) => {
+    if (!calcForm || ratio === 1) return calcForm;
+    const scaled = { ...calcForm };
+    const mode = calcForm.takeoffMode || "rectangle";
+    if (mode === "surface") {
+      scaled.surfaceDirect = parseFloat(((parseFloat(calcForm.surfaceDirect) || 0) * ratio).toFixed(2));
+    } else if (mode === "linear" || mode === "floor") {
+      scaled.lengthDirect = parseFloat(((parseFloat(calcForm.lengthDirect) || 0) * ratio).toFixed(2));
+    } else if (mode === "unit") {
+      scaled.qty = Math.max(1, Math.round((parseFloat(calcForm.qty) || 1) * ratio));
+    } else {
+      scaled.width = parseFloat(((parseFloat(calcForm.width) || 0) * ratio).toFixed(2));
+    }
+    return scaled;
+  };
   const handleApplyQuickEstimate = () => {
     const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
     let selectedTemplate = R1_TEMPLATE_QUOTE;
     if (estimateCategory === "event_stand") selectedTemplate = EVENT_TEMPLATE_QUOTE;
     else if (estimateCategory === "acm_facade") selectedTemplate = ACM_FACADE_TEMPLATE_QUOTE;
     else if (estimateCategory === "signage_branding") selectedTemplate = SIGNAGE_BRANDING_TEMPLATE_QUOTE;
+    const baseline = categoryOptions.find((c) => c.id === estimateCategory)?.defaultSurface || 1;
+    const saisi = parseFloat(estimateSurface) || baseline;
+    const ratio = baseline > 0 ? saisi / baseline : 1;
+    const base = JSON.parse(JSON.stringify(selectedTemplate));
     const customQuote = {
-      ...JSON.parse(JSON.stringify(selectedTemplate)),
+      ...base,
       id: Date.now(),
       number: `DEV-${currentYear}-EST-${Math.floor(100 + Math.random() * 900)}`,
       clientName: "Client Estimation Rapide",
       projectRef: `Projet ${categoryOptions.find((c) => c.id === estimateCategory)?.label} (${estimateSurface} ${quickResult.unit})`,
-      status: "draft"
+      status: "draft",
+      lots: (base.lots || []).map((lot) => ({
+        ...lot,
+        items: (lot.items || []).map(
+          (item) => item.isCustom ? { ...item, unitPriceHT: Math.round((parseFloat(item.unitPriceHT) || 0) * ratio), totalHT: Math.round((parseFloat(item.totalHT) || 0) * ratio) } : { ...item, calcForm: scaleCalcFormToRatio(item.calcForm, ratio) }
+        )
+      }))
     };
     onGenerateFromQuickEstimate(customQuote);
     onClose();
@@ -509,7 +534,7 @@ function NewQuoteWizardModal({
     /* @__PURE__ */ React.createElement("option", { value: "Ouagadougou" }, "Ouagadougou (Burkina)"),
     /* @__PURE__ */ React.createElement("option", { value: "Conakry" }, "Conakry (Guin\xE9e)"),
     /* @__PURE__ */ React.createElement("option", { value: "Autre" }, "Autre Localit\xE9")
-  ))), /* @__PURE__ */ React.createElement("div", { className: "p-5 rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-950 text-white shadow-lg space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider text-brand-400" }, "Estimation Indicative Instantan\xE9e"), /* @__PURE__ */ React.createElement("h3", { className: "text-sm font-extrabold text-white" }, categoryOptions.find((c) => c.id === estimateCategory)?.label, " \u2014 ", estimateSurface, " ", quickResult.unit)), /* @__PURE__ */ React.createElement("span", { className: "px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 text-xs font-mono font-bold self-start sm:self-auto" }, "Tarif moyen : ", formatMoney(quickResult.ratePerUnit, currency), " / ", quickResult.unit)), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-baseline justify-between gap-4 pt-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Fourchette Estimative Net HT"), /* @__PURE__ */ React.createElement("span", { className: "text-base sm:text-xl font-bold text-neutral-200" }, formatMoney(quickResult.minHT, currency), " ", /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 text-xs" }, "\xE0"), " ", formatMoney(quickResult.maxHT, currency))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-brand-400 block uppercase font-black" }, "Budget Moyen Estim\xE9 TTC"), /* @__PURE__ */ React.createElement("span", { className: "text-lg sm:text-2xl font-black text-brand-400" }, formatMoney(quickResult.avgTTC, currency)))), /* @__PURE__ */ React.createElement("div", { className: "pt-2 flex justify-end" }, /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { className: "p-5 rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-950 text-white shadow-lg space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-black uppercase tracking-wider text-brand-400" }, "Estimation Indicative Instantan\xE9e"), /* @__PURE__ */ React.createElement("h3", { className: "text-sm font-extrabold text-white" }, categoryOptions.find((c) => c.id === estimateCategory)?.label, " \u2014 ", estimateSurface, " ", quickResult.unit)), /* @__PURE__ */ React.createElement("span", { className: "px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 text-xs font-mono font-bold self-start sm:self-auto" }, "Tarif moyen : ", formatMoney(quickResult.ratePerUnit, currency), " / ", quickResult.unit)), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-baseline justify-between gap-4 pt-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-neutral-400 block uppercase font-bold" }, "Fourchette Estimative Net HT"), /* @__PURE__ */ React.createElement("span", { className: "text-base sm:text-xl font-bold text-neutral-200" }, formatMoney(quickResult.minHT, currency), " ", /* @__PURE__ */ React.createElement("span", { className: "text-neutral-500 text-xs" }, "\xE0"), " ", formatMoney(quickResult.maxHT, currency))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-brand-400 block uppercase font-black" }, "Budget Moyen Estim\xE9 TTC"), /* @__PURE__ */ React.createElement("span", { className: "text-lg sm:text-2xl font-black text-brand-400" }, formatMoney(quickResult.avgTTC, currency)))), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 leading-snug pt-1" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info mr-1" }), "Estimation indicative au ", quickResult.unit, " \u2014 le devis d\xE9taill\xE9 sera chiffr\xE9 poste par poste et diff\xE9rera de ce montant (forfaits de pose et conditionnements d'achat ne suivent pas la surface)."), /* @__PURE__ */ React.createElement("div", { className: "pt-2 flex justify-end" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",

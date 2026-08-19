@@ -498,6 +498,35 @@ function NewQuoteWizardModal({
         }
     ];
 
+    // M7 (2026-08-18) — Mettre le gabarit à l'échelle de la quantité saisie.
+    // Avant, la surface/longueur tapée par l'utilisateur n'était reportée que
+    // dans le LIBELLÉ du projet : 6 ml et 600 ml produisaient rigoureusement
+    // le même devis, aux mêmes dimensions figées du gabarit. Le ratio est
+    // calculé contre la quantité par défaut de la catégorie — celle pour
+    // laquelle chaque gabarit a été dimensionné — donc aux valeurs par défaut
+    // ratio = 1 et rien ne bouge (aucune régression sur les gabarits livrés).
+    const scaleCalcFormToRatio = (calcForm, ratio) => {
+        if (!calcForm || ratio === 1) return calcForm;
+        const scaled = { ...calcForm };
+        const mode = calcForm.takeoffMode || 'rectangle';
+        // On met à l'échelle la SEULE dimension qui pilote le métré dans ce
+        // mode : mettre à l'échelle toutes les dimensions d'un rectangle
+        // multiplierait la surface par ratio², pas par ratio.
+        if (mode === 'surface') {
+            scaled.surfaceDirect = parseFloat(((parseFloat(calcForm.surfaceDirect) || 0) * ratio).toFixed(2));
+        } else if (mode === 'linear' || mode === 'floor') {
+            scaled.lengthDirect = parseFloat(((parseFloat(calcForm.lengthDirect) || 0) * ratio).toFixed(2));
+        } else if (mode === 'unit') {
+            scaled.qty = Math.max(1, Math.round((parseFloat(calcForm.qty) || 1) * ratio));
+        } else {
+            // rectangle / volume : la largeur porte l'échelle, la hauteur
+            // (et la profondeur) restent celles du produit réel — un mur plus
+            // long ne devient pas plus haut.
+            scaled.width = parseFloat(((parseFloat(calcForm.width) || 0) * ratio).toFixed(2));
+        }
+        return scaled;
+    };
+
     const handleApplyQuickEstimate = () => {
         // Build customized quote based on estimate
         const currentYear = new Date().getFullYear();
@@ -506,13 +535,28 @@ function NewQuoteWizardModal({
         else if (estimateCategory === 'acm_facade') selectedTemplate = ACM_FACADE_TEMPLATE_QUOTE;
         else if (estimateCategory === 'signage_branding') selectedTemplate = SIGNAGE_BRANDING_TEMPLATE_QUOTE;
 
+        const baseline = categoryOptions.find(c => c.id === estimateCategory)?.defaultSurface || 1;
+        const saisi = parseFloat(estimateSurface) || baseline;
+        const ratio = baseline > 0 ? (saisi / baseline) : 1;
+
+        const base = JSON.parse(JSON.stringify(selectedTemplate));
         const customQuote = {
-            ...JSON.parse(JSON.stringify(selectedTemplate)),
+            ...base,
             id: Date.now(),
             number: `DEV-${currentYear}-EST-${Math.floor(100 + Math.random() * 900)}`,
             clientName: 'Client Estimation Rapide',
             projectRef: `Projet ${categoryOptions.find(c => c.id === estimateCategory)?.label} (${estimateSurface} ${quickResult.unit})`,
-            status: 'draft'
+            status: 'draft',
+            lots: (base.lots || []).map(lot => ({
+                ...lot,
+                items: (lot.items || []).map(item => item.isCustom
+                    // Une ligne libre n'a pas de métré : on met son prix à
+                    // l'échelle, sinon elle resterait au tarif du gabarit sur
+                    // un chantier deux fois plus grand.
+                    ? { ...item, unitPriceHT: Math.round((parseFloat(item.unitPriceHT) || 0) * ratio), totalHT: Math.round((parseFloat(item.totalHT) || 0) * ratio) }
+                    : { ...item, calcForm: scaleCalcFormToRatio(item.calcForm, ratio) }
+                )
+            }))
         };
 
         onGenerateFromQuickEstimate(customQuote);
@@ -699,6 +743,20 @@ function NewQuoteWizardModal({
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* M7 — Les deux chiffres ne se calculent pas de la même
+                                    façon : l'estimation ci-dessus est un ratio au m²/ml,
+                                    le devis détaillé un vrai métré (matériaux arrondis au
+                                    conditionnement, forfaits de pose qui ne doublent pas
+                                    quand le chantier double). L'écart est normal et
+                                    s'accroît avec la taille — mieux vaut le dire ici que
+                                    de le laisser découvrir après coup. */}
+                                <p className="text-[11px] text-neutral-400 leading-snug pt-1">
+                                    <i className="fa-solid fa-circle-info mr-1"></i>
+                                    Estimation indicative au {quickResult.unit} — le devis détaillé sera chiffré poste par poste
+                                    et différera de ce montant (forfaits de pose et conditionnements d'achat ne suivent pas
+                                    la surface).
+                                </p>
 
                                 <div className="pt-2 flex justify-end">
                                     <button
