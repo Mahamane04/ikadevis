@@ -1036,10 +1036,22 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
 1. **Tarifs B2 non validés commercialement** — 12 000 / 13 000 FCFA/jour sont
    des ordres de grandeur Bamako, pas les relevés réels de l'entreprise. Même
    réserve que les 11 prix de prestations. **Bloquant pour la publication.**
-2. **`paymentSchedule` non synchronisé au cloud** — `mapCompanyToDb` /
-   `mapCompanyFromDb` ne portent pas ce champ ; l'ajouter suppose une migration
-   Supabase (colonne `payment_schedule` sur `company_settings`). Un compte cloud
-   perdrait un échéancier personnalisé au prochain rechargement depuis le cloud.
+2. ~~**`paymentSchedule` non synchronisé au cloud**~~ — **traité le
+   2026-08-19**, reste une action à faire sur production. Colonne
+   `company_settings.payment_schedule` (jsonb, nullable) ajoutée ;
+   `mapCompanyToDb` / `mapCompanyFromDb` la portent désormais, avec repli sur
+   le défaut applicatif quand elle est NULL (ligne antérieure à la migration
+   ou échéancier jamais personnalisé) — même comportement que le chargement
+   local, pour qu'un compte cloud ne se retrouve jamais sans échéancier.
+   - **staging** : appliqué et vérifié par round-trip réel (4 tranches,
+     total 100 %, libellés préservés ; données de test supprimées ensuite).
+   - **production** : ⚠️ **NON APPLIQUÉ**. SQL prêt dans
+     `v6_payment_schedule.sql` — purement additif et idempotent, les 2 lignes
+     existantes restent à NULL. À exécuter par l'utilisateur (production est
+     en lecture seule par défaut via MCP, § 13).
+   > Le défaut métier n'est volontairement PAS dupliqué en `DEFAULT` SQL :
+   > il reste défini une seule fois côté application, sans quoi les deux
+   > valeurs dériveraient à la première évolution.
 3. **Boutons « Modifier (V6) » sans garde-fou B4** — ils remplacent le plan de
    travail sans confirmation. Ils vivent dans `App` alors que
    `hasUnsavedChanges` vit dans `QuoteWorkspace` ; les couvrir suppose de

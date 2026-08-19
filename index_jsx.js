@@ -5417,14 +5417,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         ref_id: rc.refId, formula: rc.formula, cost_category: rc.costCategory || rc.type, label: rc.label
     });
     const mapRecipeFromDb = (r) => ({ id: r.id, solutionId: r.solution_id, type: r.type, refId: r.ref_id, formula: r.formula, costCategory: r.cost_category, label: r.label });
+    // F5 (2026-08-19) — paymentSchedule porté au cloud. La colonne
+    // company_settings.payment_schedule (jsonb) a été ajoutée par la migration
+    // add_payment_schedule_to_company_settings ; sans ces deux lignes, un
+    // compte cloud perdait son échéancier personnalisé au rechargement.
     const mapCompanyToDb = (c, orgId) => ({
         organization_id: orgId, name: c.name, tagline: c.tagline, phone: c.phone, email: c.email,
         address: c.address, nif: c.nif, rccm: c.rccm, currency: c.currency,
-        quote_validity: c.quoteValidity, payment_terms: c.paymentTerms
+        quote_validity: c.quoteValidity, payment_terms: c.paymentTerms,
+        payment_schedule: (c.paymentSchedule && c.paymentSchedule.length > 0) ? c.paymentSchedule : null
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
-        nif: r.nif, rccm: r.rccm, currency: r.currency, quoteValidity: r.quote_validity, paymentTerms: r.payment_terms
+        nif: r.nif, rccm: r.rccm, currency: r.currency, quoteValidity: r.quote_validity, paymentTerms: r.payment_terms,
+        // NULL en base (ligne antérieure à la migration, ou jamais personnalisée)
+        // = on retombe sur le défaut applicatif, seule source de vérité de ce
+        // défaut — même repli que le chargement local, pour qu'un compte cloud
+        // ne se retrouve pas sans échéancier du tout.
+        paymentSchedule: (Array.isArray(r.payment_schedule) && r.payment_schedule.length > 0)
+            ? r.payment_schedule
+            : defaultPaymentSchedule
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).

@@ -3720,7 +3720,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     rccm: c.rccm,
     currency: c.currency,
     quote_validity: c.quoteValidity,
-    payment_terms: c.paymentTerms
+    payment_terms: c.paymentTerms,
+    payment_schedule: c.paymentSchedule && c.paymentSchedule.length > 0 ? c.paymentSchedule : null
   });
   const mapCompanyFromDb = (r) => ({
     name: r.name,
@@ -3732,7 +3733,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     rccm: r.rccm,
     currency: r.currency,
     quoteValidity: r.quote_validity,
-    paymentTerms: r.payment_terms
+    paymentTerms: r.payment_terms,
+    // NULL en base (ligne antérieure à la migration, ou jamais personnalisée)
+    // = on retombe sur le défaut applicatif, seule source de vérité de ce
+    // défaut — même repli que le chargement local, pour qu'un compte cloud
+    // ne se retrouve pas sans échéancier du tout.
+    paymentSchedule: Array.isArray(r.payment_schedule) && r.payment_schedule.length > 0 ? r.payment_schedule : defaultPaymentSchedule
   });
   const syncCatalogTable = async (table, orgId, rows, mapToDb) => {
     if (!supabaseClient || !orgId) return;
