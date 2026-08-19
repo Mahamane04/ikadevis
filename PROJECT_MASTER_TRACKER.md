@@ -12,21 +12,37 @@
 > main-d'œuvre maçonnerie et carrelage ont été corrigés (§ 21.2, B2) sur des
 > ordres de grandeur Bamako, pas sur les relevés réels de l'entreprise. Tant
 > qu'ils ne sont pas arbitrés, chaque devis émis engage un prix non validé —
-> même réserve que pour les 11 prix de prestations déjà signalés.
+> même réserve que pour les 11 prix de prestations déjà signalés. Le
+> 2026-08-19, un **choix de mode de rémunération** (à la tâche / à la
+> journée, § 21.6) a été ajouté pour rendre le risque visible pendant la
+> saisie — cela ne valide toujours pas les montants.
 >
 > **Repère rapide pour reprendre en nouvelle discussion — état à la fin de
 > la session du 2026-08-19 :**
 > - **Test d'utilisabilité mené en conditions réelles le 2026-08-17** (§ 21) :
 >   parcours complet d'un patron de PME BTP + signalétique à Bamako, en Mode
 >   Démo. **19 constats** dont 4 bloquants — tous corrigés sur la branche
->   `fix/test-utilisabilite-0817` (17 commits, **non fusionnée, non poussée**).
+>   `fix/test-utilisabilite-0817` (22 commits, **non fusionnée, non poussée**).
 > - **Le devis client était inutilisable en l'état** : toutes les quantités
 >   sortaient à « 1,00 u » (un mur de 176 m² compris), sous l'en-tête d'une
 >   entreprise ivoirienne fictive préremplie. Corrigé (§ 21.1).
 > - **La main-d'œuvre maçonnerie/carrelage était sous-chiffrée d'un facteur
 >   12 à 15** — un maçon payé 3 500 FCFA/jour. Corrigé, étalon G recalibré en
 >   conséquence (§ 21.2).
-> - Suite de tests : **40/40 au vert** après les 17 commits, 7/7 étalons
+> - **3 décisions à arbitrer identifiées en fin de test, statut au 2026-08-19**
+>   (§ 21.4) :
+>   1. Tarifs B2 (12 000/13 000 FCFA/j) — **toujours ouvert**, mais un choix
+>      de mode de rémunération avec coût effectif affiché en direct a été
+>      livré (§ 21.6) plutôt qu'un chiffre arbitré à l'aveugle.
+>   2. `payment_schedule` non synchronisé au cloud — **fermé**, migration
+>      appliquée et vérifiée sur staging **et production** (§ 21.4 point 2).
+>   3. 11 prix de prestations provisoires — **non commencé**.
+> - **Nouveau piège découvert (pas lié au test d'utilisabilité)** : le
+>   `config.js` local pointe sur la base de **production** au lieu d'un
+>   environnement de dev isolé (§ 21.4 point 5, § 13). Se connecter en local
+>   avec un vrai compte écrirait directement en production. Correction en
+>   cours à la reprise de cette session.
+> - Suite de tests : **40/40 au vert** après les 22 commits, 7/7 étalons
 >   conformes. Étalon G recalibré une 2ᵉ fois (valeurs mesurées, § 21.2).
 >
 > **État à la fin de la session précédente (2026-08-17) :**
@@ -1043,6 +1059,12 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
 1. **Tarifs B2 non validés commercialement** — 12 000 / 13 000 FCFA/jour sont
    des ordres de grandeur Bamako, pas les relevés réels de l'entreprise. Même
    réserve que les 11 prix de prestations. **Bloquant pour la publication.**
+   Le 2026-08-19, plutôt qu'un arbitrage sur un chiffre, un **choix de mode
+   de rémunération** (à la tâche / à la journée) a été ajouté — voir § 21.6.
+   Cela ne valide PAS les montants, mais réduit le risque : l'écran affiche
+   désormais le coût effectif et l'exposition au risque de rendement pendant
+   la saisie, ce qui rend une erreur comme B2 visible avant qu'elle parte
+   dans un devis.
 2. ~~**`paymentSchedule` non synchronisé au cloud**~~ — **traité le
    2026-08-19**, reste une action à faire sur production. Colonne
    `company_settings.payment_schedule` (jsonb, nullable) ajoutée ;
@@ -1104,3 +1126,63 @@ par défaut portant les valeurs de tous les modes à la fois).
 Non testés : parcours avec compte cloud réel, « Partager » et « Signer »
 (actions sortantes), impression PDF réelle, multi-organisation, écran
 d'administration plateforme, module « Affaires & Projets ».
+
+### 21.6 Choix du mode de rémunération de la main-d'œuvre (2026-08-19)
+
+Réponse à la question posée par l'utilisateur sur l'arbitrage des tarifs B2
+(§ 21.4 point 1) : au lieu de trancher un chiffre, le logiciel donne
+maintenant le choix — ce sont les deux modèles standards du métier BTP, que
+les logiciels d'étude de prix séparent systématiquement (déboursé journalier
+× temps unitaire d'un côté, sous-traitance à prix ferme de l'autre — le
+« tâcheronnage » est la forme locale du second) :
+
+- **À la journée / en régie** — l'entreprise paie un tarif par jour, le
+  rendement (unités produites/jour) est une hypothèse ; si le chantier
+  rend moins, le surcoût est absorbé par la marge.
+- **À la tâche** — l'entreprise paie un tarif par unité produite (m², ml,
+  u...) ; le risque de rendement est porté par le tâcheron.
+
+**Ce que fait l'écran (formulaire Main-d'œuvre, Ressources & Prix) :**
+
+1. **Coût effectif affiché en direct pendant la saisie** (commit
+   `1fa3651`) — un tarif journalier affiche « 12 000 FCFA/jour ÷ 15/jour =
+   800 FCFA par unité réalisée » ; un tarif direct affiche « facturé tel
+   quel » ; un tarif journalier sans rendement affiche un avertissement
+   (conversion impossible, les formules qui divisent par `RENDEMENT_MO` en
+   ont besoin). Un rendement saisi sur un tarif **direct** est signalé comme
+   **non utilisé** par le chiffrage plutôt que silencieusement ignoré — 4
+   ressources sont dans ce cas (moquette, cloisons, faux-plafond, enduit).
+2. **Bascule de mode explicite** (commit `3c2bc77`) — un sélecteur à deux
+   boutons (À la tâche / À la journée) change `laborForm.unit`, avec une
+   ligne d'exposition au risque : « si le rendement tombe à 12 au lieu de
+   15, le coût réel monte à 1 000 FCFA/unité, soit +25 % absorbés par votre
+   marge ; en mode à la tâche, ce dépassement serait porté par le
+   tâcheron. »
+3. **Conversion cohérente à l'enregistrement** (`saveLabor`) — changer de
+   mode ajuste ensemble les trois choses qui doivent rester synchronisées,
+   avec aperçu avant application (formule et tarif, avant/après) :
+   - l'unité (`j`/`j-eq` ↔ `m²`/`ml`/`u`/`forfait`) ;
+   - les formules de **toutes** les recettes qui utilisent la prestation
+     (ajout/retrait non destructif de `/ RENDEMENT_MO`, `formulaToDaily` /
+     `formulaToTask`, testées en aller-retour sur 7 cas dont une formule
+     ternaire déjà parenthésée) ;
+   - **le tarif lui-même** — `÷` ou `× RENDEMENT_MO`, et seulement si
+     l'utilisateur n'a pas lui-même changé le tarif dans la même saisie (sa
+     valeur explicite prime toujours).
+
+> **Régression auto-introduite puis corrigée** — la première version
+> convertissait l'unité et les formules mais pas le tarif : basculer la
+> maçonnerie en « à la tâche » laissait 12 000 FCFA, réinterprété comme
+> 12 000 FCFA/m² au lieu de 800, soit un coût × 15. C'était le constat B2
+> reproduit à l'envers par la fonctionnalité censée le prévenir — trouvé en
+> testant ma propre fonctionnalité (vérification du localStorage après
+> enregistrement), pas supposé correct.
+
+**Vérifié en navigateur** depuis les données d'usine : journée → tâche
+(12 000 F/j → 800 F/m², `SURFACE / RENDEMENT_MO` → `SURFACE`), puis retour
+(800 → 12 000, `SURFACE` → `(SURFACE) / RENDEMENT_MO`). Coût d'un mur de
+176 m² : **140 800 FCFA dans les deux modes**, inchangé. 40/40 tests au
+vert dans les deux commits.
+
+**Ce que ça ne fait toujours pas** : choisir un montant. Le point 1 du
+§ 21.4 reste ouvert — c'est une décision commerciale, pas technique.
