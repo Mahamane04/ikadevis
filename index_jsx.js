@@ -4332,6 +4332,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // fiche client (demandé par l'utilisateur : "avoir la possibilité de
     // modifier les infos du client"). null = mode création.
     const [editingClientId, setEditingClientId] = useState(null);
+    // P1 (2026-08-19) — d'où vient l'ouverture de "Nouveau Client" ? 'project'
+    // = ouvert depuis "Nouvelle Affaire" (bouton "+" à côté du sélecteur
+    // client) : à la création, on rattache le client tout juste créé au
+    // formulaire d'affaire en cours au lieu de laisser l'utilisateur revenir
+    // le chercher manuellement dans la liste.
+    const [newClientOriginModal, setNewClientOriginModal] = useState(null);
     // Filtre de la page Devis Enregistrés, posé depuis une autre vue :
     //   { kind: 'client', id, name }  → tous les devis d'un client (fiche CRM)
     //   { kind: 'quote',  id, name }  → le dossier d'un devis précis (fiche
@@ -9752,13 +9758,36 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div>
                                     <label className="app-label">Client / Donneur d'ordres</label>
                                     {clients.length > 0 ? (
-                                        <CustomSelect
-                                            value={newProjectForm.clientId}
-                                            onChange={e => setNewProjectForm({ ...newProjectForm, clientId: e.target.value })}
-                                            options={clients.map(c => ({ value: c.id, label: c.name }))}
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <CustomSelect
+                                                    value={newProjectForm.clientId}
+                                                    onChange={e => setNewProjectForm({ ...newProjectForm, clientId: e.target.value })}
+                                                    options={clients.map(c => ({ value: c.id, label: c.name }))}
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
+                                                className="btn-icon w-10 h-10 shrink-0 border border-neutral-200 text-brand-600 hover:bg-brand-50"
+                                                title="Créer un nouveau client"
+                                                aria-label="Créer un nouveau client"
+                                            >
+                                                <i className="fa-solid fa-plus"></i>
+                                            </button>
+                                        </div>
                                     ) : (
-                                        <p className="text-xs text-neutral-500 italic">Aucun client enregistré — créez d'abord une fiche client.</p>
+                                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                            <p className="text-xs text-amber-800 italic">Aucun client enregistré.</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
+                                                className="btn-primary py-1.5 px-3 text-xs whitespace-nowrap"
+                                                aria-label="Créer un nouveau client"
+                                            >
+                                                <i className="fa-solid fa-plus mr-1"></i> Nouveau client
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -9792,7 +9821,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{editingClientId ? 'Modifier le Client' : 'Nouveau Client'}</h3>
-                            <button onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                            <button onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); setNewClientOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                             <form id="newClientForm" onSubmit={(e) => {
@@ -9821,11 +9850,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     }
                                     showToast("✓ Fiche client mise à jour !", "success");
                                 } else {
-                                    updateClients([{ id: `cli-${Date.now()}`, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
+                                    const newClientId = `cli-${Date.now()}`;
+                                    updateClients([{ id: newClientId, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
                                     showToast("✓ Fiche client créée !", "success");
+                                    if (newClientOriginModal === 'project') {
+                                        setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
+                                    }
                                 }
                                 setIsNewClientModalOpen(false);
                                 setEditingClientId(null);
+                                setNewClientOriginModal(null);
                             }} className="space-y-4">
                                 <div>
                                     <label className="app-label">Nom du client / raison sociale</label>
@@ -9862,7 +9896,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); }} className="btn-secondary" aria-label="Annuler">Annuler</button>
+                            <button type="button" onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); setNewClientOriginModal(null); }} className="btn-secondary" aria-label="Annuler">Annuler</button>
                             <button type="submit" form="newClientForm" className="btn-primary" aria-label={editingClientId ? 'Enregistrer les modifications' : 'Créer le client'}><i className="fa-solid fa-check mr-1"></i> {editingClientId ? 'Enregistrer' : 'Créer le client'}</button>
                         </div>
                     </div>
