@@ -1500,6 +1500,20 @@ function WorkItemTable({
                                             Mode: {item.calcForm.takeoffMode || 'rectangle'} &bull; {item.calcForm.width}m × {item.calcForm.height}m
                                         </span>
                                     )}
+                                    {item.isCustom && (
+                                        <div className="flex items-center gap-1.5 pl-2 pt-1">
+                                            <label className="text-[10px] font-bold text-amber-700 uppercase tracking-wide shrink-0">Coût d'achat/u :</label>
+                                            <input
+                                                type="number" min="0" step="any"
+                                                value={item.costUnit || ''}
+                                                onChange={(e) => onUpdateItem(idx, { costUnit: parseFloat(e.target.value) || 0 })}
+                                                placeholder="0"
+                                                className="w-20 text-right py-0.5 px-1.5 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded focus:border-amber-500 outline-none"
+                                                aria-label={`Coût d'achat pour ${item.name}`}
+                                            />
+                                            {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500 text-[10px]" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1604,6 +1618,20 @@ function WorkItemTable({
                                                     <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
                                                         Mode: {item.calcForm.takeoffMode || 'rectangle'} &bull; {item.calcForm.width}m × {item.calcForm.height}m
                                                     </span>
+                                                )}
+                                                {item.isCustom && (
+                                                    <div className="flex items-center gap-1.5 pl-2 pt-1">
+                                                        <label className="text-[10px] font-bold text-amber-700 uppercase tracking-wide shrink-0">Coût d'achat/u :</label>
+                                                        <input
+                                                            type="number" min="0" step="any"
+                                                            value={item.costUnit || ''}
+                                                            onChange={(e) => onUpdateItem(idx, { costUnit: parseFloat(e.target.value) || 0 })}
+                                                            placeholder="0"
+                                                            className="w-24 text-right py-0.5 px-1.5 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded focus:border-amber-500 outline-none"
+                                                            aria-label={`Coût d'achat pour ${item.name}`}
+                                                        />
+                                                        {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500 text-[10px]" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -2558,6 +2586,12 @@ function QuoteTotalsBar({
     const marginVal = quote.totalMargeVal || 0;
     const kFactor = quote.salesMultiplierK || (totalDebourse > 0 ? (totalHT / totalDebourse).toFixed(2) : 1);
     const isLowProfit = marginPct > 0 && marginPct < 15;
+    // M6 (2026-08-18) — Une ligne libre sans coût d'achat se vend (netHT)
+    // sans jamais entrer dans le déboursé : Déboursé Sec, Coeff K et Marge
+    // Réelle deviennent alors des chiffres qui ne veulent rien dire, sans
+    // que rien ne le signale. On prévient plutôt que de laisser croire à
+    // une rentabilité qui n'a pas été vérifiée.
+    const hasIncompleteCustomLines = (quote.lots || []).some(lot => (lot.items || []).some(it => it.isCustom && !it.costUnit));
 
     return (
         // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
@@ -2570,13 +2604,16 @@ function QuoteTotalsBar({
                 {/* Métriques Financières BTP */}
                 <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
                     <div>
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">Déboursé Sec</span>
-                        <span className="font-mono font-bold text-neutral-700 text-sm">{formatMoney(totalDebourse, currency)}</span>
+                        <span className="text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1">
+                            Déboursé Sec
+                            {hasIncompleteCustomLines && <span className="text-amber-600 font-bold" title="Une ou plusieurs lignes libres n'ont pas de coût d'achat renseigné — ce montant ne les inclut pas"><i className="fa-solid fa-triangle-exclamation"></i></span>}
+                        </span>
+                        <span className="font-mono font-bold text-neutral-700 text-sm">{formatMoney(totalDebourse, currency)}{hasIncompleteCustomLines && <sup className="text-amber-600">*</sup>}</span>
                     </div>
 
                     <div className="pl-3 border-l border-neutral-200">
                         <span className="text-[10px] text-neutral-400 block uppercase font-bold">Coeff K</span>
-                        <span className="font-mono font-black text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">K={kFactor}</span>
+                        <span className="font-mono font-black text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">K={kFactor}{hasIncompleteCustomLines && <sup>*</sup>}</span>
                     </div>
 
                     <div className="pl-3 border-l border-neutral-200">
@@ -2588,6 +2625,7 @@ function QuoteTotalsBar({
                         <span className="text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1">
                             Marge Réelle
                             {isLowProfit && <span className="text-amber-600 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
+                            {hasIncompleteCustomLines && <sup className="text-amber-600">*</sup>}
                         </span>
                         <span className={`font-bold text-sm sm:text-base ${isLowProfit ? 'text-amber-600' : 'text-emerald-600'}`}>
                             +{formatMoney(marginVal, currency)} ({marginPct}%)
@@ -2627,6 +2665,12 @@ function QuoteTotalsBar({
                     </button>
                 </div>
             </div>
+            {hasIncompleteCustomLines && (
+                <div className="max-w-[1700px] mx-auto mt-1.5 text-[11px] text-amber-700 font-semibold flex items-center gap-1.5">
+                    <i className="fa-solid fa-circle-info"></i>
+                    * Hors lignes libres sans coût d'achat renseigné — complétez-les pour une marge fiable.
+                </div>
+            )}
         </div>
     );
 }
