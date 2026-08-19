@@ -8998,6 +8998,56 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <input disabled={isReadOnlyDueToDowngrade} type="number" min="0" className="app-input font-bold text-brand-700" value={laborForm.yieldRate || ''} onChange={e => setLaborForm({ ...laborForm, yieldRate: e.target.value })} placeholder="ex: 80 (m²/j)" />
                                             </div>
                                         </div>
+
+                                        {/* B2bis (2026-08-19) — Ce qu'un tarif VEUT DIRE, affiché pendant
+                                            qu'on le saisit. C'est l'absence de ce repère qui a produit le
+                                            constat B2 : maçonnerie et carrelage étaient tarifés « au m² »
+                                            alors que leur formule divisait déjà par le rendement — un maçon
+                                            payé 3 500 FCFA/jour sans que rien ne le signale. Le coût
+                                            effectif est le seul chiffre que l'utilisateur peut confronter
+                                            à ce qu'il paie réellement sur ses chantiers. */}
+                                        {(() => {
+                                            const tarif = parseFloat(laborForm.rate) || 0;
+                                            const rend = parseFloat(laborForm.yieldRate) || 0;
+                                            const dev = companyInfo.currency || 'FCFA';
+                                            const estJournalier = laborForm.unit === 'j' || laborForm.unit === 'j-eq';
+                                            if (!tarif) return null;
+                                            if (estJournalier) {
+                                                if (!rend) return (
+                                                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-semibold">
+                                                        <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
+                                                        Tarif journalier sans rendement : impossible de convertir en coût par m².
+                                                        Renseignez le rendement (m² ou ml réalisés par jour) — les formules qui
+                                                        divisent par <code className="font-mono">RENDEMENT_MO</code> en ont besoin.
+                                                    </div>
+                                                );
+                                                return (
+                                                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-semibold">
+                                                        <i className="fa-solid fa-calculator mr-1.5"></i>
+                                                        Tarif <strong>journalier</strong> : {formatMoney(tarif, dev)} par jour ÷ {rend} par jour
+                                                        {' '}= <strong>{formatMoney(tarif / rend, dev)} par unité réalisée</strong>.
+                                                        <span className="block mt-1 font-medium opacity-80">
+                                                            Comparez ce dernier chiffre à ce que vous payez réellement sur chantier.
+                                                            Les formules de recette doivent diviser par <code className="font-mono">RENDEMENT_MO</code>.
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-900 font-semibold">
+                                                    <i className="fa-solid fa-calculator mr-1.5"></i>
+                                                    Tarif <strong>direct</strong> : <strong>{formatMoney(tarif, dev)} par {laborForm.unit || 'u'} réalisé</strong>,
+                                                    facturé tel quel.
+                                                    {rend > 0 && (
+                                                        <span className="block mt-1 font-medium opacity-80">
+                                                            Le rendement saisi ({rend}) n'entre pas dans ce calcul — il ne sert qu'aux
+                                                            formules qui divisent par <code className="font-mono">RENDEMENT_MO</code>,
+                                                            réservées aux tarifs journaliers. Information de planning uniquement.
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
                                             <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la prestation"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
