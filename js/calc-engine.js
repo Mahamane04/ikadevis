@@ -603,8 +603,30 @@ const evaluateDynamicFormula = (formulaStr, vars = {}, extraContext = {}) => {
         return { value: 0, error: e.message };
     }
 };
+// M4+M5 (2026-08-18) — Le garde-fou de mode intégré à evaluateDynamicFormula
+// (ligne ~544 : rejette une formule si la variable qu'elle utilise n'est PAS
+// "explicite" dans vars ET n'est pas listée dans ALLOWED_VARS_BY_MODE) ne
+// bloquait jamais rien en pratique : tous les appelants (calculateSingleWorkItem,
+// systemDiagnostic) construisaient un contexte complet avec
+// SURFACE/LARGEUR/HAUTEUR/... TOUJOURS présents, quel que soit le mode réel —
+// rendant ces variables "explicites" et donc jamais rejetées, même en mode
+// 'unit' où aucune d'elles n'a de sens. Ce filtre retire du contexte, AVANT
+// l'appel, les variables géométriques que le mode courant n'autorise pas —
+// seul endroit où appliquer le filtre une fois pour que le garde-fou
+// redevienne effectif partout où il est invoqué.
+const GEOMETRY_VAR_KEYS = ['SURFACE', 'PERIMETRE', 'VOLUME', 'PROFONDEUR', 'EPAISSEUR', 'LONGUEUR', 'LINEAIRE', 'LARGEUR', 'HAUTEUR', 'L', 'H', 'P'];
+const filterVarsForMode = (mode, vars) => {
+    const allowed = ALLOWED_VARS_BY_MODE[mode] || ALLOWED_VARS_BY_MODE.rectangle;
+    const filtered = {};
+    Object.keys(vars).forEach(k => {
+        if (GEOMETRY_VAR_KEYS.includes(k) && !allowed.includes(k)) return;
+        filtered[k] = vars[k];
+    });
+    return filtered;
+};
 if (typeof window !== 'undefined') {
     window.evaluateDynamicFormula = evaluateDynamicFormula;
+    window.filterVarsForMode = filterVarsForMode;
     window.optimize1DLinearCuts = optimize1DLinearCuts;
     window.optimize2DSheetNesting = optimize2DSheetNesting;
 }
@@ -740,7 +762,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             const mat = materials.find(m => m.id === line.refId);
             if (mat) { extraCtx.RENDEMENT_MATIERE = mat.yieldRate || 0; extraCtx.TARIF_MATIERE = mat.priceCalc || 0; }
         }
-        const evalRes = evaluateDynamicFormula(line.formula, evalVars, extraCtx);
+        const evalRes = evaluateDynamicFormula(line.formula, filterVarsForMode(mode, evalVars), extraCtx);
         return { ...line, costCategory: costCat, baseQty: evalRes.value, evalError: evalRes.error };
     });
 

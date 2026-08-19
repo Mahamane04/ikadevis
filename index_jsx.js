@@ -1991,24 +1991,40 @@ function WorkItemInspector({
         tabs.push({ id: 'calepinage', label: '5. Calepinage 2D ACM', icon: 'fa-border-all' });
     }
 
+    // M5 (2026-08-18) — Mode réellement actif de cet ouvrage. Sert à ne
+    // montrer/synchroniser que les champs pertinents pour CE mode, au lieu
+    // de Largeur/Hauteur toujours affichés en Mode Simple quel que soit le
+    // mode réel (constat du test du 17/08 : un ouvrage en mode 'surface'
+    // affichait des champs Largeur/Hauteur fantômes qui ne pilotaient rien
+    // — jusqu'à ce qu'on y touche, cf. ci-dessous).
+    const activeMode = calcForm.takeoffMode || solution?.allowedModes?.[0] || 'rectangle';
+
     const handleParamChange = (field, val) => {
         const updatedCalcForm = {
             ...calcForm,
             [field]: val
         };
-        // Auto-synchronize dimensions with surfaceDirect & formulas (BUG-014 fix)
-        if (field === 'width' || field === 'height') {
-            const w = field === 'width' ? val : (parseFloat(updatedCalcForm.width) || 0);
-            const h = field === 'height' ? val : (parseFloat(updatedCalcForm.height) || 0);
-            if (w > 0 && h > 0) {
-                updatedCalcForm.surfaceDirect = parseFloat((w * h).toFixed(2));
-            }
-        } else if (field === 'surfaceDirect') {
-            const s = parseFloat(val) || 0;
-            if (s > 0 && (!updatedCalcForm.width || !updatedCalcForm.height || updatedCalcForm.width * updatedCalcForm.height !== s)) {
-                const side = Math.sqrt(s);
-                updatedCalcForm.width = parseFloat(side.toFixed(2));
-                updatedCalcForm.height = parseFloat(side.toFixed(2));
+        // Auto-synchronize dimensions with surfaceDirect & formulas (BUG-014
+        // fix) — restreint au mode 'rectangle' (M5) : ailleurs, Largeur/
+        // Hauteur et surfaceDirect sont deux métrés INDÉPENDANTS. Les
+        // synchroniser en mode 'surface' écrasait silencieusement
+        // surfaceDirect — le champ réellement lu par le calcul dans ce
+        // mode — dès qu'on touchait aux champs Largeur/Hauteur, même
+        // fantômes et sans rapport avec le mode actif.
+        if (activeMode === 'rectangle') {
+            if (field === 'width' || field === 'height') {
+                const w = field === 'width' ? val : (parseFloat(updatedCalcForm.width) || 0);
+                const h = field === 'height' ? val : (parseFloat(updatedCalcForm.height) || 0);
+                if (w > 0 && h > 0) {
+                    updatedCalcForm.surfaceDirect = parseFloat((w * h).toFixed(2));
+                }
+            } else if (field === 'surfaceDirect') {
+                const s = parseFloat(val) || 0;
+                if (s > 0 && (!updatedCalcForm.width || !updatedCalcForm.height || updatedCalcForm.width * updatedCalcForm.height !== s)) {
+                    const side = Math.sqrt(s);
+                    updatedCalcForm.width = parseFloat(side.toFixed(2));
+                    updatedCalcForm.height = parseFloat(side.toFixed(2));
+                }
             }
         }
         onUpdateItem({
@@ -2113,29 +2129,78 @@ function WorkItemInspector({
                                 </div>
                             </div>
 
-                            {/* Dimensions directes */}
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <div>
-                                    <label className="app-label">Largeur (m)</label>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={calcForm.width || 0}
-                                        onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
-                                        className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                    />
+                            {/* M5 — Un seul jeu de champs, celui du mode RÉELLEMENT actif
+                                pour cet ouvrage. Avant, Largeur/Hauteur restaient affichés
+                                même en mode 'surface' ou 'unit' — des champs fantômes qui
+                                ne pilotaient rien tant qu'on n'y touchait pas, et
+                                corrompaient le vrai métré dès qu'on le faisait. */}
+                            {activeMode === 'rectangle' && (
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <div>
+                                        <label className="app-label">Largeur (m)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={calcForm.width || 0}
+                                            onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
+                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Hauteur (m)</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={calcForm.height || 0}
+                                            onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
+                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="app-label">Hauteur (m)</label>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={calcForm.height || 0}
-                                        onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
-                                        className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                    />
+                            )}
+                            {activeMode === 'volume' && (
+                                <div className="grid grid-cols-3 gap-3 pt-2">
+                                    <div>
+                                        <label className="app-label">Largeur (m)</label>
+                                        <input type="number" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Hauteur (m)</label>
+                                        <input type="number" step="any" value={calcForm.height || 0} onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Profondeur (m)</label>
+                                        <input type="number" step="any" value={calcForm.depth || 0} onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+                            {activeMode === 'surface' && (
+                                <div className="pt-2">
+                                    <label className="app-label">Surface directe (m²)</label>
+                                    <input type="number" step="any" value={calcForm.surfaceDirect || 0} onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                </div>
+                            )}
+                            {activeMode === 'linear' && (
+                                <div className="pt-2">
+                                    <label className="app-label">Longueur directe (ml)</label>
+                                    <input type="number" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                </div>
+                            )}
+                            {activeMode === 'floor' && (
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <div>
+                                        <label className="app-label">Largeur (m)</label>
+                                        <input type="number" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Longueur (m)</label>
+                                        <input type="number" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    </div>
+                                </div>
+                            )}
+                            {activeMode === 'unit' && (
+                                <p className="text-[11px] text-neutral-400 pt-2">Facturé à l'unité — la quantité ci-dessus suffit, aucune dimension à saisir.</p>
+                            )}
                         </div>
 
                         {/* Récapitulatif Prix Simple */}
@@ -5791,7 +5856,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         TARIF_MO: lab ? lab.rate : 1000,
                         ...customVarsDefaults
                     };
-                    const testEval = evaluateDynamicFormula(r.formula, ctx);
+                    // M4+M5 — Même filtre que calculateSingleWorkItem (js/calc-engine.js) :
+                    // sans lui, ce diagnostic ne détectait jamais les formules qui
+                    // utilisent une variable hors du mode testé (SURFACE en mode
+                    // 'unit', par exemple), puisque ctx la contenait toujours.
+                    const testEval = evaluateDynamicFormula(r.formula, filterVarsForMode(mode, ctx));
                     if (testEval.error) {
                         invalidRecipeCount++;
                         hasIssue = true;

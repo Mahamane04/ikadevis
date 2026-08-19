@@ -1353,23 +1353,26 @@ function WorkItemInspector({
   if (solution?.name?.toLowerCase()?.includes("alucobond") || solution?.name?.toLowerCase()?.includes("panneau")) {
     tabs.push({ id: "calepinage", label: "5. Calepinage 2D ACM", icon: "fa-border-all" });
   }
+  const activeMode = calcForm.takeoffMode || solution?.allowedModes?.[0] || "rectangle";
   const handleParamChange = (field, val) => {
     const updatedCalcForm = {
       ...calcForm,
       [field]: val
     };
-    if (field === "width" || field === "height") {
-      const w = field === "width" ? val : parseFloat(updatedCalcForm.width) || 0;
-      const h = field === "height" ? val : parseFloat(updatedCalcForm.height) || 0;
-      if (w > 0 && h > 0) {
-        updatedCalcForm.surfaceDirect = parseFloat((w * h).toFixed(2));
-      }
-    } else if (field === "surfaceDirect") {
-      const s = parseFloat(val) || 0;
-      if (s > 0 && (!updatedCalcForm.width || !updatedCalcForm.height || updatedCalcForm.width * updatedCalcForm.height !== s)) {
-        const side = Math.sqrt(s);
-        updatedCalcForm.width = parseFloat(side.toFixed(2));
-        updatedCalcForm.height = parseFloat(side.toFixed(2));
+    if (activeMode === "rectangle") {
+      if (field === "width" || field === "height") {
+        const w = field === "width" ? val : parseFloat(updatedCalcForm.width) || 0;
+        const h = field === "height" ? val : parseFloat(updatedCalcForm.height) || 0;
+        if (w > 0 && h > 0) {
+          updatedCalcForm.surfaceDirect = parseFloat((w * h).toFixed(2));
+        }
+      } else if (field === "surfaceDirect") {
+        const s = parseFloat(val) || 0;
+        if (s > 0 && (!updatedCalcForm.width || !updatedCalcForm.height || updatedCalcForm.width * updatedCalcForm.height !== s)) {
+          const side = Math.sqrt(s);
+          updatedCalcForm.width = parseFloat(side.toFixed(2));
+          updatedCalcForm.height = parseFloat(side.toFixed(2));
+        }
       }
     }
     onUpdateItem({
@@ -1433,7 +1436,7 @@ function WorkItemInspector({
       onChange: (e) => onUpdateItem({ unit: e.target.value }),
       className: "w-20 p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-700 text-center"
     }
-  )))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 pt-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Largeur (m)"), /* @__PURE__ */ React.createElement(
+  )))), activeMode === "rectangle" && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 pt-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Largeur (m)"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
@@ -1451,7 +1454,7 @@ function WorkItemInspector({
       onChange: (e) => handleParamChange("height", parseFloat(e.target.value) || 0),
       className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
     }
-  )))), /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 text-xs" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between font-bold text-emerald-800" }, /* @__PURE__ */ React.createElement("span", null, "Co\xFBt D\xE9bours\xE9 Estim\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-between font-extrabold text-brand-600 text-sm border-t border-emerald-200 pt-2" }, /* @__PURE__ */ React.createElement("span", null, "Prix de Vente Total HT :"), /* @__PURE__ */ React.createElement("span", null, formatMoney(quoteData.netHTConsomme, currency)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Description commerciale pour le devis client"), /* @__PURE__ */ React.createElement(
+  ))), activeMode === "volume" && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-3 pt-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Largeur (m)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.width || 0, onChange: (e) => handleParamChange("width", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Hauteur (m)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.height || 0, onChange: (e) => handleParamChange("height", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Profondeur (m)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.depth || 0, onChange: (e) => handleParamChange("depth", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" }))), activeMode === "surface" && /* @__PURE__ */ React.createElement("div", { className: "pt-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Surface directe (m\xB2)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.surfaceDirect || 0, onChange: (e) => handleParamChange("surfaceDirect", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" })), activeMode === "linear" && /* @__PURE__ */ React.createElement("div", { className: "pt-2" }, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Longueur directe (ml)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.lengthDirect || 0, onChange: (e) => handleParamChange("lengthDirect", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" })), activeMode === "floor" && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 pt-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Largeur (m)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.width || 0, onChange: (e) => handleParamChange("width", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Longueur (m)"), /* @__PURE__ */ React.createElement("input", { type: "number", step: "any", value: calcForm.lengthDirect || 0, onChange: (e) => handleParamChange("lengthDirect", parseFloat(e.target.value) || 0), className: "w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" }))), activeMode === "unit" && /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 pt-2" }, "Factur\xE9 \xE0 l'unit\xE9 \u2014 la quantit\xE9 ci-dessus suffit, aucune dimension \xE0 saisir.")), /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 text-xs" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between font-bold text-emerald-800" }, /* @__PURE__ */ React.createElement("span", null, "Co\xFBt D\xE9bours\xE9 Estim\xE9 :"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold" }, formatMoney(quoteData.totalDebourseConsomme, currency))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-between font-extrabold text-brand-600 text-sm border-t border-emerald-200 pt-2" }, /* @__PURE__ */ React.createElement("span", null, "Prix de Vente Total HT :"), /* @__PURE__ */ React.createElement("span", null, formatMoney(quoteData.netHTConsomme, currency)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Description commerciale pour le devis client"), /* @__PURE__ */ React.createElement(
     "textarea",
     {
       rows: "3",
@@ -4147,7 +4150,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             TARIF_MO: lab ? lab.rate : 1e3,
             ...customVarsDefaults
           };
-          const testEval = evaluateDynamicFormula(r.formula, ctx);
+          const testEval = evaluateDynamicFormula(r.formula, filterVarsForMode(mode, ctx));
           if (testEval.error) {
             invalidRecipeCount++;
             hasIssue = true;
