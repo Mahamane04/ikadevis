@@ -2540,7 +2540,7 @@ function WorkItemInspector({
 
                             {activeTab === 'pricing' && (
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div>
                                             <label className="app-label">Taux de Marge Réelle (%)</label>
                                             <input
@@ -2563,6 +2563,17 @@ function WorkItemInspector({
                                                 className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="app-label">Remise Client (%)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={calcForm.discountRate !== undefined ? calcForm.discountRate : 0}
+                                                onChange={(e) => handleParamChange('discountRate', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                                className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2 text-xs">
@@ -2574,6 +2585,14 @@ function WorkItemInspector({
                                             <span>Marge Dégagée :</span>
                                             <span className="font-black">+{formatMoney(quoteData.margeValeurConsomme, currency)}</span>
                                         </div>
+                                        {parseFloat(calcForm.discountRate) > 0 && (
+                                            <div className="flex justify-between font-bold text-red-700">
+                                                <span>Remise Client (-{calcForm.discountRate}%) :</span>
+                                                <span className="font-black">
+                                                    -{formatMoney((quoteData.prixVenteAvantRemise ?? quoteData.netHTConsomme) - quoteData.netHTConsomme, currency)}
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between font-black text-brand-600 text-sm border-t border-emerald-200 pt-2">
                                             <span>Prix de Vente Total HT :</span>
                                             <span>{formatMoney(quoteData.netHTConsomme, currency)}</span>

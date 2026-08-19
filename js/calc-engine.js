@@ -886,6 +886,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             totalDebourseAchat: Math.round(totalPurchasedMaterialCost + (consumedByCategory.labor || 0) + (consumedByCategory.installation || 0)),
             fraisGenerauxConsomme: Math.round(fraisGenerauxConsomme),
             totalRevientConsomme: Math.round(totalRevientConsomme),
+            prixVenteAvantRemise: Math.round(prixVenteConsommeHT),
             netHTConsomme: Math.round(netHTConsomme),
             tvaConsomme: Math.round(tvaConsomme),
             totalTTCConsomme: Math.round(totalTTCConsomme),
