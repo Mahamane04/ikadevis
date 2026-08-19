@@ -1031,7 +1031,14 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
 > **0 bouton sans nom**. Les `aria-label` étaient déjà en place. Aucun
 > changement fait — le constat était erroné, pas le code.
 
-### 21.4 Limites connues et assumées, ouvertes à ce jour
+### 21.4 Limites connues et assumées
+
+> Point 2 **fermé le 2026-08-19** (migration appliquée sur staging ET
+> production, vérifiée des deux côtés). Restent ouverts : 1, 3, 4, 5, 6 —
+> dont le **point 5, nouveau et à traiter en priorité** : la configuration
+> locale pointe actuellement sur la base de production.
+
+#### Détail
 
 1. **Tarifs B2 non validés commercialement** — 12 000 / 13 000 FCFA/jour sont
    des ordres de grandeur Bamako, pas les relevés réels de l'entreprise. Même
@@ -1045,10 +1052,12 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
    local, pour qu'un compte cloud ne se retrouve jamais sans échéancier.
    - **staging** : appliqué et vérifié par round-trip réel (4 tranches,
      total 100 %, libellés préservés ; données de test supprimées ensuite).
-   - **production** : ⚠️ **NON APPLIQUÉ**. SQL prêt dans
-     `v6_payment_schedule.sql` — purement additif et idempotent, les 2 lignes
-     existantes restent à NULL. À exécuter par l'utilisateur (production est
-     en lecture seule par défaut via MCP, § 13).
+   - **production** (`qmavetqcpzsfralsqxsi` / SuperDevisMO) : **APPLIQUÉ le
+     2026-08-19 par l'utilisateur** via le SQL Editor du dashboard, à partir
+     de `v6_payment_schedule.sql`. Contrôlé ensuite en lecture : colonne
+     présente (jsonb, nullable), 2 lignes `company_settings` inchangées,
+     2 identités d'entreprise et 2 organisations intactes, `payment_schedule`
+     à NULL sur les deux — donc sur le défaut applicatif, comme attendu.
    > Le défaut métier n'est volontairement PAS dupliqué en `DEFAULT` SQL :
    > il reste défini une seule fois côté application, sans quoi les deux
    > valeurs dériveraient à la première évolution.
@@ -1062,7 +1071,18 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
    deux fonctions, **antérieur à cette session**. 3 solutions du catalogue
    autorisent ce mode, toutes avec `surface` en premier donc non actif par
    défaut.
-5. **Catégorie « Peinture & Ravalement » de l'assistant sans gabarit dédié** —
+5. ⚠️ **`config.js` local pointe vers la PRODUCTION** — constaté le 2026-08-19
+   en préparant la migration. `config.js` avait été régénéré depuis
+   `.env.development`, et `development` n'est pas isolé (§ 13) : il pointe sur
+   `qmavetqcpzsfralsqxsi`, la base de production. **Conséquence : ouvrir l'app
+   en local et se connecter avec un vrai compte écrit dans la production.**
+   Les tests du 2026-08-17 n'ont rien touché (Mode Démo, localStorage, zéro
+   requête Supabase vérifiée), mais le piège reste armé pour la prochaine
+   session. Repasser en staging avant tout test avec compte réel :
+   `node scripts/generate-config.mjs staging && npm run build`.
+   Corriger durablement suppose d'isoler `development` (déjà au § 13).
+
+6. **Catégorie « Peinture & Ravalement » de l'assistant sans gabarit dédié** —
    retombe sur `R1_TEMPLATE_QUOTE` (villa 11 lots). La mise à l'échelle M7
    s'applique donc à un gabarit qui ne correspond pas à la catégorie choisie.
    Défaut de sélection **antérieur** à cette session.
