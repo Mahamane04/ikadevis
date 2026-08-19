@@ -1249,3 +1249,95 @@ l'auto-satisfecit — cohérent avec la progression 71 → 85 → 90.
 > et les 11 prix de prestations restent provisoires. Le logiciel est prêt à
 > les porter (§ 21.6 le rend même plus sûr à ajuster) ; tant qu'ils ne sont
 > pas arbitrés, chaque devis réel engage un prix non validé commercialement.
+
+---
+
+## 🛠️ 23. Correctifs post-audit (2026-08-19) — P1-01, P1-06, P1-03 (lecture)
+
+Suite au § 22, trois correctifs demandés et livrés dans l'ordre : Remise
+Client exposée, bundle minifié, lecture cloud de "Devis Enregistrés".
+
+### 23.1 — P1-01 : Remise Client exposée dans le bon panneau
+
+Le champ existait (`calc_discount_input`) mais dans le panneau
+"Estimation Rapide" de l'assistant, pas dans celui réellement utilisé
+depuis "Créer un Devis" (`WorkItemInspector`, onglet "3. Prix & Marge").
+Ajouté au bon endroit, avec une ligne "Remise Client (-X%)" qui montre le
+montant retranché — pas seulement le prix final.
+
+> **Piège rencontré en vérifiant** : la première tentative affichait
+> "-0 FCFA" quel que soit le taux. Cause réelle : `margeValeurConsomme`
+> (utilisé dans le premier calcul de la ligne) est déjà net de remise
+> (`netHTConsomme - totalRevientConsomme`), donc `Revient + Marge -
+> NetHT` vaut structurellement 0 — pas un bug de calcul, une formule mal
+> choisie pour l'affichage. Corrigé en exposant `prixVenteConsommeHT`
+> (prix **avant** remise) depuis le `useMemo` qui alimente réellement ce
+> panneau (`index_jsx.js`, dans `App`) — pas celui de `calc-engine.js`
+> qui n'est pas utilisé par cet écran, découvert seulement après un
+> premier essai infructueux avec le mauvais champ.
+>
+> **Deuxième piège, plus bête** : après correction, le navigateur de test
+> continuait de servir l'ancien bundle malgré le bump `?v=`. Le Browser
+> pane de l'outil garde parfois un onglet "chaud" qui ne relit pas
+> `index.html` sur un simple `navigate` — un `tabs_close` puis
+> `preview_start` neuf a suffi à forcer un vrai rechargement. À
+> reproduire si un correctif vérifié "ne prend pas" alors que le code
+> source est correct et le serveur sert la bonne version (confirmé via
+> `curl` direct).
+
+Vérifié en direct, bundle propre : 109 706 → 93 250 FCFA à 15% (exact),
+Remise Client affichée à -16 456 FCFA (= 109 706 - 93 250), échéancier de
+paiement et PDF client recalculés en cohérence. 40/40 tests.
+
+### 23.2 — P1-06 : bundle de production minifié
+
+`--minify` ajouté à `build:js`. 576 Ko → 392 Ko. 40/40 tests inchangés
+après reconstruction — aucune dépendance du code ou des tests sur les
+noms de variables/la mise en forme du bundle compilé.
+
+### 23.3 — P1-03 (lecture) : "Devis Enregistrés" reconstruit depuis `quotes`
+
+Le vrai chemin d'enregistrement (`handleSaveQuoteAction` →
+`adaptHybridToSavedQuote`, `js/calc-engine.js`) construisait déjà un
+`hybridQuoteSnapshot` complet et fidèle, envoyé à `create_quote_v6` dans
+`p_hybrid_snapshot` → stocké tel quel dans `quotes.hybrid_quote_snapshot`.
+Une fonction inverse `adaptSavedQuoteToHybrid` existait même déjà pour le
+redéplier. **Rien de tout ça n'était jamais appelé au chargement d'un
+compte cloud** — `savedQuotes` restait vide (ou tentait de se charger
+depuis le blob `user_data` mort).
+
+Ajouté : requête `quotes` dans le `Promise.all` du chargement cloud
+initial (org-scopée, RLS déjà correcte), `mapQuoteFromDb` qui rappelle
+`adaptHybridToSavedQuote(row.hybrid_quote_snapshot, row.company_snapshot)`
+pour chaque ligne — réutilise la logique déjà éprouvée au lieu de
+reconstruire la forme à la main. `nextQuoteSeq` recalculé depuis le
+numéro max trouvé. Repli défensif pour une ligne sans snapshot
+exploitable (ne devrait plus arriver pour un devis créé après ce
+correctif) : résumé minimal depuis les colonnes totalisées, sans détail
+des lots.
+
+**Vérification** : colonnes de `quotes` confirmées une à une contre le
+schéma staging réel (`information_schema.columns`, pas seulement
+`v6_schema.sql`). Round-trip complet rejoué en Node, hors navigateur
+(`adaptHybridToSavedQuote` → ligne DB simulée → `mapQuoteFromDb` →
+`adaptSavedQuoteToHybrid`) : 6/7 vérifications au vert ; le seul écart
+(`totalTTC` recalculé à 0) vient du test lui-même (catalogue vide passé à
+`calculateHybridQuote`, qui recalcule bien toujours depuis le catalogue
+courant — comportement voulu, pas un défaut).
+>
+> **Non vérifié en conditions réelles avec un vrai compte cloud** — même
+> blocage que pour l'isolation multi-tenant (§ 22, P1-04) : le
+> rate-limit anti-spam de Supabase Auth a empêché de créer un compte de
+> test pendant cette session. La vérification ci-dessus (schéma réel +
+> round-trip logique) est solide mais n'a jamais tourné dans un vrai
+> navigateur contre un vrai compte. **À refaire dès qu'un compte de test
+> est disponible**, avant de considérer P1-03 totalement clos.
+
+**Reste ouvert, volontairement hors périmètre de ce correctif (Phase B,
+non commencée)** : changer le statut d'un devis existant, le renommer ou
+le supprimer passe encore par `updateSavedQuotes`/`saveToSupabase`, qui
+ciblent toujours le blob `user_data` mort. Sans conséquence dans la
+session en cours (l'état local est mis à jour immédiatement, l'écran
+reste cohérent), mais l'édition ne survivra pas à un rechargement tant
+que ce chemin n'est pas, lui aussi, redirigé vers de vraies écritures
+`UPDATE`/`DELETE` sur `quotes`.
