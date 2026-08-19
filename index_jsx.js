@@ -4631,6 +4631,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isAllowedModesModalOpen, setIsAllowedModesModalOpen] = useState(false);
 
     const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+    // P1 (2026-08-19) — "Paramètres du Compte" regroupe désormais Entreprise,
+    // Audit & Sécurité (délègue à AuditLogViewerModal), Diagnostic (délègue à
+    // HealthCheckModal) et Données locales — un seul point d'entrée au lieu
+    // de 3 boutons dispersés (sidebar + en-tête). Les onglets qui délèguent
+    // ferment ce modal et ouvrent l'autre plutôt que de dupliquer leur
+    // contenu (ils gèrent déjà leur propre chargement/état).
+    const [accountSettingsTab, setAccountSettingsTab] = useState('entreprise');
     // B3 (2026-08-18) — Cette identité n'a plus vocation à être écrite dans un
     // vrai devis : un compte réel démarre avec des champs légaux VIDES (voir
     // emptyCompany plus bas), suivant le même garde estModeDemo que les
@@ -9511,7 +9518,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </>)}
                 </nav>
                 <div className="p-4 border-t border-neutral-100 flex flex-col gap-2.5">
-                    {sbUser && (
+                    {sbUser && connectionState.key !== 'local' && (
                         <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${connectionState.chip}`}>
                             <div className="flex items-center justify-between">
                                 <span className="flex items-center gap-1.5 font-bold">
@@ -9525,13 +9532,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <span className="truncate text-[11px] opacity-80">{connectionState.detail}</span>
                         </div>
                     )}
-                    {hasPermission(activeOrganizationRole, 'canViewAudit') && (
-                        <button onClick={() => setIsAuditModalOpen(true)} className="w-full btn-secondary text-xs py-2.5 px-3 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border-indigo-200 flex items-center justify-center gap-2 font-bold" aria-label="Journal de sécurité et audit">
-                            <i className="fa-solid fa-shield-halved text-indigo-600"></i> Journal d'Audit & Sécurité
-                        </button>
-                    )}
-                    <button onClick={() => setIsCompanyModalOpen(true)} className="w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres de l'entreprise">
-                        <i className="fa-solid fa-building text-brand-500"></i> Paramètres Entreprise
+                    <button onClick={() => { setAccountSettingsTab('entreprise'); setIsCompanyModalOpen(true); }} className="w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
+                        <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
                     </button>
                     {onSignOut && (
                         <button onClick={onSignOut} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
@@ -9560,19 +9562,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" collapsed />
                 </nav>
                 <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
-                    {hasPermission(activeOrganizationRole, 'canViewAudit') && (
-                        <div className="relative sidebar-item-collapsed-wrap">
-                            <button onClick={() => setIsAuditModalOpen(true)} className="btn-icon text-indigo-600 hover:bg-indigo-50" aria-label="Journal de sécurité et audit">
-                                <i className="fa-solid fa-shield-halved"></i>
-                            </button>
-                            <span className="sidebar-tooltip" role="tooltip">Journal d'Audit & Sécurité</span>
-                        </div>
-                    )}
                     <div className="relative sidebar-item-collapsed-wrap">
-                        <button onClick={() => setIsCompanyModalOpen(true)} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres de l'entreprise">
-                            <i className="fa-solid fa-building"></i>
+                        <button onClick={() => { setAccountSettingsTab('entreprise'); setIsCompanyModalOpen(true); }} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres du compte">
+                            <i className="fa-solid fa-gear"></i>
                         </button>
-                        <span className="sidebar-tooltip" role="tooltip">Paramètres Entreprise</span>
+                        <span className="sidebar-tooltip" role="tooltip">Paramètres du Compte</span>
                     </div>
                     {onSignOut && (
                         <div className="relative sidebar-item-collapsed-wrap">
@@ -9607,8 +9601,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                         </nav>
                         <div className="p-4 border-t border-neutral-100 space-y-2">
-                            <button onClick={() => { setIsCompanyModalOpen(true); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres entreprise">
-                                <i className="fa-solid fa-building text-brand-500 mr-2"></i> Paramètres Entreprise
+                            <button onClick={() => { setAccountSettingsTab('entreprise'); setIsCompanyModalOpen(true); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres du compte">
+                                <i className="fa-solid fa-gear text-brand-500 mr-2"></i> Paramètres du Compte
                             </button>
                             {onSignOut && (
                                 <button onClick={onSignOut} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
@@ -9635,14 +9629,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <LogoSVG className="h-7" />
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${connectionState.chip}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${connectionState.dot}`}></span>
-                            <span>{connectionState.label}</span>
-                        </div>
-                        <button 
-                            onClick={() => setIsCompanyModalOpen(true)} 
+                        {connectionState.key !== 'local' && (
+                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${connectionState.chip}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${connectionState.dot}`}></span>
+                                <span>{connectionState.label}</span>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => { setAccountSettingsTab('entreprise'); setIsCompanyModalOpen(true); }}
                             className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
-                            aria-label="Ouvrir les paramètres entreprise"
+                            aria-label="Ouvrir les paramètres du compte"
                         >
                             <i className="fa-solid fa-building text-brand-500"></i>
                             <span className="hidden sm:inline font-bold truncate max-w-[120px]">{companyInfo.name}</span>
@@ -9690,19 +9686,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {activeView === 'platformAdmin' && 'Administration de la Plateforme'}
                             </h1>
                             <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => setIsHealthModalOpen(true)}
-                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all shadow-2xs hover:brightness-95 ${connectionState.chip}`}
-                                    title="Ouvrir le Diagnostic Système & Health Check"
-                                >
-                                    <span className={`w-2 h-2 rounded-full ${connectionState.dot} ${connectionState.key === 'synced' ? 'animate-pulse' : ''}`}></span>
-                                    <span>{connectionState.label}</span>
-                                </button>
-                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-secondary text-xs py-1.5 px-3" aria-label="Paramètres de l'entreprise">
+                                {connectionState.key !== 'local' && (
+                                    <button
+                                        onClick={() => setIsHealthModalOpen(true)}
+                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all shadow-2xs hover:brightness-95 ${connectionState.chip}`}
+                                        title="Ouvrir le Diagnostic Système & Health Check"
+                                    >
+                                        <span className={`w-2 h-2 rounded-full ${connectionState.dot} ${connectionState.key === 'synced' ? 'animate-pulse' : ''}`}></span>
+                                        <span>{connectionState.label}</span>
+                                    </button>
+                                )}
+                                <button onClick={() => { setAccountSettingsTab('entreprise'); setIsCompanyModalOpen(true); }} className="btn-secondary text-xs py-1.5 px-3" aria-label="Paramètres du compte">
                                     <i className="fa-solid fa-building text-brand-500"></i> {companyInfo.name}
-                                </button>
-                                <button disabled={isReadOnlyDueToDowngrade} onClick={resetToDefault} className={`btn-secondary text-xs text-red-600 border-red-200 hover:bg-red-50 py-1.5 px-3 ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`} aria-label="Réinitialiser les données">
-                                    <i className="fa-solid fa-arrow-rotate-left"></i> Réinitialiser
                                 </button>
                             </div>
                         </header>
@@ -9951,9 +9946,61 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[140] p-4">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
-                            <h3 className="font-bold text-neutral-800 text-lg"><i className="fa-solid fa-building text-brand-500 mr-2"></i>Paramètres Entreprise</h3>
+                            <h3 className="font-bold text-neutral-800 text-lg"><i className="fa-solid fa-gear text-brand-500 mr-2"></i>Paramètres du Compte</h3>
                             <button onClick={() => setIsCompanyModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
+                        {/* P1 (2026-08-19) — un seul point d'entrée pour tous les réglages.
+                            Entreprise et Données locales s'affichent ici ; Audit & Sécurité et
+                            Diagnostic délèguent à leurs modales existantes (déjà autonomes côté
+                            chargement de données) au lieu de dupliquer leur contenu. */}
+                        <div className="px-6 pt-4 flex items-center gap-1 border-b border-neutral-100 overflow-x-auto">
+                            {[
+                                { id: 'entreprise', label: 'Entreprise', icon: 'fa-building' },
+                                // Même garde-fou que l'ancien bouton sidebar : seuls owner/admin
+                                // voient le journal d'audit (rôles.canViewAudit).
+                                ...(hasPermission(activeOrganizationRole, 'canViewAudit') ? [{ id: 'audit', label: 'Audit & Sécurité', icon: 'fa-shield-halved' }] : []),
+                                { id: 'diagnostic', label: 'Diagnostic', icon: 'fa-heart-pulse' },
+                                { id: 'donnees', label: 'Données locales', icon: 'fa-database' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (tab.id === 'audit') { setIsCompanyModalOpen(false); setIsAuditModalOpen(true); return; }
+                                        if (tab.id === 'diagnostic') { setIsCompanyModalOpen(false); setIsHealthModalOpen(true); return; }
+                                        setAccountSettingsTab(tab.id);
+                                    }}
+                                    className={`shrink-0 px-3 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                                        accountSettingsTab === tab.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                                    }`}
+                                    aria-label={tab.label}
+                                >
+                                    <i className={`fa-solid ${tab.icon}`}></i> {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                        {accountSettingsTab === 'donnees' && (
+                            <div className="p-6 bg-neutral-50/50 space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-neutral-800 text-sm mb-1">Données locales</h4>
+                                    <p className="text-xs text-neutral-500">
+                                        Cet appareil garde une copie locale de votre catalogue et de vos devis
+                                        (utile hors-ligne). La réinitialiser restaure les données d'usine —
+                                        vos devis et modifications sur CET appareil seront perdus.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={isReadOnlyDueToDowngrade}
+                                    onClick={resetToDefault}
+                                    className={`btn-secondary text-xs text-red-600 border-red-200 hover:bg-red-50 py-2 px-4 ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    aria-label="Réinitialiser les données locales"
+                                >
+                                    <i className="fa-solid fa-arrow-rotate-left mr-1.5"></i> Réinitialiser les données locales
+                                </button>
+                            </div>
+                        )}
+                        {accountSettingsTab === 'entreprise' && (
                         <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); setIsCompanyModalOpen(false); showToast("Paramètres entreprise sauvegardés"); } }}>
                             <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4 max-h-[70dvh]">
                                 <div>
@@ -10058,6 +10105,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer les paramètres de l'entreprise"><i className="fa-solid fa-check mr-1.5"></i> Enregistrer</button>}
                             </div>
                         </form>
+                        )}
                     </div>
                 </div>
             )}
