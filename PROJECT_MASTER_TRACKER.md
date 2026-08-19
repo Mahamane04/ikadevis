@@ -1,7 +1,7 @@
 # 🏗️ IKADEVIS / MICRO OFFICE ERP CALCUL — FICHE MAÎTRESSE D'ARCHITECTURE & SUIVI DU PROJET
 
 > **Document de Référence & Mémoire Centrale du Projet**  
-> *Dernière mise à jour : 19 Août 2026 — Statut : 🟢 PUBLIABLE APRÈS VALIDATION DES TARIFS (test d'utilisabilité du 2026-08-17 : 19 constats, tous traités — voir § 21)*
+> *Dernière mise à jour : 19 Août 2026 — Statut : 🟢 90/100, PUBLIABLE APRÈS VALIDATION DES TARIFS (réévaluation § 22 ; test d'utilisabilité du 2026-08-17 : 19 constats, tous traités — voir § 21)*
 >
 > ⚠️ Le statut "100/100 PRODUCTION READY" du § 4 est **obsolète et invérifié**
 > (auto-évaluation d'avant l'audit indépendant du 2026-08-16, qui a trouvé un
@@ -1197,3 +1197,51 @@ vert dans les deux commits.
 
 **Ce que ça ne fait toujours pas** : choisir un montant. Le point 1 du
 § 21.4 reste ouvert — c'est une décision commerciale, pas technique.
+
+---
+
+## 📊 22. Réévaluation (2026-08-19) — Score : 90/100
+
+Même méthode que le § 17/§ 18 : vérifications réelles (suite de tests, git,
+lecture de code), pas d'auto-évaluation. Point de départ : le 85/100 du § 18
+(2026-08-17). Depuis : le test d'utilisabilité complet (§ 21, 19 constats
+corrigés), le choix de mode de rémunération (§ 21.6), la synchro cloud de
+l'échéancier (§ 21.4 pt. 2, staging **et** production), l'isolation de
+`development` (§ 21.4 pt. 5), et le push réel de 24 commits sur `main`.
+
+| Catégorie | § 17 | § 18 | **§ 22** | Évolution |
+| :--- | ---: | ---: | ---: | :--- |
+| Moteur de calcul & étalons métier | 25/25 | 25/25 | **25/25** | Inchangé — 40/40 tests, 7/7 étalons, revérifié après le merge sur `main` |
+| Sécurité RLS / anti-IDOR | 17/20 | 18/20 | **18/20** | Inchangé — RLS `material_price_history` toujours pas appliquée en production (SQL prêt depuis le 16/08, jamais exécuté) |
+| Fonctionnalités commerciales (vérifiées en direct) | 15/20 | 17/20 | **19/20** | +2 — 19 constats réels d'un test client simulé, tous corrigés et vérifiés en navigateur (dont 4 bloquants : devis illisible, coefficient sous-chiffré ×12-15, Échap cassé, indicateurs contradictoires) ; choix tâche/journée avec coût effectif affiché en direct. Reste le bug `\n` littéral (2/8 gabarits PDF), non traité |
+| Intégrité "Zéro Faux Succès" | 5/15 | 13/15 | **13/15** | Inchangé — pas de nouvel audit exhaustif du reste du code (qui a grandi de ~1400 lignes depuis). Signal positif : une régression auto-introduite pendant cette session (tarif non converti au changement de mode) a été trouvée et corrigée **avant commit**, en testant la fonctionnalité plutôt qu'en la supposant correcte |
+| Environnements Supabase | 5/10 | 7/10 | **8/10** | +1 — le risque le plus grave (`development` = `production`) est éliminé, repointé sur staging. Reste : isolation complète (3ᵉ projet dédié) non faite, `savedQuotes`/`nextQuoteSeq` toujours cassés, RLS `material_price_history` toujours pas en production, aucun test avec une vraie session authentifiée |
+| Opérationnel (git/CI) | 4/10 | 5/10 | **7/10** | +2 — `main` porte réellement les 24 commits du travail de session, poussés sur GitHub. **Non vérifié dans cette session** (accès MCP/web indisponibles) : le résultat du run CI déclenché par ce push, et si Cloudflare Pages a effectivement redéployé `app.ikadevis.com` |
+
+**Total : 90/100 — PUBLIABLE, RÉSERVES RÉDUITES.** +5 points depuis le § 18,
+portés par des correctifs vérifiés en conditions réelles plutôt que par de
+l'auto-satisfecit — cohérent avec la progression 71 → 85 → 90.
+
+**Ce qui manque avant un 100/100 défendable** (ordre de priorité) :
+1. **Vérifier réellement** le run CI et le déploiement suite au push
+   d'aujourd'hui — non observé, accès indisponible dans cette session.
+2. Appliquer la RLS `material_price_history` sur production (SQL prêt
+   depuis le 2026-08-16, § 16.1) — seul point sécurité resté identique
+   depuis trois réévaluations.
+3. Tester une vraie connexion avec un compte cloud authentique sur le
+   chemin V6 (jamais fait — seuls le code, les tests et le mode Invité le
+   couvrent).
+4. Migrer `savedQuotes`/`nextQuoteSeq` vers la vraie table `quotes`
+   (§ 16.2).
+5. Isoler `development` sur un 3ᵉ projet Supabase dédié (actuellement
+   partagé avec staging — le risque production est levé, pas l'isolation
+   complète).
+6. Corriger le bug `\n` littéral dans 2/8 gabarits PDF (cosmétique).
+7. Les 3 limites mineures restantes du § 21.4 (garde-fou B4 sur "Modifier
+   V6", mode `floor` incomplet, gabarit Peinture manquant).
+
+> **Séparé de cette note, et volontairement non inclus dedans** — c'est une
+> décision commerciale, pas un défaut logiciel : les tarifs de main-d'œuvre
+> et les 11 prix de prestations restent provisoires. Le logiciel est prêt à
+> les porter (§ 21.6 le rend même plus sûr à ajuster) ; tant qu'ils ne sont
+> pas arbitrés, chaque devis réel engage un prix non validé commercialement.
