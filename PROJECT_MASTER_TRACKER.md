@@ -37,11 +37,13 @@
 >   2. `payment_schedule` non synchronisé au cloud — **fermé**, migration
 >      appliquée et vérifiée sur staging **et production** (§ 21.4 point 2).
 >   3. 11 prix de prestations provisoires — **non commencé**.
-> - **Nouveau piège découvert (pas lié au test d'utilisabilité)** : le
->   `config.js` local pointe sur la base de **production** au lieu d'un
->   environnement de dev isolé (§ 21.4 point 5, § 13). Se connecter en local
->   avec un vrai compte écrirait directement en production. Correction en
->   cours à la reprise de cette session.
+> - **Piège découvert et fermé le 2026-08-19 (pas lié au test d'utilisabilité)**
+>   (§ 21.4 point 5, § 13) : le `config.js` local pointait sur la base de
+>   **production** faute d'environnement de dev isolé. `.env.development`
+>   repointé sur **staging**, `config.js` régénéré, build + 40/40 tests
+>   revérifiés sans régression. Isolation **partielle** — `development`
+>   partage la base de staging, pas un projet dédié — mais le risque
+>   production est éliminé.
 > - Suite de tests : **40/40 au vert** après les 22 commits, 7/7 étalons
 >   conformes. Étalon G recalibré une 2ᵉ fois (valeurs mesurées, § 21.2).
 >
@@ -426,19 +428,26 @@ zéro (A, B, C, D, E, F, G) — voir § 14 pour le recalibrage de G.**
 | Environnement | Nom projet Supabase | Ref / URL | Organisation | Statut |
 | :--- | :--- | :--- | :--- | :--- |
 | **Production** | `SuperDevisMO` (branche `main`) | `qmavetqcpzsfralsqxsi` | Ika devis | 🟢 `v6_schema.sql` appliqué le 2026-08-16 (19 tables, RLS actif), legacy `user_data` (V5) supprimée |
-| **Development** | *(aucun projet dédié)* | `qmavetqcpzsfralsqxsi` — **identique à la prod** | Ika devis | 🔴 Pas isolé, voir avertissement ci-dessous |
+| **Development** | *(aucun projet dédié)* | `mwfmruzlonsrrfufbsyz` — **partagé avec staging depuis le 2026-08-19** | Ika devis | 🟡 Isolé de la prod, pas encore d'un projet dédié — voir ci-dessous |
 | **Staging** | `ikadevis-staging` | `mwfmruzlonsrrfufbsyz` | Ika devis | 🟢 Créé le 2026-08-16, `v6_schema.sql` appliqué (19 tables, RLS actif), 0 ligne de données |
 
-**⚠️ Development = Production, actuellement.** Aucune régression introduite
-dans cette passe : le hardcode originel de `index_jsx.js` (avant P0.4)
-pointait déjà vers `qmavetqcpzsfralsqxsi`, donc `.env.development` a été
-aligné dessus pour préserver le comportement existant au moment de la
-remédiation. Mais ça veut dire concrètement que **tester en local avec
-`npm start` lit et écrit dans la vraie base de production**. Décision de
-l'utilisateur (2026-08-16) : reporté à plus tard, une fois le SaaS jugé prêt
-— on avance pour l'instant avec seulement staging + production. À corriger
-à ce moment-là : créer un 3ᵉ projet Supabase dédié au développement, lui
-appliquer `v6_schema.sql`, et mettre à jour `.env.development`.
+**Historique du piège Development = Production.** Le hardcode originel de
+`index_jsx.js` (avant P0.4) pointait vers `qmavetqcpzsfralsqxsi` ;
+`.env.development` avait été aligné dessus pour préserver le comportement
+existant au moment de la remédiation du 2026-08-16, et le risque avait été
+sciemment reporté (décision utilisateur du 2026-08-16 : « une fois le SaaS
+jugé prêt »). Redécouvert le 2026-08-19 en préparant la migration
+`payment_schedule` (§ 21.4 point 5) — **corrigé le jour même** :
+`.env.development` pointe maintenant sur **staging**
+(`mwfmruzlonsrrfufbsyz`), `config.js` régénéré et vérifié, 40/40 tests au
+vert, aucune régression. Ce n'est PAS l'isolation complète envisagée en
+août : `development` et `staging` partagent désormais la même base — un
+essai local peut donc polluer les données de staging (schéma vide, RLS
+active, sans conséquence commerciale, contrairement au piège précédent).
+**Reste à faire si l'isolation totale est souhaitée** : créer un 3ᵉ projet
+Supabase dédié au développement, lui appliquer `v6_schema.sql`, et y
+repointer `.env.development` — toujours reporté, mais le risque qui rendait
+ça urgent (écriture accidentelle en production) est levé.
 
 **Découverte en appliquant le schéma sur la production — schéma legacy V5
 coexistant avec le code V6 :** avant cette passe, la base production ne
@@ -1049,10 +1058,10 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
 
 ### 21.4 Limites connues et assumées
 
-> Point 2 **fermé le 2026-08-19** (migration appliquée sur staging ET
-> production, vérifiée des deux côtés). Restent ouverts : 1, 3, 4, 5, 6 —
-> dont le **point 5, nouveau et à traiter en priorité** : la configuration
-> locale pointe actuellement sur la base de production.
+> Points 2 et 5 **fermés le 2026-08-19** (migration appliquée sur staging ET
+> production ; `config.js` local ne pointe plus sur la production). Restent
+> ouverts : 1 (choix de mode ajouté, § 21.6, mais montants non validés),
+> 3, 4, 6.
 
 #### Détail
 
@@ -1093,16 +1102,18 @@ margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
    deux fonctions, **antérieur à cette session**. 3 solutions du catalogue
    autorisent ce mode, toutes avec `surface` en premier donc non actif par
    défaut.
-5. ⚠️ **`config.js` local pointe vers la PRODUCTION** — constaté le 2026-08-19
-   en préparant la migration. `config.js` avait été régénéré depuis
-   `.env.development`, et `development` n'est pas isolé (§ 13) : il pointe sur
-   `qmavetqcpzsfralsqxsi`, la base de production. **Conséquence : ouvrir l'app
-   en local et se connecter avec un vrai compte écrit dans la production.**
-   Les tests du 2026-08-17 n'ont rien touché (Mode Démo, localStorage, zéro
-   requête Supabase vérifiée), mais le piège reste armé pour la prochaine
-   session. Repasser en staging avant tout test avec compte réel :
-   `node scripts/generate-config.mjs staging && npm run build`.
-   Corriger durablement suppose d'isoler `development` (déjà au § 13).
+5. ~~⚠️ **`config.js` local pointe vers la PRODUCTION**~~ — constaté puis
+   **fermé le 2026-08-19, même session**. `.env.development` pointait sur
+   `qmavetqcpzsfralsqxsi` (production) faute d'isolation (§ 13) ; repointé
+   sur **staging** (`mwfmruzlonsrrfufbsyz`), `config.js` régénéré et
+   vérifié, `npm run build` + suite complète relancés (40/40, 7/7 étalons,
+   aucune régression). README et § 13 mis à jour. Les tests du 2026-08-17
+   n'avaient de toute façon rien touché (Mode Démo, localStorage, zéro
+   requête Supabase vérifiée) — le piège était réel mais jamais déclenché.
+   > Isolation **partielle** : `development` partage maintenant la base de
+   > **staging**, pas un projet dédié. Suffisant pour éliminer le risque
+   > production ; l'isolation complète (3ᵉ projet Supabase) reste une
+   > amélioration possible, non urgente, voir § 13.
 
 6. **Catégorie « Peinture & Ravalement » de l'assistant sans gabarit dédié** —
    retombe sur `R1_TEMPLATE_QUOTE` (villa 11 lots). La mise à l'échelle M7

@@ -48,15 +48,16 @@ charge `app.compiled.js`, pas la source.
 
 ## Environnements Supabase
 
-Trois environnements sont prévus, **mais `development` n'est pas isolé** : il
-pointe aujourd'hui sur la même base que la production. Tester en local écrit
-donc dans les données réelles. Voir le § 13 du tracker.
+Trois environnements sont prévus. Depuis le 2026-08-19, `development` pointe
+sur le projet **staging** (pas de projet dédié) — tester en local n'atteint
+plus jamais la production. Isolation complète (3ᵉ projet Supabase dédié)
+reportée par décision utilisateur, voir le § 13 du tracker.
 
-| Environnement | Projet Supabase | Isolé ? |
+| Environnement | Projet Supabase | Isolé de la production ? |
 | :--- | :--- | :---: |
 | Production | `SuperDevisMO` | ✅ |
 | Staging | `ikadevis-staging` | ✅ |
-| Development | *(aucun — partagé avec la production)* | ❌ |
+| Development | *(aucun — partagé avec staging)* | ✅ |
 
 ## Tests
 
