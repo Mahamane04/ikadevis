@@ -5436,6 +5436,43 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         ref_id: rc.refId, formula: rc.formula, cost_category: rc.costCategory || rc.type, label: rc.label
     });
     const mapRecipeFromDb = (r) => ({ id: r.id, solutionId: r.solution_id, type: r.type, refId: r.ref_id, formula: r.formula, costCategory: r.cost_category, label: r.label });
+    // P1-03 (2026-08-19) — Reconstruit une entrée `savedQuotes` depuis une
+    // ligne `quotes`. Le chemin d'enregistrement réel (adaptHybridToSavedQuote,
+    // js/calc-engine.js) écrit déjà un hybrid_quote_snapshot complet et fidèle
+    // à chaque `create_quote_v6` — on réutilise adaptHybridToSavedQuote pour le
+    // redéplier, plutôt que de reconstruire la forme à la main. `id`/`number`/
+    // `status` reviennent des colonnes propres de la table, qui font foi
+    // (elles peuvent diverger du snapshot après une édition future — hors
+    // périmètre ici, mais ce choix reste correct le jour où ça arrivera).
+    // Repli défensif pour une ligne sans snapshot exploitable (ne devrait plus
+    // se produire pour un devis créé après ce correctif, mais s'applique à
+    // toute ligne restée sur l'ancien code) : reconstruit un résumé minimal à
+    // partir des colonnes totalisées, sans le détail des lots.
+    const mapQuoteFromDb = (r) => {
+        const dateStr = r.date_created
+            ? new Date(r.date_created).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : '';
+        if (r.hybrid_quote_snapshot && Object.keys(r.hybrid_quote_snapshot).length > 0) {
+            const rebuilt = adaptHybridToSavedQuote(r.hybrid_quote_snapshot, r.company_snapshot || {});
+            return { ...rebuilt, id: r.id, number: r.quote_number, status: r.status || rebuilt.status, date: dateStr };
+        }
+        return {
+            id: r.id, number: r.quote_number, date: dateStr,
+            clientName: r.client_name, projectRef: r.project_ref, notes: '',
+            status: r.status || 'draft', isMultiLot: true,
+            quoteData: {
+                solutionName: r.project_ref || r.client_name,
+                isMultiLot: true, lots: [], commercialItems: [],
+                totalDebourseConsomme: 0, fraisGenerauxConsomme: 0,
+                totalRevientConsomme: 0, margeValeurConsomme: r.total_marge_consomme || 0,
+                netHTConsomme: r.total_ht_consomme || 0,
+                tvaConsomme: (r.total_ttc_consomme || 0) - (r.total_ht_consomme || 0),
+                totalTTCConsomme: r.total_ttc_consomme || 0
+            },
+            companyInfoSnapshot: r.company_snapshot || {},
+            calcFormSnapshot: r.calc_form_snapshot || {}
+        };
+    };
     // F5 (2026-08-19) — paymentSchedule porté au cloud. La colonne
     // company_settings.payment_schedule (jsonb) a été ajoutée par la migration
     // add_payment_schedule_to_company_settings ; sans ces deux lignes, un
@@ -5555,15 +5592,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // recipes/company_settings), org par org — remplace l'ancien blob JSON
                 // `user_data` (V5, supprimé de la production le 2026-08-16). Voir
                 // PROJECT_MASTER_TRACKER.md § 16.
-                const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes] = await Promise.all([
+                const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes, quotesRes] = await Promise.all([
                     supabaseClient.from('company_settings').select('*').eq('organization_id', resolvedOrgId).maybeSingle(),
                     supabaseClient.from('materials').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('labor').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('solutions').select('*').eq('organization_id', resolvedOrgId),
-                    supabaseClient.from('recipes').select('*').eq('organization_id', resolvedOrgId)
+                    supabaseClient.from('recipes').select('*').eq('organization_id', resolvedOrgId),
+                    supabaseClient.from('quotes').select('*').eq('organization_id', resolvedOrgId).order('date_created', { ascending: false })
                 ]);
 
-                const firstError = [companyRes.error, materialsRes.error, laborRes.error, solutionsRes.error, recipesRes.error].find(Boolean);
+                const firstError = [companyRes.error, materialsRes.error, laborRes.error, solutionsRes.error, recipesRes.error, quotesRes.error].find(Boolean);
                 if (firstError) {
                     console.error('[Bloc 1] Erreur de chargement du catalogue cloud:', firstError);
                     setCloudState('offline_error');
@@ -5602,10 +5640,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     setRecipes((recipesRes.data || []).map(mapRecipeFromDb));
                 }
 
-                // Les devis (savedQuotes/nextQuoteSeq) restent chargés localement pour
-                // l'instant — la persistance cloud de cette liste (distincte de la vraie
-                // table `quotes` déjà écrite par create_quote_v6) reste un chantier
-                // séparé, documenté au tracker, non traité dans ce correctif.
+                // P1-03 (2026-08-19) — Devis Enregistrés reconstruits depuis la vraie
+                // table `quotes` (déjà écrite par create_quote_v6 à chaque enregistrement
+                // cloud), plus jamais depuis le blob `user_data` mort. Indépendant du
+                // bloc if/else ci-dessus : les devis existent même à la toute première
+                // connexion sur une organisation neuve tant qu'un catalogue de départ n'a
+                // pas encore été amorcé.
+                const loadedQuotes = (quotesRes.data || []).map(mapQuoteFromDb);
+                setSavedQuotes(loadedQuotes);
+                const currentYearNow = new Date().getFullYear();
+                const yearPattern = new RegExp(`DEV-${currentYearNow}-(\\d+)`);
+                const maxSeq = loadedQuotes.reduce((max, q) => {
+                    const match = String(q.number || '').match(yearPattern);
+                    const n = match ? parseInt(match[1], 10) : 0;
+                    return n > max ? n : max;
+                }, 0);
+                setNextQuoteSeq(maxSeq + 1);
 
                 setCloudState('loaded');
                 setSbDataLoaded(true);
