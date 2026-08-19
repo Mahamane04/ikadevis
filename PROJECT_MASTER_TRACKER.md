@@ -1225,9 +1225,13 @@ l'auto-satisfecit — cohérent avec la progression 71 → 85 → 90.
 **Ce qui manque avant un 100/100 défendable** (ordre de priorité) :
 1. **Vérifier réellement** le run CI et le déploiement suite au push
    d'aujourd'hui — non observé, accès indisponible dans cette session.
-2. Appliquer la RLS `material_price_history` sur production (SQL prêt
-   depuis le 2026-08-16, § 16.1) — seul point sécurité resté identique
-   depuis trois réévaluations.
+2. Appliquer la RLS `material_price_history` sur production — SQL isolé le
+   2026-08-19 dans `v6_material_price_history_rls.sql` (copie vérifiée des
+   policies déjà actives sur staging depuis le 16/08, § 16.1). **Prêt,
+   jamais exécuté** : `execute_sql` en production refuse le `DROP POLICY`
+   (`cannot execute DROP POLICY in a read-only transaction`, comportement
+   attendu — § 13). À exécuter via le SQL Editor du dashboard, comme
+   `v6_payment_schedule.sql` le 2026-08-19.
 3. Tester une vraie connexion avec un compte cloud authentique sur le
    chemin V6 (jamais fait — seuls le code, les tests et le mode Invité le
    couvrent).
