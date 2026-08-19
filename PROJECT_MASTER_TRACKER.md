@@ -1,15 +1,35 @@
 # 🏗️ IKADEVIS / MICRO OFFICE ERP CALCUL — FICHE MAÎTRESSE D'ARCHITECTURE & SUIVI DU PROJET
 
 > **Document de Référence & Mémoire Centrale du Projet**  
-> *Dernière mise à jour : 17 Août 2026 — Statut : 🟢 PUBLIABLE AVEC RÉSERVES MINEURES (audit du 2026-08-17 : 71/100 → 85/100 après correctifs, voir § 17/§ 18)*
+> *Dernière mise à jour : 19 Août 2026 — Statut : 🟢 PUBLIABLE APRÈS VALIDATION DES TARIFS (test d'utilisabilité du 2026-08-17 : 19 constats, tous traités — voir § 21)*
 >
 > ⚠️ Le statut "100/100 PRODUCTION READY" du § 4 est **obsolète et invérifié**
 > (auto-évaluation d'avant l'audit indépendant du 2026-08-16, qui a trouvé un
-> dossier de tests inexistant et aucun dépôt git). Les § 12, § 13 et surtout
-> § 16/§ 17/§ 18 (2026-08-17) font foi sur le § 4.
+> dossier de tests inexistant et aucun dépôt git). Les § 12, § 13, § 16/§ 17/
+> § 18 et surtout **§ 21 (2026-08-19)** font foi sur le § 4.
+>
+> 🔴 **Décision commerciale en attente avant publication** — les tarifs de
+> main-d'œuvre maçonnerie et carrelage ont été corrigés (§ 21.2, B2) sur des
+> ordres de grandeur Bamako, pas sur les relevés réels de l'entreprise. Tant
+> qu'ils ne sont pas arbitrés, chaque devis émis engage un prix non validé —
+> même réserve que pour les 11 prix de prestations déjà signalés.
 >
 > **Repère rapide pour reprendre en nouvelle discussion — état à la fin de
-> cette session (2026-08-17) :**
+> la session du 2026-08-19 :**
+> - **Test d'utilisabilité mené en conditions réelles le 2026-08-17** (§ 21) :
+>   parcours complet d'un patron de PME BTP + signalétique à Bamako, en Mode
+>   Démo. **19 constats** dont 4 bloquants — tous corrigés sur la branche
+>   `fix/test-utilisabilite-0817` (17 commits, **non fusionnée, non poussée**).
+> - **Le devis client était inutilisable en l'état** : toutes les quantités
+>   sortaient à « 1,00 u » (un mur de 176 m² compris), sous l'en-tête d'une
+>   entreprise ivoirienne fictive préremplie. Corrigé (§ 21.1).
+> - **La main-d'œuvre maçonnerie/carrelage était sous-chiffrée d'un facteur
+>   12 à 15** — un maçon payé 3 500 FCFA/jour. Corrigé, étalon G recalibré en
+>   conséquence (§ 21.2).
+> - Suite de tests : **40/40 au vert** après les 17 commits, 7/7 étalons
+>   conformes. Étalon G recalibré une 2ᵉ fois (valeurs mesurées, § 21.2).
+>
+> **État à la fin de la session précédente (2026-08-17) :**
 > - Dépôt git **publié sur GitHub le 2026-08-17** :
 >   `git@github.com:Mahamane04/ikadevis.git`, **privé**, branche `main`,
 >   33 commits. Audit de secrets fait avant push (voir § 20).
@@ -45,10 +65,11 @@
 >   Administration en lecture seule, auto-promotion impossible, accès
 >   journalisés. `v6_platform_admin.sql` appliqué sur staging ET production
 >   le 2026-08-17 ; `officemicro89@gmail.com` désigné premier admin.
-> - Prochaines pistes ouvertes : isoler `development`, pousser le dépôt vers
->   un remote, migrer `savedQuotes`/`nextQuoteSeq` vers la vraie table
->   `quotes` (§ 16), appliquer la migration RLS `material_price_history` sur
->   production (SQL fourni, § 16), poursuivre le découpage de `index_jsx.js`.
+> - Prochaines pistes ouvertes : isoler `development`, migrer
+>   `savedQuotes`/`nextQuoteSeq` vers la vraie table `quotes` (§ 16),
+>   appliquer la migration RLS `material_price_history` sur production (SQL
+>   fourni, § 16), poursuivre le découpage de `index_jsx.js`, **plus les 4
+>   limites ouvertes du § 21.4**.
 
 ---
 
@@ -873,3 +894,181 @@ s'exécuter faute de remote. Elle se déclenchera désormais à chaque push sur
 À surveiller — le workflow lance `npm ci` puis `npm test`, lequel démarre
 Chromium via puppeteer ; un runner GitHub sans les dépendances système de
 Chromium pourrait échouer là où la machine locale réussit.
+
+---
+
+## 🔍 21. Test d'utilisabilité en conditions réelles (2026-08-17 → 19)
+
+Premier test du SaaS **du point de vue d'un client**, pas d'un développeur :
+parcours complet d'un patron de PME malienne exerçant à la fois dans le BTP et
+la signalétique/branding — chiffrer un mur de clôture de 80 ml pour une usine,
+puis l'habillage de façade et l'enseigne du même client. Mené en Mode Démo,
+**aucune écriture Supabase** (vérifié : zéro requête réseau vers le projet).
+
+**19 constats** : 4 bloquants, 8 majeurs, 7 frictions. Tous traités sur la
+branche `fix/test-utilisabilite-0817` — **17 commits, non fusionnée, non
+poussée à ce jour**. Suite de tests à 40/40 après chaque commit.
+
+### 21.1 Chantier 1 — Le document client (B1, B3, F4, F5)
+
+Le seul livrable qui sort de l'outil, et il n'était pas présentable.
+
+| Constat | Défaut | Correctif |
+| :--- | :--- | :--- |
+| **B1** | La ligne commerciale facturait `calculatedItem.qty` (nombre d'OUVRAGES, souvent 1), jamais le métré. Un mur de 176 m² sortait « 1,00 u » ; un habillage de 36 m² « 1,00 m² à 1 716 600 FCFA/m² », factuellement faux | `calculateSingleWorkItem` expose `metre: {value, unit, summary}`, dérivé des **mêmes variables** que les formules de recette (pas un second calcul parallèle). Le gabarit du PDF testait déjà `item.dimensionSummary` sans que rien ne le remplisse |
+| **B3** | Tout compte réel démarrait avec l'identité fictive *IKADEVIS BTP, Abidjan, NIF 2600123A, RCCM CI-ABJ-2026-B-12345*. Les champs paraissant remplis, rien ne signalait qu'il fallait les corriger | `defaultCompany` scindé : `demoCompany` réservé au Mode Invité, `emptyCompany` pour les comptes réels (même garde `estModeDemo` que les données de démo). Imprimer/Partager/Signer bloqués tant que NIF/RCCM/adresse/etc. manquent |
+| **F4** | Les lots étaient aplatis en une liste unique, sans intitulé ni sous-total | Groupage par lot + sous-total HT. `lotCode`/`lotName` étaient **déjà** portés par `commercialItems` — le travail était côté rendu seulement |
+| **F5** | Deux échéanciers contradictoires sur le même PDF : tableau 40/30/20/10 codé en dur *et* champ libre « 50 % à la commande » | `companyInfo.paymentSchedule` éditable (libellés + %), contrôle « total = 100 % » posé sur `canSend`, doublon retiré du PDF |
+
+> **Piège rencontré (F5)** — bloquer la *sauvegarde* des Paramètres si le total
+> ≠ 100 % ne protégeait rien : chaque champ de ce formulaire s'enregistre déjà
+> à la frappe. Le blocage n'empêchait que la fermeture propre de la modale. Le
+> vrai garde-fou est sur `canSend`, à l'endroit qui décide si le devis part.
+
+### 21.2 Chantier 2 — La justesse du calcul (B2, M4+M5, M6, M7)
+
+**B2 — le plus coûteux.** Les prestations maçonnerie (id 9) et carrelage
+(id 10) étaient tarifées en unité `m²` à 3 500 / 4 000 FCFA, mais leurs
+recettes (`SURFACE / RENDEMENT_MO`) calculaient déjà un nombre de **jours**
+avant de multiplier par ce tarif — exactement le modèle de la peinture (id 5,
+`unit: 'j'`, déjà correct). Conséquence : un maçon posant 176 m² touchait
+41 067 FCFA pour 11,7 jours de travail, soit **3 500 FCFA/jour**, et la
+main-d'œuvre ne pesait que **3,7 % du déboursé** d'un mur en agglos.
+
+Le rendement (15 et 12 m²/jour) était juste depuis le début — seuls le tarif
+et l'unité affichée mentaient. Passés à `unit: 'j'`, 12 000 / 13 000 FCFA.
+
+> **Choix de conception retenu** (demande explicite de l'utilisateur d'avoir
+> *« le choix par rapport aux besoins »*) : plutôt qu'imposer une règle unique
+> à tout le catalogue, **chaque prestation déclare son propre mode de
+> tarification** — journalier (avec rendement) ou direct (m², ml, u, forfait).
+> `getLaborUnitFormulaMismatch()` vérifie la cohérence unité↔formule à
+> l'enregistrement de tout composant de recette, pour **toute prestation
+> présente ou future**. Un balayage du catalogue entier ne trouve aucun autre
+> cas. Le même garde-fou est proposé à la création d'une prestation à la volée.
+
+**M4+M5 — une seule cause racine.** `calculateSingleWorkItem` et
+`systemDiagnostic` construisaient chacun un contexte **complet**
+(SURFACE/LARGEUR/HAUTEUR toujours présents) avant d'appeler
+`evaluateDynamicFormula` — dont le garde-fou de mode ne rejette une variable
+que si elle n'est *pas* « explicite » dans le contexte reçu. Avec un contexte
+toujours complet, **le garde-fou ne bloquait jamais rien**. D'où un ouvrage en
+mode `unit` avec formule `SURFACE` qui sortait **150 000 FCFA plausibles mais
+inventés**, badgé « ✅ Prêt à chiffrer ». `filterVarsForMode()` retire du
+contexte les variables que le mode n'autorise pas, branchée aux deux points
+d'appel. Le même ouvrage calcule désormais 0 FCFA **et** remonte au diagnostic.
+
+Côté UI, le Mode Simple affichait toujours Largeur/Hauteur quel que soit le
+mode réel — et les modifier resynchronisait `surfaceDirect` (BUG-014, pensé
+pour `rectangle` seul), donc **éditer un champ fantôme écrasait le métré
+réellement utilisé**. Un seul jeu de champs désormais, celui du mode actif.
+
+**M6** — `item.costUnit` était lu par le moteur mais n'avait **aucun champ pour
+l'écrire** : toute ligne libre avait `hasKnownCost=false` et se vendait sans
+entrer dans le déboursé, gonflant K et la marge affichée. Champ « Coût
+d'achat/u » ajouté (desktop + carte mobile), avec astérisque sur Déboursé
+Sec/K/Marge tant qu'une ligne libre n'a pas de coût.
+
+**M7** — `handleApplyQuickEstimate` chargeait un gabarit **figé** et ne
+reportait la quantité saisie que dans le *libellé* du projet : **6 ml et
+600 ml produisaient le même devis**. Le gabarit est désormais mis à l'échelle
+du ratio `saisi / défaut de la catégorie` (donc ratio = 1 aux valeurs par
+défaut : aucune régression sur les gabarits livrés), en ne touchant que la
+dimension qui pilote le métré dans le mode de l'ouvrage.
+
+> L'écart avec la fourchette annoncée **subsiste et s'accroît avec la taille —
+> mais il est réel, pas un bug** : l'estimation est un ratio au m²/ml (linéaire
+> par construction), le devis détaillé un vrai métré où les forfaits de pose ne
+> doublent pas et où les matériaux s'achètent au conditionnement. Vérifié ligne
+> à ligne : sur signage 6→12 ml, le caisson suit (3m→6m), les lettres ne
+> bougent pas — elles dépendent de `NOMBRE_LETTRES`, un choix métier que le
+> logiciel n'a pas à modifier silencieusement. Une note sous l'estimation
+> annonce l'écart **avant** que l'utilisateur ne s'engage.
+
+#### Impact chiffré sur l'Étalon G (recalibrage n°2)
+
+| | Avant B2 | Après B2 | Écart |
+| :--- | ---: | ---: | ---: |
+| Déboursé Sec | 59 805 084 | **60 497 751** | +692 667 |
+| Total Net HT | 90 307 626 | **91 346 626** | +1 039 000 |
+| Total TTC | 106 562 999 | **107 789 019** | +1 226 020 |
+| Coefficient K | 1.51 | **1.51** | inchangé |
+
+Valeurs **mesurées par le test lui-même**, pas recalculées à la main. Le K
+inchangé confirme qu'il s'agit d'une propriété structurelle du barème
+margin/overhead, indépendante de la ligne de coût qui a varié. L'Étalon B
+(Carrelage) n'est pas affecté : ses assertions portent sur le coût matériel.
+
+### 21.3 Chantiers 3 & 4 — Confiance dans l'outil et usage terrain
+
+| Constat | Défaut | Correctif |
+| :--- | :--- | :--- |
+| **M3** | `setIsLaborModalOpen` / `setIsMatModalOpen` appelés mais **jamais déclarés** (supprimés par le refactor P0.10). Échap levait donc une `ReferenceError` avant d'atteindre les autres modales → **fermeture par Échap morte dans toute l'app** ; « + Nouvelle Prestation » ne faisait rien | Appels orphelins retirés ; bloc de création inline dans la modale de composant (en `<div>`, pas `<form>` — on est déjà dans `#recipeForm`) |
+| **M1** | Le bouton « Enregistrer le Devis » du bas enregistrait mais ne remettait jamais l'indicateur à zéro. Cachait un 2ᵉ défaut : l'en-tête remettait l'indicateur à zéro **même quand l'enregistrement était refusé** faute de nom client | État remis à zéro dans `handleSaveQuoteAction`, après le contrôle — un 3ᵉ point d'appel héritera du bon comportement |
+| **B4** | L'assistant écrasait le devis en cours **sans un mot**, même avec « Modifications non enregistrées » affiché | `guardUnsavedQuote()` nomme le devis menacé et propose Annuler / Enregistrer d'abord / Continuer |
+| **F3** | Cmd+Z capté sur `window` sans regarder le focus : une faute de frappe + Cmd+Z réflexe annulait la dernière action sur le **devis** | Sortie anticipée si la cible est un `input`/`textarea`/`contenteditable` |
+| **F2** | Trois indicateurs contradictoires (« Mode Démo », « Cloud Actif », pastille verte « En ligne ») ; deux noms pour la même entreprise | `connectionState` dérivé une fois, consommé aux 3 emplacements ; l'organisation par défaut reprend la raison sociale saisie |
+| **M2** | `maconnerie` sans accent → **0 résultat** ; `clôture` ne trouvait jamais la fiche « Maçonnerie en Murs d'Agglos » | `normalizeSearchText` (NFD + suppression des diacritiques) des deux côtés + champ `keywords` par ouvrage, éditable, seedé pour la maçonnerie |
+| **M8** | Tableau desktop réutilisé tel quel en mobile : 624 px de contenu dans 337 px, désignations tronquées à un mot | Carte par ouvrage sous `sm` |
+| **F1** | La pastille de statut recouvrait 107 px du champ Chantier à 1280 px — on tapait dans le champ Client | `min-w-0` sur chaque **champ** (pas sur le groupe, cf. piège ci-dessous) |
+| **F7** | Libellés NIF/RCCM/Validité superposés ; recherche du catalogue persistante entre deux ouvertures | `.app-label--split` ; réinitialisation dans le `useEffect` d'ouverture |
+
+> **Piège rencontré (F1)** — `min-w-0` sur le *groupe* convainc l'algorithme
+> flex-wrap qu'il n'y a aucune taille minimale à respecter : il ne fait donc
+> **jamais** passer le groupe à la ligne, les champs s'écrasent à ~0 px puis
+> débordent quand même de leur taille incompressible. Il faut un `min-width`
+> réaliste sur le groupe **et** `min-w-0` sur chaque champ.
+
+> **Piège rencontré (M8)** — `npm run build:js` compile le JSX mais **pas le
+> CSS**. Les classes Tailwind inédites (`sm:hidden`, `hidden sm:block`) étaient
+> absentes de `tailwind.css` tant que `build:css` n'avait pas tourné : tableau
+> et carte s'affichaient superposés à toutes les largeurs. **À surveiller pour
+> tout futur ajout de classe Tailwind non encore utilisée dans le projet.**
+
+> **Vérifié plutôt que supposé (F7)** — le constat original signalait des
+> boutons sans nom accessible. Audit programmatique exhaustif (toutes les vues,
+> tiroir mobile, sélecteur d'organisation, diagnostic, sélecteur de catalogue) :
+> **0 bouton sans nom**. Les `aria-label` étaient déjà en place. Aucun
+> changement fait — le constat était erroné, pas le code.
+
+### 21.4 Limites connues et assumées, ouvertes à ce jour
+
+1. **Tarifs B2 non validés commercialement** — 12 000 / 13 000 FCFA/jour sont
+   des ordres de grandeur Bamako, pas les relevés réels de l'entreprise. Même
+   réserve que les 11 prix de prestations. **Bloquant pour la publication.**
+2. **`paymentSchedule` non synchronisé au cloud** — `mapCompanyToDb` /
+   `mapCompanyFromDb` ne portent pas ce champ ; l'ajouter suppose une migration
+   Supabase (colonne `payment_schedule` sur `company_settings`). Un compte cloud
+   perdrait un échéancier personnalisé au prochain rechargement depuis le cloud.
+3. **Boutons « Modifier (V6) » sans garde-fou B4** — ils remplacent le plan de
+   travail sans confirmation. Ils vivent dans `App` alors que
+   `hasUnsavedChanges` vit dans `QuoteWorkspace` ; les couvrir suppose de
+   remonter cet état.
+4. **Mode `floor` incomplet dans `calculateSingleWorkItem`** — pas de branche
+   dédiée (seuls rectangle/volume/surface/linear sont couverts), contrairement à
+   `evaluateDynamicFormula` qui, lui, le gère. Écart architectural entre les
+   deux fonctions, **antérieur à cette session**. 3 solutions du catalogue
+   autorisent ce mode, toutes avec `surface` en premier donc non actif par
+   défaut.
+5. **Catégorie « Peinture & Ravalement » de l'assistant sans gabarit dédié** —
+   retombe sur `R1_TEMPLATE_QUOTE` (villa 11 lots). La mise à l'échelle M7
+   s'applique donc à un gabarit qui ne correspond pas à la catégorie choisie.
+   Défaut de sélection **antérieur** à cette session.
+
+### 21.5 Méthode
+
+Le test a été mené **sans consulter la documentation**, en découvrant l'app
+comme le ferait un client. Chaque constat a été reproduit puis remonté jusqu'à
+sa cause dans le code avant d'être corrigé — deux diagnostics ont demandé un
+second passage après une première correction insuffisante (F1, carte mobile),
+dans les deux cas confirmés par **mesure directe des rects** plutôt que par
+supposition.
+
+Deux corrections ont été apportées au rapport initial après lecture du code :
+M7 était **plus grave** que décrit (entrée utilisateur ignorée, pas un écart
+d'arrondi), et M4/M5 n'étaient **pas deux bugs mais un seul** (le `calcForm`
+par défaut portant les valeurs de tous les modes à la fois).
+
+Non testés : parcours avec compte cloud réel, « Partager » et « Signer »
+(actions sortantes), impression PDF réelle, multi-organisation, écran
+d'administration plateforme, module « Affaires & Projets ».
