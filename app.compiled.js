@@ -3015,6 +3015,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
   const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
   const REQUIRED_LEGAL_FIELDS = ["name", "address", "phone", "email", "nif", "rccm"];
   const getMissingLegalFields = (info) => REQUIRED_LEGAL_FIELDS.filter((k) => !(info?.[k] || "").trim());
+  const isDailyUnit = (unit) => unit === "j" || unit === "j-eq";
+  const formulaToDaily = (formula) => {
+    const f = (formula || "").trim();
+    if (!f || /RENDEMENT_MO/.test(f)) return f;
+    return `(${f}) / RENDEMENT_MO`;
+  };
+  const formulaToTask = (formula) => {
+    let f = (formula || "").trim();
+    if (!/RENDEMENT_MO/.test(f)) return f;
+    f = f.replace(/\s*\/\s*RENDEMENT_MO/g, "").trim();
+    if (f.startsWith("(") && f.endsWith(")")) {
+      let depth = 0, wrapsAll = true;
+      for (let i = 0; i < f.length; i++) {
+        if (f[i] === "(") depth++;
+        else if (f[i] === ")") {
+          depth--;
+          if (depth === 0 && i < f.length - 1) {
+            wrapsAll = false;
+            break;
+          }
+        }
+      }
+      if (wrapsAll) f = f.slice(1, -1).trim();
+    }
+    return f;
+  };
   const getLaborUnitFormulaMismatch = (unit, formula) => {
     const dividesByYield = /RENDEMENT_MO/.test(formula || "");
     if (unit === "j" && !dividesByYield) {
@@ -5944,14 +5970,63 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
         });
       }
     };
+    const recipesUsingLabor = (laborId) => recipes.filter((r) => r.type === "labor" && r.refId === laborId);
     const saveLabor = (e) => {
       e.preventDefault();
       if (isReadOnlyDueToDowngrade) return;
       const nl = { ...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate) || 0 };
-      updateLabor(labor.find((x) => x.id === nl.id) ? labor.map((x) => x.id === nl.id ? nl : x) : [...labor, nl]);
-      setSelectedLaborId(nl.id);
-      setIsResourceEditMode(false);
-      showToast("Prestation enregistr\xE9e !");
+      const previous = labor.find((x) => x.id === nl.id);
+      const passeEnRegie = isDailyUnit(nl.unit) && previous && !isDailyUnit(previous.unit);
+      const passeEnTache = !isDailyUnit(nl.unit) && previous && isDailyUnit(previous.unit);
+      const impactees = passeEnRegie || passeEnTache ? recipesUsingLabor(nl.id) : [];
+      const rendRef = parseFloat(previous?.yieldRate) || parseFloat(nl.yieldRate) || 0;
+      const tarifInchange = previous && parseFloat(previous.rate) === parseFloat(nl.rate);
+      let tarifConverti = null;
+      if (rendRef > 0 && tarifInchange) {
+        if (passeEnTache) tarifConverti = Math.round(parseFloat(nl.rate) / rendRef);
+        else if (passeEnRegie) tarifConverti = Math.round(parseFloat(nl.rate) * rendRef);
+      }
+      if (tarifConverti !== null && Number.isFinite(tarifConverti)) {
+        nl.rate = tarifConverti;
+      }
+      const appliquer = () => {
+        updateLabor(labor.find((x) => x.id === nl.id) ? labor.map((x) => x.id === nl.id ? nl : x) : [...labor, nl]);
+        if (impactees.length > 0) {
+          const convert = passeEnRegie ? formulaToDaily : formulaToTask;
+          updateRecipes(recipes.map(
+            (r) => r.type === "labor" && r.refId === nl.id ? { ...r, formula: convert(r.formula) } : r
+          ));
+        }
+        setSelectedLaborId(nl.id);
+        setIsResourceEditMode(false);
+        showToast(impactees.length > 0 ? `Prestation enregistr\xE9e \u2014 ${impactees.length} formule(s) de recette ajust\xE9e(s)` : "Prestation enregistr\xE9e !");
+      };
+      if (impactees.length > 0) {
+        const convert = passeEnRegie ? formulaToDaily : formulaToTask;
+        const apercu = impactees.slice(0, 4).map((r) => `\u2022 ${r.label}
+    ${r.formula}
+    \u2192 ${convert(r.formula)}`).join("\n");
+        const reste = impactees.length > 4 ? `
+\u2026 et ${impactees.length - 4} autre(s).` : "";
+        setConfirmDialog({
+          isOpen: true,
+          title: passeEnRegie ? "Passer en paiement \xE0 la journ\xE9e" : "Passer en paiement \xE0 la t\xE2che",
+          message: `${tarifConverti !== null ? `Tarif converti pour que le co\xFBt reste identique : ${formatMoney(parseFloat(previous.rate), companyInfo.currency)} \u2192 ${formatMoney(tarifConverti, companyInfo.currency)} par ${passeEnTache ? nl.unit || "unit\xE9" : "jour"}.
+
+` : ""}${impactees.length} formule(s) de recette utilisent cette prestation et vont \xEAtre ajust\xE9es pour rester coh\xE9rentes avec le nouveau mode :
+
+${apercu}${reste}
+
+Les devis d\xE9j\xE0 enregistr\xE9s ne sont pas modifi\xE9s.`,
+          confirmLabel: "Appliquer",
+          onConfirm: () => {
+            closeConfirm();
+            appliquer();
+          }
+        });
+        return;
+      }
+      appliquer();
     };
     const lastHistoryEntry = materialHistory[0];
     const historyVariationPct = lastHistoryEntry && lastHistoryEntry.previous_price ? (lastHistoryEntry.price - lastHistoryEntry.previous_price) / lastHistoryEntry.previous_price * 100 : null;
@@ -6092,6 +6167,26 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
           { value: "forfait", label: "forfait" }
         ]
       }
+    ))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Mode de r\xE9mun\xE9ration"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        disabled: isReadOnlyDueToDowngrade,
+        onClick: () => setLaborForm({ ...laborForm, unit: laborForm.unitTache || "m\xB2" }),
+        className: `text-left p-3 rounded-xl border-2 transition-all ${!isDailyUnit(laborForm.unit) ? "border-brand-500 bg-brand-50" : "border-neutral-200 bg-white hover:border-neutral-300"}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-black text-neutral-900" }, "\xC0 la t\xE2che"),
+      /* @__PURE__ */ React.createElement("span", { className: "block text-[11px] text-neutral-500 mt-0.5 leading-snug" }, "Prix ferme par unit\xE9 produite. Le t\xE2cheron absorbe un rendement plus faible.")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        disabled: isReadOnlyDueToDowngrade,
+        onClick: () => setLaborForm({ ...laborForm, unitTache: isDailyUnit(laborForm.unit) ? laborForm.unitTache : laborForm.unit, unit: "j" }),
+        className: `text-left p-3 rounded-xl border-2 transition-all ${isDailyUnit(laborForm.unit) ? "border-brand-500 bg-brand-50" : "border-neutral-200 bg-white hover:border-neutral-300"}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-black text-neutral-900" }, "\xC0 la journ\xE9e (r\xE9gie)"),
+      /* @__PURE__ */ React.createElement("span", { className: "block text-[11px] text-neutral-500 mt-0.5 leading-snug" }, "Tarif par jour \xD7 rendement attendu. L'entreprise absorbe si le rendement n'est pas tenu.")
     ))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, required: true, type: "number", min: "0", className: "app-input font-bold text-brand-700 pr-12", value: laborForm.rate, onChange: (e) => setLaborForm({ ...laborForm, rate: e.target.value }) }), /* @__PURE__ */ React.createElement("span", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold" }, companyInfo.currency || "FCFA"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "app-label" }, "Rendement (Vitesse d'Ex\xE9cution)"), /* @__PURE__ */ React.createElement("input", { disabled: isReadOnlyDueToDowngrade, type: "number", min: "0", className: "app-input font-bold text-brand-700", value: laborForm.yieldRate || "", onChange: (e) => setLaborForm({ ...laborForm, yieldRate: e.target.value }), placeholder: "ex: 80 (m\xB2/j)" }))), (() => {
       const tarif = parseFloat(laborForm.rate) || 0;
       const rend = parseFloat(laborForm.yieldRate) || 0;
@@ -6100,7 +6195,7 @@ Veuillez d'abord modifier les recettes qui l'utilisent avant de la supprimer.`,
       if (!tarif) return null;
       if (estJournalier) {
         if (!rend) return /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-semibold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation mr-1.5" }), "Tarif journalier sans rendement : impossible de convertir en co\xFBt par m\xB2. Renseignez le rendement (m\xB2 ou ml r\xE9alis\xE9s par jour) \u2014 les formules qui divisent par ", /* @__PURE__ */ React.createElement("code", { className: "font-mono" }, "RENDEMENT_MO"), " en ont besoin.");
-        return /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-semibold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-calculator mr-1.5" }), "Tarif ", /* @__PURE__ */ React.createElement("strong", null, "journalier"), " : ", formatMoney(tarif, dev), " par jour \xF7 ", rend, " par jour", " ", "= ", /* @__PURE__ */ React.createElement("strong", null, formatMoney(tarif / rend, dev), " par unit\xE9 r\xE9alis\xE9e"), ".", /* @__PURE__ */ React.createElement("span", { className: "block mt-1 font-medium opacity-80" }, "Comparez ce dernier chiffre \xE0 ce que vous payez r\xE9ellement sur chantier. Les formules de recette doivent diviser par ", /* @__PURE__ */ React.createElement("code", { className: "font-mono" }, "RENDEMENT_MO"), "."));
+        return /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-semibold space-y-1.5" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-calculator mr-1.5" }), formatMoney(tarif, dev), " par jour \xF7 ", rend, " par jour", " ", "= ", /* @__PURE__ */ React.createElement("strong", null, formatMoney(tarif / rend, dev), " par unit\xE9 r\xE9alis\xE9e"), ".", /* @__PURE__ */ React.createElement("span", { className: "block mt-0.5 font-medium opacity-80" }, "Comparez ce chiffre \xE0 ce que vous payez r\xE9ellement sur chantier.")), /* @__PURE__ */ React.createElement("div", { className: "pt-1.5 border-t border-emerald-200/70 font-medium opacity-90" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation mr-1" }), "Si le rendement tombe \xE0 ", Math.max(1, Math.round(rend * 0.8)), " au lieu de ", rend, ", le co\xFBt r\xE9el monte \xE0 ", /* @__PURE__ */ React.createElement("strong", null, formatMoney(tarif / Math.max(1, Math.round(rend * 0.8)), dev), " par unit\xE9"), " ", "\u2014 soit +", Math.round((rend / Math.max(1, Math.round(rend * 0.8)) - 1) * 100), "% absorb\xE9s par votre marge. En mode \xAB \xE0 la t\xE2che \xBB, ce d\xE9passement serait port\xE9 par le t\xE2cheron."));
       }
       return /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-900 font-semibold" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-calculator mr-1.5" }), "Tarif ", /* @__PURE__ */ React.createElement("strong", null, "direct"), " : ", /* @__PURE__ */ React.createElement("strong", null, formatMoney(tarif, dev), " par ", laborForm.unit || "u", " r\xE9alis\xE9"), ", factur\xE9 tel quel.", rend > 0 && /* @__PURE__ */ React.createElement("span", { className: "block mt-1 font-medium opacity-80" }, "Le rendement saisi (", rend, ") n'entre pas dans ce calcul \u2014 il ne sert qu'aux formules qui divisent par ", /* @__PURE__ */ React.createElement("code", { className: "font-mono" }, "RENDEMENT_MO"), ", r\xE9serv\xE9es aux tarifs journaliers. Information de planning uniquement."));
     })(), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 pt-2 border-t border-neutral-100" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: cancelEdit, className: "btn-secondary", "aria-label": "Annuler la modification" }, "Annuler"), !isReadOnlyDueToDowngrade && /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn-primary", "aria-label": "Enregistrer la prestation" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check mr-1" }), " Enregistrer"))) : resourceTab === "materials" && resourceDetailTab === "history" ? /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "p-4 bg-neutral-50 rounded-2xl border border-neutral-200 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block" }, "Prix d'Achat Actuel"), /* @__PURE__ */ React.createElement("span", { className: "text-xl font-black text-brand-600 font-mono" }, formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-neutral-500 block" }, "par ", selectedItem.unitBuy || selectedItem.unitCalc)), historyVariationPct !== null && /* @__PURE__ */ React.createElement("span", { className: `px-2.5 py-1 rounded-xl text-xs font-black border ${historyVariationPct >= 0 ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-red-100 text-red-800 border-red-300"}` }, /* @__PURE__ */ React.createElement("i", { className: `fa-solid fa-arrow-trend-${historyVariationPct >= 0 ? "up" : "down"} mr-1` }), " ", historyVariationPct >= 0 ? "+" : "", historyVariationPct.toFixed(1), "%")), !isCloudOrgActive ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-cloud text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, "Historique disponible uniquement en mode connect\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Connectez-vous \xE0 votre organisation cloud pour suivre l'\xE9volution r\xE9elle des prix.")) : materialHistoryLoading ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-notch fa-spin text-xl text-amber-500" })) : materialHistory.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-neutral-600" }, materialHistoryError ? "Historique indisponible pour le moment" : "Aucun changement de prix enregistr\xE9"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-400 mt-1" }, "Chaque modification du prix d'achat sera journalis\xE9e ici.")) : /* @__PURE__ */ React.createElement("div", { className: "border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-left text-xs" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "p-2.5 pl-3" }, "Date"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5" }, "Fournisseur"), /* @__PURE__ */ React.createElement("th", { className: "p-2.5 text-right pr-3" }, "Tarif HT"))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-neutral-100" }, materialHistory.map((h) => /* @__PURE__ */ React.createElement("tr", { key: h.id, className: "hover:bg-neutral-50/50" }, /* @__PURE__ */ React.createElement("td", { className: "p-2.5 pl-3 font-mono text-neutral-500" }, new Date(h.created_at).toLocaleDateString("fr-FR")), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 font-bold text-neutral-800" }, h.supplier_name || "Non renseign\xE9"), /* @__PURE__ */ React.createElement("td", { className: "p-2.5 text-right pr-3 font-mono font-bold text-neutral-900" }, formatMoney(h.price)))))))) : resourceTab === "materials" ? /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Achat Fournisseur"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, formatMoney(selectedItem.priceBuy, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "pour ", selectedItem.unitSize, " ", selectedItem.unitCalc, " (", selectedItem.unitBuy, ")")), /* @__PURE__ */ React.createElement("div", { className: "bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Co\xFBt Unitaire Net"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-brand-600 text-base" }, formatMoney(selectedItem.priceCalc, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "/ ", selectedItem.unitCalc)), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Rendement Mati\xE8re"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m\xB2/${selectedItem.unitCalc}` : "Non renseign\xE9")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Taux de perte"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.waste > 0 ? `${selectedItem.waste}%` : "Aucune")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Strat\xE9gie d'Achat BTP"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.purchaseMode === "real" ? "Quantit\xE9 R\xE9elle Exacte" : selectedItem.purchaseMode === "step" ? `Pas Commercial Ajustable (${selectedItem.purchaseStep || 0.5})` : "Conditionnement Entier"))) : /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Tarif Unitaire"), /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-brand-600 text-base" }, formatMoney(selectedItem.rate, companyInfo.currency)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-neutral-500 mt-0.5" }, "/ ", selectedItem.unit || "u")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Vitesse d'Ex\xE9cution"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800" }, selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m\xB2/${selectedItem.unit}` : "Au forfait unitaire")), /* @__PURE__ */ React.createElement("div", { className: "bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-neutral-400 block text-[10px] uppercase font-bold" }, "Mode de Calcul"), /* @__PURE__ */ React.createElement("span", { className: "font-bold text-neutral-800 capitalize" }, selectedItem.calcMode)))))));

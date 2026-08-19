@@ -4633,6 +4633,49 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // empêche le bug source de B2 : un tarif direct traité comme un tarif
     // journalier (ou l'inverse) sans que rien ne le signale avant l'envoi
     // d'un devis sous-chiffré au client.
+    // B2bis (2026-08-19) — Les deux modèles de rémunération de la main-d'œuvre
+    // du métier, rendus explicites et interchangeables en un geste :
+    //
+    //   « régie »    unit 'j'  + rendement + formule qui DIVISE par RENDEMENT_MO
+    //                → on paie la journée ; si le rendement n'est pas tenu,
+    //                  c'est l'entreprise qui absorbe le surcoût.
+    //   « tâche »    unit m²/ml/u + formule qui NE divise PAS
+    //                → prix ferme à l'unité produite ; c'est le tâcheron qui
+    //                  absorbe un rendement plus faible.
+    //
+    // Arithmétiquement les deux donnent le même coût TANT QUE le rendement est
+    // tenu (12 000/j ÷ 15 m²/j = 800 F/m²). Ce qui diffère, c'est qui porte le
+    // risque — d'où l'intérêt de choisir en connaissance de cause plutôt que de
+    // le subir. Basculer suppose de changer l'unité ET toutes les formules qui
+    // utilisent la ressource : c'est précisément l'oubli qui a causé B2, donc
+    // le logiciel fait les deux ensemble.
+    const isDailyUnit = (unit) => unit === 'j' || unit === 'j-eq';
+
+    const formulaToDaily = (formula) => {
+        const f = (formula || '').trim();
+        if (!f || /RENDEMENT_MO/.test(f)) return f;
+        // Parenthéser pour que la division porte sur toute l'expression :
+        // 'SURFACE * COUCHES' / REND ≠ 'SURFACE * (COUCHES / REND)'.
+        return `(${f}) / RENDEMENT_MO`;
+    };
+
+    const formulaToTask = (formula) => {
+        let f = (formula || '').trim();
+        if (!/RENDEMENT_MO/.test(f)) return f;
+        f = f.replace(/\s*\/\s*RENDEMENT_MO/g, '').trim();
+        // Retirer un parenthésage devenu inutile, seulement s'il enveloppe
+        // toute l'expression (sinon on casserait 'A * (B + C)').
+        if (f.startsWith('(') && f.endsWith(')')) {
+            let depth = 0, wrapsAll = true;
+            for (let i = 0; i < f.length; i++) {
+                if (f[i] === '(') depth++;
+                else if (f[i] === ')') { depth--; if (depth === 0 && i < f.length - 1) { wrapsAll = false; break; } }
+            }
+            if (wrapsAll) f = f.slice(1, -1).trim();
+        }
+        return f;
+    };
+
     const getLaborUnitFormulaMismatch = (unit, formula) => {
         const dividesByYield = /RENDEMENT_MO/.test(formula || '');
         if (unit === 'j' && !dividesByYield) {
@@ -8658,14 +8701,74 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 }).then(({ error }) => { if (error) console.warn('[Price History] Échec de journalisation:', error); });
             }
         };
+        // B2bis — Recettes qui consomment cette prestation. Sert à la fois à
+        // afficher l'impact d'un changement de mode et à réécrire les formules
+        // en même temps que l'unité, pour qu'unité et formule ne puissent plus
+        // diverger (la cause de B2).
+        const recipesUsingLabor = (laborId) => recipes.filter(r => r.type === 'labor' && r.refId === laborId);
+
         const saveLabor = (e) => {
             e.preventDefault();
             if (isReadOnlyDueToDowngrade) return;
             const nl = { ...laborForm, rate: parseFloat(laborForm.rate) || 0, yieldRate: parseFloat(laborForm.yieldRate) || 0 };
-            updateLabor(labor.find(x => x.id === nl.id) ? labor.map(x => x.id === nl.id ? nl : x) : [...labor, nl]);
-            setSelectedLaborId(nl.id);
-            setIsResourceEditMode(false);
-            showToast("Prestation enregistrée !");
+            const previous = labor.find(x => x.id === nl.id);
+
+            // Le mode de rémunération a-t-il changé ? Si oui, les formules des
+            // recettes qui utilisent cette prestation doivent suivre.
+            const passeEnRegie = isDailyUnit(nl.unit) && previous && !isDailyUnit(previous.unit);
+            const passeEnTache = !isDailyUnit(nl.unit) && previous && isDailyUnit(previous.unit);
+            const impactees = (passeEnRegie || passeEnTache) ? recipesUsingLabor(nl.id) : [];
+
+            // Convertir le TARIF avec le mode, sinon changer de mode multiplie
+            // (ou divise) le coût par le rendement — 12 000 F/jour qui devient
+            // 12 000 F/m², soit ×15 sur la maçonnerie. C'est exactement le
+            // défaut B2 reproduit à l'envers. Le tarif n'est converti que si
+            // l'utilisateur ne l'a pas lui-même modifié dans le même
+            // enregistrement : sa saisie explicite prime toujours.
+            const rendRef = parseFloat(previous?.yieldRate) || parseFloat(nl.yieldRate) || 0;
+            const tarifInchange = previous && parseFloat(previous.rate) === parseFloat(nl.rate);
+            let tarifConverti = null;
+            if (rendRef > 0 && tarifInchange) {
+                if (passeEnTache) tarifConverti = Math.round(parseFloat(nl.rate) / rendRef);
+                else if (passeEnRegie) tarifConverti = Math.round(parseFloat(nl.rate) * rendRef);
+            }
+            if (tarifConverti !== null && Number.isFinite(tarifConverti)) {
+                nl.rate = tarifConverti;
+            }
+
+            const appliquer = () => {
+                updateLabor(labor.find(x => x.id === nl.id) ? labor.map(x => x.id === nl.id ? nl : x) : [...labor, nl]);
+                if (impactees.length > 0) {
+                    const convert = passeEnRegie ? formulaToDaily : formulaToTask;
+                    updateRecipes(recipes.map(r =>
+                        (r.type === 'labor' && r.refId === nl.id)
+                            ? { ...r, formula: convert(r.formula) }
+                            : r
+                    ));
+                }
+                setSelectedLaborId(nl.id);
+                setIsResourceEditMode(false);
+                showToast(impactees.length > 0
+                    ? `Prestation enregistrée — ${impactees.length} formule(s) de recette ajustée(s)`
+                    : "Prestation enregistrée !");
+            };
+
+            if (impactees.length > 0) {
+                const convert = passeEnRegie ? formulaToDaily : formulaToTask;
+                const apercu = impactees.slice(0, 4)
+                    .map(r => `• ${r.label}\n    ${r.formula}\n    → ${convert(r.formula)}`)
+                    .join('\n');
+                const reste = impactees.length > 4 ? `\n… et ${impactees.length - 4} autre(s).` : '';
+                setConfirmDialog({
+                    isOpen: true,
+                    title: passeEnRegie ? 'Passer en paiement à la journée' : 'Passer en paiement à la tâche',
+                    message: `${tarifConverti !== null ? `Tarif converti pour que le coût reste identique : ${formatMoney(parseFloat(previous.rate), companyInfo.currency)} → ${formatMoney(tarifConverti, companyInfo.currency)} par ${passeEnTache ? (nl.unit || 'unité') : 'jour'}.\n\n` : ''}${impactees.length} formule(s) de recette utilisent cette prestation et vont être ajustées pour rester cohérentes avec le nouveau mode :\n\n${apercu}${reste}\n\nLes devis déjà enregistrés ne sont pas modifiés.`,
+                    confirmLabel: 'Appliquer',
+                    onConfirm: () => { closeConfirm(); appliquer(); }
+                });
+                return;
+            }
+            appliquer();
         };
 
         const lastHistoryEntry = materialHistory[0];
@@ -8985,6 +9088,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 />
                                             </div>
                                         </div>
+                                        {/* B2bis (2026-08-19) — Les deux modèles de rémunération du
+                                            métier, proposés explicitement. Ils ne diffèrent PAS par le
+                                            montant (12 000/j ÷ 15 m²/j = 800 F/m², même chose) mais par
+                                            qui porte le risque si le rendement n'est pas tenu. Changer de
+                                            mode réécrit aussi les formules des recettes concernées :
+                                            unité et formule ne peuvent plus diverger — c'est ce qui avait
+                                            produit le constat B2. */}
+                                        <div>
+                                            <label className="app-label">Mode de rémunération</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    onClick={() => setLaborForm({ ...laborForm, unit: laborForm.unitTache || 'm²' })}
+                                                    className={`text-left p-3 rounded-xl border-2 transition-all ${!isDailyUnit(laborForm.unit) ? 'border-brand-500 bg-brand-50' : 'border-neutral-200 bg-white hover:border-neutral-300'}`}
+                                                >
+                                                    <span className="block text-xs font-black text-neutral-900">À la tâche</span>
+                                                    <span className="block text-[11px] text-neutral-500 mt-0.5 leading-snug">
+                                                        Prix ferme par unité produite. Le tâcheron absorbe un rendement plus faible.
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    onClick={() => setLaborForm({ ...laborForm, unitTache: isDailyUnit(laborForm.unit) ? laborForm.unitTache : laborForm.unit, unit: 'j' })}
+                                                    className={`text-left p-3 rounded-xl border-2 transition-all ${isDailyUnit(laborForm.unit) ? 'border-brand-500 bg-brand-50' : 'border-neutral-200 bg-white hover:border-neutral-300'}`}
+                                                >
+                                                    <span className="block text-xs font-black text-neutral-900">À la journée (régie)</span>
+                                                    <span className="block text-[11px] text-neutral-500 mt-0.5 leading-snug">
+                                                        Tarif par jour × rendement attendu. L'entreprise absorbe si le rendement n'est pas tenu.
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="app-label">Tarif Unitaire</label>
@@ -9022,14 +9160,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     </div>
                                                 );
                                                 return (
-                                                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-semibold">
-                                                        <i className="fa-solid fa-calculator mr-1.5"></i>
-                                                        Tarif <strong>journalier</strong> : {formatMoney(tarif, dev)} par jour ÷ {rend} par jour
-                                                        {' '}= <strong>{formatMoney(tarif / rend, dev)} par unité réalisée</strong>.
-                                                        <span className="block mt-1 font-medium opacity-80">
-                                                            Comparez ce dernier chiffre à ce que vous payez réellement sur chantier.
-                                                            Les formules de recette doivent diviser par <code className="font-mono">RENDEMENT_MO</code>.
-                                                        </span>
+                                                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-semibold space-y-1.5">
+                                                        <div>
+                                                            <i className="fa-solid fa-calculator mr-1.5"></i>
+                                                            {formatMoney(tarif, dev)} par jour ÷ {rend} par jour
+                                                            {' '}= <strong>{formatMoney(tarif / rend, dev)} par unité réalisée</strong>.
+                                                            <span className="block mt-0.5 font-medium opacity-80">
+                                                                Comparez ce chiffre à ce que vous payez réellement sur chantier.
+                                                            </span>
+                                                        </div>
+                                                        {/* Le risque, seul vrai critère de choix entre les deux modes :
+                                                            à la journée, un rendement non tenu se paie sur la marge. */}
+                                                        <div className="pt-1.5 border-t border-emerald-200/70 font-medium opacity-90">
+                                                            <i className="fa-solid fa-triangle-exclamation mr-1"></i>
+                                                            Si le rendement tombe à {Math.max(1, Math.round(rend * 0.8))} au lieu de {rend},
+                                                            le coût réel monte à <strong>{formatMoney(tarif / Math.max(1, Math.round(rend * 0.8)), dev)} par unité</strong>
+                                                            {' '}— soit +{Math.round(((rend / Math.max(1, Math.round(rend * 0.8))) - 1) * 100)}% absorbés par votre marge.
+                                                            En mode « à la tâche », ce dépassement serait porté par le tâcheron.
+                                                        </div>
                                                     </div>
                                                 );
                                             }
