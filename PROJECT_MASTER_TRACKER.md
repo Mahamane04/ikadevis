@@ -1592,3 +1592,69 @@ exercée avec un compte `viewer` ou `commercial` réel.
 2. **Facturation** — chantier à part entière : numérotation distincte des
    devis, mentions légales, statut de paiement. Proposition dédiée à faire
    avant de coder.
+
+---
+
+## 🧾 28. Devis détaillé client + choix du gabarit (2026-08-20)
+
+Point 1 de la suite convenue au § 27.5. Complète la matrice de l'§ 27.1 :
+la case **Client × Détaillé** est désormais livrée.
+
+### 28.1 Le point délicat : répartir sans faire dériver le total
+
+Le client doit voir chaque poste **au prix de vente** — jamais un coût
+d'achat, un coefficient ni une marge. Le prix de vente du lot est donc
+réparti sur ses lignes au prorata de leur coût (`distributeLotSalePrice`,
+`js/utils.js`), ce qui revient à appliquer le coefficient de vente du lot
+ligne à ligne.
+
+> **Le piège est l'arrondi.** Arrondir chaque ligne indépendamment fait
+> dériver la somme de quelques FCFA : un client qui additionne la colonne
+> tomberait sur un chiffre différent du total annoncé — et c'est exactement
+> le genre de détail qui fait perdre la confiance sur un devis. L'écart
+> résiduel est donc reporté sur la ligne la plus importante, où il est
+> proportionnellement le plus faible. La somme retombe **exactement** sur le
+> prix de vente du lot, par construction.
+
+**Testé isolément avant tout affichage** (`scratch/test_repartition_vente.mjs`,
+13/13) : cas réel à 7 lignes, arrondis hostiles (13 lignes, montants premiers,
+coefficient irrationnel), ligne unique, vente à perte, cinq cas dégénérés
+(déboursé nul, prix nul, aucune ligne, `undefined`, lignes à coût nul → tous
+`null`, jamais d'exception), ajustement < 1 FCFA par ligne, entrée non mutée.
+
+### 28.2 Ce qui est livré
+
+- Tableau client détaillé, **groupé par nature** (Fournitures & matériaux /
+  Main-d'œuvre / Installation…) plutôt qu'une liste à plat, avec sous-total
+  par lot.
+- **Sélecteur Synthèse / Détaillé** dans l'aperçu (visible seulement sur le
+  devis client — il n'a pas de sens sur l'étude interne, détaillée par nature).
+- **Défaut réglable** dans Paramètres → Documents & PDF ; le sélecteur de
+  l'aperçu est un choix ponctuel qui ne touche pas au réglage global (même
+  logique que Zoho Books).
+- Repli silencieux sur la synthèse pour un devis antérieur à l'enregistrement
+  du détail, plutôt qu'un tableau vide.
+- Colonne `company_settings.client_quote_template`
+  (`v6_client_quote_template.sql`, TEXT nullable, sans défaut SQL).
+  **Appliquée sur staging.** Production non modifiée, SQL prêt.
+
+### 28.3 Vérifications en direct
+
+| Contrôle | Résultat |
+| :--- | :--- |
+| Somme des 7 postes affichés = Net HT du devis | **131 700 = 131 700** |
+| Somme des sous-totaux de lot = Net HT | 131 700 = 131 700 |
+| Les deux gabarits annoncent le même total | Oui |
+| Prix de vente ligne à ligne | 18 000 × 1,5 = 27 000 ; 9 000 × 1,5 = 13 500 ; 10 800 × 1,5 = 16 200 ; 21 000 × 1,5 = 31 500 |
+| **Aucune fuite de coût** — recherche de « déboursé », « marge », « coefficient », « coût », et des valeurs 87 800 / 39 510 / 92 190 / 1.500 dans le document client | **0 occurrence** |
+
+> **Corrigé au passage** : les titres de lot affichaient « Lot 1 — Lot 01 —
+> Installation… », le nom par défaut étant déjà numéroté. `formatLotHeading`
+> ne numérote plus que si l'utilisateur a renommé le lot sans reprendre de
+> numéro. Corrigé dans les deux documents (client détaillé et étude interne).
+
+### 28.4 Reste au programme
+
+**Facturation** (§ 27.5 point 2) — chantier à part entière : numérotation
+distincte des devis, mentions légales, statut de paiement. Proposition dédiée
+à faire avant de coder.

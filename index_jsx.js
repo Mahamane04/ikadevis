@@ -4745,7 +4745,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             { label: 'Solde à la réception définitive et remise des clés', pct: 10 }
         ],
         quoteValidity: "30 jours à compter de la date d'émission.",
-        internalDocRoles: ['admin']
+        internalDocRoles: ['admin'],
+        clientQuoteTemplate: 'synthese'
     };
     const defaultPaymentSchedule = [
         { label: 'Acompte à la signature et au démarrage', pct: 40 },
@@ -4763,7 +4764,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // et n'est pas listé : il est le seul à pouvoir régler cette liste, le
         // retirer permettrait de se verrouiller soi-même hors de ses propres
         // documents. Défaut demandé par l'utilisateur : admin.
-        internalDocRoles: ['admin']
+        internalDocRoles: ['admin'],
+        // Gabarit du devis client par défaut : 'synthese' (une ligne par ouvrage,
+        // comportement historique) ou 'detaille' (chaque fourniture et
+        // main-d'œuvre, au prix de vente).
+        clientQuoteTemplate: 'synthese'
     };
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
     const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
@@ -4862,6 +4867,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
     }, []);
     const [isCommercialMode, setIsCommercialMode] = useState(true);
+    // 2026-08-20 — Niveau de détail du devis CLIENT (§ 27.1, second axe).
+    // null = suivre le défaut réglé dans Paramètres → Documents & PDF ; une
+    // valeur explicite = choix ponctuel pour le devis affiché, sans toucher au
+    // réglage global (même logique que chez Zoho Books).
+    const [clientDetailOverride, setClientDetailOverride] = useState(null);
 
         
         const initialEquipment = [
@@ -5627,7 +5637,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // gérer côté lecture comme pour paymentSchedule.
         logo: c.logo || null,
         pdf_footer_note: c.pdfFooterNote || null,
-        internal_doc_roles: Array.isArray(c.internalDocRoles) ? c.internalDocRoles : null
+        internal_doc_roles: Array.isArray(c.internalDocRoles) ? c.internalDocRoles : null,
+        client_quote_template: c.clientQuoteTemplate || null
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
@@ -5644,7 +5655,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // NULL = jamais configuré → défaut applicatif ['admin'], comme pour
         // paymentSchedule. Un tableau vide est une valeur légitime (personne
         // hormis owner), à ne pas confondre avec « pas encore réglé ».
-        internalDocRoles: Array.isArray(r.internal_doc_roles) ? r.internal_doc_roles : ['admin']
+        internalDocRoles: Array.isArray(r.internal_doc_roles) ? r.internal_doc_roles : ['admin'],
+        clientQuoteTemplate: r.client_quote_template || 'synthese'
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
@@ -10233,6 +10245,40 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </p>
                                 </div>
 
+                                {/* 2026-08-20 — Gabarit par défaut du devis client. Modifiable
+                                    ponctuellement depuis l'aperçu sans toucher à ce réglage. */}
+                                <div className="pt-4 border-t border-neutral-100">
+                                    <label className="app-label">Gabarit du devis client par défaut</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {[
+                                            { id: 'synthese', titre: 'Synthèse', desc: "Une ligne par ouvrage. Le devis classique." },
+                                            { id: 'detaille', titre: 'Détaillé', desc: "Chaque fourniture et main-d'œuvre, au prix de vente." }
+                                        ].map(g => {
+                                            const actif = (companyInfo.clientQuoteTemplate || 'synthese') === g.id;
+                                            return (
+                                                <label key={g.id} className={`p-3 rounded-xl border cursor-pointer transition-all ${actif ? 'border-brand-400 bg-brand-50/50' : 'border-neutral-200 bg-white hover:bg-neutral-50'} ${isReadOnlyDueToDowngrade ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <span className="flex items-center gap-2">
+                                                        <input
+                                                            type="radio" name="clientQuoteTemplate"
+                                                            className="w-4 h-4 accent-brand-600"
+                                                            disabled={isReadOnlyDueToDowngrade}
+                                                            checked={actif}
+                                                            onChange={() => updateCompanyInfo({ ...companyInfo, clientQuoteTemplate: g.id })}
+                                                        />
+                                                        <span className="text-xs font-bold text-neutral-800">{g.titre}</span>
+                                                    </span>
+                                                    <span className="block text-[11px] text-neutral-500 mt-1 pl-6">{g.desc}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-[11px] text-neutral-400 mt-2">
+                                        Le devis détaillé n'expose jamais vos coûts d'achat ni votre marge :
+                                        chaque ligne est affichée au prix de vente, et la somme retombe
+                                        exactement sur le total du devis.
+                                    </p>
+                                </div>
+
                                 {/* 2026-08-20 — Qui peut ouvrir l'étude de prix (coûts d'achat,
                                     coefficient, marge). Réglable par le propriétaire, comme demandé.
                                     'owner' n'est pas listé : il a toujours accès et est le seul à
@@ -10905,6 +10951,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // 'owner' passe toujours, pour ne pas pouvoir se verrouiller dehors.
                 const canViewInternalDocs = activeOrganizationRole === 'owner'
                     || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
+                // Choix ponctuel s'il y en a un, sinon le défaut réglé dans
+                // Paramètres → Documents & PDF.
+                const clientTemplate = clientDetailOverride || companyInfo.clientQuoteTemplate || 'synthese';
                 return (
                 <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
@@ -10924,6 +10973,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </button>
                                         <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
                                             Devis client
+                                        </button>
+                                    </div>
+                                )}
+                                {/* Second axe : niveau de détail du devis client. Visible
+                                    seulement quand on regarde le devis client — il n'a aucun
+                                    sens sur l'étude interne, déjà détaillée par nature. */}
+                                {isCommercialMode && (
+                                    <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
+                                        <button
+                                            onClick={() => setClientDetailOverride('synthese')}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'synthese' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                            title="Une ligne par ouvrage"
+                                        >
+                                            Synthèse
+                                        </button>
+                                        <button
+                                            onClick={() => setClientDetailOverride('detaille')}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'detaille' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                            title="Chaque fourniture et main-d'œuvre, au prix de vente"
+                                        >
+                                            Détaillé
                                         </button>
                                     </div>
                                 )}
@@ -11037,6 +11107,92 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         général juste en dessous. */}
                                     {(() => {
                                         const printCurrency = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
+
+                                        // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
+                                        // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
+                                        // le prix du lot au prorata des coûts, somme garantie exacte —
+                                        // voir js/utils.js). Le client ne voit jamais un coût d'achat, un
+                                        // coefficient ni une marge : c'est la règle de l'axe
+                                        // « destinataire = client », et elle tient ici parce que
+                                        // AUCUN champ de coût n'est lu dans cette branche.
+                                        if (clientTemplate === 'detaille') {
+                                            const detLots = viewingSavedQuote.quoteData?.lots || [];
+                                            const anyDetail = detLots.some(l => (l.quoteData?.details || []).length > 0);
+                                            if (anyDetail) {
+                                                return (
+                                                    <table className="w-full text-left text-xs border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                                                <th className="p-3 rounded-l-lg">Désignation</th>
+                                                                <th className="p-3 text-center">Quantité</th>
+                                                                <th className="p-3 text-right">Prix Unitaire HT</th>
+                                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-neutral-100">
+                                                            {detLots.map((lot, li) => {
+                                                                const ld = lot.quoteData || {};
+                                                                const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
+                                                                const groupes = new Map();
+                                                                (reparties || []).forEach(d => {
+                                                                    const cat = d.costCategory || 'material';
+                                                                    if (!groupes.has(cat)) groupes.set(cat, []);
+                                                                    groupes.get(cat).push(d);
+                                                                });
+                                                                return (
+                                                                    <React.Fragment key={lot.id || li}>
+                                                                        <tr className="bg-neutral-100">
+                                                                            <td colSpan={4} className="px-3 py-2 font-extrabold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                                                {formatLotHeading(lot.lotName, li)}
+                                                                            </td>
+                                                                        </tr>
+                                                                        {!reparties ? (
+                                                                            <tr>
+                                                                                <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
+                                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                                            </tr>
+                                                                        ) : [...groupes.entries()].map(([cat, lignes]) => (
+                                                                            <React.Fragment key={cat}>
+                                                                                <tr className="bg-neutral-50/70">
+                                                                                    <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
+                                                                                        {COST_CATEGORY_LABELS[cat] || cat}
+                                                                                    </td>
+                                                                                </tr>
+                                                                                {lignes.map((d, di) => (
+                                                                                    <tr key={cat + di}>
+                                                                                        <td className="p-3 pl-6">
+                                                                                            <p className="font-bold text-neutral-900">{d.label}</p>
+                                                                                            {d.name && d.name !== d.label && (
+                                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
+                                                                                            )}
+                                                                                        </td>
+                                                                                        <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                                        <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
+                                                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </React.Fragment>
+                                                                        ))}
+                                                                        <tr className="bg-neutral-50/60">
+                                                                            <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                                                Sous-total Lot {li + 1} HT
+                                                                            </td>
+                                                                            <td className="px-3 py-2 text-right font-extrabold text-neutral-800">
+                                                                                {formatMoney(ld.netHTConsomme, printCurrency)}
+                                                                            </td>
+                                                                        </tr>
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                );
+                                            }
+                                            // Devis antérieur à l'enregistrement du détail : on retombe
+                                            // silencieusement sur la synthèse plutôt que d'afficher un
+                                            // tableau vide.
+                                        }
+
                                         const items = viewingSavedQuote.quoteData?.commercialItems || [];
                                         const lotsMap = new Map();
                                         items.forEach(item => {
@@ -11240,8 +11396,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         <div key={l.id || li} className="border border-neutral-200 rounded-xl overflow-hidden break-inside-avoid">
                                                             <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200 flex justify-between items-baseline gap-3">
                                                                 <div className="min-w-0">
-                                                                    <span className="font-black text-brand-600 text-xs mr-2">Lot {li + 1}</span>
-                                                                    <strong className="text-neutral-900 text-sm">{l.lotName}</strong>
+                                                                    <strong className="text-neutral-900 text-sm">{formatLotHeading(l.lotName, li)}</strong>
                                                                     <p className="text-[11px] text-neutral-500 mt-0.5">
                                                                         Métré : {formatItemMetre({ ...(l.dimensions || {}), takeoffMode: l.takeoffMode })}
                                                                     </p>
