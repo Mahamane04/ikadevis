@@ -1500,3 +1500,95 @@ badge « Démo locale », § 23), donc non atteignable dans l'environnement de
 test. Le câblage est correct par lecture du code mais n'a pas été exercé.
 
 40/40 npm test.
+
+---
+
+## 📄 27. Étude de prix interne imprimable + accès par rôle (2026-08-20)
+
+Demande de l'utilisateur : pouvoir sortir en PDF un document interne complet
+(métré, décomposition, prix & marge) **pour valider un devis avant de
+l'envoyer au client**, dans un SaaS destiné à plusieurs profils.
+
+### 27.1 Le principe retenu : deux axes, pas une liste de modèles
+
+Plutôt qu'une liste de gabarits ("Standard", "Détaillé"…) où chacun
+re-déciderait s'il montre la marge, deux axes croisés :
+
+- **Destinataire** — `client` (jamais de coût, coefficient ni marge) /
+  `interne` (tout permis). C'est une **règle de sécurité écrite à un seul
+  endroit**, pas répétée dans chaque gabarit : ajouter une mise en page plus
+  tard n'ouvre aucun risque de fuite de marge.
+- **Niveau de détail** — synthèse (une ligne par ouvrage) / détaillé (chaque
+  matière et main-d'œuvre).
+
+| | Synthèse | Détaillé |
+| :--- | :--- | :--- |
+| **Client** | Devis commercial *(existant)* | Devis détaillé — **à faire** |
+| **Interne** | — | **Étude de prix — livrée ici** |
+
+### 27.2 Bug trouvé en préparant : la vue interne imprimait une page blanche
+
+`#printArea` n'existait que sur la branche commerciale, et la feuille de
+style d'impression masque tout le reste (`body * { visibility: hidden }`).
+En « Vue Interne », le bouton *Imprimer* était bien présent et **sortait une
+page blanche**. Vérifié en direct avant correction (`printAreaExiste: false`
+avec le bouton visible), puis après (`true`).
+
+### 27.3 Ce qui est livré
+
+La vue interne était un **tableau de bord de cartes**, pas un document. Elle
+devient un vrai A4 imprimable :
+
+- Bandeau **DOCUMENT INTERNE — NE PAS TRANSMETTRE AU CLIENT**
+- En-tête entreprise / client / chantier / n° de devis
+- **Par lot** : le métré réel (via `formatItemMetre`, § 23) puis la
+  décomposition ligne à ligne — poste, quantité nette, taux de perte,
+  conditionnements achetés, coût unitaire, coût total, sous-total déboursé
+- **Prix & marge** : déboursé → frais généraux → prix de revient → marge
+  (valeur et %) → **coefficient de vente K**, face aux montants facturés
+- **Points à vérifier avant envoi** : vente à perte, stock insuffisant (§ 24),
+  ligne libre sans coût d'achat (marge non fiable). Calculés depuis le devis,
+  le bloc n'apparaît pas s'il ne se déclenche pas.
+- **Double visa** : « Étude vérifiée par » / « Bon pour envoi au client »
+
+Libellés de la bascule clarifiés : « Étude de prix (interne) » / « Devis client ».
+
+### 27.4 Accès par rôle, configurable
+
+L'étude expose coûts, coefficient et marge — or la bascule était offerte à
+**tous les rôles, y compris `viewer`**. Désormais réservée aux rôles
+autorisés, réglables dans Paramètres → Documents & PDF (défaut : `admin`,
+comme demandé).
+
+> `owner` a **toujours** accès et n'est pas listé dans les cases à cocher :
+> il est le seul à pouvoir modifier cette liste, l'y inclure permettrait de
+> se verrouiller hors de ses propres documents.
+
+Gardé aux **trois** points d'entrée (bascule de l'aperçu, bouton œil de la
+liste, bouton de la carte mobile) **plus** un garde-fou au rendu
+(`isCommercialMode || !canViewInternalDocs`), pour qu'un état hérité ne
+puisse pas afficher l'étude à un rôle non autorisé.
+
+Colonne `company_settings.internal_doc_roles` (jsonb, nullable,
+`v6_internal_doc_roles.sql`). NULL = non configuré → défaut applicatif
+`['admin']` ; un tableau vide reste une valeur légitime et distincte.
+**Appliqué et vérifié par round-trip réel sur staging**, données de test
+supprimées. **Production non modifiée**, SQL prêt.
+
+**Vérifié en direct** : document imprimable rendu (`printAreaExiste: true`),
+chiffres cohérents (92 190 + 39 510 = 131 700, K = 1.500), alerte de stock
+reprise automatiquement, cases à cocher persistées dans les deux sens
+(`['admin']` ↔ `['admin','estimator']`). 40/40 npm test.
+
+**Non vérifié** : le blocage réel pour un rôle non autorisé — le Mode Démo
+n'expose que le rôle `owner`, qui passe toujours par conception. La logique
+est correcte par lecture et gardée à quatre endroits, mais n'a pas été
+exercée avec un compte `viewer` ou `commercial` réel.
+
+### 27.5 Suite convenue avec l'utilisateur
+
+1. **Devis détaillé client** (chaque poste au prix de **vente**, marge
+   invisible, somme égale au total du devis) + sélecteur de modèle.
+2. **Facturation** — chantier à part entière : numérotation distincte des
+   devis, mentions légales, statut de paiement. Proposition dédiée à faire
+   avant de coder.

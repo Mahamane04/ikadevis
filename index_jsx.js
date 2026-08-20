@@ -4744,7 +4744,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             { label: 'Second œuvre, finitions et équipements', pct: 20 },
             { label: 'Solde à la réception définitive et remise des clés', pct: 10 }
         ],
-        quoteValidity: "30 jours à compter de la date d'émission."
+        quoteValidity: "30 jours à compter de la date d'émission.",
+        internalDocRoles: ['admin']
     };
     const defaultPaymentSchedule = [
         { label: 'Acompte à la signature et au démarrage', pct: 40 },
@@ -4756,7 +4757,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         name: '', tagline: '', phone: '', email: '', address: '', nif: '', rccm: '',
         currency: 'FCFA',
         paymentSchedule: defaultPaymentSchedule,
-        quoteValidity: "30 jours à compter de la date d'émission."
+        quoteValidity: "30 jours à compter de la date d'émission.",
+        // 2026-08-20 — rôles autorisés à voir les documents INTERNES (étude de
+        // prix : coûts d'achat, coefficient, marge). 'owner' y a toujours accès
+        // et n'est pas listé : il est le seul à pouvoir régler cette liste, le
+        // retirer permettrait de se verrouiller soi-même hors de ses propres
+        // documents. Défaut demandé par l'utilisateur : admin.
+        internalDocRoles: ['admin']
     };
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
     const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
@@ -5619,7 +5626,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // côté colonne (pas de valeur à synchroniser), donc pas de repli à
         // gérer côté lecture comme pour paymentSchedule.
         logo: c.logo || null,
-        pdf_footer_note: c.pdfFooterNote || null
+        pdf_footer_note: c.pdfFooterNote || null,
+        internal_doc_roles: Array.isArray(c.internalDocRoles) ? c.internalDocRoles : null
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
@@ -5632,7 +5640,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             ? r.payment_schedule
             : defaultPaymentSchedule,
         logo: r.logo || '',
-        pdfFooterNote: r.pdf_footer_note || ''
+        pdfFooterNote: r.pdf_footer_note || '',
+        // NULL = jamais configuré → défaut applicatif ['admin'], comme pour
+        // paymentSchedule. Un tableau vide est une valeur légitime (personne
+        // hormis owner), à ne pas confondre avec « pas encore réglé ».
+        internalDocRoles: Array.isArray(r.internal_doc_roles) ? r.internal_doc_roles : ['admin']
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
@@ -8342,6 +8354,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     const renderSavedQuotes = () => {
+        // 2026-08-20 — même règle que dans l'aperçu : les boutons qui ouvrent
+        // directement l'étude de prix (coûts, coefficient, marge) n'existent que
+        // pour les rôles autorisés.
+        const canViewInternalDocs = activeOrganizationRole === 'owner'
+            || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
         // P0.16 — Filtre "devis de ce client", posé depuis la fiche CRM.
         const visibleQuotes = !quotesClientFilter
             ? savedQuotes
@@ -8428,6 +8445,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 >
                                     <i className="fa-solid fa-file-pdf mr-1.5"></i> PDF
                                 </button>
+                                {canViewInternalDocs && (
                                 <button 
                                     onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }} 
                                     className="btn-secondary py-2 px-3 text-xs font-bold justify-center"
@@ -8435,6 +8453,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 >
                                     <i className="fa-solid fa-eye"></i>
                                 </button>
+                                )}
                                 <button 
                                     disabled={isReadOnlyDueToDowngrade} 
                                     onClick={() => setConfirmDialog({ 
@@ -8562,7 +8581,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <i className="fa-solid fa-clone"></i>
                                             </button>
                                             <button onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="Aperçu Devis Client (PDF)" aria-label={`Aperçu devis client ${sq.number}`}><i className="fa-solid fa-file-pdf"></i></button>
-                                            <button onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }} className="btn-icon text-brand-600 hover:bg-brand-50" title="Vue Interne Étude de Prix" aria-label={`Étude interne ${sq.number}`}><i className="fa-solid fa-eye"></i></button>
+                                            {canViewInternalDocs && <button onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }} className="btn-icon text-brand-600 hover:bg-brand-50" title="Étude de prix (interne)" aria-label={`Étude de prix interne ${sq.number}`}><i className="fa-solid fa-eye"></i></button>}
                                             <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Supprimer Devis", message: `Supprimer le devis ${sq.number} ?`, isDanger: true, onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }})} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} aria-label={`Supprimer ${sq.number}`} title="Supprimer"><i className="fa-solid fa-trash"></i></button>
                                         </div>
                                     </td>
@@ -10214,6 +10233,45 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </p>
                                 </div>
 
+                                {/* 2026-08-20 — Qui peut ouvrir l'étude de prix (coûts d'achat,
+                                    coefficient, marge). Réglable par le propriétaire, comme demandé.
+                                    'owner' n'est pas listé : il a toujours accès et est le seul à
+                                    pouvoir modifier cette liste — le retirer permettrait de se
+                                    verrouiller hors de ses propres documents. */}
+                                <div className="pt-4 border-t border-neutral-100">
+                                    <label className="app-label">Accès aux documents internes</label>
+                                    <p className="text-[11px] text-neutral-500 mb-3">
+                                        L'étude de prix montre vos coûts d'achat, votre coefficient et votre marge.
+                                        Choisissez les rôles autorisés à l'ouvrir. Le propriétaire y a toujours accès.
+                                    </p>
+                                    <div className="space-y-2">
+                                        {[
+                                            { id: 'admin', label: 'Administrateur' },
+                                            { id: 'estimator', label: 'Métreur / Chiffreur' },
+                                            { id: 'commercial', label: 'Commercial' },
+                                            { id: 'viewer', label: 'Lecture seule' }
+                                        ].map(r => {
+                                            const current = companyInfo.internalDocRoles || ['admin'];
+                                            const checked = current.includes(r.id);
+                                            return (
+                                                <label key={r.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${checked ? 'border-brand-300 bg-brand-50/50' : 'border-neutral-200 bg-white hover:bg-neutral-50'} ${isReadOnlyDueToDowngrade ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        className="w-4 h-4 accent-brand-600"
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        checked={checked}
+                                                        onChange={() => {
+                                                            const next = checked ? current.filter(x => x !== r.id) : [...current, r.id];
+                                                            updateCompanyInfo({ ...companyInfo, internalDocRoles: next });
+                                                        }}
+                                                    />
+                                                    <span className="text-xs font-bold text-neutral-800">{r.label}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                             </div>
                         )}
                         {/* Pied commun aux onglets sans formulaire (Documents, Audit,
@@ -10840,6 +10898,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 const scheduleTotal = paymentSchedule.reduce((s, st) => s + (parseFloat(st.pct) || 0), 0);
                 const scheduleInvalid = paymentSchedule.length > 0 && Math.round(scheduleTotal) !== 100;
                 const canSend = missingLegal.length === 0 && !scheduleInvalid;
+                // 2026-08-20 — L'étude de prix expose coûts d'achat, coefficient et
+                // marge. Jusqu'ici la bascule "Vue Interne" était offerte à TOUT le
+                // monde, y compris un rôle 'viewer'. Réservée aux rôles autorisés,
+                // configurables par le propriétaire (Paramètres → Documents & PDF) ;
+                // 'owner' passe toujours, pour ne pas pouvoir se verrouiller dehors.
+                const canViewInternalDocs = activeOrganizationRole === 'owner'
+                    || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
                 return (
                 <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
@@ -10852,14 +10917,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="flex bg-neutral-100 p-1 rounded-xl">
-                                    <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher la vue étude interne">
-                                        Vue Interne (Étude)
-                                    </button>
-                                    <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial propre">
-                                        Devis Commercial Client Clean
-                                    </button>
-                                </div>
+                                {canViewInternalDocs && (
+                                    <div className="flex bg-neutral-100 p-1 rounded-xl">
+                                        <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
+                                            Étude de prix (interne)
+                                        </button>
+                                        <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
+                                            Devis client
+                                        </button>
+                                    </div>
+                                )}
                                 {canSend ? (<>
                                 <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold" title="Partager le devis au client" aria-label="Partager le devis">
                                     <i className="fa-solid fa-share-nodes text-brand-600"></i>
@@ -10907,7 +10974,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         )}
 
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-6">
-                            {isCommercialMode ? (
+                            {/* Défense en profondeur : même si isCommercialMode restait à
+                                false (état hérité d'une session où l'utilisateur avait le
+                                droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
+                            {(isCommercialMode || !canViewInternalDocs) ? (
                                 <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id="printArea">
                                     <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
                                         <div>
@@ -11101,65 +11171,178 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 print:border-0 print:p-0" id="printArea">
                                     {(() => {
-                                        const savedMargePct = viewingSavedQuote.quoteData?.margePctConsommeReelle !== undefined
-                                            ? viewingSavedQuote.quoteData.margePctConsommeReelle
-                                            : (viewingSavedQuote.quoteData?.netHTConsomme > 0 
-                                                ? ((viewingSavedQuote.quoteData?.margeValeurConsomme || 0) / viewingSavedQuote.quoteData.netHTConsomme) * 100 
-                                                : 0);
+                                        // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
+                                        // cartes, PAS un document : elle n'avait pas d'id="printArea", donc
+                                        // l'imprimer produisait une PAGE BLANCHE (la feuille de style
+                                        // d'impression masque tout sauf #printArea). Refaite en document A4
+                                        // imprimable — métré, décomposition ligne à ligne, prix & marge,
+                                        // contrôles et visa — pour valider un devis avant de l'envoyer.
+                                        const cur = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
+                                        const qd = viewingSavedQuote.quoteData || {};
+                                        const lots = qd.lots || [];
+                                        const savedMargePct = qd.margePctConsommeReelle !== undefined
+                                            ? qd.margePctConsommeReelle
+                                            : (qd.netHTConsomme > 0 ? ((qd.margeValeurConsomme || 0) / qd.netHTConsomme) * 100 : 0);
+                                        const coeffK = qd.totalDebourseConsomme > 0
+                                            ? (qd.netHTConsomme / qd.totalDebourseConsomme)
+                                            : null;
 
-                                        const savedMargeAchatPct = viewingSavedQuote.quoteData?.margePctAchatReelle !== undefined
-                                            ? viewingSavedQuote.quoteData.margePctAchatReelle
-                                            : (viewingSavedQuote.quoteData?.netHTAchat > 0 
-                                                ? ((viewingSavedQuote.quoteData?.margeValeurAchat || 0) / viewingSavedQuote.quoteData.netHTAchat) * 100 
-                                                : 0);
+                                        // Contrôles réels, calculés depuis les lignes du devis — aucun
+                                        // n'est affiché s'il ne se déclenche pas (pas de bloc décoratif).
+                                        const alertes = [];
+                                        lots.forEach((l, li) => {
+                                            const ld = l.quoteData || {};
+                                            if (ld.netHTConsomme != null && ld.totalDebourseConsomme != null && ld.netHTConsomme < ld.totalDebourseConsomme) {
+                                                alertes.push(`Lot ${li + 1} « ${l.lotName} » : vendu sous le déboursé sec (vente à perte).`);
+                                            }
+                                            (ld.details || []).forEach(d => {
+                                                const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
+                                                if (mat && mat.stockQty !== null && mat.stockQty !== undefined && d.billedQty > mat.stockQty) {
+                                                    alertes.push(`Lot ${li + 1} — « ${d.label} » : ${d.billedQty.toFixed(2)} ${d.unit} nécessaires, ${mat.stockQty} ${d.unit} en stock.`);
+                                                }
+                                            });
+                                        });
+                                        (qd.commercialItems || []).forEach(ci => {
+                                            if (ci.isCustom && !(parseFloat(ci.costUnit) > 0)) {
+                                                alertes.push(`« ${ci.label || ci.name} » : ligne libre sans coût d'achat renseigné — la marge affichée n'est pas fiable.`);
+                                            }
+                                        });
 
                                         return (
                                             <>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm">
-                                                        <p className="text-[10px] font-bold text-neutral-500 uppercase">Étude de Prix Consommé (Internes)</p>
-                                                        <p className="text-2xl font-extrabold text-neutral-900 mt-1">{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</p>
-                                                        <div className="mt-3 text-xs space-y-1 text-neutral-600 border-t pt-2">
-                                                            <div className="flex justify-between"><span>Déboursé sec :</span><span>{formatMoney(viewingSavedQuote.quoteData?.totalDebourseConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span></div>
-                                                            <div className="flex justify-between"><span>Frais généraux :</span><span>{formatMoney(viewingSavedQuote.quoteData?.fraisGenerauxConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span></div>
-                                                            <div className="flex justify-between font-bold text-emerald-600"><span>Marge réelle (après remise) :</span><span>+{formatMoney(viewingSavedQuote.quoteData?.margeValeurConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)} ({savedMargePct.toFixed(2)}%)</span></div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="bg-neutral-900 text-white p-5 rounded-2xl shadow-floating">
-                                                        <p className="text-[10px] font-bold text-brand-400 uppercase">Budget d'Achat Sécurisé (Trésorerie)</p>
-                                                        <p className="text-2xl font-extrabold text-brand-400 mt-1">{formatMoney(viewingSavedQuote.quoteData?.totalTTCAchat, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</p>
-                                                        <div className="mt-3 text-xs space-y-1 text-neutral-400 border-t border-neutral-800 pt-2">
-                                                            <div className="flex justify-between"><span>Déboursé achat :</span><span>{formatMoney(viewingSavedQuote.quoteData?.totalDebourseAchat, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span></div>
-                                                            <div className="flex justify-between"><span>Frais généraux :</span><span>{formatMoney(viewingSavedQuote.quoteData?.fraisGenerauxAchat, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span></div>
-                                                            <div className="flex justify-between font-bold text-brand-300"><span>Marge sécurisée :</span><span>+{formatMoney(viewingSavedQuote.quoteData?.margeValeurAchat, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)} ({savedMargeAchatPct.toFixed(2)}%)</span></div>
-                                                        </div>
+                                                <div className="border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
+                                                    <i className="fa-solid fa-lock text-amber-600 mt-0.5"></i>
+                                                    <div>
+                                                        <p className="font-black text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
+                                                        <p className="text-[11px] text-amber-800">Contient vos coûts d'achat, votre coefficient de vente et votre marge.</p>
                                                     </div>
                                                 </div>
 
-                                                {viewingSavedQuote.quoteData?.lots && viewingSavedQuote.quoteData.lots.length > 0 && (
-                                                    <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm space-y-4">
-                                                        <h4 className="font-extrabold text-xs text-neutral-800 uppercase tracking-wider flex items-center gap-2">
-                                                            <i className="fa-solid fa-layer-group text-brand-500"></i> Ventilation des {viewingSavedQuote.quoteData.lots.length} Lots / Ouvrages du Chantier
-                                                        </h4>
-                                                        <div className="space-y-2.5">
-                                                            {viewingSavedQuote.quoteData.lots.map((l, idx) => (
-                                                                <div key={l.id || idx} className="p-3.5 bg-neutral-50/80 rounded-xl border border-neutral-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
-                                                                    <div>
-                                                                        <span className="font-black text-brand-600 mr-2">Poste #{idx + 1}</span>
-                                                                        <strong className="text-neutral-900">{l.lotName}</strong>
-                                                                        <p className="text-neutral-500 mt-0.5 font-medium">{formatLotDimensions(l)}</p>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-4 shrink-0 font-bold">
-                                                                        <span className="text-neutral-600 text-xs">Déboursé : {formatMoney(l.quoteData?.totalDebourseConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                                                        <span className="text-emerald-700 font-extrabold text-xs">Net HT : {formatMoney(l.quoteData?.netHTConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                                                    </div>
+                                                <div className="flex justify-between items-start border-b border-neutral-200 pb-4">
+                                                    <div>
+                                                        <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
+                                                        <p className="text-[11px] text-neutral-500">Client : <strong className="text-neutral-700">{viewingSavedQuote.clientName}</strong></p>
+                                                        <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <h2 className="text-lg font-black text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
+                                                        <p className="text-xs font-bold text-neutral-700 mt-0.5">Devis n° {viewingSavedQuote.number}</p>
+                                                        <p className="text-[11px] text-neutral-500">{viewingSavedQuote.date}</p>
+                                                    </div>
+                                                </div>
+
+                                                {lots.map((l, li) => {
+                                                    const ld = l.quoteData || {};
+                                                    const dets = ld.details || [];
+                                                    return (
+                                                        <div key={l.id || li} className="border border-neutral-200 rounded-xl overflow-hidden break-inside-avoid">
+                                                            <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200 flex justify-between items-baseline gap-3">
+                                                                <div className="min-w-0">
+                                                                    <span className="font-black text-brand-600 text-xs mr-2">Lot {li + 1}</span>
+                                                                    <strong className="text-neutral-900 text-sm">{l.lotName}</strong>
+                                                                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                                                                        Métré : {formatItemMetre({ ...(l.dimensions || {}), takeoffMode: l.takeoffMode })}
+                                                                    </p>
                                                                 </div>
-                                                            ))}
+                                                                <span className="text-xs font-black text-neutral-900 shrink-0">{formatMoney(ld.netHTConsomme, cur)}</span>
+                                                            </div>
+
+                                                            {dets.length === 0 ? (
+                                                                <p className="px-4 py-3 text-[11px] text-neutral-400 italic">
+                                                                    Décomposition non disponible pour ce lot (devis antérieur à l'enregistrement du détail).
+                                                                </p>
+                                                            ) : (
+                                                                <table className="w-full text-left text-[11px] border-collapse">
+                                                                    <thead className="bg-white border-b border-neutral-200 text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider">
+                                                                        <tr>
+                                                                            <th className="px-4 py-2">Poste</th>
+                                                                            <th className="px-2 py-2 text-right">Qté nette</th>
+                                                                            <th className="px-2 py-2 text-right">Perte</th>
+                                                                            <th className="px-2 py-2 text-left">Achat</th>
+                                                                            <th className="px-2 py-2 text-right">Coût unit.</th>
+                                                                            <th className="px-4 py-2 text-right">Coût total</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-neutral-100">
+                                                                        {dets.map((d, di) => {
+                                                                            const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
+                                                                            const packLabel = (mat && mat.purchaseMode === 'pack' && d.packsNeeded > 0)
+                                                                                ? `${d.packsNeeded} × ${d.packUnitBuy || mat.unitBuy}`
+                                                                                : '—';
+                                                                            return (
+                                                                                <tr key={di}>
+                                                                                    <td className="px-4 py-1.5">
+                                                                                        <span className="font-bold text-neutral-800">{d.label}</span>
+                                                                                        {d.name && d.name !== d.label && (
+                                                                                            <span className="block text-[10px] text-neutral-400">{d.name}</span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono text-neutral-500">{d.type === 'material' ? `${d.wastePct || 0}%` : '—'}</td>
+                                                                                    <td className="px-2 py-1.5 text-neutral-500">{packLabel}</td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono">{formatMoney(d.unitCost, cur)}</td>
+                                                                                    <td className="px-4 py-1.5 text-right font-bold text-neutral-900 font-mono">{formatMoney(d.totalCost, cur)}</td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                    <tfoot className="bg-neutral-50 border-t border-neutral-200">
+                                                                        <tr className="text-[11px]">
+                                                                            <td className="px-4 py-2 font-bold text-neutral-700" colSpan="5">Déboursé sec du lot</td>
+                                                                            <td className="px-4 py-2 text-right font-black text-neutral-900 font-mono">{formatMoney(ld.totalDebourseConsomme, cur)}</td>
+                                                                        </tr>
+                                                                    </tfoot>
+                                                                </table>
+                                                            )}
                                                         </div>
+                                                    );
+                                                })}
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 break-inside-avoid">
+                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
+                                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Déboursé sec</span><span className="font-mono font-bold">{formatMoney(qd.totalDebourseConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Frais généraux</span><span className="font-mono font-bold">{formatMoney(qd.fraisGenerauxConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Prix de revient</span><span className="font-mono font-bold">{formatMoney(qd.totalRevientConsomme, cur)}</span></div>
+                                                        <div className={`flex justify-between font-bold ${(qd.margeValeurConsomme || 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                                                            <span>Marge {(qd.margeValeurConsomme || 0) < 0 ? '(PERTE)' : 'réelle'}</span>
+                                                            <span className="font-mono">{(qd.margeValeurConsomme || 0) < 0 ? '' : '+'}{formatMoney(qd.margeValeurConsomme, cur)} ({savedMargePct.toFixed(1)}%)</span>
+                                                        </div>
+                                                        {coeffK !== null && (
+                                                            <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Coefficient de vente</span><span className="font-mono font-bold">K = {coeffK.toFixed(3)}</span></div>
+                                                        )}
+                                                    </div>
+                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
+                                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Total net HT</span><span className="font-mono font-bold">{formatMoney(qd.netHTConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">TVA ({qd.vatRate !== undefined ? qd.vatRate : 18}%)</span><span className="font-mono font-bold">{formatMoney(qd.tvaConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-black text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
+                                                    </div>
+                                                </div>
+
+                                                {alertes.length > 0 && (
+                                                    <div className="border border-red-200 bg-red-50/60 rounded-xl p-4 break-inside-avoid">
+                                                        <p className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider mb-2">
+                                                            <i className="fa-solid fa-triangle-exclamation mr-1"></i> Points à vérifier avant envoi ({alertes.length})
+                                                        </p>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-800">
+                                                            {alertes.map((a, ai) => <li key={ai}>{a}</li>)}
+                                                        </ul>
                                                     </div>
                                                 )}
+
+                                                <div className="grid grid-cols-2 gap-6 pt-4 border-t border-neutral-100 text-[11px] text-neutral-500 break-inside-avoid">
+                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
+                                                        <p className="font-bold text-neutral-700 mb-6">Étude vérifiée par :</p>
+                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                    </div>
+                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
+                                                        <p className="font-bold text-neutral-700 mb-6">Bon pour envoi au client :</p>
+                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                    </div>
+                                                </div>
                                             </>
                                         );
                                     })()}
