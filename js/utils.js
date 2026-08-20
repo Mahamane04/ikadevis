@@ -167,3 +167,121 @@ const formatLotHeading = (lotName, index) => {
     if (/^lot\s/i.test(nom)) return nom;
     return nom ? `Lot ${index + 1} — ${nom}` : `Lot ${index + 1}`;
 };
+
+
+// ═══════════════════════════════════════════════════════════════
+// TÉLÉCHARGEMENT PDF (2026-08-20, demandé par l'utilisateur)
+// ═══════════════════════════════════════════════════════════════
+// Le bouton existant appelait window.print() : il faut alors choisir
+// « Enregistrer en PDF » dans la boîte d'impression, ce que peu d'utilisateurs
+// trouvent. Ce chemin-ci produit directement un fichier.
+//
+// jsPDF (410 Ko) + html2canvas (194 Ko) pèsent plus lourd que l'application
+// elle-même (432 Ko). Ils ne sont donc PAS chargés au démarrage mais au
+// premier clic, puis mis en cache par le navigateur : l'app reste aussi
+// légère qu'avant pour qui n'utilise jamais cette fonction — ce qui compte
+// sur une connexion de chantier.
+//
+// Contrepartie assumée : html2canvas rastérise le document, le texte du PDF
+// n'est donc pas sélectionnable. L'impression navigateur, elle, produit un PDF
+// vectoriel de meilleure qualité — les deux boutons restent donc proposés.
+let __pdfLibsPromise = null;
+function chargerLibsPdf() {
+    if (window.jspdf && window.html2canvas) return Promise.resolve();
+    if (__pdfLibsPromise) return __pdfLibsPromise;
+    const charger = (src) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error(`Chargement impossible : ${src}`));
+        document.head.appendChild(s);
+    });
+    __pdfLibsPromise = Promise.all([
+        window.html2canvas ? Promise.resolve() : charger('vendor/html2canvas.min.js'),
+        window.jspdf ? Promise.resolve() : charger('vendor/jspdf.umd.min.js')
+    ]).catch((e) => { __pdfLibsPromise = null; throw e; });
+    return __pdfLibsPromise;
+}
+
+// Nettoie un intitulé pour en faire un nom de fichier sûr sur tous les OS.
+function nomFichierSur(base) {
+    return String(base || 'document')
+        .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+        .replace(/[^A-Za-z0-9 _-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/ /g, '-')
+        .slice(0, 80) || 'document';
+}
+
+// Génère le PDF A4 depuis un élément du DOM et déclenche le téléchargement.
+// Découpe en plusieurs pages si le document dépasse une hauteur A4.
+async function telechargerElementEnPdf(element, nomFichier) {
+    if (!element) throw new Error("Document introuvable à l'écran.");
+    await chargerLibsPdf();
+
+    // Largeur de capture fixe : sans elle, html2canvas suit la largeur d'affichage
+    // et le PDF d'un téléphone (375 px) sortirait comprimé, celui d'un panneau
+    // replié carrément illisible (constaté : canvas de 132 px de large). On force
+    // donc la mise en page A4 (~794 px à 96 dpi) quel que soit l'écran.
+    const LARGEUR_CAPTURE = 800;
+
+    // On tague l'élément pour le retrouver dans le clone. Tout est modifié sur le
+    // clone hors écran, jamais sur le DOM affiché : l'utilisateur ne voit rien bouger.
+    element.setAttribute('data-pdf-cible', '1');
+    let canvas;
+    try {
+        canvas = await window.html2canvas(element, {
+            scale: 2,           // ~200 dpi en A4 : net à l'impression sans exploser le poids
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            scrollX: 0,
+            scrollY: -window.scrollY,
+            windowWidth: LARGEUR_CAPTURE + 120,
+            onclone: (docClone) => {
+                const cible = docClone.querySelector('[data-pdf-cible]');
+                if (!cible) return;
+                cible.style.width = LARGEUR_CAPTURE + 'px';
+                cible.style.maxWidth = 'none';
+                // Les ancêtres sont souvent une modale à hauteur bornée et
+                // défilante : conservés tels quels, ils tronqueraient le document
+                // à la partie visible à l'écran.
+                for (let p = cible.parentElement; p && p !== docClone.body; p = p.parentElement) {
+                    p.style.overflow = 'visible';
+                    p.style.maxHeight = 'none';
+                    p.style.height = 'auto';
+                    p.style.maxWidth = 'none';
+                }
+            }
+        });
+    } finally {
+        element.removeAttribute('data-pdf-cible');
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageL = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const marge = 8;
+    const imgL = pageL - marge * 2;
+    const imgH = (canvas.height * imgL) / canvas.width;
+
+    const image = canvas.toDataURL('image/jpeg', 0.92);
+    let restant = imgH;
+    let position = marge;
+
+    pdf.addImage(image, 'JPEG', marge, position, imgL, imgH);
+    restant -= (pageH - marge * 2);
+
+    // Pages suivantes : on décale l'image vers le haut, la zone visible de la
+    // page suivante correspondant à la suite du document.
+    while (restant > 0) {
+        position = marge - (imgH - restant);
+        pdf.addPage();
+        pdf.addImage(image, 'JPEG', marge, position, imgL, imgH);
+        restant -= (pageH - marge * 2);
+    }
+
+    pdf.save(`${nomFichierSur(nomFichier)}.pdf`);
+}

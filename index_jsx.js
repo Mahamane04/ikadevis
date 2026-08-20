@@ -4985,6 +4985,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const [viewingInvoice, setViewingInvoice] = useState(null);
+    // Quel document est en cours de génération PDF (null / 'devis' / 'facture').
+    // Sert à bloquer un second clic pendant la génération, qui produirait deux
+    // fichiers identiques et deux rendus html2canvas simultanés.
+    const [pdfEnCours, setPdfEnCours] = useState(null);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -8521,6 +8525,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
+    // Télécharge le document actuellement affiché (#printArea) en PDF.
+    // #printArea n'existe que sur un document réellement imprimable : un
+    // brouillon de facture n'en a pas, il ne peut donc pas être téléchargé
+    // — cohérent avec le fait qu'il n'a pas encore de numéro légal.
+    const telechargerDocument = async (nomFichier, cle) => {
+        const cible = document.getElementById('printArea');
+        if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return; }
+        setPdfEnCours(cle);
+        try {
+            await telechargerElementEnPdf(cible, nomFichier);
+            showToast("PDF téléchargé", "success");
+        } catch (err) {
+            console.warn('[PDF]', err);
+            showToast(`Génération impossible : ${err.message}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
+        } finally {
+            setPdfEnCours(null);
+        }
+    };
+
     // ══ FACTURES (2026-08-20, § 30) ═══════════════════════════════════════
     const emettreFacture = async (facture) => {
         if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
@@ -11386,11 +11409,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {!estBrouillon && (
-                                    <button onClick={() => window.print()} className="btn-primary py-1.5 px-3.5 text-xs font-bold" aria-label="Imprimer la facture">
-                                        <i className="fa-solid fa-print"></i> Imprimer / PDF
+                                {!estBrouillon && (<>
+                                    <button
+                                        onClick={() => telechargerDocument(
+                                            `Facture ${viewingInvoice.numero} ${viewingInvoice.clientName}`,
+                                            'facture'
+                                        )}
+                                        disabled={pdfEnCours === 'facture'}
+                                        className="btn-primary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60"
+                                        title="Télécharger la facture au format PDF"
+                                        aria-label="Télécharger la facture en PDF"
+                                    >
+                                        <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                        {pdfEnCours === 'facture' ? ' Génération…' : ' Télécharger le PDF'}
                                     </button>
-                                )}
+                                    <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
+                                        <i className="fa-solid fa-print"></i> Imprimer
+                                    </button>
+                                </>)}
                                 <button onClick={() => setViewingInvoice(null)} className="btn-icon w-8 h-8" aria-label="Fermer">
                                     <i className="fa-solid fa-xmark text-xl"></i>
                                 </button>
@@ -11623,9 +11659,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <i className="fa-solid fa-signature text-emerald-600"></i>
                                     <span>Signer</span>
                                 </button>
-                                <button onClick={() => window.print()} className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-md shadow-brand-500/20" title="Imprimer ou Enregistrer en PDF (A4)" aria-label="Imprimer le devis">
+                                <button
+                                    onClick={() => telechargerDocument(
+                                        `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
+                                        'devis'
+                                    )}
+                                    disabled={pdfEnCours === 'devis'}
+                                    className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-md shadow-brand-500/20 disabled:opacity-60"
+                                    title="Télécharger au format PDF"
+                                    aria-label="Télécharger le devis en PDF"
+                                >
+                                    <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                    <span>{pdfEnCours === 'devis' ? 'Génération…' : 'Télécharger le PDF'}</span>
+                                </button>
+                                <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer le devis">
                                     <i className="fa-solid fa-print"></i>
-                                    <span>Imprimer / PDF</span>
+                                    <span>Imprimer</span>
                                 </button>
                                 </>) : (
                                 <button
