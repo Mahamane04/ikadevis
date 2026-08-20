@@ -2510,9 +2510,38 @@ function WorkItemInspector({
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-neutral-100">
-                                            {(quoteData.details || []).map((d, i) => (
+                                            {(quoteData.details || []).map((d, i) => {
+                                                // Demandé par l'utilisateur (2026-08-20) — le moteur arrondit déjà au
+                                                // conditionnement entier pour calculer purchasedCost (Math.ceil dans
+                                                // calc-engine.js), mais ce nombre de barres/plaques/sacs achetés
+                                                // n'était affiché nulle part : seuls la quantité nette en m/m²/kg et
+                                                // le coût total apparaissaient, obligeant à refaire le calcul de tête
+                                                // pour savoir combien commander. On l'affiche ici, avec la chute
+                                                // (matière achetée mais non utilisée) quand il y en a une —
+                                                // uniquement pour les matières achetées en conditionnement entier
+                                                // (purchaseMode 'pack'), pas pour celles achetées à l'unité réelle.
+                                                const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
+                                                const packInfo = (mat && mat.purchaseMode === 'pack' && d.packsNeeded > 0) ? (() => {
+                                                    const packSize = parseFloat(mat.unitSize) || 0;
+                                                    if (packSize <= 0) return null;
+                                                    const totalPurchased = d.packsNeeded * packSize;
+                                                    const offcut = totalPurchased - d.billedQty;
+                                                    return { count: d.packsNeeded, unitLabel: mat.unitBuy, offcut: offcut > 0.01 ? offcut : 0 };
+                                                })() : null;
+                                                return (
                                                 <tr key={i} className="hover:bg-neutral-50">
-                                                    <td className="p-2.5 font-bold text-neutral-800">{d.label}</td>
+                                                    <td className="p-2.5 font-bold text-neutral-800">
+                                                        {d.label}
+                                                        {packInfo && (
+                                                            <div className="font-normal text-[10px] text-neutral-500 mt-0.5">
+                                                                <i className="fa-solid fa-boxes-stacked mr-1 text-neutral-400"></i>
+                                                                {packInfo.count} × {packInfo.unitLabel}
+                                                                {packInfo.offcut > 0 && (
+                                                                    <span className="text-amber-600"> · chute ≈ {packInfo.offcut.toFixed(2)} {d.unit}</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td className="p-2.5 text-right font-medium">{d.billedQty?.toFixed(2)} {d.unit}</td>
                                                     <td className="p-2.5 text-right">
                                                         {d.type === 'material' ? (
@@ -2555,7 +2584,8 @@ function WorkItemInspector({
                                                     <td className="p-2.5 text-right font-medium">{formatMoney(d.unitCost, currency)}</td>
                                                     <td className="p-2.5 text-right font-bold text-neutral-900">{formatMoney(d.totalCost, currency)}</td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                     <p className="text-[11px] text-neutral-400 px-1">
