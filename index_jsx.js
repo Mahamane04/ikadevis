@@ -1531,6 +1531,7 @@ function WorkItemTable({
                 {items.map((item, idx) => {
                     const unitPrice = item.unitPriceHT || 0;
                     const total = item.totalHT || 0;
+                    const margin = lineMarginInfo(item, currency);
                     return (
                         <div key={item.id || idx} className="border border-neutral-200 rounded-2xl bg-white shadow-xs p-3.5 space-y-3">
                             <div className="flex items-start gap-2.5">
@@ -1545,6 +1546,7 @@ function WorkItemTable({
                                         placeholder="Désignation de l'ouvrage ou ligne..."
                                         className="w-full font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
                                         aria-label={`Désignation pour ${item.name}`}
+                                        title={item.name}
                                     />
                                     <input
                                         type="text"
@@ -1556,7 +1558,7 @@ function WorkItemTable({
                                     />
                                     {item.calcForm && (
                                         <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
-                                            Mode: {item.calcForm.takeoffMode || 'rectangle'} &bull; {item.calcForm.width}m × {item.calcForm.height}m
+                                            {formatItemMetre(item.calcForm)}
                                         </span>
                                     )}
                                     {item.isCustom && (
@@ -1612,6 +1614,15 @@ function WorkItemTable({
                                 <div>
                                     <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Total Net HT</span>
                                     <span className="font-black text-neutral-900 text-base">{formatMoney(total, currency)}</span>
+                                    {margin && (
+                                        <span
+                                            title={margin.tooltip}
+                                            className={`block text-[11px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-600'}`}
+                                        >
+                                            {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
+                                            {margin.label}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <button type="button" onClick={() => onOpenInspector(idx)} className="p-2 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-sm transition-all" title="Voir et modifier les détails techniques & métrés" aria-label={`Détails techniques de ${item.name}`}>
@@ -1646,6 +1657,7 @@ function WorkItemTable({
                         {items.map((item, idx) => {
                             const unitPrice = item.unitPriceHT || 0;
                             const total = item.totalHT || 0;
+                            const margin = lineMarginInfo(item, currency);
 
                             return (
                                 <tr key={item.id || idx} className="hover:bg-neutral-50/60 transition-colors group">
@@ -1663,6 +1675,7 @@ function WorkItemTable({
                                                     placeholder="Désignation de l'ouvrage ou ligne..."
                                                     className="w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
                                                     aria-label={`Désignation pour ${item.name}`}
+                                        title={item.name}
                                                 />
                                                 {/* Édition Directe du Descriptif Commercial */}
                                                 <input
@@ -1675,7 +1688,7 @@ function WorkItemTable({
                                                 />
                                                 {item.calcForm && (
                                                     <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
-                                                        Mode: {item.calcForm.takeoffMode || 'rectangle'} &bull; {item.calcForm.width}m × {item.calcForm.height}m
+                                                        {formatItemMetre(item.calcForm)}
                                                     </span>
                                                 )}
                                                 {item.isCustom && (
@@ -1741,6 +1754,15 @@ function WorkItemTable({
 
                                     <td className="py-3 px-4 text-right font-black text-neutral-900 text-sm">
                                         {formatMoney(total, currency)}
+                                        {margin && (
+                                            <span
+                                                title={margin.tooltip}
+                                                className={`block mt-0.5 text-[10px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-600'}`}
+                                            >
+                                                {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
+                                                {margin.label}
+                                            </span>
+                                        )}
                                     </td>
 
                                     <td className="py-3 px-3 text-center">

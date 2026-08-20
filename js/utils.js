@@ -7,6 +7,51 @@ const formatMoney = (amount, currency = 'FCFA') => {
     return `${rounded.toLocaleString('fr-FR')} ${currency}`;
 };
 
+// 2026-08-20 — "Mode: rectangle • 2m × 1m" affichait le nom interne du mode
+// de métré (vocabulaire du moteur de calcul) à côté des dimensions, sur
+// chaque ligne du tableau de devis. Comparé au motif des SaaS de devis du
+// secteur (Jobber, Houzz Pro) : aucun ne montre ce genre de métadonnée
+// technique, seulement l'info métier. Remplacé par cette fonction, qui
+// choisit le bon champ selon le mode réel au lieu d'afficher toujours
+// width/height (faux pour les modes surface/linéaire/unité, qui ne les
+// utilisent pas).
+const formatItemMetre = (calcForm) => {
+    if (!calcForm) return '';
+    const mode = calcForm.takeoffMode || 'rectangle';
+    const num = (v) => {
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+    if (mode === 'volume') return `${num(calcForm.width)} × ${num(calcForm.height)} × ${num(calcForm.depth)} m`;
+    if (mode === 'surface' || mode === 'floor') return `${num(calcForm.surfaceDirect)} m²`;
+    if (mode === 'linear') return `${num(calcForm.lengthDirect)} ml`;
+    if (mode === 'unit') return `${num(calcForm.qty) || 1} unité(s)`;
+    return `${num(calcForm.width)} × ${num(calcForm.height)} m`;
+};
+
+// 2026-08-20 — Badge de marge par ligne (motif Houzz Pro : la rentabilité
+// visible directement dans la liste, pas seulement au total du devis).
+// Volontairement zéro clic — pas de popover à ouvrir : le % suffit pour
+// juger d'un coup d'œil, le détail FCFA n'est que dans l'attribut title
+// (survol). `revient`/`marge` valent `null` pour une ligne libre sans coût
+// d'achat renseigné (`hasKnownCost` faux dans calc-engine.js) — dans ce cas
+// aucune marge n'est calculable, on ne montre rien plutôt qu'un faux 0%.
+const lineMarginInfo = (item, currency = 'FCFA') => {
+    const qd = item && item.quoteData;
+    if (!qd || qd.totalRevientConsomme == null || qd.margeValeurConsomme == null) return null;
+    const netHT = qd.netHTConsomme ?? item.totalHT ?? 0;
+    const marge = qd.margeValeurConsomme;
+    const pct = netHT > 0 ? (marge / netHT) * 100 : 0;
+    const isLoss = marge < 0;
+    const sign = isLoss ? '' : '+';
+    return {
+        pct,
+        isLoss,
+        label: `${sign}${Math.round(pct)}%`,
+        tooltip: `Coût de revient : ${formatMoney(qd.totalRevientConsomme, currency)} · Marge : ${sign}${formatMoney(marge, currency)}`
+    };
+};
+
 
 // M2 (2026-08-18) — Recherche insensible aux accents. Un prospect qui tape
 // "maconnerie" ou "etiquette" sans accent (courant sur clavier de téléphone)
