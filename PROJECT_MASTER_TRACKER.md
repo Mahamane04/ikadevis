@@ -1799,3 +1799,68 @@ Interface : conversion d'un devis accepté en facture, liste des factures,
 PDF (entre dans l'architecture du § 27.1 comme document
 `destinataire = client`, héritant logo, pied de page et gabarits), puis
 acompte/situation et suivi des règlements.
+
+---
+
+## 🖥️ 31. Facturation — interface (2026-08-20)
+
+Suite du § 30 (couche données). L'utilisateur peut désormais facturer.
+
+### 31.1 Livré
+
+- **Entrée « Factures »** dans la navigation (sidebar, rail replié, tiroir mobile).
+- **Création depuis un devis enregistré** : reprend client, chantier, lignes
+  commerciales et taux de TVA. Un devis déjà facturé disparaît de la liste
+  des devis facturables — pas de double facturation par inadvertance.
+- **Émission** avec confirmation explicite rappelant l'irréversibilité. Le
+  numéro n'est attribué qu'à ce moment (§ 30.1).
+- **Document facture** : entre dans l'architecture du § 27.1 comme document
+  `destinataire = client`. Il **hérite donc** du logo (§ 25), du pied de page
+  et de la mention d'exonération (§ 29) sans rien redéfinir. Aucun coût
+  d'achat ni marge n'y figure.
+- **Contrôle des mentions légales avant émission** : réutilise
+  `getMissingLegalFields`, déjà exigé avant l'envoi d'un devis, plutôt qu'un
+  second contrôle qui pourrait diverger. Renvoie l'utilisateur sur l'onglet
+  Entreprise si NIF/RCCM manquent.
+
+### 31.2 Deux niveaux de garantie, annoncés à l'utilisateur
+
+| | Cloud | Mode Démo |
+| :--- | :--- | :--- |
+| Numérotation | Serveur, verrou de ligne, **sans trou** | Calculée sur l'appareil |
+| Facture émise | **Figée par trigger** en base | Rien n'est verrouillé |
+
+Le Mode Démo affiche un bandeau explicite : « factures sans valeur légale ».
+Prétendre le contraire serait pire que de l'annoncer.
+
+### 31.3 Un brouillon n'est pas imprimable
+
+`id="printArea"` n'est posé que sur une facture **émise**. Un brouillon
+n'ayant pas de numéro légal, il ne doit pas pouvoir être imprimé puis
+confondu avec une facture réelle. Le bouton *Imprimer* est également absent,
+et un bandeau annonce « Brouillon — pas encore une facture ».
+
+### 31.4 Vérifié en direct (Mode Démo)
+
+| Étape | Résultat |
+| :--- | :--- |
+| Création depuis DEV-2026-002 | Brouillon, `numero: null`, 1 ligne, 131 700 HT / 155 406 TTC — identiques au devis |
+| Aperçu du brouillon | Bandeau « Brouillon », **pas de `printArea`**, pas de bouton Imprimer |
+| Émission | `FACT-2026-001`, statut `issued`, date d'émission posée |
+| Liste après émission | Statut « Émise », **cadenas** à la place d'Émettre/Supprimer |
+| Devis d'origine | Retiré de la liste des devis facturables |
+| Aperçu après émission | `printArea` présent, bouton Imprimer, « N° : FACT-2026-001 », « Émise le 20/08/2026 » |
+| Héritage documentaire | Logo et pied de page (mentions légales + RIB) repris automatiquement |
+
+40/40 npm test, console sans erreur.
+
+### 31.5 Reste à faire
+
+- **Écriture cloud des factures** : aujourd'hui l'état est local (comme
+  `savedQuotes`, § 23.3). `InvoiceService.emettre` appelle bien
+  `issue_invoice_v6` en mode cloud, mais la facture n'est pas encore
+  **créée** côté serveur — il manque l'insertion dans `invoices` /
+  `invoice_lines` et la relecture au chargement. Tant que ce n'est pas fait,
+  les garanties du § 30 ne s'appliquent pas en pratique.
+- Acompte / situation (`invoice_type`, `deducted_ttc` déjà prévus en base).
+- Suivi des règlements et avoirs.

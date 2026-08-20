@@ -4395,6 +4395,94 @@ function SystemDiagnosticPanel({ isOnline, sbUser, solutionsCount, materialsCoun
 // ═══════════════════════════════════════════════════════════════
 // BLOC 10 : UNIFIED QUOTE PERSISTENCE SERVICE (ANTI-FAUX SUCCÈS)
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// FACTURATION (2026-08-20, § 30) — service unique local / cloud
+// ═══════════════════════════════════════════════════════════════
+// Deux niveaux de garantie, volontairement différents et assumés :
+//   · Cloud  — le numéro est attribué par le serveur (issue_invoice_v6,
+//     verrou de ligne) et la facture est figée par trigger dès l'émission.
+//   · Local  — numérotation calculée sur place, rien n'est verrouillé. Le
+//     Mode Démo ne peut pas offrir de garantie légale, et prétendre le
+//     contraire serait pire que de l'annoncer.
+const InvoiceService = {
+    // Construit un BROUILLON à partir d'un devis. Le numéro reste vide : il
+    // n'est attribué qu'à l'émission, pour ne jamais laisser de trou dans la
+    // séquence si le brouillon est abandonné.
+    brouillonDepuisDevis: (devis, companyInfo) => {
+        const qd = devis.quoteData || {};
+        const tauxTva = devis.vatRate !== undefined ? devis.vatRate : 18;
+        const lignes = (qd.commercialItems || []).map((it, i) => ({
+            ordre: i + 1,
+            designation: it.label || it.name || 'Prestation',
+            unite: it.unit || 'u',
+            quantite: it.billedQty || 1,
+            prixUnitaireHT: it.sellingUnitHT || 0,
+            totalHT: it.sellingTotalHT || 0
+        }));
+        const totalHT = qd.netHTConsomme || 0;
+        const tva = qd.tvaConsomme !== undefined ? qd.tvaConsomme : totalHT * (tauxTva / 100);
+        return {
+            id: `inv_${Date.now()}`,
+            numero: null,
+            statut: 'draft',
+            type: 'standard',
+            devisId: devis.id,
+            devisNumero: devis.number,
+            clientName: devis.clientName,
+            projectRef: devis.projectRef,
+            dateCreation: new Date().toISOString(),
+            dateEmission: null,
+            tauxTva,
+            totalHT,
+            totalTva: tva,
+            totalTTC: totalHT + tva,
+            deduitTTC: 0,
+            netAPayerTTC: totalHT + tva,
+            montantRegle: 0,
+            lignes,
+            companyInfoSnapshot: { ...companyInfo },
+            quoteDataSnapshot: qd
+        };
+    },
+
+    // Numéro local, utilisé UNIQUEMENT hors cloud. Même forme que le serveur
+    // (FACT-AAAA-NNN) pour que les documents se ressemblent, mais sans la
+    // garantie d'atomicité qu'apporte le verrou de ligne PostgreSQL.
+    numeroLocalSuivant: (factures) => {
+        const annee = new Date().getFullYear();
+        const motif = new RegExp(`FACT-${annee}-(\\d+)`);
+        const max = (factures || []).reduce((m, f) => {
+            const t = String(f.numero || '').match(motif);
+            const n = t ? parseInt(t[1], 10) : 0;
+            return n > m ? n : m;
+        }, 0);
+        return `FACT-${annee}-${String(max + 1).padStart(3, '0')}`;
+    },
+
+    // Émission. En cloud, c'est le SERVEUR qui attribue le numéro et le
+    // renvoie — contrairement aux devis, où le numéro serveur était calculé
+    // puis jeté, laissant le client sur le sien (§ 30.2).
+    emettre: async ({ facture, factures, supabaseClient, sbUser, activeOrgId }) => {
+        const estLocal = !supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrgId;
+        if (estLocal) {
+            return {
+                numero: InvoiceService.numeroLocalSuivant(factures),
+                dateEmission: new Date().toISOString(),
+                garantieServeur: false
+            };
+        }
+        const { data, error } = await supabaseClient.rpc('issue_invoice_v6', {
+            p_invoice_id: facture.serverId
+        });
+        if (error) throw new Error(error.message || "Échec de l'émission de la facture.");
+        return {
+            numero: data.invoice_number,
+            dateEmission: data.issued_at,
+            garantieServeur: true
+        };
+    }
+};
+
 const QuoteService = {
     save: async ({ quote, supabaseClient, sbUser, activeOrgId, companyInfo, calcForm }) => {
         // 1. Mode Invité / Local
@@ -4896,6 +4984,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isSaveQuoteModalOpen, setIsSaveQuoteModalOpen] = useState(false);
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
+    const [viewingInvoice, setViewingInvoice] = useState(null);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -5495,6 +5584,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const updateProjects = (newProjects) => {
         setProjects(newProjects);
         LS.set('projects', newProjects, activeOrganizationId);
+    };
+
+    // ══ FACTURATION (2026-08-20, § 30) ══════════════════════════════════
+    // Même patron de stockage que clients/projets : local d'abord, org-scopé.
+    // Les garanties légales (numérotation atomique sans trou, immuabilité par
+    // trigger) vivent en base et ne s'appliquent donc qu'en mode cloud — en
+    // Mode Démo, la numérotation est locale et rien n'est verrouillé. La
+    // distinction est signalée à l'utilisateur dans la liste des factures.
+    const [invoices, setInvoices] = useState(() =>
+        donneesInitiales(LS.get('invoices', activeOrganizationId), []));
+    const updateInvoices = (next) => {
+        setInvoices(next);
+        LS.set('invoices', next, activeOrganizationId);
     };
 
     const [clientSearchQuery, setClientSearchQuery] = useState('');
@@ -8419,6 +8521,228 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
+    // ══ FACTURES (2026-08-20, § 30) ═══════════════════════════════════════
+    const emettreFacture = async (facture) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+        // Les mentions légales obligatoires d'une facture sont les mêmes que
+        // celles déjà exigées avant d'envoyer un devis : on réutilise le
+        // contrôle existant plutôt que d'en écrire un second qui pourrait
+        // diverger.
+        const manquants = getMissingLegalFields(companyInfo);
+        if (manquants.length > 0) {
+            showToast(`Complétez l'identité de l'entreprise avant d'émettre : ${manquants.join(', ')}`, "error");
+            setAccountSettingsTab('entreprise');
+            setIsCompanyModalOpen(true);
+            return;
+        }
+        try {
+            const res = await InvoiceService.emettre({
+                facture, factures: invoices, supabaseClient, sbUser, activeOrgId: activeOrganizationId
+            });
+            updateInvoices(invoices.map(f => f.id === facture.id
+                ? { ...f, numero: res.numero, statut: 'issued', dateEmission: res.dateEmission }
+                : f));
+            showToast(`✓ Facture ${res.numero} émise — elle ne peut plus être modifiée.`, "success");
+        } catch (err) {
+            showToast(`✕ Émission impossible : ${err.message}`, "error");
+        }
+    };
+
+    const renderInvoices = () => {
+        const cur = companyInfo.currency || 'FCFA';
+        const devisFacturables = savedQuotes.filter(q => !invoices.some(f => f.devisId === q.id));
+        const libelleStatut = {
+            draft: { texte: 'Brouillon', classe: 'bg-neutral-100 text-neutral-700 border-neutral-300' },
+            issued: { texte: 'Émise', classe: 'bg-blue-50 text-blue-800 border-blue-300' },
+            partially_paid: { texte: 'Partiellement réglée', classe: 'bg-amber-50 text-amber-800 border-amber-300' },
+            paid: { texte: 'Réglée', classe: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+            cancelled: { texte: 'Annulée', classe: 'bg-red-50 text-red-800 border-red-300' }
+        };
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+
+        return (
+            <div className="h-full min-h-0 overflow-y-auto custom-scroll space-y-5 pb-8">
+                {/* Le Mode Démo ne peut offrir aucune garantie légale : la
+                    numérotation y est locale et rien n'est verrouillé. Le dire
+                    plutôt que de laisser croire l'inverse. */}
+                {!estCloud && (
+                    <div className="app-card p-4 border-amber-300 bg-amber-50/60 flex items-start gap-3">
+                        <i className="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+                        <div className="text-xs text-amber-900">
+                            <p className="font-bold">Mode Démo — factures sans valeur légale</p>
+                            <p className="mt-0.5">
+                                La numérotation est calculée sur cet appareil et les factures émises
+                                restent modifiables. Connectez-vous à un compte pour que la numérotation
+                                soit garantie sans trou et les factures verrouillées à l'émission.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="app-card p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h2 className="text-lg font-bold text-neutral-800">Mes Factures</h2>
+                            <p className="text-xs text-neutral-500">
+                                {invoices.length} facture(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
+                            </p>
+                        </div>
+                    </div>
+
+                    {invoices.length === 0 ? (
+                        <div className="p-10 text-center border-2 border-dashed border-neutral-200 rounded-2xl">
+                            <i className="fa-solid fa-file-invoice-dollar text-3xl text-neutral-300 mb-3"></i>
+                            <p className="font-bold text-neutral-700 text-sm">Aucune facture pour le moment</p>
+                            <p className="text-xs text-neutral-500 mt-1">
+                                Créez une facture à partir d'un devis enregistré, ci-dessous.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="app-table-wrapper">
+                            <table className="app-table">
+                                <thead>
+                                    <tr>
+                                        <th className="app-th">N° Facture</th>
+                                        <th className="app-th">Client &amp; Chantier</th>
+                                        <th className="app-th">Statut</th>
+                                        <th className="app-th text-right">Total TTC</th>
+                                        <th className="app-th text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {invoices.map(f => {
+                                        const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                        return (
+                                            <tr key={f.id} className="hover:bg-neutral-50/60">
+                                                <td className="app-td font-bold text-brand-600 whitespace-nowrap">
+                                                    {f.numero || <span className="text-neutral-400 font-normal italic">— non émise —</span>}
+                                                    {f.devisNumero && (
+                                                        <span className="block text-[10px] text-neutral-400 font-normal">issue du devis {f.devisNumero}</span>
+                                                    )}
+                                                </td>
+                                                <td className="app-td">
+                                                    <span className="font-bold text-neutral-900">{f.clientName}</span>
+                                                    <span className="block text-[11px] text-neutral-500">{f.projectRef}</span>
+                                                </td>
+                                                <td className="app-td">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${st.classe}`}>{st.texte}</span>
+                                                </td>
+                                                <td className="app-td text-right font-bold text-neutral-900 whitespace-nowrap">
+                                                    {formatMoney(f.totalTTC, cur)}
+                                                </td>
+                                                <td className="app-td">
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        <button
+                                                            onClick={() => setViewingInvoice(f)}
+                                                            className="btn-icon text-neutral-500 hover:text-brand-600 hover:bg-brand-50"
+                                                            title="Voir la facture"
+                                                            aria-label={`Voir la facture ${f.numero || 'brouillon'}`}
+                                                        >
+                                                            <i className="fa-solid fa-eye"></i>
+                                                        </button>
+                                                        {f.statut === 'draft' && (
+                                                            <>
+                                                                <button
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    onClick={() => setConfirmDialog({
+                                                                        isOpen: true,
+                                                                        title: "Émettre la facture",
+                                                                        message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
+                                                                        confirmLabel: "Émettre",
+                                                                        onConfirm: () => { closeConfirm(); emettreFacture(f); }
+                                                                    })}
+                                                                    className="btn-secondary py-1 px-2.5 text-[11px] font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                                    aria-label={`Émettre la facture de ${f.clientName}`}
+                                                                >
+                                                                    <i className="fa-solid fa-paper-plane mr-1"></i> Émettre
+                                                                </button>
+                                                                <button
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    onClick={() => setConfirmDialog({
+                                                                        isOpen: true,
+                                                                        title: "Supprimer le brouillon",
+                                                                        message: `Supprimer ce brouillon de facture pour ${f.clientName} ?`,
+                                                                        isDanger: true,
+                                                                        onConfirm: () => {
+                                                                            updateInvoices(invoices.filter(x => x.id !== f.id));
+                                                                            closeConfirm();
+                                                                            showToast("Brouillon supprimé");
+                                                                        }
+                                                                    })}
+                                                                    className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50"
+                                                                    title="Supprimer le brouillon"
+                                                                    aria-label={`Supprimer le brouillon de ${f.clientName}`}
+                                                                >
+                                                                    <i className="fa-solid fa-trash"></i>
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {f.statut !== 'draft' && (
+                                                            <span
+                                                                className="text-[10px] text-neutral-400 px-1.5"
+                                                                title="Une facture émise est figée : correction par avoir uniquement."
+                                                            >
+                                                                <i className="fa-solid fa-lock"></i>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                <div className="app-card p-5">
+                    <h3 className="text-sm font-bold text-neutral-800 mb-1">Créer une facture depuis un devis</h3>
+                    <p className="text-xs text-neutral-500 mb-4">
+                        La facture reprend le client, le chantier, les lignes et le taux de TVA du devis.
+                        Elle est créée en brouillon : rien n'est définitif tant qu'elle n'est pas émise.
+                    </p>
+                    {devisFacturables.length === 0 ? (
+                        <p className="text-xs text-neutral-400 italic">
+                            {savedQuotes.length === 0
+                                ? "Aucun devis enregistré pour l'instant."
+                                : "Tous vos devis enregistrés ont déjà une facture."}
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
+                            {devisFacturables.map(q => (
+                                <div key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-neutral-200 bg-white">
+                                    <div className="min-w-0">
+                                        <span className="font-bold text-brand-600 text-xs mr-2">{q.number}</span>
+                                        <span className="font-bold text-neutral-900 text-sm">{q.clientName}</span>
+                                        <span className="block text-[11px] text-neutral-500">{q.projectRef}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <span className="font-bold text-neutral-800 text-sm">
+                                            {formatMoney(q.quoteData?.totalTTCConsomme, cur)}
+                                        </span>
+                                        <button
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            onClick={() => {
+                                                const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
+                                                updateInvoices([brouillon, ...invoices]);
+                                                showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
+                                            }}
+                                            className="btn-secondary py-1.5 px-3 text-xs font-bold text-brand-600 border-brand-200 hover:bg-brand-50"
+                                            aria-label={`Créer une facture depuis ${q.number}`}
+                                        >
+                                            <i className="fa-solid fa-file-invoice-dollar mr-1.5"></i> Créer la facture
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderSavedQuotes = () => {
         // 2026-08-20 — même règle que dans l'aperçu : les boutons qui ouvrent
         // directement l'étude de prix (coûts, coefficient, marge) n'existent que
@@ -9725,6 +10049,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" />
                     <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" />
                     <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" />
+                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Factures" />
                     <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" />
                     <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" />
                     {isPlatformAdmin && (<>
@@ -9773,6 +10098,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" collapsed />
                     <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" collapsed />
                     <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" collapsed />
+                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Factures" collapsed />
                     <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" collapsed />
                     <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" collapsed />
                 </nav>
@@ -9812,6 +10138,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis Enregistrés" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Factures" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catalogue Ouvrages" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <SidebarNavItem id="materials" icon="fa-database" label="Ressources & Prix" onClickExtra={() => setIsMobileDrawerOpen(false)} />
                         </nav>
@@ -9896,6 +10223,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <h1 className="text-2xl font-extrabold text-neutral-800 tracking-tight">
                                 {activeView === 'calculator' && 'Création & Chiffrage de Devis BTP'}
                                 {activeView === 'savedQuotes' && 'Devis Enregistrés & PDF Commercial'}
+                                {activeView === 'invoices' && 'Factures'}
                                 {activeView === 'recipes' && 'Catalogue des Ouvrages & Formules'}
                                 {activeView === 'materials' && 'Base des Ressources & Coûts'}
                                 {activeView === 'platformAdmin' && 'Administration de la Plateforme'}
@@ -9921,6 +10249,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             {activeView === 'projects' && renderProjects()}
                             {activeView === 'clients' && renderClients()}
                             {activeView === 'savedQuotes' && renderSavedQuotes()}
+                            {activeView === 'invoices' && renderInvoices()}
                             {activeView === 'recipes' && renderRecipes()}
                             {activeView === 'materials' && renderMaterials()}
                             {activeView === 'platformAdmin' && renderPlatformAdmin()}
@@ -11033,6 +11362,164 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 quote={viewingSavedQuote}
                 showToast={showToast}
             />
+
+            {/* ══ DOCUMENT FACTURE (2026-08-20, § 30) ═══════════════════════
+                Entre dans l'architecture documentaire du § 27.1 comme document
+                « destinataire = client » : il hérite donc du logo, du pied de
+                page et de la mention d'exonération déjà en place, sans les
+                redéfinir. Aucun coût d'achat ni marge n'y figure. */}
+            {viewingInvoice && (() => {
+                const cur = viewingInvoice.companyInfoSnapshot?.currency || companyInfo.currency;
+                const ci = viewingInvoice.companyInfoSnapshot || companyInfo;
+                const estBrouillon = viewingInvoice.statut === 'draft';
+                return (
+                <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
+                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-extrabold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">
+                                    {viewingInvoice.numero || 'BROUILLON'}
+                                </span>
+                                <div>
+                                    <h3 className="font-extrabold text-neutral-900 text-lg leading-tight">{viewingInvoice.clientName}</h3>
+                                    <p className="text-xs text-neutral-500">{viewingInvoice.projectRef}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {!estBrouillon && (
+                                    <button onClick={() => window.print()} className="btn-primary py-1.5 px-3.5 text-xs font-bold" aria-label="Imprimer la facture">
+                                        <i className="fa-solid fa-print"></i> Imprimer / PDF
+                                    </button>
+                                )}
+                                <button onClick={() => setViewingInvoice(null)} className="btn-icon w-8 h-8" aria-label="Fermer">
+                                    <i className="fa-solid fa-xmark text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                            {/* Un brouillon ne doit pas pouvoir être imprimé et
+                                confondu avec une facture réelle : il n'a pas de
+                                numéro légal. */}
+                            {estBrouillon && (
+                                <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
+                                    <i className="fa-solid fa-pen-ruler text-amber-600 mt-0.5"></i>
+                                    <div>
+                                        <p className="font-black text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
+                                        <p className="text-[11px] text-amber-800">
+                                            Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id={estBrouillon ? undefined : 'printArea'}>
+                                <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
+                                    <div>
+                                        {ci.logo && (
+                                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain mb-2" />
+                                        )}
+                                        <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
+                                        <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
+                                        <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
+                                        <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
+                                        <p className="text-[11px] text-neutral-400">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <h2 className="text-2xl font-black text-brand-600 uppercase tracking-tight">Facture</h2>
+                                        <p className="text-sm font-bold text-neutral-800 mt-1">
+                                            {viewingInvoice.numero ? `N° : ${viewingInvoice.numero}` : 'Brouillon (non numéroté)'}
+                                        </p>
+                                        <p className="text-xs text-neutral-500">
+                                            {viewingInvoice.dateEmission
+                                                ? `Émise le ${new Date(viewingInvoice.dateEmission).toLocaleDateString('fr-FR')}`
+                                                : 'Non émise'}
+                                        </p>
+                                        {viewingInvoice.devisNumero && (
+                                            <p className="text-[11px] text-neutral-400 mt-0.5">Devis d'origine : {viewingInvoice.devisNumero}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                                    <div>
+                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
+                                        <p className="font-extrabold text-neutral-900 text-base">{viewingInvoice.clientName}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
+                                        <p className="font-bold text-neutral-800">{viewingInvoice.projectRef}</p>
+                                    </div>
+                                </div>
+
+                                <table className="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                            <th className="p-3 rounded-l-lg">Désignation</th>
+                                            <th className="p-3 text-center">Quantité</th>
+                                            <th className="p-3 text-right">Prix Unitaire HT</th>
+                                            <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {(viewingInvoice.lignes || []).map((l, i) => (
+                                            <tr key={i}>
+                                                <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
+                                                <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                                                <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, cur)}</td>
+                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, cur)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <div className="flex justify-end pt-4 border-t border-neutral-200">
+                                    <div className="w-72 space-y-2 text-xs">
+                                        <div className="flex justify-between font-bold text-neutral-800 text-sm">
+                                            <span>Total HT :</span>
+                                            <span>{formatMoney(viewingInvoice.totalHT, cur)}</span>
+                                        </div>
+                                        {viewingInvoice.tauxTva === 0 ? (
+                                            <div className="text-neutral-500">
+                                                <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
+                                                {ci.vatExemptionNote && (
+                                                    <p className="text-[10px] text-neutral-400 mt-1 italic">{ci.vatExemptionNote}</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-between text-neutral-500">
+                                                <span>TVA ({viewingInvoice.tauxTva}%) :</span>
+                                                <span>+{formatMoney(viewingInvoice.totalTva, cur)}</span>
+                                            </div>
+                                        )}
+                                        {viewingInvoice.deduitTTC > 0 && (
+                                            <div className="flex justify-between text-neutral-500">
+                                                <span>Acomptes déjà facturés :</span>
+                                                <span>-{formatMoney(viewingInvoice.deduitTTC, cur)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between font-black text-brand-600 text-base border-t-2 border-neutral-900 pt-2">
+                                            <span>NET À PAYER :</span>
+                                            <span>{formatMoney(viewingInvoice.netAPayerTTC, cur)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {ci.pdfFooterNote && (
+                                    <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                        {ci.pdfFooterNote}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                            <button onClick={() => setViewingInvoice(null)} className="btn-secondary">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+                );
+            })()}
 
             {viewingSavedQuote && (() => {
                 // B3 (2026-08-18) — Un devis ne quitte l'app (impression, partage,
