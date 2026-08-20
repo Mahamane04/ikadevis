@@ -1864,3 +1864,62 @@ et un bandeau annonce « Brouillon — pas encore une facture ».
   les garanties du § 30 ne s'appliquent pas en pratique.
 - Acompte / situation (`invoice_type`, `deducted_ttc` déjà prévus en base).
 - Suivi des règlements et avoirs.
+
+---
+
+## 📥 32. Bouton « Télécharger le PDF » (2026-08-20)
+
+Jusqu'ici, obtenir un PDF passait par « Imprimer » → boîte de dialogue du
+navigateur → « Enregistrer en PDF » : trois étapes, et un résultat qui dépend du
+navigateur de l'utilisateur. Le bouton direct manquait.
+
+### 32.1 Chargement paresseux, et pourquoi
+
+jspdf (410 Ko) + html2canvas (194 Ko) = **604 Ko**, soit **plus que l'application
+entière** (434 Ko). Les charger au démarrage aurait ralenti tous les écrans pour une
+fonction utilisée sur deux. `chargerLibsPdf()` (`js/utils.js`) les injecte au premier
+clic depuis `vendor/` (déjà dans la liste blanche de `scripts/build-dist.mjs`).
+
+Vérifié en direct : `{jspdf: false, html2canvas: false}` au chargement de la page,
+`{jspdf: true, html2canvas: true}` après le premier clic.
+
+### 32.2 Le piège de la largeur de capture
+
+html2canvas capture à la **largeur d'affichage**, pas à une largeur de document. Un
+`#printArea` affiché à 289 px sur un téléphone donnait un PDF comprimé ; un panneau
+navigateur replié (viewport 0×0) a produit un canvas de **132 px de large** — un PDF
+valide, mais une bande illisible. Un fichier qui s'ouvre n'est pas un fichier correct :
+c'est la mesure du canvas qui l'a révélé, pas l'ouverture du PDF.
+
+Correctif : largeur forcée à **800 px** (~A4 à 96 dpi) dans le `onclone` de html2canvas,
+donc **sur le clone hors écran** — rien ne bouge à l'écran pour l'utilisateur. Les
+ancêtres du clone sont dé-contraints (`overflow`, `max-height`, `height`) car la modale
+défilante tronquait le document à sa seule partie visible.
+
+| Écran | `#printArea` affiché | Canvas produit |
+|---|---|---|
+| Mobile 375 px | 289 px | **1600×1984** |
+| Desktop 898 px | 812 px | **1600×1984** |
+
+Sortie identique : le PDF ne dépend plus de l'appareil.
+
+### 32.3 Vérifié en direct
+
+- Bouton réel cliqué, toast « PDF téléchargé », en-tête `%PDF-` présent.
+- Contenu non tronqué (`scrollHeight` = `offsetHeight`).
+- Découpage multi-pages exercé sur un document de 710 mm : **3 pages attendues,
+  3 obtenues**.
+- `npm test` : 40/40, étalons A–G conformes.
+
+### 32.4 « Imprimer » est conservé, volontairement
+
+html2canvas **rastérise** : le PDF téléchargé est une image, son texte n'est pas
+sélectionnable et le fichier est plus lourd (≈ 160 Ko pour une facture d'une page,
+1,4 Mo pour trois pages denses). L'impression navigateur produit un PDF **vectoriel**,
+plus léger et au texte sélectionnable. Les deux voies gardent leur intérêt : le bouton
+pour la rapidité, « Imprimer » pour la qualité. C'est un compromis assumé, pas un oubli.
+
+### 32.5 Reste à faire
+
+- PDF vectoriel natif (texte sélectionnable) sans passer par la rastérisation — chantier
+  nettement plus lourd : reconstruire chaque document en primitives jspdf.
