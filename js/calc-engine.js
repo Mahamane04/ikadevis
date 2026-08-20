@@ -657,7 +657,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         const hasKnownCost = parseFloat(item.costUnit) > 0;
         const debourse = hasKnownCost ? Math.round(parseFloat(item.costUnit) * qty) : null;
         const overheadRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.overheadRate || 5)));
-        const vatRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.vatRate || 18)));
+        const vatRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.vatRate !== undefined ? quoteFinancials.vatRate : 18)));
         const fraisGen = hasKnownCost ? Math.round(debourse * (overheadRate / 100)) : null;
         const revient = hasKnownCost ? debourse + fraisGen : null;
         const marge = hasKnownCost ? totalHT - revient : null;
@@ -698,7 +698,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         margin: quoteFinancials.margin || 30,
         marginType: quoteFinancials.marginType || 'reel',
         overheadRate: quoteFinancials.overheadRate || 5,
-        vatRate: quoteFinancials.vatRate || 18,
+        vatRate: quoteFinancials.vatRate !== undefined ? quoteFinancials.vatRate : 18,
         discountRate: quoteFinancials.discountRate || 0,
         includeInstall: true,
         customVarValues: {}
@@ -839,7 +839,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
 
     const discountRate = Math.min(100, Math.max(0, parseFloat(calcForm.discountRate || quoteFinancials.discountRate || 0)));
     const netHTConsomme = prixVenteConsommeHT * (1 - (discountRate / 100));
-    const vatRate = Math.min(50, Math.max(0, parseFloat(calcForm.vatRate !== undefined ? calcForm.vatRate : (quoteFinancials.vatRate || 18))));
+    const vatRate = Math.min(50, Math.max(0, parseFloat(calcForm.vatRate !== undefined ? calcForm.vatRate : (quoteFinancials.vatRate !== undefined ? quoteFinancials.vatRate : 18))));
     const tvaConsomme = netHTConsomme * (vatRate / 100);
     const totalTTCConsomme = netHTConsomme + tvaConsomme;
     const margeValeurConsomme = netHTConsomme - totalRevientConsomme;
@@ -1061,7 +1061,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         tvaConsomme: calc.totalTVA,
         totalTTCConsomme: calc.totalTTC,
         commercialItems: calc.commercialItems || [],
-        vatRate: calc.vatRate || 18
+        vatRate: calc.vatRate !== undefined ? calc.vatRate : 18
     };
 
     return {
@@ -1071,7 +1071,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         clientName: hybridQuote.clientName?.trim() || 'Client Passage',
         projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
         notes: hybridQuote.notes || '',
-        vatRate: calc.vatRate || 18,
+        vatRate: calc.vatRate !== undefined ? calc.vatRate : 18,
         isMultiLot: true,
         status: hybridQuote.status || 'draft',
         quoteData,
@@ -1096,7 +1096,7 @@ function adaptSavedQuoteToHybrid(savedQuote, solutions, materials, labor, recipe
             clientName: savedQuote.clientName,
             projectRef: savedQuote.projectRef,
             status: savedQuote.status || 'draft',
-            vatRate: savedQuote.vatRate || 18,
+            vatRate: savedQuote.vatRate !== undefined ? savedQuote.vatRate : 18,
             overheadRate: 5,
             margin: 30,
             marginType: 'reel',
@@ -1126,7 +1126,7 @@ function adaptSavedQuoteToHybrid(savedQuote, solutions, materials, labor, recipe
         clientName: savedQuote.clientName,
         projectRef: savedQuote.projectRef,
         status: savedQuote.status || 'draft',
-        vatRate: savedQuote.vatRate || 18,
+        vatRate: savedQuote.vatRate !== undefined ? savedQuote.vatRate : 18,
         overheadRate: 5,
         margin: 30,
         marginType: 'reel',

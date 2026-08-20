@@ -1658,3 +1658,75 @@ coefficient irrationnel), ligne unique, vente à perte, cinq cas dégénérés
 **Facturation** (§ 27.5 point 2) — chantier à part entière : numérotation
 distincte des devis, mentions légales, statut de paiement. Proposition dédiée
 à faire avant de coder.
+
+---
+
+## 🧮 29. TVA configurable & exonération (2026-08-20)
+
+Prérequis de la facturation (§ 27.5 point 2). Demande de l'utilisateur :
+« me donner le pouvoir de l'ajouter ou pas, et aussi dans le setting choisir
+les règles qui peuvent varier 18, 10 ou 20 % ».
+
+### 29.1 Constat : la TVA n'était modifiable nulle part
+
+Dans l'éditeur de devis principal (l'écran réellement utilisé),
+`hybridQuote.vatRate` était **lu** avec un repli `|| 18`, mais **aucun champ
+ne permettait de le changer** — le seul champ TVA vivait dans l'ancien
+calculateur V5, hors du parcours courant. Un devis exonéré ou à taux réduit
+était donc impossible à établir.
+
+### 29.2 Livré
+
+- **Sélecteur de TVA là où elle s'affiche** — dans la barre de totaux du
+  devis, à l'endroit où le montant était déjà présenté. Options « 20% / 18% /
+  10% / Exonéré », alimentées par les réglages.
+- **Taux réglables** dans Paramètres → Documents & PDF : ajout, retrait, avec
+  garde-fou (impossible de descendre à zéro taux, le sélecteur n'aurait plus
+  d'option).
+- **Mention d'exonération** paramétrable, imprimée sur le document client
+  lorsque le taux retenu est 0 % — à la place d'une ligne « TVA (0%) : +0 »
+  qui n'informe de rien.
+- Colonnes `company_settings.vat_rates` (jsonb) et `vat_exemption_note`
+  (`v6_vat_settings.sql`). **Appliquées sur staging.** Production non modifiée.
+
+> **Robustesse du sélecteur** : le taux effectivement porté par un devis est
+> toujours ajouté à la liste des options, même s'il a été retiré des réglages
+> depuis. Sans ça, le `<select>` afficherait une valeur absente de ses options
+> et retomberait silencieusement sur la première — **changeant le total d'un
+> devis existant à sa simple ouverture**.
+
+### 29.3 Deux régressions introduites par ce changement, trouvées et corrigées
+
+**a) Le zéro traité comme absent.** Première vérification en direct : le
+montant tombait bien à 0, mais l'étiquette affichait encore « TVA (18%) ».
+Cause : `vatRate || 18` — un taux à **0 est falsy**, donc silencieusement
+remplacé par 18. Le motif était présent **9 fois** (7 dans `calc-engine.js`,
+2 dans `index_jsx.js`) ; il ne se voyait pas tant que 0 % n'était pas une
+valeur possible. Tous remplacés par un test d'absence explicite
+(`!== undefined ? … : 18`). Vérifié après correction : « TVA : Exonéré » suivi
+de la mention, plus aucune trace du 18 %.
+
+**b) Le banc d'essai financier.** `readFinancials` (harness) lisait le montant
+de TVA sur la **ligne suivant** le libellé ; le sélecteur s'intercalant, il
+lisait « 18% » au lieu du montant → 39/40. L'assertion testée
+(« TVA affichée ≈ TTC − NetHT ») est légitime et **reste inchangée** : seule
+l'extraction a été rendue robuste (recherche du premier montant en devise
+après le libellé, au lieu d'un décalage d'une ligne). 40/40 rétabli.
+
+### 29.4 Vérifié en direct
+
+| Contrôle | Résultat |
+| :--- | :--- |
+| Sélecteur présent avec les taux réglés | 18% / 10% / Exonéré |
+| Ajout d'un taux 20 % depuis les réglages | `[18,10,0,20]`, remonte dans le devis |
+| Net HT stable quel que soit le taux | 109 706 dans les 3 cas |
+| TTC à 18 % | 129 453 (= 109 706 × 1,18) |
+| TTC à 10 % | 120 677 (= 109 706 × 1,10) |
+| TTC exonéré | 109 706 = Net HT |
+| Document client exonéré | « TVA : Exonéré » + mention légale, aucun « 18% » |
+
+### 29.5 Suite
+
+Le socle de facturation (tables `invoices`, numérotation serveur `FACT-AAAA-NNN`
+renvoyée au client, conversion depuis un devis accepté, immuabilité à
+l'émission) reste à faire — c'est le bloc suivant.

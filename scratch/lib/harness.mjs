@@ -59,12 +59,28 @@ export async function readFinancials(page) {
             const i = lines.findIndex((l) => l === label || l.startsWith(label));
             return i === -1 ? null : lines[i + 1];
         };
+        // 2026-08-20 — Le taux de TVA est devenu un <select> dans la barre de
+        // totaux (il n'était modifiable nulle part dans l'éditeur auparavant).
+        // Son option sélectionnée s'intercale donc entre le libellé « TVA » et
+        // le montant, et `after('TVA')` renvoyait « 18% » au lieu du montant.
+        // On cherche le premier montant en devise après le libellé, au lieu de
+        // supposer qu'il est exactement sur la ligne suivante — l'assertion
+        // testée est inchangée, seule l'extraction devient robuste à l'ajout
+        // d'un contrôle dans ce bloc.
+        const amountAfter = (label) => {
+            const i = lines.findIndex((l) => l === label || l.startsWith(label));
+            if (i === -1) return null;
+            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                if (/FCFA|€|\$/.test(lines[j])) return lines[j];
+            }
+            return null;
+        };
         return {
             debourseSecRaw: after('DÉBOURSÉ SEC'),
             coeffKRaw: after('COEFF K'),
             totalNetHtRaw: after('TOTAL NET HT'),
             margeRaw: after('MARGE RÉELLE'),
-            tvaRaw: after('TVA'),
+            tvaRaw: amountAfter('TVA'),
             totalTtcRaw: after('TOTAL TTC'),
         };
     }).then((raw) => ({

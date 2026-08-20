@@ -2746,6 +2746,8 @@ function QuoteTotalsBar({
     quote,
     onSaveQuote,
     onPreviewQuote,
+    onChangeVatRate,
+    vatRates = [18],
     isReadOnlyDueToDowngrade,
     currency = 'FCFA'
 }) {
@@ -2803,9 +2805,35 @@ function QuoteTotalsBar({
                         </span>
                     </div>
 
+                    {/* 2026-08-20 — La TVA était AFFICHÉE ici mais nulle part modifiable
+                        dans l'éditeur principal : `hybridQuote.vatRate` était lu avec un
+                        repli `|| 18` sans qu'aucun champ ne permette d'en changer (le seul
+                        champ TVA vivait dans l'ancien calculateur V5). Un devis exonéré ou
+                        à taux réduit était donc impossible à établir. Le taux se choisit
+                        maintenant là où il s'affiche, parmi les taux réglés dans
+                        Paramètres → Documents & PDF. */}
                     <div className="hidden md:block pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">TVA ({quote.vatRate || 18}%)</span>
-                        <span className="font-medium text-neutral-600 text-sm">+{formatMoney(totalTVA, currency)}</span>
+                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">TVA</span>
+                        {onChangeVatRate && !isReadOnlyDueToDowngrade ? (
+                            <div className="flex items-baseline gap-1.5">
+                                <select
+                                    value={quote.vatRate !== undefined ? quote.vatRate : 18}
+                                    onChange={(e) => onChangeVatRate(parseFloat(e.target.value))}
+                                    className="text-xs font-bold text-neutral-700 bg-transparent border border-neutral-200 rounded-md px-1.5 py-0.5 hover:bg-neutral-50 focus:border-brand-500 outline-none cursor-pointer"
+                                    aria-label="Taux de TVA du devis"
+                                    title="Taux de TVA appliqué à ce devis"
+                                >
+                                    {vatRates.map(r => (
+                                        <option key={r} value={r}>{r === 0 ? 'Exonéré' : `${r}%`}</option>
+                                    ))}
+                                </select>
+                                <span className="font-medium text-neutral-600 text-sm">+{formatMoney(totalTVA, currency)}</span>
+                            </div>
+                        ) : (
+                            <span className="font-medium text-neutral-600 text-sm">
+                                {(quote.vatRate !== undefined ? quote.vatRate : 18) === 0 ? 'Exonéré' : `${quote.vatRate !== undefined ? quote.vatRate : 18}% `}+{formatMoney(totalTVA, currency)}
+                            </span>
+                        )}
                     </div>
 
                     <div className="pl-3 border-l-2 border-neutral-900">
@@ -2870,6 +2898,19 @@ function QuoteWorkspace({
     const [activeLotIndex, setActiveLotIndex] = useState(0);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
+    // 2026-08-20 — Taux de TVA proposés dans le devis, réglés par l'utilisateur
+    // (Paramètres → Documents & PDF). Le taux effectivement porté par le devis
+    // est toujours ajouté à la liste, même s'il a été retiré des réglages
+    // depuis : sans ça le <select> afficherait une valeur absente de ses
+    // options et retomberait silencieusement sur la première, changeant le
+    // total d'un devis existant à la simple ouverture.
+    const vatRatesDisponibles = (() => {
+        const regles = Array.isArray(companyInfo.vatRates) && companyInfo.vatRates.length
+            ? companyInfo.vatRates.map(Number).filter(n => Number.isFinite(n) && n >= 0 && n <= 100)
+            : [18, 10, 0];
+        const courant = hybridQuote.vatRate !== undefined ? Number(hybridQuote.vatRate) : 18;
+        return [...new Set([...regles, courant])].sort((a, b) => b - a);
+    })();
     const [inspectorItemIndex, setInspectorItemIndex] = useState(null);
     const [deletedItemUndo, setDeletedItemUndo] = useState(null);
     const [autosaveTime, setAutosaveTime] = useState(null);
@@ -3033,7 +3074,7 @@ function QuoteWorkspace({
                 margin: hybridQuote.margin || 30,
                 marginType: hybridQuote.marginType || 'reel',
                 overheadRate: hybridQuote.overheadRate || 5,
-                vatRate: hybridQuote.vatRate || 18,
+                vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
                 discountRate: hybridQuote.discountRate || 0,
                 includeInstall: true,
                 customVarValues: {}
@@ -3063,7 +3104,7 @@ function QuoteWorkspace({
                 margin: hybridQuote.margin || 30,
                 marginType: hybridQuote.marginType || 'reel',
                 overheadRate: hybridQuote.overheadRate || 5,
-                vatRate: hybridQuote.vatRate || 18,
+                vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
                 discountRate: hybridQuote.discountRate || 0,
                 includeInstall: true,
                 customVarValues: {}
@@ -3368,6 +3409,8 @@ function QuoteWorkspace({
                 saveQuoteError={saveQuoteError}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
+                onChangeVatRate={(taux) => { pushState(); handleUpdateQuote({ vatRate: taux }); }}
+                vatRates={vatRatesDisponibles}
                 isReadOnlyDueToDowngrade={isReadOnlyDueToDowngrade}
                 currency={companyInfo.currency}
             />
@@ -4720,6 +4763,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // (déjà dans companyInfo.logo, appliquée en direct comme le reste du
     // formulaire entreprise).
     const [logoProcessing, setLogoProcessing] = useState(false);
+    const [nouveauTauxTva, setNouveauTauxTva] = useState('');
     const [logoError, setLogoError] = useState(null);
     // B3 (2026-08-18) — Cette identité n'a plus vocation à être écrite dans un
     // vrai devis : un compte réel démarre avec des champs légaux VIDES (voir
@@ -4746,7 +4790,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         ],
         quoteValidity: "30 jours à compter de la date d'émission.",
         internalDocRoles: ['admin'],
-        clientQuoteTemplate: 'synthese'
+        clientQuoteTemplate: 'synthese',
+        vatRates: [18, 10, 0],
+        vatExemptionNote: ''
     };
     const defaultPaymentSchedule = [
         { label: 'Acompte à la signature et au démarrage', pct: 40 },
@@ -4768,7 +4814,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // Gabarit du devis client par défaut : 'synthese' (une ligne par ouvrage,
         // comportement historique) ou 'detaille' (chaque fourniture et
         // main-d'œuvre, au prix de vente).
-        clientQuoteTemplate: 'synthese'
+        clientQuoteTemplate: 'synthese',
+        // Taux de TVA proposés dans le devis. 0 = exonéré ; la mention légale
+        // correspondante s'imprime alors sur le document client.
+        vatRates: [18, 10, 0],
+        vatExemptionNote: ''
     };
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
     const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
@@ -5638,7 +5688,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         logo: c.logo || null,
         pdf_footer_note: c.pdfFooterNote || null,
         internal_doc_roles: Array.isArray(c.internalDocRoles) ? c.internalDocRoles : null,
-        client_quote_template: c.clientQuoteTemplate || null
+        client_quote_template: c.clientQuoteTemplate || null,
+        vat_rates: Array.isArray(c.vatRates) ? c.vatRates : null,
+        vat_exemption_note: c.vatExemptionNote || null
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
@@ -5656,7 +5708,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // paymentSchedule. Un tableau vide est une valeur légitime (personne
         // hormis owner), à ne pas confondre avec « pas encore réglé ».
         internalDocRoles: Array.isArray(r.internal_doc_roles) ? r.internal_doc_roles : ['admin'],
-        clientQuoteTemplate: r.client_quote_template || 'synthese'
+        clientQuoteTemplate: r.client_quote_template || 'synthese',
+        vatRates: (Array.isArray(r.vat_rates) && r.vat_rates.length) ? r.vat_rates : [18, 10, 0],
+        vatExemptionNote: r.vat_exemption_note || ''
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
@@ -10245,6 +10299,82 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </p>
                                 </div>
 
+                                {/* 2026-08-20 — Taux de TVA proposés dans le devis. Demandé par
+                                    l'utilisateur : pouvoir appliquer la TVA ou non, et régler les
+                                    taux (18, 10, 20…). 0 % = exonération, avec la mention légale
+                                    imprimée sur le document client. */}
+                                <div className="pt-4 border-t border-neutral-100">
+                                    <label className="app-label">Taux de TVA proposés</label>
+                                    <p className="text-[11px] text-neutral-500 mb-3">
+                                        Ces taux apparaissent dans le sélecteur TVA du devis. Incluez 0
+                                        pour pouvoir établir un devis exonéré.
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        {(companyInfo.vatRates || [18, 10, 0]).slice().sort((a, b) => b - a).map(taux => (
+                                            <span key={taux} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-brand-50 border border-brand-200 text-xs font-bold text-brand-700">
+                                                {taux === 0 ? 'Exonéré (0%)' : `${taux}%`}
+                                                {!isReadOnlyDueToDowngrade && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const reste = (companyInfo.vatRates || [18, 10, 0]).filter(t => t !== taux);
+                                                            // Ne jamais tomber à zéro taux : le sélecteur du devis
+                                                            // n'aurait plus aucune option.
+                                                            if (reste.length === 0) { showToast("Gardez au moins un taux de TVA.", "error"); return; }
+                                                            updateCompanyInfo({ ...companyInfo, vatRates: reste });
+                                                        }}
+                                                        className="w-4 h-4 rounded-full hover:bg-brand-200 flex items-center justify-center text-brand-600"
+                                                        aria-label={`Retirer le taux ${taux}%`}
+                                                    >
+                                                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                                                    </button>
+                                                )}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    {!isReadOnlyDueToDowngrade && (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number" min="0" max="100" step="0.1"
+                                                className="app-input font-bold w-28"
+                                                placeholder="Ex : 20"
+                                                value={nouveauTauxTva}
+                                                onChange={e => setNouveauTauxTva(e.target.value)}
+                                                aria-label="Nouveau taux de TVA"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-secondary text-xs py-2 px-3"
+                                                onClick={() => {
+                                                    const t = parseFloat(nouveauTauxTva);
+                                                    if (!Number.isFinite(t) || t < 0 || t > 100) { showToast("Taux invalide (0 à 100).", "error"); return; }
+                                                    const actuels = companyInfo.vatRates || [18, 10, 0];
+                                                    if (actuels.includes(t)) { showToast(`Le taux ${t}% est déjà proposé.`, "error"); return; }
+                                                    updateCompanyInfo({ ...companyInfo, vatRates: [...actuels, t] });
+                                                    setNouveauTauxTva('');
+                                                }}
+                                            >
+                                                <i className="fa-solid fa-plus mr-1.5"></i> Ajouter
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="mt-3">
+                                        <label htmlFor="vat_exemption_note" className="app-label">Mention d'exonération (si TVA à 0 %)</label>
+                                        <input
+                                            id="vat_exemption_note"
+                                            type="text"
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            className="app-input font-medium"
+                                            value={companyInfo.vatExemptionNote || ''}
+                                            onChange={e => updateCompanyInfo({ ...companyInfo, vatExemptionNote: e.target.value })}
+                                            placeholder="Ex : Exonéré de TVA — marché financé sur ressources extérieures"
+                                        />
+                                        <p className="text-[11px] text-neutral-400 mt-1.5">
+                                            Imprimée sur le devis lorsque le taux retenu est 0 %.
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* 2026-08-20 — Gabarit par défaut du devis client. Modifiable
                                     ponctuellement depuis l'aperçu sans toucher à ce réglage. */}
                                 <div className="pt-4 border-t border-neutral-100">
@@ -11261,10 +11391,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <span>Net HT Client :</span>
                                                 <span>{formatMoney(viewingSavedQuote.quoteData?.netHTConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
                                             </div>
-                                            <div className="flex justify-between text-neutral-500">
-                                                <span>TVA ({viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18}%) :</span>
-                                                <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                            </div>
+                                            {/* 2026-08-20 — Un devis exonéré doit porter la mention
+                                                légale correspondante, pas une ligne « TVA (0%) : +0 »
+                                                qui n'informe de rien. */}
+                                            {(viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18) === 0 ? (
+                                                <div className="text-neutral-500">
+                                                    <div className="flex justify-between">
+                                                        <span>TVA :</span>
+                                                        <span className="font-bold">Exonéré</span>
+                                                    </div>
+                                                    {(viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote) && (
+                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">
+                                                            {viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-between text-neutral-500">
+                                                    <span>TVA ({viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18}%) :</span>
+                                                    <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between font-black text-brand-600 text-base border-t-2 border-neutral-900 pt-2">
                                                 <span>TOTAL TTC :</span>
                                                 <span>{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
