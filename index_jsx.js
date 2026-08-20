@@ -2528,6 +2528,14 @@ function WorkItemInspector({
                                                     const offcut = totalPurchased - d.billedQty;
                                                     return { count: d.packsNeeded, unitLabel: mat.unitBuy, offcut: offcut > 0.01 ? offcut : 0 };
                                                 })() : null;
+                                                // Gestion de stock, Phase 1 (2026-08-20) — informatif seulement, jamais
+                                                // bloquant : un devis peut toujours être créé/enregistré même si le
+                                                // stock déclaré est insuffisant. N'apparaît que pour une matière dont
+                                                // le stock est effectivement suivi (stockQty non vide) ; laissée vide,
+                                                // aucun avertissement n'est jamais montré.
+                                                const stockWarning = (mat && mat.stockQty !== null && mat.stockQty !== undefined && d.billedQty > mat.stockQty)
+                                                    ? { available: mat.stockQty }
+                                                    : null;
                                                 return (
                                                 <tr key={i} className="hover:bg-neutral-50">
                                                     <td className="p-2.5 font-bold text-neutral-800">
@@ -2539,6 +2547,12 @@ function WorkItemInspector({
                                                                 {packInfo.offcut > 0 && (
                                                                     <span className="text-amber-600"> · chute ≈ {packInfo.offcut.toFixed(2)} {d.unit}</span>
                                                                 )}
+                                                            </div>
+                                                        )}
+                                                        {stockWarning && (
+                                                            <div className="font-bold text-[10px] text-red-600 mt-0.5" title="Le stock déclaré ne couvre pas ce devis — informatif, n'empêche pas l'enregistrement.">
+                                                                <i className="fa-solid fa-triangle-exclamation mr-1"></i>
+                                                                Stock insuffisant : {stockWarning.available} {d.unit} disponible(s)
                                                             </div>
                                                         )}
                                                     </td>
@@ -5478,20 +5492,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // (snake_case). Remplace le blob JSON `user_data` (V5, table supprimée de la
     // production le 2026-08-16) — voir PROJECT_MASTER_TRACKER.md § 16.
     // ⚠️ materials porte des champs locaux sans colonne V6 (reference, brand,
-    // supplier, stock, purchaseStep) : ils sont conservés en mémoire/local mais
-    // ne survivent PAS à un aller-retour cloud tant que le schéma n'est pas
+    // supplier, purchaseStep) : ils sont conservés en mémoire/local mais ne
+    // survivent PAS à un aller-retour cloud tant que le schéma n'est pas
     // étendu — limitation connue, documentée, hors périmètre de ce correctif.
+    // stockQty en est sorti (2026-08-20, gestion de stock Phase 1) : colonne
+    // materials.stock_qty ajoutée par la migration v6_material_stock.sql.
+    // NULL = matière non suivie (jamais d'avertissement) ; distinct de 0
+    // (suivie, stock épuisé) — d'où le test explicite plutôt qu'un `|| 0`
+    // qui confondrait les deux.
     const mapMaterialToDb = (m, orgId) => ({
         id: m.id, organization_id: orgId, name: m.name, category: m.category || 'Divers',
         unit_buy: m.unitBuy || 'Unité', unit_size: parseFloat(m.unitSize) || 1, unit_calc: m.unitCalc || 'u',
         price_buy: parseFloat(m.priceBuy) || 0, price_calc: parseFloat(m.priceCalc) || 0,
         waste: parseFloat(m.waste) || 0, yield_rate: parseFloat(m.yieldRate) || 0,
-        purchase_mode: m.purchaseMode || 'pack'
+        purchase_mode: m.purchaseMode || 'pack',
+        stock_qty: (m.stockQty === null || m.stockQty === undefined || m.stockQty === '') ? null : parseFloat(m.stockQty)
     });
     const mapMaterialFromDb = (r) => ({
         id: r.id, name: r.name, category: r.category, unitBuy: r.unit_buy, unitSize: r.unit_size,
         unitCalc: r.unit_calc, priceBuy: r.price_buy, priceCalc: r.price_calc, waste: r.waste,
-        yieldRate: r.yield_rate, purchaseMode: r.purchase_mode
+        yieldRate: r.yield_rate, purchaseMode: r.purchase_mode,
+        stockQty: (r.stock_qty === null || r.stock_qty === undefined) ? null : parseFloat(r.stock_qty)
     });
     const mapLaborToDb = (l, orgId) => ({
         id: l.id, organization_id: orgId, name: l.name, calc_mode: l.calcMode || 'surface',
@@ -8835,7 +8856,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             e.preventDefault();
             if (isReadOnlyDueToDowngrade) return;
             const p = (parseFloat(matForm.priceBuy) || 0) / (parseFloat(matForm.unitSize) || 1);
-            const nm = { ...matForm, priceCalc: p, waste: parseFloat(matForm.waste) || 0, yieldRate: parseFloat(matForm.yieldRate) || 0 };
+            const stockQtyRaw = matForm.stockQty;
+            const stockQty = (stockQtyRaw === '' || stockQtyRaw === undefined || stockQtyRaw === null) ? null : (parseFloat(stockQtyRaw) || 0);
+            const nm = { ...matForm, priceCalc: p, waste: parseFloat(matForm.waste) || 0, yieldRate: parseFloat(matForm.yieldRate) || 0, stockQty };
             const previousMat = materials.find(m => m.id === nm.id);
             updateMaterials(previousMat ? materials.map(m => m.id === nm.id ? nm : m) : [...materials, nm]);
             setSelectedMaterialId(nm.id);
@@ -9170,6 +9193,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             )}
                                         </div>
 
+                                        {/* Gestion de stock, Phase 1 (2026-08-20, demandé par l'utilisateur) —
+                                            suivi manuel uniquement : jamais décrémenté par un devis (brouillon,
+                                            révision non retenue...), seulement par une saisie volontaire ici.
+                                            Vide = matière non suivie, aucun avertissement affiché nulle part. */}
+                                        <div className="bg-neutral-50/70 border border-neutral-200 rounded-2xl p-4">
+                                            <label className="app-label">Quantité en Stock (optionnel)</label>
+                                            <div className="relative">
+                                                <input
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    type="number" step="0.01" min="0"
+                                                    className="app-input font-bold pr-14"
+                                                    value={matForm.stockQty ?? ''}
+                                                    onChange={e => setMatForm({ ...matForm, stockQty: e.target.value })}
+                                                    placeholder="Laisser vide si non suivi"
+                                                />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                            </div>
+                                            <p className="text-[11px] text-neutral-400 mt-1.5">
+                                                Suivi manuel : un devis ne modifie jamais cette valeur, même
+                                                enregistré. Ajustez-la vous-même à chaque réception ou sortie réelle.
+                                            </p>
+                                        </div>
+
                                         {/* Contrôle immédiat : le coût unitaire net est ce que les
                                             formules de recette consomment (priceCalc = prix / contenu).
                                             L'afficher en direct rend visible une saisie incohérente
@@ -9422,12 +9468,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <span className="text-neutral-400 block text-[10px] uppercase font-bold">Taux de perte</span>
                                         <span className="font-bold text-neutral-800">{selectedItem.waste > 0 ? `${selectedItem.waste}%` : 'Aucune'}</span>
                                     </div>
-                                    <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2">
+                                    <div className={`bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 ${(selectedItem.stockQty !== null && selectedItem.stockQty !== undefined) ? '' : 'col-span-2'}`}>
                                         <span className="text-neutral-400 block text-[10px] uppercase font-bold">Stratégie d'Achat BTP</span>
                                         <span className="font-bold text-neutral-800">
                                             {selectedItem.purchaseMode === 'real' ? 'Quantité Réelle Exacte' : selectedItem.purchaseMode === 'step' ? `Pas Commercial Ajustable (${selectedItem.purchaseStep || 0.5})` : 'Conditionnement Entier'}
                                         </span>
                                     </div>
+                                    {(selectedItem.stockQty !== null && selectedItem.stockQty !== undefined) && (
+                                        <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/70">
+                                            <span className="text-emerald-700/70 block text-[10px] uppercase font-bold">Stock Actuel</span>
+                                            <span className="font-extrabold text-emerald-800 text-base">{selectedItem.stockQty} {selectedItem.unitCalc}</span>
+                                            <p className="text-[11px] text-emerald-700/60 mt-0.5">Suivi manuel</p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-4">

@@ -1341,3 +1341,54 @@ session en cours (l'état local est mis à jour immédiatement, l'écran
 reste cohérent), mais l'édition ne survivra pas à un rechargement tant
 que ce chemin n'est pas, lui aussi, redirigé vers de vraies écritures
 `UPDATE`/`DELETE` sur `quotes`.
+
+---
+
+## 📦 24. Gestion de stock — Phase 1 (2026-08-20)
+
+Demandé par l'utilisateur après avoir buté sur un vrai cas (recette
+personnalisée sous-évaluant un cadre métallique, § 23 implicite) : l'app
+n'avait **aucune** gestion de stock — un champ `stock: 120` codé en dur sur
+une seule matière de démo, jamais affiché, jamais persisté (absent du
+schéma V6), jamais utilisé par aucun calcul. Un vestige, pas une
+fonctionnalité.
+
+**Conçu comme suivi manuel volontairement simple, pas un vrai ERP de
+stock** : un devis ne décrémente jamais le stock, même enregistré — un
+brouillon ou une révision non retenue ne doit pas fausser l'inventaire
+réel. Seule une saisie explicite dans la fiche matière modifie la valeur.
+`NULL` = matière non suivie (défaut, aucun avertissement nulle part) ;
+toute valeur y compris 0 = suivie explicitement.
+
+Livré :
+- Champ `stockQty` sur la matière (formulaire + fiche "Vue d'ensemble",
+  carte verte "Stock Actuel" affichée seulement si suivi).
+- Colonne `materials.stock_qty` (NUMERIC, nullable, sans défaut SQL —
+  `v6_material_stock.sql`), `mapMaterialToDb`/`FromDb` mis à jour.
+  **Appliqué et vérifié par round-trip réel sur staging** (insertion
+  12.5, relecture confirmée, données de test supprimées). **Production non
+  modifiée** — SQL prêt, à exécuter par l'utilisateur comme les
+  précédentes migrations de ce type.
+- Avertissement dans le tableau de décomposition (§ 23) : "⚠ Stock
+  insuffisant : X <unité> disponible(s)" quand la quantité nette d'une
+  ligne dépasse le stock déclaré — **informatif, jamais bloquant**,
+  n'empêche pas d'enregistrer le devis.
+
+> **Simplification assumée** : la comparaison se fait ligne par ligne
+> contre le stock total de la matière, pas cumulée sur tout le devis. Deux
+> recettes qui consomment la même matière sont chacune comparées
+> indépendamment au même stock total — un devis qui épuiserait le stock en
+> deux lignes cumulées (ex. 2m + 2m contre 3m en stock) ne déclenchera
+> l'alerte sur aucune des deux lignes prise isolément. Acceptable pour un
+> suivi Phase 1 informatif ; à revoir si un vrai contrôle cumulé devient
+> nécessaire.
+
+**Hors périmètre, phases suivantes déjà évoquées avec l'utilisateur** :
+historique des mouvements de stock (traçabilité achat/consommation/
+ajustement), et le lien avec les chutes (§ 23) — un bouton "ajouter cette
+chute au stock" depuis l'écran de décomposition. Aucune des deux n'a été
+demandée pour cette itération.
+
+Vérifié en direct : stock à 3 m saisi sur "Tube carré acier 25x25",
+avertissement "Stock insuffisant : 3 m disponible(s)" affiché sur la ligne
+"Fer du cadre" d'un ouvrage nécessitant 6,30 m. 40/40 npm test.
