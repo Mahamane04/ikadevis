@@ -3420,13 +3420,17 @@ function sanitizeText(str) {
     return str.replace(/[<>]/g, '').trim();
 }
 
-function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, currentRole }) {
+// 2026-08-20 — Était AuditLogViewerModal, une modale complète (max-w-4xl) qui
+// REMPLAÇAIT la fenêtre Paramètres au lieu de s'afficher dedans : cliquer
+// l'onglet "Audit & Sécurité" fermait les Paramètres et ouvrait une fenêtre
+// d'une autre taille. Converti en panneau sans coque, rendu directement dans
+// l'onglet — plus aucun saut de format entre les onglets.
+function AuditLogPanel({ organizationId, supabaseClient }) {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterAction, setFilterAction] = useState('all');
 
     useEffect(() => {
-        if (!isOpen) return;
         setIsLoading(true);
         (async () => {
             try {
@@ -3455,11 +3459,9 @@ function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, 
                 setIsLoading(false);
             }
         })();
-    }, [isOpen, organizationId, supabaseClient]);
+    }, [organizationId, supabaseClient]);
 
-    if (!isOpen) return null;
-
-    const filteredLogs = filterAction === 'all' 
+    const filteredLogs = filterAction === 'all'
         ? logs 
         : logs.filter(l => l.action.includes(filterAction));
 
@@ -3471,26 +3473,18 @@ function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, 
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-neutral-200 animate-scale-up">
-                {/* Header */}
-                <div className="p-5 sm:p-6 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">
-                            <i className="fa-solid fa-shield-halved"></i>
-                        </div>
-                        <div>
-                            <h3 className="font-extrabold text-neutral-900 text-lg">Journal de Sécurité & Traçabilité (Audit Logs)</h3>
-                            <p className="text-xs text-neutral-500">Historique inaltérable de toutes les opérations sensibles de l'organisation</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
+        <div className="space-y-4">
+            <div>
+                <h4 className="font-bold text-neutral-800 text-sm mb-1">Journal de sécurité &amp; traçabilité</h4>
+                <p className="text-xs text-neutral-500">
+                    Historique des opérations sensibles de l'organisation : créations et
+                    suppressions de devis, modifications de prix.
+                </p>
+            </div>
 
+            <div>
                 {/* Filter Toolbar */}
-                <div className="p-4 bg-neutral-50/80 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="p-3 bg-neutral-50/80 border border-neutral-200 rounded-xl flex flex-wrap items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-neutral-600">Filtrer par type :</span>
                         {['all', 'quote', 'material', 'organization'].map(cat => (
@@ -3511,7 +3505,7 @@ function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, 
                 </div>
 
                 {/* Logs Table */}
-                <div className="p-6 overflow-y-auto custom-scroll flex-1 bg-neutral-50/30">
+                <div>
                     {isLoading ? (
                         <div className="p-12 text-center text-neutral-400">
                             <i className="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i>
@@ -3561,13 +3555,6 @@ function AuditLogViewerModal({ isOpen, onClose, organizationId, supabaseClient, 
                             </table>
                         </div>
                     )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
-                    <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-5 font-bold">
-                        Fermer
-                    </button>
                 </div>
             </div>
         </div>
@@ -4280,57 +4267,81 @@ const StructuredLogger = {
 // ═══════════════════════════════════════════════════════════════
 // BLOC 8.8 : MODALE HEALTH CHECK & DIAGNOSTIC INFRASTRUCTURE
 // ═══════════════════════════════════════════════════════════════
-function HealthCheckModal({ isOpen, onClose, isOnline, sbUser, solutionsCount, materialsCount, quotesCount }) {
-    if (!isOpen) return null;
+// 2026-08-20 — Était HealthCheckModal, une modale séparée dont 4 des 5
+// « contrôles » étaient des statuts 'OK' CODÉS EN DUR, jamais mesurés
+// (violation de la Règle d'Or #3, même famille que § 16.1) :
+//   · « v18.2 Production, 0 fuite mémoire » — rien ne mesure de fuite mémoire,
+//     et la version était écrite en dur au lieu d'être lue sur React.
+//   · « SafeMathEvaluator actif (zéro eval) » — affirmation jamais vérifiée.
+//   · « IndexedDB / LocalStorage opérationnel » — l'app n'utilise IndexedDB
+//     NULLE PART (cette ligne était la seule occurrence du mot dans tout le
+//     code) et rien ne testait que le stockage répondait.
+// Les deux contrôles purement techniques ont été retirés (sans intérêt pour un
+// artisan BTP, et faux de surcroît) ; les trois restants sont désormais
+// réellement mesurés, y compris le stockage local (test écriture/lecture réel).
+function SystemDiagnosticPanel({ isOnline, sbUser, solutionsCount, materialsCount, quotesCount }) {
+    const storageProbe = (() => {
+        try {
+            const k = '__ikadevis_probe__';
+            localStorage.setItem(k, '1');
+            const ok = localStorage.getItem(k) === '1';
+            localStorage.removeItem(k);
+            return ok
+                ? { status: 'OK', detail: 'Vos données restent disponibles hors connexion.' }
+                : { status: 'PROBLÈME', detail: 'La sauvegarde locale ne répond pas correctement.' };
+        } catch (e) {
+            return { status: 'PROBLÈME', detail: 'Sauvegarde locale indisponible (navigation privée ou espace saturé).' };
+        }
+    })();
 
     const checks = [
-        { name: 'Moteur Frontend & React Runtime', status: 'OK', detail: 'v18.2 Production, 0 fuite mémoire', icon: 'fa-cube' },
-        { name: 'Moteur Mathématique AST Déterministe', status: 'OK', detail: 'SafeMathEvaluator actif (zéro eval)', icon: 'fa-calculator' },
-        { name: 'Connectivité Cloud & Supabase Auth', status: isOnline ? 'OK' : 'DEGRADED', detail: isOnline ? (sbUser ? `Connecté (${sbUser.email})` : 'Session Locale Active') : 'Mode Chantier (Hors-Ligne)', icon: 'fa-cloud' },
-        { name: 'Base de Données & Stockage Isolé', status: 'OK', detail: `${solutionsCount} Ouvrages, ${materialsCount} Matériaux, ${quotesCount} Devis`, icon: 'fa-database' },
-        { name: 'Cache Local & Synchronisation Résiliente', status: 'OK', detail: 'IndexedDB / LocalStorage opérationnel', icon: 'fa-hard-drive' }
+        {
+            name: 'Connexion au cloud',
+            status: isOnline ? 'OK' : 'HORS LIGNE',
+            detail: isOnline
+                ? (sbUser && sbUser.id !== 'guest' ? `Synchronisé — ${sbUser.email}` : 'Mode Démo : données sur cet appareil uniquement')
+                : 'Vous travaillez hors connexion, la synchronisation reprendra au retour du réseau.',
+            icon: 'fa-cloud'
+        },
+        {
+            name: 'Sauvegarde sur cet appareil',
+            status: storageProbe.status,
+            detail: storageProbe.detail,
+            icon: 'fa-hard-drive'
+        },
+        {
+            name: 'Vos données',
+            status: 'OK',
+            detail: `${solutionsCount} ouvrage(s) · ${materialsCount} matière(s) · ${quotesCount} devis`,
+            icon: 'fa-database'
+        }
     ];
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[140] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up">
-                <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">
-                            <i className="fa-solid fa-heart-pulse"></i>
-                        </div>
-                        <div>
-                            <h3 className="font-extrabold text-neutral-900 text-sm">Health Check & Diagnostic Système</h3>
-                            <p className="text-[11px] text-neutral-500 font-mono">Infrastructure ikadevis Enterprise</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-
-                <div className="p-6 space-y-3 bg-neutral-50/50">
-                    {checks.map((c, i) => (
-                        <div key={i} className="bg-white p-3.5 rounded-2xl border border-neutral-200/80 flex items-center justify-between shadow-2xs">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs ${c.status === 'OK' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                    <i className={`fa-solid ${c.icon}`}></i>
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-xs text-neutral-800">{c.name}</h4>
-                                    <p className="text-[10px] text-neutral-400 font-medium">{c.detail}</p>
-                                </div>
+        <div className="space-y-4">
+            <div>
+                <h4 className="font-bold text-neutral-800 text-sm mb-1">État de l'application</h4>
+                <p className="text-xs text-neutral-500">
+                    Vérifié à l'instant, sur cet appareil.
+                </p>
+            </div>
+            <div className="space-y-3">
+                {checks.map((c, i) => (
+                    <div key={i} className="bg-white p-3.5 rounded-2xl border border-neutral-200/80 flex items-center justify-between gap-3 shadow-2xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0 ${c.status === 'OK' ? 'bg-emerald-50 text-emerald-600' : c.status === 'PROBLÈME' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                <i className={`fa-solid ${c.icon}`}></i>
                             </div>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${c.status === 'OK' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                {c.status}
-                            </span>
+                            <div className="min-w-0">
+                                <h4 className="font-bold text-xs text-neutral-800">{c.name}</h4>
+                                <p className="text-[11px] text-neutral-500 font-medium">{c.detail}</p>
+                            </div>
                         </div>
-                    ))}
-
-                    <div className="pt-3 flex justify-end">
-                        <button type="button" onClick={onClose} className="btn-primary text-xs py-2 px-5 font-bold">Fermer le Diagnostic</button>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 ${c.status === 'OK' ? 'bg-emerald-100 text-emerald-800' : c.status === 'PROBLÈME' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {c.status}
+                        </span>
                     </div>
-                </div>
+                ))}
             </div>
         </div>
     );
@@ -4412,7 +4423,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     });
     const [activeOrganizationRole, setActiveOrganizationRole] = useState(() => (sbUser && sbUser.id !== 'guest') ? null : 'owner');
     const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
-    const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
     // P0.13 (2026-08-17) — "+ Nouvelle Affaire"/"+ Nouveau Client" inséraient
     // directement des données factices (nom générique, NIF-000000, client au
@@ -4697,12 +4707,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isAllowedModesModalOpen, setIsAllowedModesModalOpen] = useState(false);
 
     const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-    // P1 (2026-08-19) — "Paramètres du Compte" regroupe désormais Entreprise,
-    // Audit & Sécurité (délègue à AuditLogViewerModal), Diagnostic (délègue à
-    // HealthCheckModal) et Données locales — un seul point d'entrée au lieu
-    // de 3 boutons dispersés (sidebar + en-tête). Les onglets qui délèguent
-    // ferment ce modal et ouvrent l'autre plutôt que de dupliquer leur
-    // contenu (ils gèrent déjà leur propre chargement/état).
+    // P1 (2026-08-19) — "Paramètres du Compte" regroupe Entreprise, Documents &
+    // PDF, Audit & Sécurité, Diagnostic et Données locales : un seul point
+    // d'entrée au lieu de 3 boutons dispersés (sidebar + en-tête).
+    // 2026-08-20 — les 5 onglets s'affichent tous DANS cette fenêtre. Audit et
+    // Diagnostic la fermaient auparavant pour ouvrir leurs propres modales, de
+    // tailles différentes (max-w-4xl / max-w-lg contre max-w-lg ici) : la
+    // fenêtre changeait de taille et de structure d'un onglet à l'autre.
     const [accountSettingsTab, setAccountSettingsTab] = useState('entreprise');
     // Onglet "Documents & PDF" (2026-08-20) — état local pour le retour visuel
     // pendant la compression du logo (canvas), pas pour la valeur elle-même
@@ -4825,7 +4836,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     useEffect(() => {
@@ -9808,7 +9818,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="flex items-center gap-2">
                                 {connectionState.key !== 'local' && (
                                     <button
-                                        onClick={() => setIsHealthModalOpen(true)}
+                                        onClick={() => { setAccountSettingsTab('diagnostic'); setIsCompanyModalOpen(true); }}
                                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all shadow-2xs hover:brightness-95 ${connectionState.chip}`}
                                         title="Ouvrir le Diagnostic Système & Health Check"
                                     >
@@ -9841,17 +9851,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <NavItem id="materials" icon="fa-database" label="Ressources" />
                 </nav>
             </div>
-
-            {/* Company Settings Modal */}
-            {isAuditModalOpen && (
-                <AuditLogViewerModal
-                    isOpen={isAuditModalOpen}
-                    onClose={() => setIsAuditModalOpen(false)}
-                    organizationId={activeOrganizationId}
-                    supabaseClient={supabaseClient}
-                    currentRole={activeOrganizationRole}
-                />
-            )}
 
             {isCreateOrgModalOpen && (
                 <CreateOrganizationModal
@@ -10064,16 +10063,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // depuis l'aperçu client (z-[120]), ouvrait ce panneau
                 // Paramètres Entreprise DERRIÈRE l'aperçu, donc invisible.
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[140] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg overflow-hidden">
-                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
+                    {/* 2026-08-20 — coque unique et de taille fixe pour TOUS les onglets.
+                        Avant, "Audit & Sécurité" et "Diagnostic" fermaient cette fenêtre pour
+                        en ouvrir une autre (max-w-4xl et max-w-lg) : la fenêtre changeait de
+                        taille et de structure d'un onglet à l'autre. max-w-3xl accueille le
+                        tableau d'audit (5 colonnes) sans être écrasant pour un formulaire ;
+                        h-[85dvh] fige la hauteur pour qu'aucun onglet ne fasse sauter la
+                        fenêtre, le contenu défilant à l'intérieur. */}
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-3xl h-[85dvh] flex flex-col overflow-hidden">
+                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg"><i className="fa-solid fa-gear text-brand-500 mr-2"></i>Paramètres du Compte</h3>
                             <button onClick={() => setIsCompanyModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
-                        {/* P1 (2026-08-19) — un seul point d'entrée pour tous les réglages.
-                            Entreprise et Données locales s'affichent ici ; Audit & Sécurité et
-                            Diagnostic délèguent à leurs modales existantes (déjà autonomes côté
-                            chargement de données) au lieu de dupliquer leur contenu. */}
-                        <div className="px-6 pt-4 flex items-center gap-1 border-b border-neutral-100 overflow-x-auto">
+                        {/* 2026-08-20 — les 5 onglets s'affichent tous DANS cette fenêtre.
+                            Auparavant Audit et Diagnostic la fermaient pour ouvrir leurs
+                            propres modales, de tailles différentes ; converties en panneaux
+                            (AuditLogPanel, SystemDiagnosticPanel) rendus ici. */}
+                        <div className="px-6 pt-4 flex items-center gap-1 border-b border-neutral-100 overflow-x-auto shrink-0">
                             {[
                                 { id: 'entreprise', label: 'Entreprise', icon: 'fa-building' },
                                 { id: 'documents', label: 'Documents & PDF', icon: 'fa-file-pdf' },
@@ -10086,11 +10092,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <button
                                     key={tab.id}
                                     type="button"
-                                    onClick={() => {
-                                        if (tab.id === 'audit') { setIsCompanyModalOpen(false); setIsAuditModalOpen(true); return; }
-                                        if (tab.id === 'diagnostic') { setIsCompanyModalOpen(false); setIsHealthModalOpen(true); return; }
-                                        setAccountSettingsTab(tab.id);
-                                    }}
+                                    onClick={() => setAccountSettingsTab(tab.id)}
                                     className={`shrink-0 px-3 py-2 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
                                         accountSettingsTab === tab.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-neutral-500 hover:text-neutral-800'
                                     }`}
@@ -10100,8 +10102,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </button>
                             ))}
                         </div>
+                        {accountSettingsTab === 'audit' && (
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
+                                <AuditLogPanel organizationId={activeOrganizationId} supabaseClient={supabaseClient} />
+                            </div>
+                        )}
+                        {accountSettingsTab === 'diagnostic' && (
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
+                                <SystemDiagnosticPanel
+                                    isOnline={isOnline}
+                                    sbUser={sbUser}
+                                    solutionsCount={solutions.length}
+                                    materialsCount={materials.length}
+                                    quotesCount={savedQuotes.length}
+                                />
+                            </div>
+                        )}
                         {accountSettingsTab === 'donnees' && (
-                            <div className="p-6 bg-neutral-50/50 space-y-4">
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-4">
                                 <div>
                                     <h4 className="font-bold text-neutral-800 text-sm mb-1">Données locales</h4>
                                     <p className="text-xs text-neutral-500">
@@ -10122,7 +10140,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         )}
                         {accountSettingsTab === 'documents' && (
-                            <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-6 max-h-[70dvh]">
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-6">
                                 <div>
                                     <label className="app-label">Logo de l'entreprise</label>
                                     <div className="flex items-center gap-4">
@@ -10196,16 +10214,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </p>
                                 </div>
 
-                                <div className="flex justify-end pt-2 border-t border-neutral-100">
-                                    <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="btn-primary" aria-label="Fermer la boîte de dialogue">
-                                        <i className="fa-solid fa-check mr-1.5"></i> Terminé
-                                    </button>
-                                </div>
+                            </div>
+                        )}
+                        {/* Pied commun aux onglets sans formulaire (Documents, Audit,
+                            Diagnostic, Données) : même position, même hauteur que le pied
+                            de l'onglet Entreprise, pour que la fenêtre garde exactement la
+                            même structure quel que soit l'onglet actif. */}
+                        {accountSettingsTab !== 'entreprise' && (
+                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="btn-primary" aria-label="Fermer la boîte de dialogue">
+                                    <i className="fa-solid fa-check mr-1.5"></i> Terminé
+                                </button>
                             </div>
                         )}
                         {accountSettingsTab === 'entreprise' && (
-                        <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); setIsCompanyModalOpen(false); showToast("Paramètres entreprise sauvegardés"); } }}>
-                            <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4 max-h-[70dvh]">
+                        <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); setIsCompanyModalOpen(false); showToast("Paramètres entreprise sauvegardés"); } }} className="flex-1 min-h-0 flex flex-col">
+                            <div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
                                 <div>
                                     <label htmlFor="company_name" className="app-label">Raison Sociale / Nom Entreprise</label>
                                     <input id="company_name" disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={companyInfo.name} onChange={e => updateCompanyInfo({...companyInfo, name: e.target.value})} placeholder="Ex : Entreprise BTP SARL" />
@@ -10303,7 +10327,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                             </div>
-                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3">
+                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
                                 <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="btn-secondary" aria-label="Fermer la boîte de dialogue">Fermer</button>
                                 {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer les paramètres de l'entreprise"><i className="fa-solid fa-check mr-1.5"></i> Enregistrer</button>}
                             </div>
@@ -10767,16 +10791,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         showToast(`✓ Devis ${updatedQ.number} signé électroniquement avec succès !`, 'success');
                     }
                 }}
-            />
-
-            <HealthCheckModal
-                isOpen={isHealthModalOpen}
-                onClose={() => setIsHealthModalOpen(false)}
-                isOnline={isOnline}
-                sbUser={sbUser}
-                solutionsCount={solutions.length}
-                materialsCount={materials.length}
-                quotesCount={savedQuotes.length}
             />
 
             <QuoteShareModal

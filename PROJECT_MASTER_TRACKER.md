@@ -1439,3 +1439,64 @@ affiché en bas du document. 40/40 npm test.
 large des Paramètres du Compte façon Zoho Books (groupes Entreprise /
 Documents & PDF / Sécurité & Données / Compte), déplacement de l'échéancier
 de paiement dans l'onglet Documents & PDF.
+
+---
+
+## 🪟 26. Paramètres du Compte : une seule fenêtre, et un faux diagnostic retiré (2026-08-20)
+
+Signalé par l'utilisateur : « une vraie anomalie sur les vues, je voudrais
+que tout soit sur une seule page même format, et il y a des options non
+utiles présentes ici ».
+
+### 26.1 L'anomalie : des onglets qui n'en étaient pas
+
+« Audit & Sécurité » et « Diagnostic » ne changeaient pas d'onglet : ils
+**fermaient** la fenêtre Paramètres (`setIsCompanyModalOpen(false)`) pour en
+ouvrir une **autre**, de taille et de structure différentes —
+`max-w-4xl` pour l'audit, `max-w-lg` pour le diagnostic, contre `max-w-lg`
+pour les Paramètres. D'où les 4 formats visibles sur les captures.
+
+Corrigé : les deux modales sont devenues des **panneaux sans coque**
+(`AuditLogPanel`, `SystemDiagnosticPanel`) rendus dans la fenêtre
+Paramètres. La coque est passée en `max-w-3xl h-[85dvh] flex flex-col`
+(hauteur figée pour qu'aucun onglet ne fasse sauter la fenêtre, contenu
+défilant à l'intérieur, pied de page commun à la même position).
+
+`AuditLogViewerModal` et `HealthCheckModal` supprimés, ainsi que les états
+`isAuditModalOpen`/`isHealthModalOpen`. La pastille d'état du header, seul
+autre point d'entrée du diagnostic, ouvre désormais les Paramètres sur
+l'onglet Diagnostic.
+
+**Mesuré en direct** : 768 × 839 px **identiques sur les 5 onglets** (avant,
+la fenêtre disparaissait au profit d'une autre). Mobile 375px : 343px de
+large, aucun débordement horizontal sur aucun des 5 onglets.
+
+### 26.2 Le Diagnostic affichait de faux résultats (Règle d'Or #3)
+
+Même famille que les violations du § 16.1. Sur les 5 « contrôles »,
+**4 étaient des `status: 'OK'` codés en dur**, jamais mesurés :
+
+| Contrôle | Réalité |
+| :--- | :--- |
+| « v18.2 Production, 0 fuite mémoire » | Rien ne mesure de fuite mémoire ; la version était écrite en dur, pas lue sur React |
+| « SafeMathEvaluator actif (zéro eval) » | Affirmation jamais vérifiée à l'exécution |
+| « IndexedDB / LocalStorage opérationnel » | **L'app n'utilise IndexedDB nulle part** — cette ligne était la seule occurrence du mot dans tout le code — et rien ne testait que le stockage répondait |
+| « Base de Données & Stockage Isolé » | Compteurs réels, mais statut `OK` inconditionnel |
+| « Connectivité Cloud » | Le seul réellement mesuré (isOnline / sbUser) |
+
+Les deux contrôles purement techniques ont été **retirés** (sans intérêt
+pour un artisan BTP, et faux de surcroît). Les trois restants sont
+reformulés en langage métier et **réellement mesurés** — dont la sauvegarde
+locale, désormais testée par une vraie écriture/lecture/suppression.
+
+> **Vérifié par sabotage volontaire** : en remplaçant `Storage.prototype.setItem`
+> par une fonction qui lève une exception, le contrôle bascule bien sur
+> « PROBLÈME — Sauvegarde locale indisponible » ; il repasse à « OK » une fois
+> `setItem` restauré. L'ancien code affichait « OK » dans les deux cas.
+
+**Non vérifié en direct** : la pastille d'état du header qui ouvre l'onglet
+Diagnostic — elle est masquée en Mode Démo (conséquence voulue du retrait du
+badge « Démo locale », § 23), donc non atteignable dans l'environnement de
+test. Le câblage est correct par lecture du code mais n'a pas été exercé.
+
+40/40 npm test.
