@@ -45,6 +45,21 @@
             box-shadow: 0 0 0 3px rgba(230, 34, 43, 0.15);
         }
 
+        /* 2026-08-20 — Beaucoup de champs numériques (prix, quantités,
+           tailles...) portent un suffixe absolu à droite (FCFA, m², u...).
+           Les flèches natives du navigateur s'affichent au même endroit et
+           se superposent au texte du suffixe. Retirées partout : on tape
+           la valeur, le stepper n'apporte rien ici et casse la lisibilité
+           dès qu'un suffixe est présent. */
+        .app-input[type="number"]::-webkit-outer-spin-button,
+        .app-input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .app-input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
         .app-label {
             display: block;
             font-size: 0.65rem;
