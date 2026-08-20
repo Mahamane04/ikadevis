@@ -1730,3 +1730,72 @@ après le libellé, au lieu d'un décalage d'une ligne). 40/40 rétabli.
 Le socle de facturation (tables `invoices`, numérotation serveur `FACT-AAAA-NNN`
 renvoyée au client, conversion depuis un devis accepté, immuabilité à
 l'émission) reste à faire — c'est le bloc suivant.
+
+---
+
+## 🧾 30. Socle de facturation — couche données (2026-08-20)
+
+§ 27.5 point 2. **Couche données uniquement** : schéma, garanties légales et
+émission. L'interface (conversion depuis un devis, liste, PDF) reste à faire.
+
+Fait avant l'interface délibérément : les garanties légales vivent ici, et
+les découvrir après coup aurait imposé de tout reprendre.
+
+### 30.1 Trois contraintes légales, trois décisions de structure
+
+| Contrainte | Décision |
+| :--- | :--- |
+| Numérotation continue, **sans trou** | Le numéro n'est **pas** attribué à la création mais à l'**émission** (`issue_invoice_v6`), avec verrou de ligne. Un brouillon porte `invoice_number = NULL` ; supprimé, il ne consomme aucun numéro. Plusieurs NULL cohabitent sous la contrainte UNIQUE, deux factures émises jamais. |
+| Facture émise **immuable** | Garanti par **trigger en base**, pas par l'interface : une règle écrite seulement côté client se contourne. Montants, numéro, identité, taux et date d'émission figés ; seuls règlement et annulation restent permis. |
+| Correction par **avoir** | `invoice_type = 'avoir'` + `corrects_invoice_id` vers la facture rectifiée. |
+
+### 30.2 Le défaut des devis, corrigé ici
+
+`create_quote_v6` génère un numéro serveur mais **ne le renvoie pas** (elle
+retourne l'id seul) : le client garde son numéro calculé localement, et les
+deux peuvent diverger. Anodin sur un devis, rédhibitoire sur une facture.
+`issue_invoice_v6` renvoie donc explicitement `{invoice_id, invoice_number,
+issued_at}`.
+
+### 30.3 Livré
+
+`organization_invoice_sequences`, `invoices`, `invoice_lines`, deux triggers
+de protection, `issue_invoice_v6`, RLS complète (`v6_invoices.sql`).
+Types de facture : `standard`, `acompte`, `situation`, `solde`, `avoir` —
+`deducted_ttc` / `net_to_pay_ttc` prévus pour la déduction d'acompte sur le
+solde (usage BTP). **Appliqué sur staging. Production non modifiée.**
+
+### 30.4 Vérifié par SQL réel sur staging
+
+Tests exécutés en `service_role`, c'est-à-dire **en attaquant la base
+directement, sans passer par l'application** — ce qui prouve que les
+protections ne sont pas contournables depuis le client.
+
+| Test | Résultat |
+| :--- | :--- |
+| Émission sans droit | **Refusée** — « seuls le propriétaire et un administrateur… » |
+| Modifier un brouillon | Autorisé |
+| Supprimer un brouillon | Autorisé |
+| Modifier le **montant** d'une facture émise | **Refusé** par trigger |
+| Modifier le **numéro** d'une facture émise | **Refusé** par trigger |
+| **Supprimer** une facture émise | **Refusé** — « émettez un avoir » |
+| Modifier une **ligne** d'une facture émise | **Refusé** par trigger |
+| Enregistrer un **règlement** | Autorisé (seule évolution permise) |
+| Numérotation : 3 émissions, un brouillon jeté, puis une émission | **001 → 002 → 003 → 004**, aucun trou |
+
+Données de test supprimées ensuite ; staging revérifié à 0 ligne.
+
+> **Non vérifié : `issue_invoice_v6` de bout en bout.** La fonction exige une
+> session authentifiée (`has_org_permission` → `auth.uid()`), et staging ne
+> contient aucun utilisateur. Le **garde-fou** a bien été éprouvé (l'appel
+> non authentifié est refusé), et le **mécanisme de numérotation** l'a été
+> par une reproduction verbatim de son corps ; mais le chemin complet
+> « utilisateur admin connecté → émission → numéro renvoyé » ne le sera
+> qu'une fois l'interface faite, depuis le navigateur avec un vrai compte.
+
+### 30.5 Reste à faire
+
+Interface : conversion d'un devis accepté en facture, liste des factures,
+PDF (entre dans l'architecture du § 27.1 comme document
+`destinataire = client`, héritant logo, pied de page et gabarits), puis
+acompte/situation et suivi des règlements.
