@@ -4704,6 +4704,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // ferment ce modal et ouvrent l'autre plutôt que de dupliquer leur
     // contenu (ils gèrent déjà leur propre chargement/état).
     const [accountSettingsTab, setAccountSettingsTab] = useState('entreprise');
+    // Onglet "Documents & PDF" (2026-08-20) — état local pour le retour visuel
+    // pendant la compression du logo (canvas), pas pour la valeur elle-même
+    // (déjà dans companyInfo.logo, appliquée en direct comme le reste du
+    // formulaire entreprise).
+    const [logoProcessing, setLogoProcessing] = useState(false);
+    const [logoError, setLogoError] = useState(null);
     // B3 (2026-08-18) — Cette identité n'a plus vocation à être écrite dans un
     // vrai devis : un compte réel démarre avec des champs légaux VIDES (voir
     // emptyCompany plus bas), suivant le même garde estModeDemo que les
@@ -5596,7 +5602,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         organization_id: orgId, name: c.name, tagline: c.tagline, phone: c.phone, email: c.email,
         address: c.address, nif: c.nif, rccm: c.rccm, currency: c.currency,
         quote_validity: c.quoteValidity, payment_terms: c.paymentTerms,
-        payment_schedule: (c.paymentSchedule && c.paymentSchedule.length > 0) ? c.paymentSchedule : null
+        payment_schedule: (c.paymentSchedule && c.paymentSchedule.length > 0) ? c.paymentSchedule : null,
+        // 2026-08-20 — logo (base64, voir compressImageToDataUrl dans utils.js)
+        // et pied de page PDF. '' = explicitement vidé par l'utilisateur, à
+        // distinguer de "jamais renseigné" ; les deux se traduisent en NULL
+        // côté colonne (pas de valeur à synchroniser), donc pas de repli à
+        // gérer côté lecture comme pour paymentSchedule.
+        logo: c.logo || null,
+        pdf_footer_note: c.pdfFooterNote || null
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
@@ -5607,7 +5620,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // ne se retrouve pas sans échéancier du tout.
         paymentSchedule: (Array.isArray(r.payment_schedule) && r.payment_schedule.length > 0)
             ? r.payment_schedule
-            : defaultPaymentSchedule
+            : defaultPaymentSchedule,
+        logo: r.logo || '',
+        pdfFooterNote: r.pdf_footer_note || ''
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
@@ -10061,6 +10076,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="px-6 pt-4 flex items-center gap-1 border-b border-neutral-100 overflow-x-auto">
                             {[
                                 { id: 'entreprise', label: 'Entreprise', icon: 'fa-building' },
+                                { id: 'documents', label: 'Documents & PDF', icon: 'fa-file-pdf' },
                                 // Même garde-fou que l'ancien bouton sidebar : seuls owner/admin
                                 // voient le journal d'audit (rôles.canViewAudit).
                                 ...(hasPermission(activeOrganizationRole, 'canViewAudit') ? [{ id: 'audit', label: 'Audit & Sécurité', icon: 'fa-shield-halved' }] : []),
@@ -10103,6 +10119,88 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 >
                                     <i className="fa-solid fa-arrow-rotate-left mr-1.5"></i> Réinitialiser les données locales
                                 </button>
+                            </div>
+                        )}
+                        {accountSettingsTab === 'documents' && (
+                            <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-6 max-h-[70dvh]">
+                                <div>
+                                    <label className="app-label">Logo de l'entreprise</label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-20 h-20 rounded-xl border border-neutral-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                                            {companyInfo.logo ? (
+                                                <img src={companyInfo.logo} alt="Logo entreprise" className="w-full h-full object-contain" />
+                                            ) : (
+                                                <i className="fa-solid fa-image text-2xl text-neutral-300"></i>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className={`btn-secondary text-xs py-2 px-3 cursor-pointer ${isReadOnlyDueToDowngrade || logoProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <i className="fa-solid fa-upload mr-1.5"></i>
+                                                    {logoProcessing ? 'Traitement…' : (companyInfo.logo ? 'Changer le logo' : 'Choisir un fichier')}
+                                                    <input
+                                                        type="file" accept="image/*" className="hidden"
+                                                        disabled={isReadOnlyDueToDowngrade || logoProcessing}
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            e.target.value = '';
+                                                            if (!file) return;
+                                                            setLogoError(null);
+                                                            setLogoProcessing(true);
+                                                            try {
+                                                                const dataUrl = await compressImageToDataUrl(file);
+                                                                updateCompanyInfo({ ...companyInfo, logo: dataUrl });
+                                                                showToast("Logo mis à jour");
+                                                            } catch (err) {
+                                                                setLogoError(err.message || "Impossible de traiter cette image.");
+                                                            } finally {
+                                                                setLogoProcessing(false);
+                                                            }
+                                                        }}
+                                                    />
+                                                </label>
+                                                {companyInfo.logo && !isReadOnlyDueToDowngrade && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { updateCompanyInfo({ ...companyInfo, logo: '' }); showToast("Logo retiré"); }}
+                                                        className="btn-secondary text-xs py-2 px-3 text-red-600 border-red-200 hover:bg-red-50"
+                                                    >
+                                                        Retirer
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {logoError && <p className="text-[11px] text-red-600 font-semibold">{logoError}</p>}
+                                            <p className="text-[11px] text-neutral-400">
+                                                Affiché en en-tête de vos devis PDF, à la place du logo ikadevis.
+                                                Redimensionné et compressé automatiquement — aucune limite de taille
+                                                de fichier stricte, mais préférez une image déjà raisonnable (&lt; 5 Mo).
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="company_pdf_footer" className="app-label">Pied de page du devis PDF (optionnel)</label>
+                                    <textarea
+                                        id="company_pdf_footer"
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        rows="4"
+                                        className="app-input font-medium"
+                                        value={companyInfo.pdfFooterNote || ''}
+                                        onChange={e => updateCompanyInfo({ ...companyInfo, pdfFooterNote: e.target.value })}
+                                        placeholder={"Ex : Mentions légales, coordonnées bancaires (RIB), conditions générales de vente…"}
+                                    />
+                                    <p className="text-[11px] text-neutral-400 mt-1.5">
+                                        Affiché en bas de chaque devis PDF, sous la zone de signature. Laissez vide
+                                        pour ne rien afficher.
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-end pt-2 border-t border-neutral-100">
+                                    <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="btn-primary" aria-label="Fermer la boîte de dialogue">
+                                        <i className="fa-solid fa-check mr-1.5"></i> Terminé
+                                    </button>
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'entreprise' && (
@@ -10799,9 +10897,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id="printArea">
                                     <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
                                         <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <LogoSVG className="h-10" />
-                                            </div>
+                                            {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
+                                                du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
+                                                jamais le logo de l'entreprise émettrice. Corrigé : le logo de
+                                                l'entreprise si renseigné (Paramètres du Compte → Documents & PDF),
+                                                sinon rien plutôt que de perpétuer le même problème avec un repli
+                                                sur la marque du logiciel. */}
+                                            {(viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo) && (
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <img
+                                                        src={viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo}
+                                                        alt={`Logo ${viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}`}
+                                                        className="h-10 max-w-[160px] object-contain"
+                                                    />
+                                                </div>
+                                            )}
                                             <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
                                             <p className="text-xs text-neutral-500 font-medium">{viewingSavedQuote.companyInfoSnapshot?.tagline || companyInfo.tagline}</p>
                                             <p className="text-xs text-neutral-500 font-medium">Adresse: {viewingSavedQuote.companyInfoSnapshot?.address || companyInfo.address}</p>
@@ -10966,6 +11076,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <p className="text-[10px] text-neutral-400">Date et cachet</p>
                                         </div>
                                     </div>
+
+                                    {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
+                                        mentions légales, RIB, CGV... Absent si jamais renseigné, pas de bloc
+                                        vide sur le devis. */}
+                                    {(viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote) && (
+                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                            {viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote}
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6">

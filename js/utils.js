@@ -64,3 +64,45 @@ const normalizeSearchText = (s) => (s || '')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .trim();
+
+// 2026-08-20 — Logo entreprise (Paramètres du Compte → Documents & PDF).
+// Aucune infrastructure de stockage fichier n'existe dans l'app (vérifié
+// avant de commencer) : stocké en base64 directement dans company_settings
+// plutôt que d'ajouter un bucket Supabase Storage — marche identiquement en
+// Mode Démo local et en cloud, sans nouvelle dépendance. Contrepartie
+// assumée : on redimensionne et recompresse côté navigateur avant
+// l'enregistrement (via <canvas>), sinon une photo de logo à 5 Mo alourdit
+// chaque sauvegarde et chaque chargement du devis. maxWidth=480 est large
+// pour un usage en-tête de PDF (jamais affiché à plus d'une centaine de px
+// de haut) ; qualité JPEG 0.85 reste net pour un logo à fond uni ou photo.
+// Sortie en JPEG (pas de canal alpha) : un logo à fond transparent hérite
+// d'un fond blanc — acceptable pour un en-tête de document imprimé.
+function compressImageToDataUrl(file, maxWidth = 480, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+        if (!file || !file.type || !file.type.startsWith('image/')) {
+            reject(new Error('Le fichier sélectionné n\'est pas une image.'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Impossible de lire le fichier.'));
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('Image illisible ou corrompue.'));
+            img.onload = () => {
+                const scale = Math.min(1, maxWidth / img.width);
+                const w = Math.max(1, Math.round(img.width * scale));
+                const h = Math.max(1, Math.round(img.height * scale));
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}

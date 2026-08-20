@@ -1392,3 +1392,50 @@ demandée pour cette itération.
 Vérifié en direct : stock à 3 m saisi sur "Tube carré acier 25x25",
 avertissement "Stock insuffisant : 3 m disponible(s)" affiché sur la ligne
 "Fer du cadre" d'un ouvrage nécessitant 6,30 m. 40/40 npm test.
+
+---
+
+## 🖼️ 25. Logo entreprise & pied de page PDF (2026-08-20)
+
+Point de départ demandé par l'utilisateur pour une refonte plus large des
+réglages (inspirée de Zoho Books, montré en exemple) : personnaliser le PDF
+en commençant par le logo.
+
+**Découverte avant de coder, qui a changé la priorité** : le devis PDF
+affichait `<LogoSVG>` codé en dur (`index_jsx.js:10892`) — **le logo
+d'ikadevis, l'éditeur du logiciel, sur le devis de chaque client de chaque
+utilisateur**, jamais celui de l'entreprise émettrice. Pas un manque
+cosmétique, un vrai défaut : sans y toucher, tout utilisateur qui envoyait
+un devis exposait la marque du logiciel au lieu de la sienne.
+
+**Choix technique posé avant de commencer** : aucune infrastructure de
+stockage fichier n'existe dans l'app (vérifié par recherche). Plutôt que
+d'ajouter un bucket Supabase Storage (nouvelle dépendance, ne fonctionne pas
+en Mode Démo local), le logo est stocké en **base64 dans
+`company_settings.logo`**, redimensionné (480px de large) et recompressé en
+JPEG qualité 0.85 côté navigateur via `<canvas>`
+(`compressImageToDataUrl`, `js/utils.js`) avant l'enregistrement — marche
+identiquement en local et en cloud, sans nouvelle infrastructure.
+
+Livré :
+- Nouvel onglet **"Documents & PDF"** dans Paramètres du Compte : logo
+  (aperçu, upload, retrait) + pied de page PDF (texte libre — mentions
+  légales, RIB, CGV).
+- PDF client : logo de l'entreprise si renseigné, **rien si absent** (pas
+  de repli sur le logo ikadevis — perpétuerait le même problème) ; pied de
+  page affiché sous la zone de signature, absent si vide.
+- `company_settings.logo` / `pdf_footer_note`
+  (`v6_company_logo_footer.sql`, TEXT nullable, sans défaut SQL).
+  **Appliqué et vérifié par round-trip réel sur staging**
+  (logo factice + note RIB, écrits et relus, données de test supprimées).
+  **Production non modifiée**, SQL prêt.
+
+Vérifié en direct : logo test injecté via upload réel (canvas → File →
+input), aperçu mis à jour immédiatement, **logo visible sur le PDF client à
+la place d'ikadevis**, pied de page ("Mentions légales de test / RIB : ...")
+affiché en bas du document. 40/40 npm test.
+
+**Suite envisagée avec l'utilisateur, non commencée** : réorganisation plus
+large des Paramètres du Compte façon Zoho Books (groupes Entreprise /
+Documents & PDF / Sécurité & Données / Compte), déplacement de l'échéancier
+de paiement dans l'onglet Documents & PDF.
