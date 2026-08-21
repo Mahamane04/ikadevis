@@ -9,14 +9,27 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821v">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821y">
     <link rel="apple-touch-icon" href="assets/logo-ikadevis-carre.svg">
+    <!-- 2026-08-21 — Application installable (PWA).
+         L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
+         sans service worker, la page ne se chargeait même pas sans réseau :
+         le hors-ligne ne marchait qu'une fois l'application déjà ouverte.
+         Sur un chantier, c'est précisément le cas qui manquait.
+         Aucune ressource distante n'est chargée par cette page — tout est
+         servi localement — la mise en cache est donc complète. -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#111827">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ikadevis">
     <!-- P0.9 (2026-08-17) — Cache-buster manuel : bump ?v=AAAAMMJJ à chaque
          build (npm run build) pour forcer les navigateurs à recharger le CSS/JS
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260821v">
+    <link rel="stylesheet" href="tailwind.css?v=20260821y">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -245,9 +258,23 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260821v"></script>
-    <script src="js/utils.js?v=20260821v"></script>
-    <script src="js/quote-templates.js?v=20260821v"></script>
-    <script src="app.compiled.js?v=20260821v"></script>
+    <script src="js/calc-engine.js?v=20260821y"></script>
+    <script src="js/utils.js?v=20260821y"></script>
+    <script src="js/quote-templates.js?v=20260821y"></script>
+    <script src="app.compiled.js?v=20260821y"></script>
+    <script>
+        // Enregistrement du service worker. Volontairement après 'load' :
+        // il ne doit pas concurrencer le premier rendu.
+        // Ignoré hors http/https (file://) et si le navigateur ne le gère pas —
+        // l'application fonctionne exactement pareil sans lui, il n'ajoute
+        // que le démarrage hors-ligne et l'installation.
+        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js').catch(function (err) {
+                    console.warn('[PWA] service worker non enregistré :', err && err.message);
+                });
+            });
+        }
+    </script>
 </body>
 </html>

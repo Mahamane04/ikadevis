@@ -21,6 +21,8 @@ const A_PUBLIER = [
     'config.js',
     'favicon.ico',
     'favicon.svg',
+    'manifest.webmanifest',
+    'sw.js',   // application installable — voir scripts/sw.template.js
     'assets',   // marque : logo horizontal, carré, icône seule (référencés par
                 // index.html pour le favicon et l'icône d'accueil iOS)
     'vendor',

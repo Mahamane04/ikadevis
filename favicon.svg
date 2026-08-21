@@ -4,8 +4,8 @@
      barre d'onglets sombre. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="5.15 1.40 120.63 120.63" role="img" aria-label="ikadevis">
   <style>
-    path, polygon { fill: #2563eb; }
-    @media (prefers-color-scheme: dark) { path, polygon { fill: #60a5fa; } }
+    path, polygon { fill: #3b5bdb; }
+    @media (prefers-color-scheme: dark) { path, polygon { fill: #7d90d4; } }
   </style>
 <polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/>
   <path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/>
