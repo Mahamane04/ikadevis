@@ -2243,7 +2243,32 @@ analysés et **non exploitables** :
 > `REVOKE EXECUTE ON FUNCTION public.protect_issued_invoice(),`
 > `public.protect_issued_invoice_lines() FROM anon, authenticated;`
 
-### 36.6 Reste à éprouver par l'utilisateur
+### 36.6 Vérifications faites depuis l'extérieur, sans compte
+
+Ces contrôles ne demandent aucune authentification et n'écrivent rien. Ils
+ont été menés avec la clé `anon` publique, contre la vraie production.
+
+**Cache de schéma PostgREST — le piège classique après un DDL.** Les colonnes
+peuvent exister en base sans que l'API les connaisse : les écritures échouent
+alors toujours, avec un `PGRST204`. Vérifié : les **6 nouvelles colonnes sont
+reconnues** par l'API, le cache s'est bien rechargé.
+
+**Tables et fonction exposées.** `invoices` et `invoice_lines` répondent en
+200. `issue_invoice_v6` est bien atteignable et répond « Facture introuvable »
+sur un UUID inexistant — elle est vivante et refuse correctement.
+
+**RLS éprouvées de l'extérieur.** Un visiteur non connecté, muni de la clé
+publique :
+
+| Table | Lecture anonyme |
+|---|---|
+| `company_settings`, `quotes`, `invoices`, `invoice_lines` | 0 ligne |
+| `clients`, `materials`, `organizations` | 0 ligne |
+
+Et `POST /invoices` renvoie **401**. Rien n'est lisible ni inscriptible sans
+session — les RLS font leur travail en production.
+
+### 36.7 Reste à éprouver dans une session connectée
 
 La structure est vérifiée de bout en bout, mais le parcours connecté n'a pas
 été exercé : le tester exigerait de créer un compte ou d'écrire des données
