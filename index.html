@@ -9,14 +9,14 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821n">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821p">
     <link rel="apple-touch-icon" href="assets/logo-ikadevis-carre.svg">
     <!-- P0.9 (2026-08-17) — Cache-buster manuel : bump ?v=AAAAMMJJ à chaque
          build (npm run build) pour forcer les navigateurs à recharger le CSS/JS
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260821n">
+    <link rel="stylesheet" href="tailwind.css?v=20260821p">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -129,7 +129,21 @@
         }
 
         .app-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .app-table { width: 100%; text-align: left; min-width: 600px; border-collapse: separate; border-spacing: 0; }
+        /* 2026-08-21 — `min-width: 600px` s'appliquait à TOUTES les tables, à
+           toutes les largeurs. Sur les panneaux de détail (catalogue, ressources),
+           dont le conteneur fait 560 px sur un écran de 1280, elle forçait une
+           barre de défilement horizontale pour 40 px — alors que la table tient
+           naturellement dans 560 px, et que son contenu n'a besoin que de 486 px.
+           Mesuré dans le DOM avant correction.
+
+           Le minimum garde tout son sens sous 768 px, où sans lui les colonnes
+           se tasseraient jusqu'à l'illisible : il n'y est donc pas retiré, mais
+           cantonné. Au-dessus, la table s'adapte à son conteneur — et le
+           défilement latéral disparaît là où il n'avait pas lieu d'être. */
+        .app-table { width: 100%; text-align: left; border-collapse: separate; border-spacing: 0; }
+        @media (max-width: 767px) {
+            .app-table { min-width: 600px; }
+        }
         .app-th { padding: 0.75rem 1rem; font-weight: 600; color: #64748b; text-transform: uppercase; font-size: 0.65rem; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; }
         .app-td { padding: 1rem; color: #334155; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; }
 
@@ -231,9 +245,9 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260821n"></script>
-    <script src="js/utils.js?v=20260821n"></script>
-    <script src="js/quote-templates.js?v=20260821n"></script>
-    <script src="app.compiled.js?v=20260821n"></script>
+    <script src="js/calc-engine.js?v=20260821p"></script>
+    <script src="js/utils.js?v=20260821p"></script>
+    <script src="js/quote-templates.js?v=20260821p"></script>
+    <script src="app.compiled.js?v=20260821p"></script>
 </body>
 </html>
