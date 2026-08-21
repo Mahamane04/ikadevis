@@ -11637,85 +11637,126 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 return (
                 <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
-                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-extrabold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">{viewingSavedQuote.number}</span>
-                                <div>
-                                    <h3 className="font-extrabold text-neutral-900 text-lg leading-tight">{viewingSavedQuote.clientName}</h3>
-                                    <p className="text-xs text-neutral-500">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                        {/* En-tête refondu en DEUX bandes (2026-08-21).
+
+                            Avant : tout sur une seule ligne. Mesuré dans le DOM —
+                            7 contrôles réclamant 920 px dans une modale de 896.
+                            Deux conséquences visibles : le bloc d'identité comprimé
+                            à 148 px, ce qui coupait le nom du client sur deux lignes
+                            et faisait passer la date à la ligne ; et le bouton
+                            « Imprimer » (130 px) purement et simplement poussé hors
+                            du cadre — la fonction avait disparu de l'interface sans
+                            que rien ne le signale.
+
+                            Sortir les deux sélecteurs d'affichage sur leur propre
+                            bande libère 315 px : les quatre actions tiennent
+                            désormais sur la première ligne, et les deux axes
+                            (destinataire / niveau de détail) reçoivent enfin un
+                            intitulé. Jusqu'ici deux groupes d'apparence identique
+                            se suivaient sans rien pour dire ce que chacun réglait. */}
+                        <div className="border-b border-neutral-100 bg-white shrink-0">
+
+                            {/* Bande 1 — identité du document, puis actions. */}
+                            <div className="px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <span className="text-sm font-extrabold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
+                                    {/* min-w-0 + truncate : sans eux, un nom de client long
+                                        repousse les actions au lieu de s'abréger. */}
+                                    <div className="min-w-0">
+                                        <h3 className="font-extrabold text-neutral-900 text-lg leading-tight truncate">{viewingSavedQuote.clientName}</h3>
+                                        <p className="text-xs text-neutral-500 truncate">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {canSend ? (<>
+                                    {/* Une seule action porte un intitulé — le téléchargement,
+                                        celle qu'on vient chercher. Les trois secondaires sont en
+                                        icônes : libellées, elles consommaient 364 px et le nom du
+                                        client tombait à « Clien… ». En icônes, l'identité récupère
+                                        ~250 px et redevient lisible. Le sens passe par le title et
+                                        l'aria-label, tous deux déjà présents. */}
+                                    <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Partager le devis au client" aria-label="Partager le devis">
+                                        <i className="fa-solid fa-share-nodes text-brand-600"></i>
+                                    </button>
+                                    <button onClick={() => setIsSignatureModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
+                                        <i className="fa-solid fa-signature text-emerald-600"></i>
+                                    </button>
+                                    <button onClick={() => window.print()} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Imprimer — donne un PDF vectoriel, au texte sélectionnable" aria-label="Imprimer le devis">
+                                        <i className="fa-solid fa-print"></i>
+                                    </button>
+                                    <button
+                                        onClick={() => telechargerDocument(
+                                            `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
+                                            'devis'
+                                        )}
+                                        disabled={pdfEnCours === 'devis'}
+                                        className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-md shadow-brand-500/20 disabled:opacity-60"
+                                        title="Télécharger au format PDF"
+                                        aria-label="Télécharger le devis en PDF"
+                                    >
+                                        <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                        <span>{pdfEnCours === 'devis' ? 'Génération…' : (<><span className="sm:hidden">PDF</span><span className="hidden sm:inline">Télécharger le PDF</span></>)}</span>
+                                    </button>
+                                    </>) : (
+                                    <button
+                                        onClick={() => setIsCompanyModalOpen(true)}
+                                        className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
+                                        title="Ce devis doit être corrigé avant tout envoi au client"
+                                        aria-label="Corriger ce devis avant de l'envoyer"
+                                    >
+                                        <i className="fa-solid fa-triangle-exclamation"></i>
+                                        <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
+                                    </button>
+                                    )}
+                                    <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8 ml-1" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                {canViewInternalDocs && (
-                                    <div className="flex bg-neutral-100 p-1 rounded-xl">
-                                        <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
-                                            Étude de prix (interne)
-                                        </button>
-                                        <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
-                                            Devis client
-                                        </button>
-                                    </div>
-                                )}
-                                {/* Second axe : niveau de détail du devis client. Visible
-                                    seulement quand on regarde le devis client — il n'a aucun
-                                    sens sur l'étude interne, déjà détaillée par nature. */}
-                                {isCommercialMode && (
-                                    <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
-                                        <button
-                                            onClick={() => setClientDetailOverride('synthese')}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'synthese' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
-                                            title="Une ligne par ouvrage"
-                                        >
-                                            Synthèse
-                                        </button>
-                                        <button
-                                            onClick={() => setClientDetailOverride('detaille')}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'detaille' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
-                                            title="Chaque fourniture et main-d'œuvre, au prix de vente"
-                                        >
-                                            Détaillé
-                                        </button>
-                                    </div>
-                                )}
-                                {canSend ? (<>
-                                <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold" title="Partager le devis au client" aria-label="Partager le devis">
-                                    <i className="fa-solid fa-share-nodes text-brand-600"></i>
-                                    <span>Partager</span>
-                                </button>
-                                <button onClick={() => setIsSignatureModalOpen(true)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold text-emerald-700 hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
-                                    <i className="fa-solid fa-signature text-emerald-600"></i>
-                                    <span>Signer</span>
-                                </button>
-                                <button
-                                    onClick={() => telechargerDocument(
-                                        `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
-                                        'devis'
+
+                            {/* Bande 2 — réglages d'affichage. Deux axes indépendants
+                                (§ 27.1) : QUI reçoit le document, et à QUEL niveau de
+                                détail. Chacun porte son intitulé : les confondre
+                                exposerait la marge au client. */}
+                            {(canViewInternalDocs || isCommercialMode) && (
+                                <div className="px-6 pb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                                    {canViewInternalDocs && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
+                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Destinataire du document">
+                                                <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
+                                                    Étude de prix (interne)
+                                                </button>
+                                                <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
+                                                    Devis client
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
-                                    disabled={pdfEnCours === 'devis'}
-                                    className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-md shadow-brand-500/20 disabled:opacity-60"
-                                    title="Télécharger au format PDF"
-                                    aria-label="Télécharger le devis en PDF"
-                                >
-                                    <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                    <span>{pdfEnCours === 'devis' ? 'Génération…' : 'Télécharger le PDF'}</span>
-                                </button>
-                                <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer le devis">
-                                    <i className="fa-solid fa-print"></i>
-                                    <span>Imprimer</span>
-                                </button>
-                                </>) : (
-                                <button
-                                    onClick={() => setIsCompanyModalOpen(true)}
-                                    className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
-                                    title="Ce devis doit être corrigé avant tout envoi au client"
-                                    aria-label="Corriger ce devis avant de l'envoyer"
-                                >
-                                    <i className="fa-solid fa-triangle-exclamation"></i>
-                                    <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
-                                </button>
-                                )}
-                                <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
-                            </div>
+                                    {/* Le niveau de détail n'a aucun sens sur l'étude interne,
+                                        détaillée par nature : masqué dans ce cas. */}
+                                    {isCommercialMode && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500 shrink-0">Niveau de détail</span>
+                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
+                                                <button
+                                                    onClick={() => setClientDetailOverride('synthese')}
+                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'synthese' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                                    title="Une ligne par ouvrage"
+                                                >
+                                                    Synthèse
+                                                </button>
+                                                <button
+                                                    onClick={() => setClientDetailOverride('detaille')}
+                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'detaille' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                                    title="Chaque fourniture et main-d'œuvre, au prix de vente"
+                                                >
+                                                    Détaillé
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {!canSend && (
@@ -11736,7 +11777,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         )}
 
-                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-6">
+                        <div className="p-6 overflow-auto custom-scroll bg-neutral-50/50 space-y-6">
                             {/* Défense en profondeur : même si isCommercialMode restait à
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
@@ -12215,15 +12256,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             )}
                         </div>
 
-                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            {canSend ? (
-                                <button onClick={() => window.print()} className="btn-secondary"><i className="fa-solid fa-print"></i> Imprimer Devis</button>
-                            ) : (
-                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-secondary text-amber-900 bg-amber-50 border-amber-300 hover:bg-amber-100">
-                                    <i className="fa-solid fa-triangle-exclamation"></i> {missingLegal.length > 0 ? "Compléter l'identité pour imprimer" : "Corriger l'échéancier pour imprimer"}
-                                </button>
-                            )}
-                            <button onClick={() => setViewingSavedQuote(null)} className="btn-primary">Fermer</button>
+                        {/* Pied allégé (2026-08-21). Il portait deux doublons :
+                            « Imprimer Devis », désormais dans la barre d'outils avec
+                            les trois autres actions de sortie ; et, quand le devis
+                            n'est pas envoyable, un troisième rappel de l'anomalie —
+                            déjà signalée par le bandeau ambre ET par le bouton de
+                            la barre d'outils.
+
+                            « Fermer » était en `btn-primary` : le bouton le plus
+                            appuyé du dialogue était celui qui ne fait rien. L'action
+                            principale, c'est le téléchargement, et elle est dans la
+                            barre d'outils. « Fermer » repasse donc en secondaire. */}
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
+                            <button onClick={() => setViewingSavedQuote(null)} className="btn-secondary">Fermer</button>
                         </div>
                     </div>
                 </div>
