@@ -2156,3 +2156,75 @@ Vérifié sur cinq écrans : plus aucun débordement horizontal.
   sous peine de réintroduire le défilement — arbitrage à trancher.
 - La fiche UI/UX livrée décrit l'état d'avant cette passe (§ 3.4 et § 3.6a
   notamment) : à regénérer.
+
+---
+
+## 🚀 36. Déploiement en production (2026-08-21)
+
+**En ligne : https://ikadevis.officemicro89.workers.dev**
+
+### 36.1 Infrastructure — la question laissée ouverte est tranchée
+
+Le tracker notait au § précédent qu'on ignorait « si Cloudflare Pages a
+effectivement redéployé ». Réponse : **ce n'est pas Pages, c'est Cloudflare
+Workers en mode Static Assets** (`wrangler.jsonc`, worker `ikadevis`, sert
+`./dist`). Aucun code Worker, uniquement des fichiers servis — toute la logique
+serveur est chez Supabase.
+
+Le déploiement n'est **pas automatique** : `.github/workflows` ne contient
+qu'un job de build et de tests, sans étape de publication. Il faut lancer
+`wrangler deploy` à la main.
+
+| | |
+|---|---|
+| Compte Cloudflare | `officemicro89@gmail.com` |
+| Droits du jeton | `workers (write)`, `workers_scripts (write)` — suffisants |
+| Commande | `npm run deploy:build` puis `npx wrangler deploy` |
+
+> **Les domaines `ikadevis.com` et `app.ikadevis.com` ne résolvent pas.**
+> Vérifié avec un domaine de contrôle pour écarter une restriction
+> d'environnement. Seule l'URL `workers.dev` est active.
+
+### 36.2 Contrôles avant publication
+
+- `dist/config.js` ne contient **qu'un seul jeton**, de rôle `anon` — publique
+  par conception, protégée par les RLS. Aucune trace de `service_role`.
+- 13 ressources référencées par `index.html`, toutes présentes dans `dist/`.
+- `config.js` local **remis sur staging** juste après le build de production :
+  `deploy:build` le réécrit vers la production, et l'oublier ferait pointer
+  l'application de développement sur la vraie base.
+
+### 36.3 Vérifié sur le site en ligne, pas seulement en local
+
+| Contrôle | Résultat |
+|---|---|
+| Ressources servies | 9/9 en HTTP 200 (bundle, CSS, config, favicon, assets, vendor) |
+| Version servie | `v=20260821v` — identique à la version locale |
+| Erreurs console | aucune |
+| Bouton principal | `rgb(17, 24, 39)` — encre |
+| Menu actif | fond `rgb(238, 241, 248)` + liseré `rgb(59, 91, 219)` |
+| Barre de totaux | 77 px |
+| Défilements horizontaux | **0** |
+| Traces de l'ancien logo / rouge | **0** |
+
+### 36.4 ⚠️ Ce qui NE fonctionne PAS en ligne tant que les migrations ne sont pas passées
+
+Vérifié le jour du déploiement — la production est toujours à **0/6 colonnes de
+réglages, 0/1 stock, 0/3 tables de facturation, 0/1 fonction** :
+
+| Fonction | État en mode connecté |
+|---|---|
+| Mode Démo (local) | ✅ complet |
+| Enregistrement des paramètres d'entreprise | ❌ échoue — 6 colonnes absentes |
+| Création d'un nouveau compte | ❌ échoue — même chemin d'insertion |
+| Factures | ❌ indisponibles |
+| Logo et pied de page PDF, TVA configurable, stock | ❌ indisponibles |
+
+**La connexion MCP de production est en lecture seule** (`cannot execute ALTER
+TABLE in a read-only transaction`) : les migrations ne peuvent être appliquées
+que depuis l'éditeur SQL Supabase, à la main. Fichier prêt à coller :
+`migrations_production_2026-08-20.sql`. La requête de contrôle en fin de fichier
+doit renvoyer **6, 1, 3, 1**.
+
+Une fois passées, aucun redéploiement n'est nécessaire : le code en ligne les
+attend déjà.
