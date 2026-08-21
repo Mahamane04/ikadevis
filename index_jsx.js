@@ -2932,6 +2932,7 @@ function QuoteTotalsBar({
 }
 
 function QuoteWorkspace({
+    onDirtyChange,
     hybridQuote,
     setHybridQuote,
     activeOrganizationRole = "owner",
@@ -2973,6 +2974,35 @@ function QuoteWorkspace({
     const [autosaveTime, setAutosaveTime] = useState(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // 2026-08-21 — Garde de fermeture d'onglet.
+    // Vérifié en direct avant d'écrire ceci : le devis en cours n'est écrit
+    // dans AUCUNE clé de localStorage (7 clés présentes, aucune ne contient
+    // le brouillon). Fermer l'onglet, recharger la page ou planter faisait
+    // donc perdre tout le chiffrage en cours, sans un mot — testé avec un
+    // témoin de saisie, disparu après rechargement.
+    //
+    // La navigation INTERNE, elle, ne perd rien (l'état vit dans React) :
+    // aucune garde n'est posée sur les changements de vue, ce serait de la
+    // friction inutile.
+    //
+    // ⚠️ Les navigateurs n'autorisent PAS de fenêtre personnalisée ici. Seul
+    // le dialogue natif « Quitter le site ? » s'affiche, et son texte n'est
+    // pas modifiable — returnValue est ignoré par Chrome et Firefox depuis
+    // des années. C'est la seule protection possible à ce point de sortie.
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+        const avertir = (e) => { e.preventDefault(); e.returnValue = ''; };
+        window.addEventListener('beforeunload', avertir);
+        return () => window.removeEventListener('beforeunload', avertir);
+    }, [hasUnsavedChanges]);
+
+    // App a besoin de connaître cet état pour garder la déconnexion : elle
+    // démonte l'espace de chiffrage, donc perd le devis en cours exactement
+    // comme une fermeture d'onglet — mais sans que le navigateur n'intervienne.
+    useEffect(() => {
+        if (onDirtyChange) onDirtyChange(hasUnsavedChanges);
+    }, [hasUnsavedChanges, onDirtyChange]);
 
     // History stack for Undo / Redo
     const [historyPast, setHistoryPast] = useState([]);
@@ -3077,6 +3107,24 @@ function QuoteWorkspace({
     const handleDuplicateLot = () => {
         const lotToCopy = hybridQuote.lots?.[activeLotIndex];
         if (!lotToCopy) return;
+        // Dupliquer un lot n'efface rien, mais ce n'est pas anodin : tous ses
+        // ouvrages sont recopiés et le total du devis augmente d'autant. D'où
+        // la confirmation, qui annonce le montant ajouté.
+        const nb = lotToCopy.items?.length || 0;
+        if (confirmAction) {
+            const suite = () => appliquerDuplicationLot(lotToCopy);
+            confirmAction({
+                title: 'Dupliquer ce lot ?',
+                message: `Une copie de « ${lotToCopy.name} » sera ajoutée au devis${nb ? `, avec ses ${nb} ouvrage${nb > 1 ? 's' : ''}` : ''}.\nLe total du devis augmentera d'autant.`,
+                confirmLabel: 'Dupliquer',
+                onConfirm: suite
+            });
+            return;
+        }
+        appliquerDuplicationLot(lotToCopy);
+    };
+
+    const appliquerDuplicationLot = (lotToCopy) => {
         pushState();
         const nextCode = String((hybridQuote.lots?.length || 0) + 1).padStart(2, '0');
         const duplicated = {
@@ -3108,11 +3156,33 @@ function QuoteWorkspace({
             showToast("Impossible de supprimer le seul lot du devis", "error");
             return;
         }
-        pushState();
-        const updatedLots = hybridQuote.lots.filter((_, idx) => idx !== activeLotIndex);
-        setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
-        setActiveLotIndex(Math.max(0, activeLotIndex - 1));
-        showToast("Lot supprimé du devis");
+        // 2026-08-21 — Se faisait en UN clic, sans confirmation : un lot peut
+        // contenir des dizaines d'ouvrages, tout un pan du chiffrage partait
+        // d'un coup. pushState() permettait bien Cmd+Z, encore fallait-il le
+        // savoir. On nomme le lot et on annonce le nombre d'ouvrages perdus —
+        // « ce lot » ne suffit pas pour décider en connaissance de cause.
+        const lot = hybridQuote.lots[activeLotIndex];
+        const nb = lot?.items?.length || 0;
+        const detail = nb === 0
+            ? "Il ne contient aucun ouvrage."
+            : `Ses ${nb} ouvrage${nb > 1 ? 's' : ''} seront supprimés avec lui.`;
+
+        const supprimer = () => {
+            pushState();
+            const updatedLots = hybridQuote.lots.filter((_, idx) => idx !== activeLotIndex);
+            setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+            setActiveLotIndex(Math.max(0, activeLotIndex - 1));
+            showToast("Lot supprimé du devis");
+        };
+
+        if (!confirmAction) { supprimer(); return; }
+        confirmAction({
+            title: 'Supprimer ce lot ?',
+            message: `« ${lot?.name || 'Lot sans nom'} » va être retiré du devis.\n${detail}\n\nCette action reste annulable par Cmd+Z (Ctrl+Z).`,
+            confirmLabel: 'Supprimer le lot',
+            isDanger: true,
+            onConfirm: supprimer
+        });
     };
 
     // Item handlers
@@ -4755,6 +4825,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [platformLoading, setPlatformLoading] = useState(false);
     const [platformError, setPlatformError] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isDanger: false });
+    // Remonté par QuoteWorkspace — sert à garder la déconnexion.
+    const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
     
     // P0.2 V5.7 — Schema Check Post-Auth (strictement propre à l'utilisateur connecté)
     const userSchemaInfo = useMemo(() => {
@@ -6296,6 +6368,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
 
+    // 2026-08-21 — La déconnexion appelait onSignOut directement. Un devis en
+    // cours de chiffrage, jamais écrit en localStorage (vérifié : aucune clé
+    // ne le contient), disparaissait alors sans un mot.
+    const deconnexionGardee = () => {
+        if (!devisNonEnregistre) { if (onSignOut) onSignOut(); return; }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Modifications non enregistrées',
+            message: "Le devis en cours contient des modifications qui ne sont pas enregistrées.\nElles seront perdues à la déconnexion.",
+            confirmLabel: 'Se déconnecter quand même',
+            isDanger: true,
+            onConfirm: () => { closeConfirm(); onSignOut(); }
+        });
+    };
+
     // F2 (2026-08-17) — Un seul état de connexion, dérivé une fois et affiché
     // partout pareil. Trois indicateurs se contredisaient sur le même écran :
     // « Mode Démo (Local) » en en-tête, « Cloud Actif » dans la barre latérale
@@ -7271,6 +7358,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (useHybridEditor) {
             return (
                 <QuoteWorkspace
+                    onDirtyChange={setDevisNonEnregistre}
                     hybridQuote={hybridQuote}
                     setHybridQuote={setHybridQuote}
                     solutions={solutions}
@@ -9024,7 +9112,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </button>
 
                                             <button 
-                                                onClick={() => {
+                                                onClick={() => setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: 'Dupliquer ce devis ?',
+                                                    // Dupliquer crée un DOCUMENT de plus dans la liste, avec son
+                                                    // propre numéro consommé sur la séquence. Rien n'est détruit,
+                                                    // mais la confusion entre l'original et la copie coûte cher :
+                                                    // on annonce donc le numéro attribué à la copie.
+                                                    message: `Une copie de ${sq.number} sera créée sous le numéro ${generateNextQuoteNumber(savedQuotes)}, au nom de « ${sq.clientName} (Copie) ».\n\nL'original n'est pas modifié.`,
+                                                    confirmLabel: 'Dupliquer',
+                                                    onConfirm: () => {
+                                                    closeConfirm();
                                                     const currentYear = new Date().getFullYear();
                                                     const newId = Date.now() + Math.floor(Math.random() * 100000);
                                                     const nextNum = generateNextQuoteNumber(savedQuotes);
@@ -9043,7 +9141,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     updateSavedQuotes([duplicated, ...savedQuotes]);
                                                     updateNextQuoteSeq(nextQuoteSeq + 1);
                                                     showToast(`Devis ${sq.number} dupliqué avec succès !`, "success");
-                                                }}
+                                                    }
+                                                })}
                                                 className="btn-icon text-neutral-600 hover:bg-neutral-100" 
                                                 title="Dupliquer ce devis"
                                                 aria-label={`Dupliquer ${sq.number}`}
@@ -10156,7 +10255,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
                     </button>
                     {onSignOut && (
-                        <button onClick={onSignOut} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
+                        <button onClick={deconnexionGardee} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
                             <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
                         </button>
                     )}
@@ -10187,7 +10286,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                     {onSignOut && (
                         <div className="relative sidebar-item-collapsed-wrap">
-                            <button onClick={onSignOut} className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
+                            <button onClick={deconnexionGardee} className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
                                 <i className="fa-solid fa-arrow-right-from-bracket"></i>
                             </button>
                             <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
@@ -10223,7 +10322,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <i className="fa-solid fa-gear text-brand-500 mr-2"></i> Paramètres du Compte
                             </button>
                             {onSignOut && (
-                                <button onClick={onSignOut} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
+                                <button onClick={deconnexionGardee} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
                                     <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
                                 </button>
                             )}
@@ -12346,7 +12445,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             {confirmDialog.isOpen && (
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4">
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-brand-500' : 'bg-brand-50 text-brand-500'}`}>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-500'}`}>
                             <i className={`fa-solid ${confirmDialog.isDanger ? 'fa-trash-can' : 'fa-circle-question'} text-2xl`}></i>
                         </div>
                         <h3 className="font-semibold text-neutral-900 text-xl mb-2">{confirmDialog.title}</h3>
@@ -12362,7 +12461,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </button>
                             )}
                             {confirmDialog.onConfirm && (
-                                <button onClick={confirmDialog.onConfirm} className="flex flex-1 items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95">
+                                <button
+                                    onClick={confirmDialog.onConfirm}
+                                    className={`flex flex-1 items-center justify-center gap-2 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95 ${
+                                        confirmDialog.isDanger
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-neutral-900 hover:bg-black'
+                                    }`}
+                                >
                                     {confirmDialog.confirmLabel || 'Confirmer'}
                                 </button>
                             )}
