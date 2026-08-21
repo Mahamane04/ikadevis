@@ -2207,24 +2207,51 @@ qu'un job de build et de tests, sans étape de publication. Il faut lancer
 | Défilements horizontaux | **0** |
 | Traces de l'ancien logo / rouge | **0** |
 
-### 36.4 ⚠️ Ce qui NE fonctionne PAS en ligne tant que les migrations ne sont pas passées
+### 36.4 Migrations appliquées — 2026-08-21, 18 h
 
-Vérifié le jour du déploiement — la production est toujours à **0/6 colonnes de
-réglages, 0/1 stock, 0/3 tables de facturation, 0/1 fonction** :
+Appliquées par l'utilisateur depuis l'éditeur SQL Supabase (la connexion MCP
+de production est en lecture seule : `cannot execute ALTER TABLE in a
+read-only transaction`). Requête de contrôle : **6 · 1 · 3 · 1**.
 
-| Fonction | État en mode connecté |
+Vérification indépendante, au-delà des compteurs :
+
+| Contrôle | Résultat |
 |---|---|
-| Mode Démo (local) | ✅ complet |
-| Enregistrement des paramètres d'entreprise | ❌ échoue — 6 colonnes absentes |
-| Création d'un nouveau compte | ❌ échoue — même chemin d'insertion |
-| Factures | ❌ indisponibles |
-| Logo et pied de page PDF, TVA configurable, stock | ❌ indisponibles |
+| Colonnes `company_settings` | 7/7, types corrects (`jsonb` pour `internal_doc_roles`, `vat_rates`, `payment_schedule`) |
+| `materials.stock_qty` | `numeric`, nullable — NULL = matière non suivie, comme prévu |
+| Tables de facturation | 3/3, **RLS activé sur les trois** |
+| Déclencheurs d'immuabilité | `trg_protect_issued_invoice`, `trg_protect_issued_invoice_lines` |
+| `issue_invoice_v6` | `(p_invoice_id uuid)`, SECURITY DEFINER, `search_path=public` |
+| Policies RLS | invoices 4 · invoice_lines 2 · sequences 1 · material_price_history 3 |
+| **Colonnes envoyées par `mapCompanyToDb`** | **18/18 présentes** — c'est le contrôle qui décide si l'enregistrement des paramètres fonctionne |
 
-**La connexion MCP de production est en lecture seule** (`cannot execute ALTER
-TABLE in a read-only transaction`) : les migrations ne peuvent être appliquées
-que depuis l'éditeur SQL Supabase, à la main. Fichier prêt à coller :
-`migrations_production_2026-08-20.sql`. La requête de contrôle en fin de fichier
-doit renvoyer **6, 1, 3, 1**.
+### 36.5 Conseillers de sécurité après migration
 
-Une fois passées, aucun redéploiement n'est nécessaire : le code en ligne les
-attend déjà.
+`get_advisors(security)` : **aucun problème de niveau ERROR**. Que des WARN,
+dont la plupart préexistaient. Deux viennent de cette migration, tous deux
+analysés et **non exploitables** :
+
+- `protect_issued_invoice` et `protect_issued_invoice_lines` sont signalées
+  comme exécutables par `anon`. Elles retournent le type `trigger` :
+  **Postgres refuse toute invocation directe** d'une fonction trigger. Faux
+  positif du linter.
+- `issue_invoice_v6` est réellement appelable en RPC, y compris par `anon`.
+  Mais elle vérifie `has_org_permission` en interne et fixe
+  `search_path=public` : un appelant sans droit sur l'organisation est rejeté.
+
+> Hygiène possible plus tard, sans urgence :
+> `REVOKE EXECUTE ON FUNCTION public.protect_issued_invoice(),`
+> `public.protect_issued_invoice_lines() FROM anon, authenticated;`
+
+### 36.6 Reste à éprouver par l'utilisateur
+
+La structure est vérifiée de bout en bout, mais le parcours connecté n'a pas
+été exercé : le tester exigerait de créer un compte ou d'écrire des données
+dans la vraie base. À faire depuis
+**https://ikadevis.officemicro89.workers.dev** :
+
+1. Enregistrer les paramètres d'entreprise (le chemin qui échouait avant).
+2. Renseigner un logo et un pied de page PDF.
+3. Changer un taux de TVA, vérifier qu'il tient après rechargement.
+4. Émettre une facture depuis un devis, puis vérifier qu'elle devient
+   immuable et que la numérotation ne saute pas.
