@@ -2052,3 +2052,107 @@ un carré rouge avec triangle et cercle — manqué lors du changement de marque
 | `#e6222b` résiduel dans le DOM | **0** |
 
 `npm test` : 40/40, étalons A–G conformes.
+
+---
+
+## 🎨 35. Passe d'interface du 2026-08-21
+
+Six changements demandés sur captures annotées. Tous mesurés dans le DOM avant
+correction — aucun n'a été fait « à l'œil ».
+
+### 35.1 Direction visuelle « Encre »
+
+Le bleu `#2563eb` était jugé trop agressif. Quatre directions ont été maquettées
+côte à côte sur un même fragment ; « Encre » a été retenue. **Le problème n'était
+pas seulement la teinte** :
+
+| Traitement | Avant | Après |
+|---|---|---|
+| Ombres des boutons | halo bleu (11 occurrences) | neutres |
+| Graisses de police | 93 × `font-black` (900), 114 × `font-extrabold` (800) | 700 et 600 |
+| Item de menu actif | aplat bleu plein de 52 px | fond `#eef1f8` + liseré 2 px |
+| Action principale | bleu | **encre `#111827`** |
+
+`brand` reste bleu mais devient un **accent** (500 = `#3b5bdb`, 600 = `#2f49b0`).
+Les titres de document et les totaux repassent à l'encre : le bleu quitte les
+plus gros caractères de l'écran. `font-bold` (700) est conservé — tout aplatir
+aurait supprimé la hiérarchie au lieu de l'assainir.
+
+Contrastes : blanc sur encre **17,74:1** · accent 500 **5,67:1** · accent 600
+**7,78:1** · menu actif **12,50:1**. Tous meilleurs que l'ancien bleu (5,17:1).
+
+### 35.2 Deux barres d'outils refondues en deux bandes
+
+**Document** — 7 contrôles réclamaient 920 px dans une modale de 896. Le bouton
+« Imprimer » (130 px) était poussé **hors du cadre** : `overflow-hidden` le
+masquait, la fonction avait disparu sans le moindre signe. Bande 1 = identité +
+actions, bande 2 = destinataire / niveau de détail, chacun avec son intitulé.
+
+**Espace de chiffrage** — « Nom du client » et « Chantier » tombaient à **108 px**,
+libellés coupés en plein milieu. Bande 2 leur rend **395 px** chacun. L'en-tête
+est au passage plus compact : 82 px contre 109 (et 72 contre 215 en mobile).
+
+### 35.3 Redondances supprimées
+
+- La barre de totaux dupliquait « Aperçu » et « Enregistrer ». L'en-tête étant
+  `position: sticky` (vérifié : reste à 104 px après défilement complet), ces
+  copies ne servaient à rien et forçaient la barre sur deux lignes. Passées en
+  `sm:hidden` : la barre tombe de **135 px à 77 px**, de 16 % à 9 % de l'écran.
+- « + Nouveau Devis » et « Enregistrer » étaient tous deux primaires. Le second
+  demandait `bg-neutral-900` — **code mort**, `.btn-primary` l'écrasait.
+
+### 35.4 Confirmations
+
+Un système `confirmDialog` existait (16 usages). Ajouts :
+
+| Point de sortie | Garde |
+|---|---|
+| Fermeture d'onglet / rechargement | `beforeunload` |
+| Déconnexion | dialogue (3 boutons sur 4 — le 4e est l'écran de blocage) |
+| Suppression d'un lot | nomme le lot et le nombre d'ouvrages perdus |
+| Duplication d'un lot / d'un devis | annonce la conséquence chiffrée |
+
+> **Vérifié avant d'écrire la garde** : le devis en cours n'est écrit dans
+> **aucune** clé de localStorage. Témoin de saisie disparu après rechargement.
+> Fermer l'onglet perdait tout le chiffrage, sans un mot.
+
+Le dialogue lui-même avait deux défauts : icône **bleue sur fond rouge** en mode
+danger, et bouton de confirmation bleu même pour une suppression — une action
+destructrice ressemblait à une action anodine.
+
+Non gardés **volontairement** : la navigation interne (vérifié, ne perd rien),
+la suppression d'un ouvrage (annulation de 6 s déjà en place), la duplication
+d'une ligne (fréquente et triviale).
+
+### 35.5 Défilement horizontal
+
+`.app-table { min-width: 600px }` s'appliquait à toutes les tables à toutes les
+largeurs. Dans un panneau de 560 px, elle forçait une barre de défilement pour
+**40 px** — alors que la table tient dans 560 et que son contenu n'a besoin que
+de 486. Cantonnée à `@media (max-width: 767px)`, où elle reste utile.
+
+Vérifié sur cinq écrans : plus aucun débordement horizontal.
+
+### 35.6 Le piège qui revient — à ne plus redécouvrir
+
+**Quatre fois en deux jours.** Les classes déclarées dans le `<style>` de
+`index.html` chargent **après** `tailwind.css` et gagnent à spécificité égale :
+
+- `.app-label` fixe `margin-bottom` et `display: block` → `mb-0` sans effet ;
+- `.btn-primary` fixe `background-color` → `bg-neutral-900` sans effet ;
+- `.btn-primary` / `.btn-secondary` fixent `display: inline-flex` → **`hidden`
+  posé sur ces boutons ne les masque pas**.
+
+> Règle : ne jamais poser une utilitaire Tailwind de `display`, de
+> `background-color` ou de marge **directement** sur `.btn-primary`,
+> `.btn-secondary` ou `.app-label`. Passer par un conteneur, ou par des
+> utilitaires seuls sans la classe maison.
+
+### 35.7 Reste à faire
+
+- Le tableau des ouvrages du devis n'utilise pas `.app-table` : cinq colonnes
+  fixes consomment 560 px et ne laissent que **120 px** à « Désignation
+  Ouvrage », d'où les noms tronqués. L'élargir impose de rétrécir les autres,
+  sous peine de réintroduire le défilement — arbitrage à trancher.
+- La fiche UI/UX livrée décrit l'état d'avant cette passe (§ 3.4 et § 3.6a
+  notamment) : à regénérer.
