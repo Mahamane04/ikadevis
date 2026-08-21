@@ -1447,7 +1447,7 @@ function ActiveLotHeader({
         // écrasaient le titre et la ligne "Sous-total HT · Marge · ouvrages" en
         // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
         <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-full sm:min-w-[240px]">
+            <div className="flex items-center gap-3 flex-1 min-w-0 sm:min-w-[240px]">
                 <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-bold text-sm shrink-0">
                     {lot.code || String(lotIndex + 1).padStart(2, '0')}
                 </span>
@@ -1469,7 +1469,7 @@ function ActiveLotHeader({
                             </button>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
+                        <div className="flex items-center gap-2 group cursor-pointer min-w-0" onClick={() => setIsEditingTitle(true)}>
                             <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
                                 {lot.name || `Lot ${lotIndex + 1}`}
                             </h2>
@@ -1702,11 +1702,18 @@ function WorkItemTable({
                 <table className="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
+                            {/* 2026-08-21 — Les cinq colonnes à largeur fixe consommaient 560 px et ne
+                                laissaient que 120 px à la désignation. C'est pourtant la colonne la plus
+                                importante, et c'est un <input> : elle ne peut pas passer à la ligne, donc
+                                les noms d'ouvrages étaient tronqués (« Pann… »). Les colonnes chiffrées
+                                sont resserrées au strict nécessaire — un montant en FCFA occupe ~78 px,
+                                une unité 2 à 3 caractères — ce qui rend de la place à la désignation sans
+                                réintroduire le défilement horizontal supprimé juste avant. */}
                             <th className="py-3.5 px-4">Désignation Ouvrage</th>
-                            <th className="py-3.5 px-3 text-center w-24">Quantité</th>
-                            <th className="py-3.5 px-2 text-center w-20">Unité</th>
-                            <th className="py-3.5 px-3 text-right w-32">Prix Unitaire HT</th>
-                            <th className="py-3.5 px-4 text-right w-36">Total Net HT</th>
+                            <th className="py-3.5 px-3 text-center w-20">Qté</th>
+                            <th className="py-3.5 px-2 text-center w-16">Unité</th>
+                            <th className="py-3.5 px-3 text-right w-28">P.U. HT</th>
+                            <th className="py-3.5 px-4 text-right w-32">Total HT</th>
                             <th className="py-3.5 px-3 text-center w-28">Actions</th>
                         </tr>
                     </thead>
@@ -1720,9 +1727,12 @@ function WorkItemTable({
                                 <tr key={item.id || idx} className="hover:bg-neutral-50/60 transition-colors group">
                                     <td className="py-3 px-4">
                                         <div className="flex items-start gap-2.5">
-                                            <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs shrink-0 mt-1">
-                                                <i className="fa-solid fa-cube"></i>
-                                            </div>
+                                            {/* Cube décoratif retiré le 2026-08-21 — TABLE DESKTOP UNIQUEMENT.
+                                                Identique sur chaque ligne, il consommait 38 px de la colonne
+                                                « Désignation » : la seule réellement à l'étroit, et la seule dont
+                                                le contenu est un <input>, donc incapable de passer à la ligne.
+                                                Conservé dans la vue mobile en cartes (sm:hidden), où la place ne
+                                                manque pas et où il sert de repère visuel. */}
                                             <div className="min-w-0 flex-1 space-y-1">
                                                 {/* Édition Directe du Nom de l'Ouvrage (Annotation 5) */}
                                                 <input
@@ -1779,7 +1789,7 @@ function WorkItemTable({
                                                     calcForm: { ...(item.calcForm || {}), qty: val }
                                                 });
                                             }}
-                                            className="w-20 text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                            className="w-16 text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                             aria-label={`Quantité pour ${item.name}`}
                                         />
                                     </td>
@@ -1804,7 +1814,7 @@ function WorkItemTable({
                                                     isCustom: true
                                                 });
                                             }}
-                                            className="w-28 text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                            className="w-24 text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                             aria-label={`Prix unitaire pour ${item.name}`}
                                         />
                                     </td>
