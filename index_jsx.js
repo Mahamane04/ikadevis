@@ -2899,8 +2899,24 @@ function QuoteTotalsBar({
                     </div>
                 </div>
 
-                {/* Boutons d'Action */}
-                <div className="flex items-center gap-2">
+                {/* Boutons d'action — MOBILE UNIQUEMENT (2026-08-21).
+                    L'en-tête du devis est `position: sticky` : vérifié en direct,
+                    il reste à 104 px du haut même après défilement complet. Ses
+                    boutons « Aperçu » et « Enregistrer » sont donc toujours
+                    atteignables sur desktop, et ces copies n'étaient qu'une
+                    redondance — coûteuse : elles forçaient la barre de totaux sur
+                    DEUX lignes, soit 135 px, 16 % de la hauteur d'écran occupés en
+                    permanence.
+
+                    Sous 640 px, l'en-tête replie ses actions faute de place : c'est
+                    là, et seulement là, que ces boutons prennent le relais. Une
+                    seule place où agir, quelle que soit la largeur.
+
+                    Le `sm:hidden` est porté par le conteneur, pas par les boutons :
+                    .btn-primary et .btn-secondary fixent display: inline-flex dans
+                    le <style> de index.html, qui charge après tailwind.css — posé
+                    sur eux, il resterait sans effet. */}
+                <div className="flex sm:hidden items-center gap-2">
                     <button
                         type="button"
                         onClick={onPreviewQuote}
@@ -3466,7 +3482,7 @@ function QuoteWorkspace({
                     />
                 </div>
 
-                <main className="flex-1 min-w-0 bg-white flex flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36">
+                <main className="flex-1 min-w-0 bg-white flex flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24">
                     {inspectorItemIndex !== null ? (
                         <WorkItemInspector
                             isOpen={true}
