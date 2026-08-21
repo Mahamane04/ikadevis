@@ -1923,3 +1923,63 @@ pour la rapidité, « Imprimer » pour la qualité. C'est un compromis assumé, 
 
 - PDF vectoriel natif (texte sélectionnable) sans passer par la rastérisation — chantier
   nettement plus lourd : reconstruire chaque document en primitives jspdf.
+
+---
+
+## 🏢 33. Marque et favicon (2026-08-21)
+
+Logo définitif fourni par l'utilisateur : immeubles au trait avec une coche
+intégrée, plus le mot-symbole « ikadevis ». Il remplace le logo provisoire
+(carré rouge, triangle et cercle) qui n'était pas la marque du produit.
+
+### 33.1 Trois problèmes réglés au passage
+
+**a) L'ancien logo dépendait d'une police jamais chargée.** `LogoSVG` composait
+« ikadevis » avec des `<text>` en **Inter**, police absente de l'application :
+le navigateur substituait systématiquement. Le logo ne s'est donc **jamais**
+affiché comme prévu. Le nouveau mot-symbole est vectorisé — plus aucune
+dépendance.
+
+**b) L'écran de connexion n'affichait pas le logo.** Il montrait une icône
+décorative (triangle + cercle dans un carré en dégradé rouge) sans rapport avec
+la marque, et le nom en texte à côté. Remplacé par le logo, en blanc ; le `<h1>`
+disparaît, le mot-symbole étant déjà dans le tracé.
+
+**c) L'application n'avait aucun favicon.** `favicon.ico` existait mais faisait
+**0 octet** et n'était référencé nulle part — l'onglet portait l'icône générique
+du navigateur. `favicon.svg` s'adapte désormais au thème du navigateur (sombre
+sur chrome clair, blanc sur chrome sombre : un favicon noir disparaît dans une
+barre d'onglets sombre).
+
+### 33.2 Choix techniques
+
+| Décision | Pourquoi |
+|---|---|
+| `fill="currentColor"` | Le logo hérite de la couleur de son conteneur. Aucune couleur en dur → blanc à la connexion, `neutral-900` sur fond clair. Le fichier fourni est monochrome ; **aucune bichromie n'a été inventée**. |
+| viewBox recadré au plus juste | Le fichier source laisse ~20 % de vide autour du tracé. Sans recadrage (mesuré au `getBBox`), `h-8` n'aurait donné que **25 px** de marque visible au lieu de 32. |
+| Commentaires Illustrator retirés | `<!-- Generator: Adobe Illustrator -->` est un commentaire HTML, **invalide en JSX** — le build échouait. |
+| `assets/` dans `A_PUBLIER` | Le garde-fou de `build-dist.mjs` refuse tout `index.html` référençant un fichier absent de `dist/`. |
+
+### 33.3 Les trois fichiers reçus
+
+| Fichier | État |
+|---|---|
+| `Logo ikamovie 1.svg` | ✅ horizontal, propre — source du logo de l'app |
+| `Logo ikamovie.svg` | ✅ carré (icône au-dessus du mot-symbole), propre |
+| `Logo ikamovie.3.svg` | ⚠️ **export cassé** : contenu de 618×448 dans un `viewBox` de 212×212, débutant à `y = -257`. Il contient deux copies parasites hors du cadre. **Non utilisé.** |
+
+> Les noms de fichiers disent « ikamovie » alors que le tracé dit « ikadevis » —
+> simple artefact de nommage, sans conséquence. Les originaux sont conservés
+> dans `Logo ikamovie/`, les déclinaisons exploitables dans `assets/`.
+
+### 33.4 Vérifié en direct
+
+| Point d'usage | Rendu mesuré |
+|---|---|
+| Barre latérale desktop | 103 × 32 |
+| Tiroir mobile | 103 × 32 |
+| Barre du haut mobile | 90 × 28 |
+| Écran de connexion | 154 × 48, en blanc |
+
+`favicon.svg` et les trois assets servis en **HTTP 200**, type `image/svg+xml`.
+`build:dist` : 13 références, toutes présentes. `npm test` : 40/40, étalons A–G.
