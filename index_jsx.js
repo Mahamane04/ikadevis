@@ -206,7 +206,7 @@ function AuthScreen({ onAuthSuccess }) {
 
                 {/* Card */}
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-                    <h2 className="text-white font-extrabold text-xl mb-1">
+                    <h2 className="text-white font-semibold text-xl mb-1">
                         {mode === 'login' ? 'Connexion' : mode === 'signup' ? 'Créer un compte' : 'Réinitialiser le mot de passe'}
                     </h2>
                     <p className="text-neutral-400 text-sm font-medium mb-6">
@@ -240,8 +240,8 @@ function AuthScreen({ onAuthSuccess }) {
                             </div>
                         )}
                         <button type="submit" disabled={loading}
-                            className="w-full py-3.5 rounded-xl font-black text-white text-sm tracking-wide transition-all active:scale-95 disabled:opacity-50"
-                            style={{background: loading ? '#666' : 'linear-gradient(135deg, #2563eb, #1e3a8a)', boxShadow: '0 4px 20px rgba(37,99,235,0.4)'}}>
+                            className="w-full py-3.5 rounded-xl font-bold text-white text-sm tracking-wide transition-all active:scale-95 disabled:opacity-50"
+                            style={{background: loading ? '#666' : 'linear-gradient(135deg, #3b5bdb, #1e3a8a)', boxShadow: '0 4px 20px rgba(37,99,235,0.4)'}}>
                             {loading ? <span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement…</span>
                                 : mode === 'login' ? 'Se connecter →'
                                 : mode === 'signup' ? 'Créer mon compte →'
@@ -398,13 +398,13 @@ class ErrorBoundary extends React.Component {
                             <i className="fa-solid fa-shield-halved"></i>
                         </div>
                         <div>
-                            <h2 className="text-xl font-extrabold text-white">Récupération Sécurisée d'Affichage</h2>
+                            <h2 className="text-xl font-semibold text-white">Récupération Sécurisée d'Affichage</h2>
                             <p className="text-xs text-neutral-400 mt-1">Vos données de devis et catalogue restent sauvegardées.</p>
                         </div>
                         <p className="text-xs text-red-300 font-mono bg-neutral-950/80 p-3 rounded-xl text-left overflow-auto max-h-32 border border-neutral-800">
                             {this.state.error?.message || "Erreur interceptée"}
                         </p>
-                        <button onClick={() => window.location.reload()} className="btn-primary w-full py-3.5 shadow-lg shadow-brand-500/30 font-bold">
+                        <button onClick={() => window.location.reload()} className="btn-primary w-full py-3.5 shadow-lg font-bold">
                             <i className="fa-solid fa-arrow-rotate-right mr-2"></i>Actualiser l'application
                         </button>
                     </div>
@@ -600,11 +600,11 @@ function NewQuoteWizardModal({
                 {/* Header Modal */}
                 <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/70 shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-brand-500/20">
+                        <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center text-lg font-bold shadow-sm">
                             <i className="fa-solid fa-wand-magic-sparkles"></i>
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-neutral-900">Nouveau Devis — Assistant Intelligent</h2>
+                            <h2 className="text-lg font-bold text-neutral-900">Nouveau Devis — Assistant Intelligent</h2>
                             <p className="text-xs text-neutral-500">Choisissez votre méthode de chiffrage selon votre profil et projet</p>
                         </div>
                     </div>
@@ -622,7 +622,7 @@ function NewQuoteWizardModal({
                     <button
                         type="button"
                         onClick={() => setWizardTab('quick_estimate')}
-                        className={`pb-3 px-3 text-xs font-black border-b-2 flex items-center gap-2 transition-all ${
+                        className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
                             wizardTab === 'quick_estimate'
                                 ? 'border-brand-600 text-brand-600'
                                 : 'border-transparent text-neutral-500 hover:text-neutral-900'
@@ -635,7 +635,7 @@ function NewQuoteWizardModal({
                     <button
                         type="button"
                         onClick={() => setWizardTab('templates')}
-                        className={`pb-3 px-3 text-xs font-black border-b-2 flex items-center gap-2 transition-all ${
+                        className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
                             wizardTab === 'templates'
                                 ? 'border-brand-600 text-brand-600'
                                 : 'border-transparent text-neutral-500 hover:text-neutral-900'
@@ -648,7 +648,7 @@ function NewQuoteWizardModal({
                     <button
                         type="button"
                         onClick={() => setWizardTab('blank')}
-                        className={`pb-3 px-3 text-xs font-black border-b-2 flex items-center gap-2 transition-all ${
+                        className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
                             wizardTab === 'blank'
                                 ? 'border-brand-600 text-brand-600'
                                 : 'border-transparent text-neutral-500 hover:text-neutral-900'
@@ -665,7 +665,7 @@ function NewQuoteWizardModal({
                     {wizardTab === 'quick_estimate' && (
                         <div className="space-y-6 animate-fade-in">
                             <div>
-                                <label className="app-label text-xs font-black uppercase text-neutral-700">
+                                <label className="app-label text-xs font-bold uppercase text-neutral-700">
                                     Étape 1 : Que souhaitez-vous faire chiffrer ?
                                 </label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
@@ -689,7 +689,7 @@ function NewQuoteWizardModal({
                                                     <i className={`fa-solid ${cat.icon}`}></i>
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <h4 className="text-xs font-extrabold text-neutral-900 truncate">{cat.label}</h4>
+                                                    <h4 className="text-xs font-semibold text-neutral-900 truncate">{cat.label}</h4>
                                                     <p className="text-[10px] text-neutral-500 truncate">{cat.desc}</p>
                                                 </div>
                                             </div>
@@ -709,7 +709,7 @@ function NewQuoteWizardModal({
                                         min="1"
                                         value={estimateSurface}
                                         onChange={(e) => setEstimateSurface(Math.max(1, parseFloat(e.target.value) || 1))}
-                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-black text-neutral-900 focus:border-brand-500 outline-none"
+                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900 focus:border-brand-500 outline-none"
                                     />
                                 </div>
 
@@ -747,10 +747,10 @@ function NewQuoteWizardModal({
                             <div className="p-5 rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-950 text-white shadow-lg space-y-3">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
                                     <div>
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-brand-400">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-400">
                                             Estimation Indicative Instantanée
                                         </span>
-                                        <h3 className="text-sm font-extrabold text-white">
+                                        <h3 className="text-sm font-semibold text-white">
                                             {categoryOptions.find(c => c.id === estimateCategory)?.label} — {estimateSurface} {quickResult.unit}
                                         </h3>
                                     </div>
@@ -768,8 +768,8 @@ function NewQuoteWizardModal({
                                     </div>
 
                                     <div>
-                                        <span className="text-[10px] text-brand-400 block uppercase font-black">Budget Moyen Estimé TTC</span>
-                                        <span className="text-lg sm:text-2xl font-black text-brand-400">
+                                        <span className="text-[10px] text-brand-400 block uppercase font-bold">Budget Moyen Estimé TTC</span>
+                                        <span className="text-lg sm:text-2xl font-bold text-brand-400">
                                             {formatMoney(quickResult.avgTTC, currency)}
                                         </span>
                                     </div>
@@ -793,7 +793,7 @@ function NewQuoteWizardModal({
                                     <button
                                         type="button"
                                         onClick={handleApplyQuickEstimate}
-                                        className="btn-primary py-2.5 px-5 text-xs font-black shadow-md shadow-brand-500/30 flex items-center gap-2"
+                                        className="btn-primary py-2.5 px-5 text-xs font-bold shadow-md flex items-center gap-2"
                                     >
                                         <i className="fa-solid fa-arrow-right"></i>
                                         <span>Transformer en Devis Détaillé &amp; Chiffrer</span>
@@ -820,14 +820,14 @@ function NewQuoteWizardModal({
                                             <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center text-base transition-colors">
                                                 <i className={`fa-solid ${tpl.icon}`}></i>
                                             </div>
-                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700">
                                                 {tpl.lotsCount} Lots
                                             </span>
                                         </div>
 
                                         <div>
                                             <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block">{tpl.domain}</span>
-                                            <h3 className="font-black text-sm text-neutral-900 group-hover:text-brand-700 transition-colors">
+                                            <h3 className="font-bold text-sm text-neutral-900 group-hover:text-brand-700 transition-colors">
                                                 {tpl.title}
                                             </h3>
                                             <p className="text-xs text-neutral-500 mt-1 leading-relaxed">{tpl.desc}</p>
@@ -850,7 +850,7 @@ function NewQuoteWizardModal({
                                 <i className="fa-solid fa-file-circle-plus"></i>
                             </div>
                             <div>
-                                <h3 className="text-base font-extrabold text-neutral-800">Commencer avec un devis vierge</h3>
+                                <h3 className="text-base font-semibold text-neutral-800">Commencer avec un devis vierge</h3>
                                 <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
                                     Créez un devis de zéro en ajoutant librement vos lots, ouvrages de la bibliothèque et lignes de prestations.
                                 </p>
@@ -861,7 +861,7 @@ function NewQuoteWizardModal({
                                     onInitBlankQuote();
                                     onClose();
                                 }}
-                                className="btn-primary py-2.5 px-6 text-xs font-black"
+                                className="btn-primary py-2.5 px-6 text-xs font-bold"
                             >
                                 Initialiser le Devis Vierge
                             </button>
@@ -910,7 +910,7 @@ function AcmCalepinageVisualizer({
             <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
                 <div className="flex items-center gap-2">
                     <i className="fa-solid fa-border-all text-brand-400"></i>
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-200">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-neutral-200">
                         Calepinage 2D &amp; Nesting Panneaux Façade ACM
                     </span>
                 </div>
@@ -979,8 +979,8 @@ function AcmCalepinageVisualizer({
                                         y={y}
                                         width={w - 2}
                                         height={h - 2}
-                                        fill="#2563eb22"
-                                        stroke="#2563eb"
+                                        fill="#3b5bdb22"
+                                        stroke="#3b5bdb"
                                         strokeWidth="1.5"
                                         rx="2"
                                     />
@@ -1006,15 +1006,15 @@ function AcmCalepinageVisualizer({
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
                     <span className="text-[10px] text-neutral-400 block">Plaques Brutes</span>
-                    <span className="font-extrabold text-white text-sm">{nesting.totalRawPanels} plaques</span>
+                    <span className="font-semibold text-white text-sm">{nesting.totalRawPanels} plaques</span>
                 </div>
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
                     <span className="text-[10px] text-neutral-400 block">Tubes Ossature</span>
-                    <span className="font-extrabold text-brand-400 text-sm">{nesting.totalLinearTubes} ml ({nesting.tubesBarCount} b.)</span>
+                    <span className="font-semibold text-brand-400 text-sm">{nesting.totalLinearTubes} ml ({nesting.tubesBarCount} b.)</span>
                 </div>
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
                     <span className="text-[10px] text-neutral-400 block">Surface Utile</span>
-                    <span className="font-extrabold text-emerald-400 text-sm">{nesting.totalSurface} m²</span>
+                    <span className="font-semibold text-emerald-400 text-sm">{nesting.totalSurface} m²</span>
                 </div>
             </div>
 
@@ -1096,7 +1096,7 @@ function QuoteHeader({
                 {/* Bande 1 — identité du devis, puis actions. */}
                 <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-900 text-white font-mono text-xs font-bold tracking-wide shrink-0">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 font-mono text-xs font-semibold tracking-wide shrink-0">
                         <i className="fa-solid fa-file-invoice text-brand-400 text-[11px]"></i>
                         {quote.number || 'DEV-2026-001'}
                     </span>
@@ -1134,7 +1134,7 @@ function QuoteHeader({
                         <select
                             value={quote.status || 'draft'}
                             onChange={(e) => onUpdateQuote({ status: e.target.value })}
-                            className={`text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full border cursor-pointer appearance-none pr-6 ${currentStatus.bg} focus:outline-none focus:ring-2 focus:ring-brand-500/20`}
+                            className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border cursor-pointer appearance-none pr-6 ${currentStatus.bg} focus:outline-none focus:ring-2 focus:ring-brand-500/20`}
                             aria-label="Statut du devis"
                         >
                             {statusOptions.map(opt => (
@@ -1182,7 +1182,7 @@ function QuoteHeader({
                         type="button"
                         disabled={isReadOnlyDueToDowngrade}
                         onClick={onSaveQuote}
-                        className="btn-primary text-xs py-1.5 px-3.5 font-extrabold flex items-center gap-1.5 shadow-sm shadow-brand-500/20"
+                        className="btn-primary text-xs py-1.5 px-3.5 font-semibold flex items-center gap-1.5"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
                         <span>Enregistrer</span>
@@ -1299,7 +1299,7 @@ function LotNavigator({
             {/* Header Colonne des Lots */}
             <div className="p-3 border-b border-neutral-200 bg-white/80 space-y-2">
                 <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
                         <i className="fa-solid fa-layer-group text-brand-500"></i> Lots du Devis ({lots.length})
                     </span>
                     <button
@@ -1354,7 +1354,7 @@ function LotNavigator({
                             aria-current={isActive ? 'true' : 'false'}
                         >
                             <div className="flex items-center gap-2 min-w-0">
-                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ${
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
                                     isActive ? 'bg-brand-600 text-white' : 'bg-neutral-200 text-neutral-700'
                                 }`}>
                                     {lot.code || String(originalIndex + 1).padStart(2, '0')}
@@ -1397,7 +1397,7 @@ function LotNavigator({
                                         <span className="text-amber-600 font-bold ml-1.5" title="À vérifier"><i className="fa-solid fa-circle-exclamation"></i></span>
                                     ) : null}
                                 </span>
-                                <span className="font-extrabold text-neutral-900 shrink-0">
+                                <span className="font-semibold text-neutral-900 shrink-0">
                                     {formatMoney(subtotal, currency)}
                                 </span>
                             </div>
@@ -1448,7 +1448,7 @@ function ActiveLotHeader({
         // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
         <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-full sm:min-w-[240px]">
-                <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-black text-sm shrink-0">
+                <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-bold text-sm shrink-0">
                     {lot.code || String(lotIndex + 1).padStart(2, '0')}
                 </span>
 
@@ -1462,7 +1462,7 @@ function ActiveLotHeader({
                                 onBlur={handleSaveTitle}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(); }}
                                 autoFocus
-                                className="border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-extrabold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                className="border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-semibold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
                             />
                             <button onClick={handleSaveTitle} className="p-1 text-emerald-600 font-bold text-xs">
                                 <i className="fa-solid fa-check"></i>
@@ -1470,7 +1470,7 @@ function ActiveLotHeader({
                         </div>
                     ) : (
                         <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
-                            <h2 className="text-base sm:text-lg font-black text-neutral-900 truncate">
+                            <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
                                 {lot.name || `Lot ${lotIndex + 1}`}
                             </h2>
                             <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors"></i>
@@ -1478,8 +1478,8 @@ function ActiveLotHeader({
                     )}
 
                     <div className="flex flex-wrap items-center gap-3 mt-1 text-xs">
-                        <span className="font-extrabold text-neutral-900">
-                            Sous-total HT : <strong className="text-brand-600 font-black">{formatMoney(lot.lotTotalHT || 0, currency)}</strong>
+                        <span className="font-semibold text-neutral-900">
+                            Sous-total HT : <strong className="text-brand-600 font-bold">{formatMoney(lot.lotTotalHT || 0, currency)}</strong>
                         </span>
                         {lot.lotMarginPct !== undefined && (
                             <span className="text-neutral-500 font-medium">
@@ -1498,7 +1498,7 @@ function ActiveLotHeader({
                 <button
                     type="button"
                     onClick={onOpenPicker}
-                    className="btn-primary text-xs py-2 px-3.5 font-extrabold flex items-center justify-center gap-1.5 shadow-sm shadow-brand-500/20 flex-1 sm:flex-initial whitespace-nowrap"
+                    className="btn-primary text-xs py-2 px-3.5 font-semibold flex items-center justify-center gap-1.5 flex-1 sm:flex-initial whitespace-nowrap"
                     aria-label="Ajouter un ouvrage depuis le catalogue"
                 >
                     <i className="fa-solid fa-plus"></i>
@@ -1559,7 +1559,7 @@ function WorkItemTable({
                     <i className="fa-solid fa-cube"></i>
                 </div>
                 <div>
-                    <h3 className="text-base font-extrabold text-neutral-800">Ce lot ne contient aucun ouvrage pour le moment</h3>
+                    <h3 className="text-base font-semibold text-neutral-800">Ce lot ne contient aucun ouvrage pour le moment</h3>
                     <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
                         Sélectionnez un ouvrage dans votre bibliothèque métier ou ajoutez une ligne personnalisée pour calculer le devis.
                     </p>
@@ -1568,7 +1568,7 @@ function WorkItemTable({
                     <button
                         type="button"
                         onClick={onOpenPicker}
-                        className="btn-primary text-xs py-2.5 px-4 font-extrabold flex items-center gap-2"
+                        className="btn-primary text-xs py-2.5 px-4 font-semibold flex items-center gap-2"
                     >
                         <i className="fa-solid fa-plus"></i> Choisir dans le Catalogue
                     </button>
@@ -1637,7 +1637,7 @@ function WorkItemTable({
 
                             <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-neutral-100">
                                 <div>
-                                    <label className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block mb-1">Quantité</label>
+                                    <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">Quantité</label>
                                     <div className="flex items-center gap-1.5">
                                         <input
                                             type="number" min="1" step="any"
@@ -1653,7 +1653,7 @@ function WorkItemTable({
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
+                                    <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
                                     <input
                                         type="number" min="0" step="any"
                                         value={item.unitPriceHT || 0}
@@ -1669,8 +1669,8 @@ function WorkItemTable({
 
                             <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
                                 <div>
-                                    <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Total Net HT</span>
-                                    <span className="font-black text-neutral-900 text-base">{formatMoney(total, currency)}</span>
+                                    <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Total Net HT</span>
+                                    <span className="font-bold text-neutral-900 text-base">{formatMoney(total, currency)}</span>
                                     {margin && (
                                         <span
                                             title={margin.tooltip}
@@ -1701,7 +1701,7 @@ function WorkItemTable({
             <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                        <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-extrabold uppercase tracking-wider text-[10px]">
+                        <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
                             <th className="py-3.5 px-4">Désignation Ouvrage</th>
                             <th className="py-3.5 px-3 text-center w-24">Quantité</th>
                             <th className="py-3.5 px-2 text-center w-20">Unité</th>
@@ -1809,7 +1809,7 @@ function WorkItemTable({
                                         />
                                     </td>
 
-                                    <td className="py-3 px-4 text-right font-black text-neutral-900 text-sm">
+                                    <td className="py-3 px-4 text-right font-bold text-neutral-900 text-sm">
                                         {formatMoney(total, currency)}
                                         {margin && (
                                             <span
@@ -1974,7 +1974,7 @@ function WorkItemPicker({
                             <i className="fa-solid fa-wand-magic-sparkles text-xs"></i>
                         </div>
                         <div>
-                            <h3 className="font-black text-sm text-neutral-900">Bibliothèque des Ouvrages Métiers</h3>
+                            <h3 className="font-bold text-sm text-neutral-900">Bibliothèque des Ouvrages Métiers</h3>
                             <p className="text-[11px] text-neutral-500">Sélectionnez un ouvrage à ajouter au lot en cours</p>
                         </div>
                     </div>
@@ -2064,7 +2064,7 @@ function WorkItemPicker({
                                         <i className={`fa-solid ${sol.icon || 'fa-cube'}`}></i>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h4 className="font-extrabold text-xs text-neutral-900 truncate group-hover:text-brand-900">
+                                        <h4 className="font-semibold text-xs text-neutral-900 truncate group-hover:text-brand-900">
                                             {sol.name}
                                         </h4>
                                         <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
@@ -2100,7 +2100,7 @@ function WorkItemPicker({
                                                 onSelectSolution(sol);
                                                 onClose();
                                             }}
-                                            className="btn-primary text-xs py-1.5 px-3 font-extrabold flex items-center gap-1.5"
+                                            className="btn-primary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5"
                                         >
                                             <i className="fa-solid fa-plus"></i>
                                             <span>Ajouter</span>
@@ -2124,7 +2124,7 @@ function WorkItemPicker({
                                     onCreateCustomSolution(searchQuery);
                                     onClose();
                                 }}
-                                className="btn-primary text-xs py-2 px-4 font-extrabold"
+                                className="btn-primary text-xs py-2 px-4 font-semibold"
                             >
                                 <i className="fa-solid fa-plus mr-1"></i> Créer « {searchQuery} »
                             </button>
@@ -2142,7 +2142,7 @@ function WorkItemPicker({
                             type="button"
                             onClick={handleConfirmBulk}
                             disabled={Object.values(bulkSelections).filter(v => v !== undefined).length === 0}
-                            className="btn-primary text-xs py-2 px-4 font-extrabold disabled:opacity-50"
+                            className="btn-primary text-xs py-2 px-4 font-semibold disabled:opacity-50"
                         >
                             Ajouter les ouvrages au lot
                         </button>
@@ -2252,14 +2252,14 @@ function WorkItemInspector({
                             <i className="fa-solid fa-sliders"></i>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h3 className="font-black text-sm text-neutral-900 truncate">Détails : {item.name}</h3>
+                            <h3 className="font-bold text-sm text-neutral-900 truncate">Détails : {item.name}</h3>
                             <p className="text-[11px] text-neutral-500 truncate">Métrés, composition des coûts et prix client</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                         {/* Progressive Disclosure Toggle */}
-                        <div className="bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-extrabold">
+                        <div className="bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-semibold">
                             <button
                                 type="button"
                                 onClick={() => setInspectorMode('simple')}
@@ -2287,7 +2287,7 @@ function WorkItemInspector({
                     <div className="flex-1 overflow-y-auto p-5 space-y-5 animate-fade-in">
                         <div className="p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-black uppercase tracking-wider text-brand-700">Paramètres Essentiels de l'Ouvrage</span>
+                                <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Paramètres Essentiels de l'Ouvrage</span>
                                 <span className="text-[11px] font-bold text-neutral-500 font-mono">Mode Simple</span>
                             </div>
 
@@ -2298,7 +2298,7 @@ function WorkItemInspector({
                                         type="text"
                                         value={item.name || ''}
                                         onChange={(e) => onUpdateItem({ name: e.target.value })}
-                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-extrabold text-neutral-900 outline-none focus:border-brand-500"
+                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900 outline-none focus:border-brand-500"
                                     />
                                 </div>
 
@@ -2310,7 +2310,7 @@ function WorkItemInspector({
                                             min="1"
                                             value={calcForm.qty || item.qty || 1}
                                             onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
-                                            className="w-24 p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-extrabold text-neutral-900 text-center focus:border-brand-500"
+                                            className="w-24 p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900 text-center focus:border-brand-500"
                                         />
                                         <input
                                             type="text"
@@ -2400,9 +2400,9 @@ function WorkItemInspector({
                         <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 text-xs">
                             <div className="flex justify-between font-bold text-emerald-800">
                                 <span>Coût Déboursé Estimé :</span>
-                                <span className="font-extrabold">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
+                                <span className="font-semibold">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
                             </div>
-                            <div className="flex justify-between font-extrabold text-brand-600 text-sm border-t border-emerald-200 pt-2">
+                            <div className="flex justify-between font-semibold text-brand-600 text-sm border-t border-emerald-200 pt-2">
                                 <span>Prix de Vente Total HT :</span>
                                 <span>{formatMoney(quoteData.netHTConsomme, currency)}</span>
                             </div>
@@ -2431,7 +2431,7 @@ function WorkItemInspector({
                                     onClick={() => setActiveTab(t.id)}
                                     className={`py-3 px-3 border-b-2 whitespace-nowrap transition-all flex items-center gap-1.5 ${
                                         activeTab === t.id
-                                            ? 'border-brand-600 text-brand-700 bg-white font-black'
+                                            ? 'border-brand-600 text-brand-700 bg-white font-bold'
                                             : 'border-transparent text-neutral-500 hover:text-neutral-800'
                                     }`}
                                 >
@@ -2575,7 +2575,7 @@ function WorkItemInspector({
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center bg-neutral-100 p-3 rounded-xl">
                                         <span className="text-xs font-bold text-neutral-700 uppercase">Déboursé Sec Consommé :</span>
-                                        <span className="font-extrabold text-neutral-900 text-sm">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
+                                        <span className="font-semibold text-neutral-900 text-sm">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
                                     </div>
 
                                     <table className="w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
@@ -2734,17 +2734,17 @@ function WorkItemInspector({
                                         </div>
                                         <div className="flex justify-between font-bold text-emerald-900">
                                             <span>Marge Dégagée :</span>
-                                            <span className="font-black">+{formatMoney(quoteData.margeValeurConsomme, currency)}</span>
+                                            <span className="font-bold">+{formatMoney(quoteData.margeValeurConsomme, currency)}</span>
                                         </div>
                                         {parseFloat(calcForm.discountRate) > 0 && (
                                             <div className="flex justify-between font-bold text-red-700">
                                                 <span>Remise Client (-{calcForm.discountRate}%) :</span>
-                                                <span className="font-black">
+                                                <span className="font-bold">
                                                     -{formatMoney((quoteData.prixVenteAvantRemise ?? quoteData.netHTConsomme) - quoteData.netHTConsomme, currency)}
                                                 </span>
                                             </div>
                                         )}
-                                        <div className="flex justify-between font-black text-brand-600 text-sm border-t border-emerald-200 pt-2">
+                                        <div className="flex justify-between font-bold text-brand-600 text-sm border-t border-emerald-200 pt-2">
                                             <span>Prix de Vente Total HT :</span>
                                             <span>{formatMoney(quoteData.netHTConsomme, currency)}</span>
                                         </div>
@@ -2790,7 +2790,7 @@ function WorkItemInspector({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="btn-primary text-xs py-2 px-5 font-extrabold"
+                        className="btn-primary text-xs py-2 px-5 font-semibold"
                     >
                         <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour aux ouvrages du lot
                     </button>
@@ -2843,12 +2843,12 @@ function QuoteTotalsBar({
 
                     <div className="pl-3 border-l border-neutral-200">
                         <span className="text-[10px] text-neutral-400 block uppercase font-bold">Coeff K</span>
-                        <span className="font-mono font-black text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">K={kFactor}{hasIncompleteCustomLines && <sup>*</sup>}</span>
+                        <span className="font-mono font-bold text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">K={kFactor}{hasIncompleteCustomLines && <sup>*</sup>}</span>
                     </div>
 
                     <div className="pl-3 border-l border-neutral-200">
                         <span className="text-[10px] text-neutral-400 block uppercase font-bold">Total Net HT</span>
-                        <span className="font-extrabold text-neutral-900 text-sm sm:text-base">{formatMoney(totalHT, currency)}</span>
+                        <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(totalHT, currency)}</span>
                     </div>
 
                     <div className="hidden sm:block pl-3 border-l border-neutral-200">
@@ -2894,8 +2894,8 @@ function QuoteTotalsBar({
                     </div>
 
                     <div className="pl-3 border-l-2 border-neutral-900">
-                        <span className="text-[10px] text-brand-600 block uppercase font-black">TOTAL TTC</span>
-                        <span className="font-black text-brand-600 text-base sm:text-xl">{formatMoney(totalTTC, currency)}</span>
+                        <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
+                        <span className="font-bold text-neutral-900 text-base sm:text-xl">{formatMoney(totalTTC, currency)}</span>
                     </div>
                 </div>
 
@@ -2914,7 +2914,7 @@ function QuoteTotalsBar({
                         type="button"
                         disabled={isReadOnlyDueToDowngrade}
                         onClick={onSaveQuote}
-                        className="btn-primary text-xs py-2.5 px-5 font-extrabold flex items-center gap-2 shadow-md shadow-brand-500/20"
+                        className="btn-primary text-xs py-2.5 px-5 font-semibold flex items-center gap-2 shadow-sm"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
                         <span>Enregistrer le Devis</span>
@@ -3479,7 +3479,7 @@ function QuoteWorkspace({
                     <button
                         type="button"
                         onClick={handleUndoDelete}
-                        className="text-brand-400 hover:text-brand-300 underline font-extrabold"
+                        className="text-brand-400 hover:text-brand-300 underline font-semibold"
                     >
                         Annuler
                     </button>
@@ -3566,10 +3566,10 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
         : logs.filter(l => l.action.includes(filterAction));
 
     const actionBadge = (act) => {
-        if (act.includes('created')) return <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">Création</span>;
-        if (act.includes('deleted')) return <span className="px-2 py-0.5 rounded text-[10px] font-black bg-red-100 text-red-800 border border-red-300">Suppression</span>;
-        if (act.includes('updated')) return <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300">Modification</span>;
-        return <span className="px-2 py-0.5 rounded text-[10px] font-black bg-neutral-100 text-neutral-800 border border-neutral-300">{act}</span>;
+        if (act.includes('created')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Création</span>;
+        if (act.includes('deleted')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">Suppression</span>;
+        if (act.includes('updated')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">Modification</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-800 border border-neutral-300">{act}</span>;
     };
 
     return (
@@ -3620,7 +3620,7 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
                     ) : (
                         <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-2xs">
                             <table className="w-full text-left text-xs border-collapse">
-                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-extrabold text-neutral-500 uppercase tracking-wider">
+                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
                                     <tr>
                                         <th className="p-3 pl-4">Date & Heure</th>
                                         <th className="p-3">Utilisateur</th>
@@ -3689,7 +3689,7 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
                         <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
                             <i className="fa-solid fa-building"></i>
                         </div>
-                        <h3 className="font-extrabold text-neutral-900 text-base">Nouvelle Entreprise / Organisation</h3>
+                        <h3 className="font-semibold text-neutral-900 text-base">Nouvelle Entreprise / Organisation</h3>
                     </div>
                     <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
                         <i className="fa-solid fa-xmark text-lg"></i>
@@ -3724,7 +3724,7 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
                         <button
                             type="submit"
                             disabled={isLoading || !name.trim()}
-                            className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5"
+                            className="btn-primary text-xs py-2 px-5 font-bold flex items-center gap-1.5"
                         >
                             {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check"></i>}
                             <span>Créer l'Organisation</span>
@@ -3753,12 +3753,12 @@ function OrganizationSwitcher({
 
     const roleBadge = (role) => {
         switch (role) {
-            case 'owner': return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300">👑 Owner</span>;
-            case 'admin': return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-100 text-purple-800 border border-purple-300">🛡️ Admin</span>;
-            case 'estimator': return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-300">👷 Deviseur</span>;
-            case 'commercial': return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">💼 Commercial</span>;
-            case 'viewer': return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-neutral-100 text-neutral-600 border border-neutral-300">👁️ Lecteur</span>;
-            default: return <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-brand-100 text-brand-800 border border-brand-300">Membre</span>;
+            case 'owner': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">👑 Owner</span>;
+            case 'admin': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-300">🛡️ Admin</span>;
+            case 'estimator': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-300">👷 Deviseur</span>;
+            case 'commercial': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">💼 Commercial</span>;
+            case 'viewer': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-neutral-100 text-neutral-600 border border-neutral-300">👁️ Lecteur</span>;
+            default: return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-brand-100 text-brand-800 border border-brand-300">Membre</span>;
         }
     };
 
@@ -3771,12 +3771,12 @@ function OrganizationSwitcher({
                 aria-label="Changer d'organisation"
             >
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-brand-100 transition-colors">
+                    <div className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-brand-100 transition-colors">
                         <i className="fa-solid fa-building"></i>
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-xs text-neutral-900 truncate block">{activeOrg.name}</span>
+                            <span className="font-semibold text-xs text-neutral-900 truncate block">{activeOrg.name}</span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             {roleBadge(activeOrgRole || 'owner')}
@@ -3791,7 +3791,7 @@ function OrganizationSwitcher({
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
                     <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
-                        <div className="px-2.5 py-1 text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider">
+                        <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
                             Mes Entreprises ({userOrganizations.length})
                         </div>
                         <div className="max-h-48 overflow-y-auto custom-scroll space-y-0.5">
@@ -3804,7 +3804,7 @@ function OrganizationSwitcher({
                                         setIsOpen(false);
                                     }}
                                     className={`w-full text-left p-2 rounded-xl flex items-center justify-between text-xs transition-colors ${
-                                        org.id === activeOrgId ? 'bg-brand-50 text-brand-900 font-extrabold' : 'hover:bg-neutral-50 text-neutral-700 font-semibold'
+                                        org.id === activeOrgId ? 'bg-brand-50 text-brand-900 font-semibold' : 'hover:bg-neutral-50 text-neutral-700 font-semibold'
                                     }`}
                                 >
                                     <div className="min-w-0 flex-1 truncate pr-2">
@@ -3922,7 +3922,7 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                             <i className="fa-solid fa-signature"></i>
                         </div>
                         <div>
-                            <h3 className="font-extrabold text-neutral-900 text-sm">Signature Électronique du Devis</h3>
+                            <h3 className="font-semibold text-neutral-900 text-sm">Signature Électronique du Devis</h3>
                             <p className="text-[11px] text-neutral-500 font-mono">{quote.number} &bull; {quote.clientName}</p>
                         </div>
                     </div>
@@ -3982,7 +3982,7 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                         <button
                             type="button"
                             onClick={handleSave}
-                            className="btn-primary text-xs py-2 px-5 font-extrabold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
+                            className="btn-primary text-xs py-2 px-5 font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
                         >
                             <i className="fa-solid fa-check"></i>
                             <span>Valider &amp; Signer le Devis</span>
@@ -4035,7 +4035,7 @@ Cordialement.`;
                             <i className="fa-solid fa-share-nodes"></i>
                         </div>
                         <div>
-                            <h3 className="font-extrabold text-neutral-900 text-sm">Partager le Devis au Client</h3>
+                            <h3 className="font-semibold text-neutral-900 text-sm">Partager le Devis au Client</h3>
                             <p className="text-[11px] text-neutral-500 font-mono">{quote.number}</p>
                         </div>
                     </div>
@@ -4211,7 +4211,7 @@ function MaterialCsvModal({
                             <i className="fa-solid fa-file-csv"></i>
                         </div>
                         <div>
-                            <h3 className="font-extrabold text-neutral-900 text-lg">Importation CSV Sécurisée des Matières</h3>
+                            <h3 className="font-semibold text-neutral-900 text-lg">Importation CSV Sécurisée des Matières</h3>
                             <p className="text-xs text-neutral-500">Contrôle strict des prix, conditionnements et cohérence des unités</p>
                         </div>
                     </div>
@@ -4251,7 +4251,7 @@ function MaterialCsvModal({
                                 a.download = "modele_matieres_ikadevis.csv";
                                 a.click();
                             }}
-                            className="text-brand-700 font-extrabold hover:underline flex items-center gap-1 shrink-0 ml-2"
+                            className="text-brand-700 font-semibold hover:underline flex items-center gap-1 shrink-0 ml-2"
                         >
                             <i className="fa-solid fa-download"></i> Télécharger Modèle
                         </button>
@@ -4261,7 +4261,7 @@ function MaterialCsvModal({
                     {parsedRows.length > 0 && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-extrabold text-neutral-800">
+                                <span className="text-xs font-semibold text-neutral-800">
                                     Aperçu : {validCount} ligne(s) valide(s) sur {parsedRows.length}
                                 </span>
                                 <div className="flex items-center gap-2 text-xs font-bold">
@@ -4300,7 +4300,7 @@ function MaterialCsvModal({
                                                 <td className="p-2 font-bold text-neutral-800">{r.name || '-'}</td>
                                                 <td className="p-2 text-neutral-500">{r.category}</td>
                                                 <td className="p-2 text-right font-medium">{r.priceBuy} FCFA</td>
-                                                <td className="p-2 text-right font-extrabold text-brand-700">{r.priceCalc} FCFA/{r.unitCalc}</td>
+                                                <td className="p-2 text-right font-semibold text-brand-700">{r.priceCalc} FCFA/{r.unitCalc}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -4321,7 +4321,7 @@ function MaterialCsvModal({
                             type="button"
                             disabled={validCount === 0}
                             onClick={handleConfirmImport}
-                            className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-sm shadow-brand-500/20"
+                            className="btn-primary text-xs py-2 px-5 font-bold flex items-center gap-1.5"
                         >
                             <i className="fa-solid fa-check"></i>
                             <span>Importer {validCount} Matière(s)</span>
@@ -4437,7 +4437,7 @@ function SystemDiagnosticPanel({ isOnline, sbUser, solutionsCount, materialsCoun
                                 <p className="text-[11px] text-neutral-500 font-medium">{c.detail}</p>
                             </div>
                         </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 ${c.status === 'OK' ? 'bg-emerald-100 text-emerald-800' : c.status === 'PROBLÈME' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${c.status === 'OK' ? 'bg-emerald-100 text-emerald-800' : c.status === 'PROBLÈME' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
                             {c.status}
                         </span>
                     </div>
@@ -7396,14 +7396,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <i className="fa-solid fa-layer-group"></i>
                     </div>
                     <div>
-                        <p className="font-extrabold text-xs">Nouvelle Interface Hybride V6 Multi-Lots Disponible</p>
+                        <p className="font-semibold text-xs">Nouvelle Interface Hybride V6 Multi-Lots Disponible</p>
                         <p className="text-[11px] text-neutral-300">Construisez vos devis BTP complets avec navigation par lots, saisie en table et bibliothèque Zoho-Style.</p>
                     </div>
                 </div>
                 <button
                     type="button"
                     onClick={() => toggleHybridEditor(true)}
-                    className="btn-primary text-xs py-2 px-4 font-extrabold whitespace-nowrap shadow-sm"
+                    className="btn-primary text-xs py-2 px-4 font-semibold whitespace-nowrap shadow-sm"
                 >
                     <i className="fa-solid fa-arrows-rotate mr-1.5"></i> Basculer vers l'Éditeur Hybride V6
                 </button>
@@ -7417,7 +7417,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <i className="fa-solid fa-wand-magic-sparkles text-xs"></i>
                         </div>
                         <div>
-                            <h3 className="font-extrabold text-xs text-neutral-800 uppercase tracking-wider">Guide Pas-à-Pas pour Chiffrer un Devis</h3>
+                            <h3 className="font-semibold text-xs text-neutral-800 uppercase tracking-wider">Guide Pas-à-Pas pour Chiffrer un Devis</h3>
                             <p className="text-[11px] text-neutral-500">Suivez ces 4 étapes simples pour calculer et exporter un devis conforme.</p>
                         </div>
                     </div>
@@ -7431,7 +7431,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         className="flex items-center gap-3 p-2.5 rounded-xl border border-neutral-200 hover:border-brand-300 hover:bg-brand-50/40 text-left transition-all group"
                         aria-label="Étape 1 : Configurer mon entreprise"
                     >
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-black text-xs shrink-0 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 transition-colors">
                             1
                         </div>
                         <div className="min-w-0 flex-1">
@@ -7446,7 +7446,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         className="flex items-center gap-3 p-2.5 rounded-xl border border-neutral-200 hover:border-brand-300 hover:bg-brand-50/40 text-left transition-all group"
                         aria-label="Étape 2 : Vérifier les prix des ressources"
                     >
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-black text-xs shrink-0 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 transition-colors">
                             2
                         </div>
                         <div className="min-w-0 flex-1">
@@ -7457,11 +7457,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </button>
 
                     <div className="flex items-center gap-3 p-2.5 rounded-xl border-2 border-brand-500 bg-brand-50/50 text-left">
-                        <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
                             3
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-xs font-black text-brand-900 truncate">3. Saisie Dimensions</p>
+                            <p className="text-xs font-bold text-brand-900 truncate">3. Saisie Dimensions</p>
                             <p className="text-[10px] text-brand-700 truncate font-semibold">Étape en cours</p>
                         </div>
                         <i className="fa-solid fa-pencil text-[10px] text-brand-600"></i>
@@ -7478,7 +7478,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         className="flex items-center gap-3 p-2.5 rounded-xl border border-neutral-200 hover:border-brand-300 hover:bg-brand-50/40 text-left transition-all group"
                         aria-label="Étape 4 : Enregistrer et imprimer le devis"
                     >
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-black text-xs shrink-0 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-600 group-hover:bg-brand-100 group-hover:text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 transition-colors">
                             4
                         </div>
                         <div className="min-w-0 flex-1">
@@ -7495,16 +7495,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-white shadow-2xl space-y-4 animate-fade-in">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-neutral-800 pb-4">
                         <div>
-                            <span className="bg-brand-500/20 text-brand-400 border border-brand-500/30 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+                            <span className="bg-brand-500/20 text-brand-400 border border-brand-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                                 Devis Multi-Lots en cours
                             </span>
-                            <h3 className="text-xl font-black mt-1 text-white">Chantier Composé — {workingLots.length} {workingLots.length > 1 ? 'Ouvrages' : 'Ouvrage'}</h3>
+                            <h3 className="text-xl font-bold mt-1 text-white">Chantier Composé — {workingLots.length} {workingLots.length > 1 ? 'Ouvrages' : 'Ouvrage'}</h3>
                         </div>
                         <div className="flex items-center gap-3 w-full sm:w-auto">
                             <button onClick={() => setWorkingLots([])} className="btn-secondary bg-neutral-800 text-neutral-300 hover:bg-neutral-700 text-xs py-2 px-3 border-neutral-700" aria-label="Vider tous les lots du panier">
                                 <i className="fa-solid fa-trash-can mr-1.5"></i> Vider
                             </button>
-                            <button onClick={() => setIsSaveQuoteModalOpen(true)} className="btn-primary py-2 px-4 text-xs font-extrabold shadow-lg shadow-brand-500/30" aria-label="Enregistrer le devis global">
+                            <button onClick={() => setIsSaveQuoteModalOpen(true)} className="btn-primary py-2 px-4 text-xs font-semibold shadow-lg" aria-label="Enregistrer le devis global">
                                 <i className="fa-solid fa-floppy-disk mr-1.5"></i> Enregistrer Devis Global ({workingLots.length} lots)
                             </button>
                         </div>
@@ -7515,8 +7515,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div key={lot.id} className="bg-neutral-800/80 border border-neutral-700/80 rounded-2xl p-4 flex flex-col justify-between space-y-3">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <span className="text-[10px] font-extrabold text-brand-400 uppercase tracking-wider">Poste #{idx + 1}</span>
-                                        <h4 className="font-extrabold text-sm text-white">{lot.lotName}</h4>
+                                        <span className="text-[10px] font-semibold text-brand-400 uppercase tracking-wider">Poste #{idx + 1}</span>
+                                        <h4 className="font-semibold text-sm text-white">{lot.lotName}</h4>
                                         <p className="text-xs text-neutral-400 mt-0.5 font-medium">
                                             {formatLotDimensions(lot)}
                                         </p>
@@ -7527,7 +7527,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="border-t border-neutral-700/60 pt-2 flex justify-between items-center text-xs">
                                     <span className="text-neutral-400 font-medium">Net HT :</span>
-                                    <span className="font-extrabold text-brand-300">{formatMoney(lot.quoteData.netHTConsomme, companyInfo.currency)}</span>
+                                    <span className="font-semibold text-brand-300">{formatMoney(lot.quoteData.netHTConsomme, companyInfo.currency)}</span>
                                 </div>
                             </div>
                         ))}
@@ -7537,19 +7537,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="flex flex-wrap items-center gap-6">
                             <div>
                                 <span className="text-neutral-500 block text-[10px] uppercase font-bold">Total Déboursé Sec</span>
-                                <span className="font-extrabold text-neutral-200 text-sm">
+                                <span className="font-semibold text-neutral-200 text-sm">
                                     {formatMoney(workingLots.reduce((acc, l) => acc + (l.quoteData.totalDebourseConsomme || 0), 0), companyInfo.currency)}
                                 </span>
                             </div>
                             <div>
                                 <span className="text-neutral-500 block text-[10px] uppercase font-bold">Total Net HT Chantier</span>
-                                <span className="font-extrabold text-emerald-400 text-sm">
+                                <span className="font-semibold text-emerald-400 text-sm">
                                     {formatMoney(workingLots.reduce((acc, l) => acc + (l.quoteData.netHTConsomme || 0), 0), companyInfo.currency)}
                                 </span>
                             </div>
                             <div>
                                 <span className="text-neutral-500 block text-[10px] uppercase font-bold">Total TTC Global</span>
-                                <span className="font-black text-brand-400 text-base">
+                                <span className="font-bold text-brand-400 text-base">
                                     {formatMoney(workingLots.reduce((acc, l) => acc + (l.quoteData.totalTTCConsomme || 0), 0), companyInfo.currency)}
                                 </span>
                             </div>
@@ -7564,7 +7564,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
             <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 flex flex-col gap-6">
                 <div className="app-card p-5 sm:p-6">
-                    <h2 className="text-sm font-extrabold text-neutral-800 mb-4 flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-neutral-800 mb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-md bg-brand-50 text-brand-600 flex items-center justify-center text-xs">1</span>
                         Type d'Ouvrage / Produit
                     </h2>
@@ -7587,7 +7587,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
 
                 <div className="app-card p-5 sm:p-6">
-                    <h2 className="text-sm font-extrabold text-neutral-800 mb-4 flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-neutral-800 mb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-md bg-neutral-100 text-neutral-500 flex items-center justify-center text-xs">2</span>
                         Mode de Métré & Dimensions
                     </h2>
@@ -7691,7 +7691,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     {activeSolution && activeSolution.customVars && activeSolution.customVars.length > 0 && (
                         <div className="border-t border-neutral-100 pt-4 mt-2 mb-4 space-y-3">
-                            <span className="text-[11px] font-black text-brand-700 uppercase tracking-wider block">
+                            <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider block">
                                 <i className="fa-solid fa-sliders mr-1.5"></i> Variables Spécifiques ({activeSolution.name})
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -7737,7 +7737,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
 
                 <div className="app-card p-5 sm:p-6">
-                    <h2 className="text-sm font-extrabold text-neutral-800 mb-4 flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-neutral-800 mb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-md bg-neutral-100 text-neutral-500 flex items-center justify-center text-xs">3</span>
                         Paramètres Financiers & Marge
                     </h2>
@@ -7805,26 +7805,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {/* SYNTHÈSE DES PRIX DU DEVIS */}
                         <div className="app-card p-6 border-brand-100 bg-gradient-to-br from-white via-white to-brand-50/20 shadow-floating">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-neutral-100 pb-4 mb-4">
-                                <span className="text-xs font-black text-brand-600 uppercase tracking-widest">Synthèse Financière de l'Ouvrage</span>
+                                <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Synthèse Financière de l'Ouvrage</span>
                                 <span className="text-xs font-bold text-neutral-500 bg-neutral-100 px-2.5 py-1 rounded-full">{currentQuote.solutionName}</span>
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
                                     <span className="text-neutral-400 block text-[10px] uppercase font-bold">Déboursé Sec</span>
-                                    <span className="font-extrabold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalDebourseConsomme, companyInfo.currency)}</span>
+                                    <span className="font-semibold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalDebourseConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
                                     <span className="text-neutral-400 block text-[10px] uppercase font-bold">Prix de Revient</span>
-                                    <span className="font-extrabold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalRevientConsomme, companyInfo.currency)}</span>
+                                    <span className="font-semibold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalRevientConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
                                     <span className="text-neutral-400 block text-[10px] uppercase font-bold">Marge Nette ({currentQuote.margePctConsommeReelle.toFixed(1)}%)</span>
-                                    <span className="font-extrabold text-emerald-600 text-lg sm:text-xl">{formatMoney(currentQuote.margeValeurConsomme, companyInfo.currency)}</span>
+                                    <span className="font-semibold text-emerald-600 text-lg sm:text-xl">{formatMoney(currentQuote.margeValeurConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-brand-50 border border-brand-200">
-                                    <span className="text-brand-700 block text-[10px] uppercase font-black">Net Client HT</span>
-                                    <span className="font-black text-brand-600 text-xl sm:text-2xl">{formatMoney(currentQuote.netHTConsomme, companyInfo.currency)}</span>
+                                    <span className="text-brand-700 block text-[10px] uppercase font-bold">Net Client HT</span>
+                                    <span className="font-bold text-brand-600 text-xl sm:text-2xl">{formatMoney(currentQuote.netHTConsomme, companyInfo.currency)}</span>
                                 </div>
                             </div>
 
@@ -7834,7 +7834,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <span className="text-xs font-bold text-neutral-800">{formatMoney(currentQuote.tvaConsomme, companyInfo.currency)}</span>
                                     <span className="text-neutral-300 mx-1">&bull;</span>
                                     <span className="text-xs text-neutral-500 font-semibold">Total TTC :</span>
-                                    <span className="text-sm font-black text-brand-600">{formatMoney(currentQuote.totalTTCConsomme, companyInfo.currency)}</span>
+                                    <span className="text-sm font-bold text-brand-600">{formatMoney(currentQuote.totalTTCConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button 
@@ -7849,7 +7849,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <button 
                                         onClick={() => setIsSaveQuoteModalOpen(true)} 
                                         disabled={currentQuote.isLossMaking || isReadOnlyDueToDowngrade} 
-                                        className="btn-primary py-2 px-4 text-xs font-black shadow-md shadow-brand-500/20"
+                                        className="btn-primary py-2 px-4 text-xs font-bold shadow-sm"
                                         aria-label="Enregistrer le devis pour le client"
                                     >
                                         <i className="fa-solid fa-floppy-disk mr-1.5"></i>
@@ -7869,7 +7869,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             >
                                 <div className="flex items-center gap-2">
                                     <i className="fa-solid fa-wrench text-neutral-500"></i>
-                                    <span className="text-xs font-extrabold text-neutral-800 uppercase tracking-wider">
+                                    <span className="text-xs font-semibold text-neutral-800 uppercase tracking-wider">
                                         Détails Techniques & Commandes Fournisseurs
                                     </span>
                                 </div>
@@ -7931,7 +7931,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <i className="fa-solid fa-cart-flatbed-suitcases text-neutral-600"></i>
                                                     <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Approvisionnement Consolidé (Commandes Fournisseurs)</h3>
                                                 </div>
-                                                <span className="text-[9px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-extrabold uppercase">Indispensable Chantier</span>
+                                                <span className="text-[9px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-semibold uppercase">Indispensable Chantier</span>
                                             </div>
                                             <div className="app-table-wrapper rounded-none border-0">
                                                 <table className="app-table">
@@ -7989,11 +7989,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="flex items-center gap-3">
                     <div>
                         <span className="text-[10px] text-neutral-400 block uppercase font-bold">Total Net HT</span>
-                        <span className="font-extrabold text-neutral-900 text-sm sm:text-base">{formatMoney(currentQuote.netHTConsomme, companyInfo.currency)}</span>
+                        <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(currentQuote.netHTConsomme, companyInfo.currency)}</span>
                     </div>
                     <div className="pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-brand-600 block uppercase font-black">Total TTC</span>
-                        <span className="font-black text-brand-600 text-base sm:text-lg">{formatMoney(currentQuote.totalTTCConsomme, companyInfo.currency)}</span>
+                        <span className="text-[10px] text-brand-600 block uppercase font-bold">Total TTC</span>
+                        <span className="font-bold text-brand-600 text-base sm:text-lg">{formatMoney(currentQuote.totalTTCConsomme, companyInfo.currency)}</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -8009,7 +8009,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <button 
                         onClick={() => setIsSaveQuoteModalOpen(true)} 
                         disabled={currentQuote.isLossMaking || isReadOnlyDueToDowngrade} 
-                        className="btn-primary flex-1 sm:flex-initial text-xs py-2.5 px-4 font-extrabold shadow-md shadow-brand-500/20 flex items-center justify-center gap-2 whitespace-nowrap"
+                        className="btn-primary flex-1 sm:flex-initial text-xs py-2.5 px-4 font-semibold shadow-sm flex items-center justify-center gap-2 whitespace-nowrap"
                         aria-label="Enregistrer le devis pour le client"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
@@ -8088,8 +8088,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             return (
                                 <button key={prj.id} onClick={() => setSelectedProjectId(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner l'affaire ${prj.name}`}>
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0">{prj.code}</span>
-                                        <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}`}>{getProjectStatusBadge(prj.status).label}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0">{prj.code}</span>
+                                        <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}`}>{getProjectStatusBadge(prj.status).label}</span>
                                     </div>
                                     <p className={`font-bold text-sm truncate ${selectedProjectId === prj.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{prj.name}</p>
                                     <p className="text-[11px] text-neutral-500 truncate">{prj.clientName} {prjQuotesCount > 0 && <span className="text-brand-600 font-bold">· {prjQuotesCount} devis</span>}</p>
@@ -8145,8 +8145,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </button>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">{selectedProject.code}</span>
-                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(selectedProject.status).className}`}>{getProjectStatusBadge(selectedProject.status).label}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">{selectedProject.code}</span>
+                                            <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${getProjectStatusBadge(selectedProject.status).className}`}>{getProjectStatusBadge(selectedProject.status).label}</span>
                                         </div>
                                         <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">{selectedProject.name}</h2>
                                         <p className="text-xs text-neutral-500 font-medium truncate">
@@ -8156,7 +8156,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="text-left sm:text-right shrink-0">
                                     <span className="text-[10px] uppercase font-bold text-neutral-400 block">CA Cumulé Affaire</span>
-                                    <span className="text-lg font-black text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
+                                    <span className="text-lg font-bold text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
                                 </div>
                             </div>
 
@@ -8180,7 +8180,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     aria-label={`Ouvrir le dossier du devis ${q.number}`}
                                                     title="Ouvrir le dossier du devis"
                                                 >
-                                                    <span className="font-extrabold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
+                                                    <span className="font-semibold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
                                                     <span className="text-[10px] text-neutral-400">{q.date}</span>
                                                     <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
                                                 </button>
@@ -8216,7 +8216,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto text-xl border border-red-200 mb-4">
                         <i className="fa-solid fa-lock"></i>
                     </div>
-                    <h3 className="font-extrabold text-neutral-900">Accès réservé</h3>
+                    <h3 className="font-semibold text-neutral-900">Accès réservé</h3>
                     <p className="text-sm text-neutral-500 mt-1">
                         Cet espace est réservé aux administrateurs de la plateforme ikadevis.
                     </p>
@@ -8230,7 +8230,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <i className={`fa-solid ${icon} text-xs`}></i>
                     <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
                 </div>
-                <p className="text-2xl font-black text-neutral-900 tabular-nums">{value}</p>
+                <p className="text-2xl font-bold text-neutral-900 tabular-nums">{value}</p>
             </div>
         );
 
@@ -8240,7 +8240,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <div className="h-full overflow-y-auto custom-scroll space-y-5 pb-6">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-black mb-2">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-bold mb-2">
                             <i className="fa-solid fa-shield-halved"></i> ADMINISTRATION PLATEFORME · LECTURE SEULE
                         </div>
                         <p className="text-xs text-neutral-500 max-w-xl">
@@ -8405,14 +8405,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             const cQuotesCount = savedQuotes.filter(q => q.clientId === c.id || q.clientName === c.name).length;
                             return (
                                 <button key={c.id} onClick={() => setSelectedClientId(c.id)} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${c.name}`}>
-                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-black text-xs ${selectedClientId === c.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${selectedClientId === c.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                         {c.name.substring(0, 2).toUpperCase()}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className={`font-bold text-sm truncate ${selectedClientId === c.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{c.name}</p>
                                         <p className="text-[11px] text-neutral-500 truncate">{c.contactPerson || 'Sans contact renseigné'}</p>
                                     </div>
-                                    {cQuotesCount > 0 && <span className="text-[10px] font-extrabold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded shrink-0">{cQuotesCount}</span>}
+                                    {cQuotesCount > 0 && <span className="text-[10px] font-semibold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded shrink-0">{cQuotesCount}</span>}
                                 </button>
                             );
                         })}
@@ -8462,7 +8462,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <button onClick={() => setSelectedClientId(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
                                     </button>
-                                    <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-black text-sm flex items-center justify-center shrink-0">
+                                    <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-bold text-sm flex items-center justify-center shrink-0">
                                         {selectedClient.name.substring(0, 2).toUpperCase()}
                                     </div>
                                     <div className="min-w-0">
@@ -8487,7 +8487,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
                                         setActiveView('calculator');
                                         showToast(`Client ${selectedClient.name} sélectionné pour le devis !`);
-                                    }} className="btn-primary py-2 px-3 text-xs font-extrabold" aria-label={`Créer un devis pour ${selectedClient.name}`}>
+                                    }} className="btn-primary py-2 px-3 text-xs font-semibold" aria-label={`Créer un devis pour ${selectedClient.name}`}>
                                         <i className="fa-solid fa-plus"></i> Créer Devis
                                     </button>
                                 </div>
@@ -8512,7 +8512,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
                                         aria-label={`Voir les ${selectedClientProjects.length} affaires de ${selectedClient.name}`}
                                     >
-                                        <span className="text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientProjects.length}</span>
+                                        <span className="text-2xl font-bold text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientProjects.length}</span>
                                         <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Affaires <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
                                     </button>
                                     <button
@@ -8520,7 +8520,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
                                         aria-label={`Voir les ${selectedClientQuotes.length} devis de ${selectedClient.name}`}
                                     >
-                                        <span className="text-2xl font-black text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientQuotes.length}</span>
+                                        <span className="text-2xl font-bold text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientQuotes.length}</span>
                                         <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Devis <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
                                     </button>
                                 </div>
@@ -8532,7 +8532,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             {selectedClientProjects.map(p => (
                                                 <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setProjectSearchQuery(''); setActiveView('projects'); }} className="w-full flex justify-between items-center text-xs bg-neutral-50 hover:bg-brand-50/50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-all text-left" aria-label={`Ouvrir l'affaire ${p.name}`}>
                                                     <div className="min-w-0">
-                                                        <span className="font-extrabold text-neutral-800 mr-2">{p.code}</span>
+                                                        <span className="font-semibold text-neutral-800 mr-2">{p.code}</span>
                                                         <span className="text-neutral-600">{p.name}</span>
                                                     </div>
                                                     <i className="fa-solid fa-chevron-right text-neutral-300 text-[10px] shrink-0"></i>
@@ -8557,7 +8557,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         aria-label={`Ouvrir le dossier du devis ${q.number}`}
                                                         title="Ouvrir le dossier du devis"
                                                     >
-                                                        <span className="font-extrabold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
+                                                        <span className="font-semibold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
                                                         <span className="text-[10px] text-neutral-400">{q.date}</span>
                                                         <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
                                                     </button>
@@ -8705,7 +8705,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <span className="block text-[11px] text-neutral-500">{f.projectRef}</span>
                                                 </td>
                                                 <td className="app-td">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${st.classe}`}>{st.texte}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.classe}`}>{st.texte}</span>
                                                 </td>
                                                 <td className="app-td text-right font-bold text-neutral-900 whitespace-nowrap">
                                                     {formatMoney(f.totalTTC, cur)}
@@ -8870,10 +8870,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div key={sq.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-black bg-brand-100 text-brand-700 mb-1">
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 mb-1">
                                         {sq.number}
                                     </span>
-                                    <h3 className="font-extrabold text-neutral-900 text-base">{sq.clientName || 'Client sans nom'}</h3>
+                                    <h3 className="font-semibold text-neutral-900 text-base">{sq.clientName || 'Client sans nom'}</h3>
                                     <p className="text-xs text-neutral-500">{sq.projectRef || 'Sans référence projet'}</p>
                                 </div>
                                 <span className="text-xs font-medium text-neutral-400">{sq.date}</span>
@@ -8888,7 +8888,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div>
                                     <span className="text-neutral-400 block text-[10px] uppercase font-bold">Total TTC</span>
-                                    <span className="font-black text-brand-600 text-sm">
+                                    <span className="font-bold text-brand-600 text-sm">
                                         {formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
                                     </span>
                                 </div>
@@ -8966,14 +8966,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <tbody>
                             {visibleQuotes.map(sq => (
                                 <tr key={sq.id} className="app-td border-b border-neutral-100 hover:bg-neutral-50/50">
-                                    <td className="p-4 pl-6 font-extrabold text-brand-600">{sq.number}</td>
+                                    <td className="p-4 pl-6 font-semibold text-brand-600">{sq.number}</td>
                                     <td className="p-4 text-xs font-medium text-neutral-500">{sq.date}</td>
                                     <td className="p-4">
                                         <div className="font-bold text-neutral-800">{sq.clientName}</div>
                                         <div className="text-xs text-neutral-500">{sq.projectRef}</div>
                                     </td>
                                     <td className="p-4 text-right font-bold text-neutral-700">{formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                    <td className="p-4 text-right font-extrabold text-neutral-900">{formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
+                                    <td className="p-4 text-right font-semibold text-neutral-900">{formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
                                     <td className="p-4 pr-6 text-right">
                                         <div className="flex justify-end items-center gap-1.5">
                                             <button 
@@ -9099,7 +9099,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <i className="fa-solid fa-shield-check text-emerald-600 text-sm"></i>
                             <span>Santé du Catalogue :</span>
                         </div>
-                        <span className="bg-white text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-extrabold">
+                        <span className="bg-white text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
                             {systemDiagnostic.okProducts} / {systemDiagnostic.totalProducts} Conformes
                         </span>
                     </div>
@@ -9155,7 +9155,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="app-card flex flex-col">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
                             <div>
-                                <h3 className="text-neutral-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
+                                <h3 className="text-neutral-400 text-[10px] font-semibold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
                                 <h2 className="text-xl font-bold text-neutral-800">{selectedSolutionForEdit.name}</h2>
                             </div>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -9236,7 +9236,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div key={r.id} className={`p-4 rounded-2xl border ${isMissing ? 'bg-red-50/60 border-red-200' : 'bg-neutral-50 border-neutral-200'} space-y-2`}>
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-extrabold text-sm text-neutral-900">{r.label}</p>
+                                                <p className="font-semibold text-sm text-neutral-900">{r.label}</p>
                                                 <p className="text-xs text-neutral-600 mt-0.5">{linkedName}</p>
                                             </div>
                                             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-white text-neutral-700 border-neutral-300">
@@ -9539,12 +9539,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <p className={`font-bold text-sm truncate ${selectedMaterialId === m.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{m.name}</p>
                                 <p className="text-[11px] text-neutral-500 truncate">{m.category}</p>
                             </div>
-                            <span className="text-xs font-extrabold text-brand-600 shrink-0">{formatMoney(m.priceBuy, companyInfo.currency)}</span>
+                            <span className="text-xs font-semibold text-brand-600 shrink-0">{formatMoney(m.priceBuy, companyInfo.currency)}</span>
                         </button>
                     )) : labor.map(l => (
                         <button key={l.id} onClick={() => openLaborDetail(l)} className={`flex items-center justify-between gap-2 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedLaborId === l.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${l.name}`}>
                             <p className={`font-bold text-sm truncate ${selectedLaborId === l.id ? 'text-neutral-900' : 'text-neutral-700'}`}>{l.name}</p>
-                            <span className="text-xs font-extrabold text-brand-600 shrink-0">{formatMoney(l.rate, companyInfo.currency)} / {l.unit || 'u'}</span>
+                            <span className="text-xs font-semibold text-brand-600 shrink-0">{formatMoney(l.rate, companyInfo.currency)} / {l.unit || 'u'}</span>
                         </button>
                     ))}
                 </div>
@@ -9764,7 +9764,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         {formatMoney(parseFloat(matForm.priceBuy), companyInfo.currency)} ÷ {matForm.unitSize} {matForm.unitCalc || 'u'}
                                                     </span>
                                                 </span>
-                                                <span className="text-lg font-black text-brand-600 font-mono">
+                                                <span className="text-lg font-bold text-brand-600 font-mono">
                                                     {formatMoney(parseFloat(matForm.priceBuy) / parseFloat(matForm.unitSize), companyInfo.currency)}
                                                     <span className="text-xs font-bold text-neutral-500"> / {matForm.unitCalc || 'u'}</span>
                                                 </span>
@@ -9839,7 +9839,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     onClick={() => setLaborForm({ ...laborForm, unit: laborForm.unitTache || 'm²' })}
                                                     className={`text-left p-3 rounded-xl border-2 transition-all ${!isDailyUnit(laborForm.unit) ? 'border-brand-500 bg-brand-50' : 'border-neutral-200 bg-white hover:border-neutral-300'}`}
                                                 >
-                                                    <span className="block text-xs font-black text-neutral-900">À la tâche</span>
+                                                    <span className="block text-xs font-bold text-neutral-900">À la tâche</span>
                                                     <span className="block text-[11px] text-neutral-500 mt-0.5 leading-snug">
                                                         Prix ferme par unité produite. Le tâcheron absorbe un rendement plus faible.
                                                     </span>
@@ -9850,7 +9850,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     onClick={() => setLaborForm({ ...laborForm, unitTache: isDailyUnit(laborForm.unit) ? laborForm.unitTache : laborForm.unit, unit: 'j' })}
                                                     className={`text-left p-3 rounded-xl border-2 transition-all ${isDailyUnit(laborForm.unit) ? 'border-brand-500 bg-brand-50' : 'border-neutral-200 bg-white hover:border-neutral-300'}`}
                                                 >
-                                                    <span className="block text-xs font-black text-neutral-900">À la journée (régie)</span>
+                                                    <span className="block text-xs font-bold text-neutral-900">À la journée (régie)</span>
                                                     <span className="block text-[11px] text-neutral-500 mt-0.5 leading-snug">
                                                         Tarif par jour × rendement attendu. L'entreprise absorbe si le rendement n'est pas tenu.
                                                     </span>
@@ -9941,12 +9941,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="space-y-4">
                                     <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 flex items-center justify-between">
                                         <div>
-                                            <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
-                                            <span className="text-xl font-black text-brand-600 font-mono">{formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)}</span>
+                                            <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
+                                            <span className="text-xl font-bold text-brand-600 font-mono">{formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)}</span>
                                             <span className="text-[11px] text-neutral-500 block">par {selectedItem.unitBuy || selectedItem.unitCalc}</span>
                                         </div>
                                         {historyVariationPct !== null && (
-                                            <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${historyVariationPct >= 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                            <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${historyVariationPct >= 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
                                                 <i className={`fa-solid fa-arrow-trend-${historyVariationPct >= 0 ? 'up' : 'down'} mr-1`}></i> {historyVariationPct >= 0 ? '+' : ''}{historyVariationPct.toFixed(1)}%
                                             </span>
                                         )}
@@ -9968,7 +9968,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     ) : (
                                         <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
                                             <table className="w-full text-left text-xs">
-                                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-extrabold text-neutral-400 uppercase">
+                                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-semibold text-neutral-400 uppercase">
                                                     <tr><th className="p-2.5 pl-3">Date</th><th className="p-2.5">Fournisseur</th><th className="p-2.5 text-right pr-3">Tarif HT</th></tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-neutral-100">
@@ -9993,7 +9993,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
                                         <span className="text-neutral-400 block text-[10px] uppercase font-bold">Coût Unitaire Net</span>
-                                        <span className="font-extrabold text-brand-600 text-base">{formatMoney(selectedItem.priceCalc, companyInfo.currency)}</span>
+                                        <span className="font-semibold text-brand-600 text-base">{formatMoney(selectedItem.priceCalc, companyInfo.currency)}</span>
                                         <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unitCalc}</p>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
@@ -10013,7 +10013,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     {(selectedItem.stockQty !== null && selectedItem.stockQty !== undefined) && (
                                         <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/70">
                                             <span className="text-emerald-700/70 block text-[10px] uppercase font-bold">Stock Actuel</span>
-                                            <span className="font-extrabold text-emerald-800 text-base">{selectedItem.stockQty} {selectedItem.unitCalc}</span>
+                                            <span className="font-semibold text-emerald-800 text-base">{selectedItem.stockQty} {selectedItem.unitCalc}</span>
                                             <p className="text-[11px] text-emerald-700/60 mt-0.5">Suivi manuel</p>
                                         </div>
                                     )}
@@ -10022,7 +10022,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
                                         <span className="text-neutral-400 block text-[10px] uppercase font-bold">Tarif Unitaire</span>
-                                        <span className="font-extrabold text-brand-600 text-base">{formatMoney(selectedItem.rate, companyInfo.currency)}</span>
+                                        <span className="font-semibold text-brand-600 text-base">{formatMoney(selectedItem.rate, companyInfo.currency)}</span>
                                         <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unit || 'u'}</p>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
@@ -10053,7 +10053,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 }} 
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#2563eb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
+                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#3b5bdb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
                 <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
                 <span className={`text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal ${isActive ? 'text-brand-600' : 'text-neutral-700'}`}>{label}</span>
             </button>
@@ -10266,7 +10266,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 {/* V5.3 READ-ONLY BANNER */}
                 {downgradeWarning && (
-                    <div className="bg-red-600 text-white px-4 py-3 text-xs font-extrabold flex items-center justify-between shrink-0 shadow-lg animate-pulse" role="alert">
+                    <div className="bg-red-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg animate-pulse" role="alert">
                         <div className="flex items-center gap-2">
                             <i className="fa-solid fa-lock text-base"></i>
                             <span>{downgradeWarning}</span>
@@ -10276,7 +10276,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 {/* V5.7.1 CLOUD OFFLINE INFORMATIONAL BANNER */}
                 {cloudState === 'offline_error' && cloudErrorMessage && (
-                    <div className="bg-amber-600 text-white px-4 py-3 text-xs font-extrabold flex items-center justify-between shrink-0 shadow-lg" role="alert">
+                    <div className="bg-amber-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg" role="alert">
                         <div className="flex items-center gap-2">
                             <i className="fa-solid fa-wifi text-base"></i>
                             <span>⚠️ {cloudErrorMessage}</span>
@@ -10296,7 +10296,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
                     <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
                         <header className="hidden lg:flex h-12 items-center justify-between mb-6 shrink-0">
-                            <h1 className="text-2xl font-extrabold text-neutral-800 tracking-tight">
+                            <h1 className="text-2xl font-semibold text-neutral-800 tracking-tight">
                                 {activeView === 'calculator' && 'Création & Chiffrage de Devis BTP'}
                                 {activeView === 'savedQuotes' && 'Devis Enregistrés & PDF Commercial'}
                                 {activeView === 'invoices' && 'Factures'}
@@ -10923,7 +10923,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                         <label className="app-label mb-0">Échéancier de Paiement</label>
-                                        <span className={`text-[11px] font-black ${scheduleTotalPct === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        <span className={`text-[11px] font-bold ${scheduleTotalPct === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
                                             Total : {scheduleTotalPct}%
                                         </span>
                                     </div>
@@ -11128,7 +11128,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     ? { kind: 'material', name: '', category: '', unitBuy: '', unitSize: 1, unitCalc: 'm²', priceBuy: '', waste: 5 }
                                                     : { kind: 'labor', name: '', unit: 'j', rate: '', yieldRate: '' });
                                             }}
-                                            className="text-xs font-black text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
+                                            className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
                                             title="Créer une nouvelle matière ou main-d'œuvre sans quitter ce composant"
                                         >
                                             <i className={`fa-solid ${quickResourceDraft ? 'fa-xmark' : 'fa-plus'} text-[10px]`}></i>
@@ -11141,7 +11141,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         imbriqué est invalide et déclencherait l'envoi du composant. */}
                                     {quickResourceDraft && (
                                         <div className="mb-3 p-3.5 bg-brand-50/60 border border-brand-200 rounded-xl space-y-3">
-                                            <p className="text-[10px] font-black uppercase tracking-wider text-brand-700">
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-700">
                                                 Nouvelle {quickResourceDraft.kind === 'material' ? 'matière' : 'prestation'}
                                             </p>
                                             <input
@@ -11453,11 +11453,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <div className="flex items-center gap-3">
-                                <span className="text-sm font-extrabold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">
+                                <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">
                                     {viewingInvoice.numero || 'BROUILLON'}
                                 </span>
                                 <div>
-                                    <h3 className="font-extrabold text-neutral-900 text-lg leading-tight">{viewingInvoice.clientName}</h3>
+                                    <h3 className="font-semibold text-neutral-900 text-lg leading-tight">{viewingInvoice.clientName}</h3>
                                     <p className="text-xs text-neutral-500">{viewingInvoice.projectRef}</p>
                                 </div>
                             </div>
@@ -11494,7 +11494,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
                                     <i className="fa-solid fa-pen-ruler text-amber-600 mt-0.5"></i>
                                     <div>
-                                        <p className="font-black text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
+                                        <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
                                         <p className="text-[11px] text-amber-800">
                                             Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
                                         </p>
@@ -11515,7 +11515,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <p className="text-[11px] text-neutral-400">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
                                     </div>
                                     <div className="text-right">
-                                        <h2 className="text-2xl font-black text-brand-600 uppercase tracking-tight">Facture</h2>
+                                        <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">Facture</h2>
                                         <p className="text-sm font-bold text-neutral-800 mt-1">
                                             {viewingInvoice.numero ? `N° : ${viewingInvoice.numero}` : 'Brouillon (non numéroté)'}
                                         </p>
@@ -11532,11 +11532,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                 <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                                     <div>
-                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
-                                        <p className="font-extrabold text-neutral-900 text-base">{viewingInvoice.clientName}</p>
+                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
+                                        <p className="font-semibold text-neutral-900 text-base">{viewingInvoice.clientName}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
+                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
                                         <p className="font-bold text-neutral-800">{viewingInvoice.projectRef}</p>
                                     </div>
                                 </div>
@@ -11587,7 +11587,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <span>-{formatMoney(viewingInvoice.deduitTTC, cur)}</span>
                                             </div>
                                         )}
-                                        <div className="flex justify-between font-black text-brand-600 text-base border-t-2 border-neutral-900 pt-2">
+                                        <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
                                             <span>NET À PAYER :</span>
                                             <span>{formatMoney(viewingInvoice.netAPayerTTC, cur)}</span>
                                         </div>
@@ -11685,11 +11685,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             {/* Bande 1 — identité du document, puis actions. */}
                             <div className="px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <span className="text-sm font-extrabold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
+                                    <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
                                     {/* min-w-0 + truncate : sans eux, un nom de client long
                                         repousse les actions au lieu de s'abréger. */}
                                     <div className="min-w-0">
-                                        <h3 className="font-extrabold text-neutral-900 text-lg leading-tight truncate">{viewingSavedQuote.clientName}</h3>
+                                        <h3 className="font-semibold text-neutral-900 text-lg leading-tight truncate">{viewingSavedQuote.clientName}</h3>
                                         <p className="text-xs text-neutral-500 truncate">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
                                     </div>
                                 </div>
@@ -11717,7 +11717,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             'devis'
                                         )}
                                         disabled={pdfEnCours === 'devis'}
-                                        className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-md shadow-brand-500/20 disabled:opacity-60"
+                                        className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-sm disabled:opacity-60"
                                         title="Télécharger au format PDF"
                                         aria-label="Télécharger le devis en PDF"
                                     >
@@ -11747,7 +11747,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="px-6 pb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
                                     {canViewInternalDocs && (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
                                             <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Destinataire du document">
                                                 <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
                                                     Étude de prix (interne)
@@ -11762,7 +11762,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         détaillée par nature : masqué dans ce cas. */}
                                     {isCommercialMode && (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-500 shrink-0">Niveau de détail</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Niveau de détail</span>
                                             <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
                                                 <button
                                                     onClick={() => setClientDetailOverride('synthese')}
@@ -11833,7 +11833,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <p className="text-[11px] text-neutral-400">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
                                         </div>
                                         <div className="text-right">
-                                            <h2 className="text-2xl font-black text-brand-600 uppercase tracking-tight">DEVIS COMMERCIAL</h2>
+                                            <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">DEVIS COMMERCIAL</h2>
                                             <p className="text-sm font-bold text-neutral-800 mt-1">N° : {viewingSavedQuote.number}</p>
                                             <p className="text-xs text-neutral-500">Date : {viewingSavedQuote.date}</p>
                                         </div>
@@ -11841,11 +11841,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                     <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                                         <div>
-                                            <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">CLIENT</p>
-                                            <p className="font-extrabold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">CLIENT</p>
+                                            <p className="font-semibold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
                                             <p className="font-bold text-neutral-800">{viewingSavedQuote.projectRef}</p>
                                         </div>
                                     </div>
@@ -11902,7 +11902,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                 return (
                                                                     <React.Fragment key={lot.id || li}>
                                                                         <tr className="bg-neutral-100">
-                                                                            <td colSpan={4} className="px-3 py-2 font-extrabold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                                            <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
                                                                                 {formatLotHeading(lot.lotName, li)}
                                                                             </td>
                                                                         </tr>
@@ -11937,7 +11937,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                             <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
                                                                                 Sous-total Lot {li + 1} HT
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-right font-extrabold text-neutral-800">
+                                                                            <td className="px-3 py-2 text-right font-semibold text-neutral-800">
                                                                                 {formatMoney(ld.netHTConsomme, printCurrency)}
                                                                             </td>
                                                                         </tr>
@@ -11979,7 +11979,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                             <React.Fragment key={lot.lotCode}>
                                                                 {showLotHeaders && (
                                                                     <tr className="bg-neutral-50">
-                                                                        <td colSpan={4} className="px-3.5 py-2 font-extrabold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                                        <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
                                                                             {lot.lotName}
                                                                         </td>
                                                                     </tr>
@@ -12002,7 +12002,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                         <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
                                                                             Sous-total Lot {lot.lotCode} HT
                                                                         </td>
-                                                                        <td className="px-3.5 py-2 text-right font-extrabold text-neutral-800">
+                                                                        <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
                                                                             {formatMoney(lotSubtotal, printCurrency)}
                                                                         </td>
                                                                     </tr>
@@ -12042,7 +12042,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
                                                 </div>
                                             )}
-                                            <div className="flex justify-between font-black text-brand-600 text-base border-t-2 border-neutral-900 pt-2">
+                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
                                                 <span>TOTAL TTC :</span>
                                                 <span>{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
                                             </div>
@@ -12051,13 +12051,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                     {paymentSchedule.length > 0 && (
                                     <div className="pt-4 border-t border-neutral-200">
-                                        <h4 className="text-xs font-black text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                             <i className="fa-solid fa-calendar-check text-brand-600"></i>
                                             Échéancier Prévisionnel des Règlements
                                         </h4>
                                         <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
                                             <table className="w-full text-left text-xs">
-                                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-extrabold text-neutral-500 uppercase">
+                                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
                                                     <tr>
                                                         <th className="p-2.5 pl-3">Étape</th>
                                                         <th className="p-2.5 text-center">Taux (%)</th>
@@ -12148,7 +12148,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <div className="border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
                                                     <i className="fa-solid fa-lock text-amber-600 mt-0.5"></i>
                                                     <div>
-                                                        <p className="font-black text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
+                                                        <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
                                                         <p className="text-[11px] text-amber-800">Contient vos coûts d'achat, votre coefficient de vente et votre marge.</p>
                                                     </div>
                                                 </div>
@@ -12160,7 +12160,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <h2 className="text-lg font-black text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
+                                                        <h2 className="text-lg font-bold text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
                                                         <p className="text-xs font-bold text-neutral-700 mt-0.5">Devis n° {viewingSavedQuote.number}</p>
                                                         <p className="text-[11px] text-neutral-500">{viewingSavedQuote.date}</p>
                                                     </div>
@@ -12178,7 +12178,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                         Métré : {formatItemMetre({ ...(l.dimensions || {}), takeoffMode: l.takeoffMode })}
                                                                     </p>
                                                                 </div>
-                                                                <span className="text-xs font-black text-neutral-900 shrink-0">{formatMoney(ld.netHTConsomme, cur)}</span>
+                                                                <span className="text-xs font-bold text-neutral-900 shrink-0">{formatMoney(ld.netHTConsomme, cur)}</span>
                                                             </div>
 
                                                             {dets.length === 0 ? (
@@ -12187,7 +12187,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                 </p>
                                                             ) : (
                                                                 <table className="w-full text-left text-[11px] border-collapse">
-                                                                    <thead className="bg-white border-b border-neutral-200 text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider">
+                                                                    <thead className="bg-white border-b border-neutral-200 text-[9px] font-semibold text-neutral-500 uppercase tracking-wider">
                                                                         <tr>
                                                                             <th className="px-4 py-2">Poste</th>
                                                                             <th className="px-2 py-2 text-right">Qté nette</th>
@@ -12223,7 +12223,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                     <tfoot className="bg-neutral-50 border-t border-neutral-200">
                                                                         <tr className="text-[11px]">
                                                                             <td className="px-4 py-2 font-bold text-neutral-700" colSpan="5">Déboursé sec du lot</td>
-                                                                            <td className="px-4 py-2 text-right font-black text-neutral-900 font-mono">{formatMoney(ld.totalDebourseConsomme, cur)}</td>
+                                                                            <td className="px-4 py-2 text-right font-bold text-neutral-900 font-mono">{formatMoney(ld.totalDebourseConsomme, cur)}</td>
                                                                         </tr>
                                                                     </tfoot>
                                                                 </table>
@@ -12234,7 +12234,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 break-inside-avoid">
                                                     <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
+                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Déboursé sec</span><span className="font-mono font-bold">{formatMoney(qd.totalDebourseConsomme, cur)}</span></div>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Frais généraux</span><span className="font-mono font-bold">{formatMoney(qd.fraisGenerauxConsomme, cur)}</span></div>
                                                         <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Prix de revient</span><span className="font-mono font-bold">{formatMoney(qd.totalRevientConsomme, cur)}</span></div>
@@ -12247,16 +12247,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         )}
                                                     </div>
                                                     <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
+                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Total net HT</span><span className="font-mono font-bold">{formatMoney(qd.netHTConsomme, cur)}</span></div>
                                                         <div className="flex justify-between"><span className="text-neutral-600">TVA ({qd.vatRate !== undefined ? qd.vatRate : 18}%)</span><span className="font-mono font-bold">{formatMoney(qd.tvaConsomme, cur)}</span></div>
-                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-black text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-bold text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
                                                     </div>
                                                 </div>
 
                                                 {alertes.length > 0 && (
                                                     <div className="border border-red-200 bg-red-50/60 rounded-xl p-4 break-inside-avoid">
-                                                        <p className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider mb-2">
+                                                        <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wider mb-2">
                                                             <i className="fa-solid fa-triangle-exclamation mr-1"></i> Points à vérifier avant envoi ({alertes.length})
                                                         </p>
                                                         <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-800">
@@ -12307,7 +12307,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="w-16 h-16 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-5">
                             <i className="fa-solid fa-[#fa-file-import] fa-cloud-arrow-down text-3xl"></i>
                         </div>
-                        <h3 className="font-extrabold text-neutral-900 text-xl mb-2">Données locales non associées détectées</h3>
+                        <h3 className="font-semibold text-neutral-900 text-xl mb-2">Données locales non associées détectées</h3>
                         <p className="text-neutral-600 text-sm font-medium mb-6 leading-relaxed">
                             Des données chiffrées/catalogue créées précédemment sur ce navigateur sont disponibles. 
                             Souhaitez-vous les **importer dans votre compte cloud ({sbUser?.email})** ou démarrer avec une base vierge ?
@@ -12349,7 +12349,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-brand-500' : 'bg-brand-50 text-brand-500'}`}>
                             <i className={`fa-solid ${confirmDialog.isDanger ? 'fa-trash-can' : 'fa-circle-question'} text-2xl`}></i>
                         </div>
-                        <h3 className="font-extrabold text-neutral-900 text-xl mb-2">{confirmDialog.title}</h3>
+                        <h3 className="font-semibold text-neutral-900 text-xl mb-2">{confirmDialog.title}</h3>
                         <p className="text-neutral-500 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">{confirmDialog.message}</p>
                         {/* B4 (2026-08-17) — Action secondaire optionnelle : permet de
                             proposer « Enregistrer d'abord » à côté de « Continuer sans
@@ -12452,7 +12452,7 @@ function AppShell() {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%)'}}>
                 <div className="text-center">
-                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #2563eb, #1e3a8a)'}}>
+                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #3b5bdb, #1e3a8a)'}}>
                         <i className="fa-solid fa-spinner fa-spin text-white text-2xl"></i>
                     </div>
                     <p className="text-white font-bold">ikadevis</p>
@@ -12466,7 +12466,7 @@ function AppShell() {
         return (
             <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
-                    <h2 className="text-2xl font-black text-neutral-900 mb-2">Nouveau mot de passe</h2>
+                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">Nouveau mot de passe</h2>
                     <p className="text-neutral-500 text-sm mb-6">Saisissez votre nouveau mot de passe pour votre compte ikadevis.</p>
                     {recoveryError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold mb-4">{recoveryError}</div>}
                     {recoverySuccess ? (
@@ -12513,7 +12513,7 @@ function UserSchemaGate({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-2">
                         <i className="fa-solid fa-shield-cat text-3xl"></i>
                     </div>
-                    <h2 className="text-xl font-extrabold text-white">Protection Anti-Downgrade V5.9</h2>
+                    <h2 className="text-xl font-semibold text-white">Protection Anti-Downgrade V5.9</h2>
                     <p className="text-sm text-neutral-400 leading-relaxed">
                         Vos données locales ont été enregistrées avec une version de schéma supérieure (<strong className="text-red-400">V{userSchemaCheck.storedInt}</strong>).
                     </p>

@@ -4,17 +4,21 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                // 2026-08-21 — Passage du rouge au bleu (demande utilisateur).
-                // Le 500 est #2563eb et non le bleu clair de la sidebar (#4b8df8) :
-                // mesuré sur blanc, #4b8df8 ne donne que 3.25:1 et échoue le seuil
-                // AA (4.5:1) du texte des boutons. #2563eb donne 5.17:1, soit mieux
-                // que le rouge qu'il remplace (#e6222b, 4.54:1 — tout juste passant).
-                // Seul `brand` change : les `red-*` natifs restent rouges, ils
-                // portent le sens « danger » (erreurs, suppressions, pertes).
+                // 2026-08-21 — Direction « Encre ». Le bleu #2563eb, saturé et
+                // employé en aplats pleins partout, était jugé trop agressif.
+                // `brand` devient un bleu d'ACCENT, plus dense et moins criard :
+                // il colore les textes (168 usages), les bordures (78) et les
+                // fonds pâles (65). L'action principale, elle, n'est plus bleue
+                // mais quasi noire — voir .btn-primary dans index.html.
+                //
+                // Contrastes sur blanc : 500 = 5,67:1 · 600 = 7,78:1. Au-dessus du
+                // seuil AA dans les deux cas.
+                //
+                // Les `red-*` natifs restent rouges : ils portent le danger.
                 brand: {
-                    50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe',
-                    300: '#93c5fd', 400: '#60a5fa', 500: '#2563eb',
-                    600: '#1d4ed8', 700: '#1e40af', 800: '#1e3a8a', 900: '#172554',
+                    50: '#f1f3fa', 100: '#e2e7f6', 200: '#c7d0ee',
+                    300: '#a3b2e2', 400: '#7d90d4', 500: '#3b5bdb',
+                    600: '#2f49b0', 700: '#26398a', 800: '#1e2c69', 900: '#16204a',
                 },
                 neutral: {
                     50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0',
