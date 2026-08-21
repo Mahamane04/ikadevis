@@ -191,7 +191,7 @@ function AuthScreen({ onAuthSuccess }) {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-neutral-900 to-brand-950 flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #1a0505 100%)'}}>
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-neutral-900 to-brand-950 flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%)'}}>
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-10">
@@ -200,7 +200,7 @@ function AuthScreen({ onAuthSuccess }) {
                         en texte, sans rapport avec la marque réelle. Remplacé par
                         LogoSVG, qui porte déjà le mot-symbole — d'où la suppression
                         du <h1>. En blanc, le fond étant sombre. */}
-                    <LogoSVG className="h-12 w-auto inline-block text-white" />
+                    <LogoSVG className="h-12 w-auto inline-block text-brand-400" />
                     <p className="text-neutral-400 font-semibold text-sm mt-4 tracking-widest uppercase">BTP · ERP Calcul de Devis</p>
                 </div>
 
@@ -241,7 +241,7 @@ function AuthScreen({ onAuthSuccess }) {
                         )}
                         <button type="submit" disabled={loading}
                             className="w-full py-3.5 rounded-xl font-black text-white text-sm tracking-wide transition-all active:scale-95 disabled:opacity-50"
-                            style={{background: loading ? '#666' : 'linear-gradient(135deg, #E6222B, #9b1c1c)', boxShadow: '0 4px 20px rgba(230,34,43,0.4)'}}>
+                            style={{background: loading ? '#666' : 'linear-gradient(135deg, #2563eb, #1e3a8a)', boxShadow: '0 4px 20px rgba(37,99,235,0.4)'}}>
                             {loading ? <span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement…</span>
                                 : mode === 'login' ? 'Se connecter →'
                                 : mode === 'signup' ? 'Créer mon compte →'
@@ -325,6 +325,18 @@ const LogoSVG = ({ className = "h-8" }) => (
         </g>
     </svg>
 );
+
+// Icône seule de la marque, sans le mot-symbole : le rail tablette replié
+// (72 px de large) est trop étroit pour le logo complet. Même tracé que
+// LogoSVG, recadré sur la seule icône. Monochrome, couleur héritée.
+const IconeSVG = ({ className = "h-7 w-7" }) => (
+    <svg className={className} viewBox="24.39 10.60 82.14 102.23" fill="currentColor"
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/>
+        <path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/>
+    </svg>
+);
+
 
 const CustomSelect = ({ value, onChange, options, className, disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -967,8 +979,8 @@ function AcmCalepinageVisualizer({
                                         y={y}
                                         width={w - 2}
                                         height={h - 2}
-                                        fill="#e6222b22"
-                                        stroke="#e6222b"
+                                        fill="#2563eb22"
+                                        stroke="#2563eb"
                                         strokeWidth="1.5"
                                         rx="2"
                                     />
@@ -10015,7 +10027,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 }} 
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#e6222b]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
+                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#2563eb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
                 <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
                 <span className={`text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal ${isActive ? 'text-brand-600' : 'text-neutral-700'}`}>{label}</span>
             </button>
@@ -10059,7 +10071,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <aside className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
                 <div className="p-4 flex flex-col gap-3 border-b border-neutral-100 shrink-0">
                     <div className="flex items-center justify-between">
-                        <LogoSVG className="h-8 w-auto text-neutral-900" />
+                        <LogoSVG className="h-8 w-auto text-brand-500" />
                     </div>
                     <OrganizationSwitcher
                         // F2 — L'organisation par défaut s'appelait « Entreprise BTP
@@ -10130,11 +10142,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <aside className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4">
                 {/* Repère visuel de marque au format icône seule (rail replié trop
                     étroit pour le logo complet ikadevis + baseline) */}
-                <svg className="h-7 w-7" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <rect x="5" y="5" width="40" height="40" rx="10" fill="#E6222B"/>
-                    <path d="M15 30L23 18L31 30H15Z" fill="white"/>
-                    <circle cx="33" cy="17" r="4" fill="white"/>
-                </svg>
+                <IconeSVG className="h-7 w-7 text-brand-500" />
                 <nav className="flex-1 overflow-y-auto flex flex-col gap-[5px] custom-scroll w-full items-center" aria-label="Menu principal (replié)">
                     <SidebarNavItem id="projects" icon="fa-folder-tree" label="Affaires & Projets" collapsed />
                     <SidebarNavItem id="clients" icon="fa-users" label="Clients (CRM)" collapsed />
@@ -10169,7 +10177,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
                     <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
                         <div className="p-4 flex items-center justify-between border-b border-neutral-100">
-                            <LogoSVG className="h-8 text-neutral-900" />
+                            <LogoSVG className="h-8 text-brand-500" />
                             <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
                                 <i className="fa-solid fa-xmark text-xl"></i>
                             </button>
@@ -10210,7 +10218,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         >
                             <i className="fa-solid fa-bars text-xl"></i>
                         </button>
-                        <LogoSVG className="h-7 text-neutral-900" />
+                        <LogoSVG className="h-7 text-brand-500" />
                     </div>
                     <div className="flex items-center gap-2">
                         {connectionState.key !== 'local' && (
@@ -12371,9 +12379,9 @@ function AppShell() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #1a0505 100%)'}}>
+            <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%)'}}>
                 <div className="text-center">
-                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #E6222B, #9b1c1c)'}}>
+                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #2563eb, #1e3a8a)'}}>
                         <i className="fa-solid fa-spinner fa-spin text-white text-2xl"></i>
                     </div>
                     <p className="text-white font-bold">ikadevis</p>

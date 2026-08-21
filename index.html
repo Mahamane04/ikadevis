@@ -9,14 +9,14 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821a">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260821b">
     <link rel="apple-touch-icon" href="assets/logo-ikadevis-carre.svg">
     <!-- P0.9 (2026-08-17) — Cache-buster manuel : bump ?v=AAAAMMJJ à chaque
          build (npm run build) pour forcer les navigateurs à recharger le CSS/JS
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260821a">
+    <link rel="stylesheet" href="tailwind.css?v=20260821b">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -47,9 +47,9 @@
         }
         .app-input:focus, .app-select:focus {
             background-color: #ffffff;
-            border-color: #e6222b;
+            border-color: #2563eb;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(230, 34, 43, 0.15);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
         /* 2026-08-20 — Beaucoup de champs numériques (prix, quantités,
@@ -93,13 +93,13 @@
 
         .btn-primary {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            background-color: #e6222b; color: white;
+            background-color: #2563eb; color: white;
             padding: 0.75rem 1.25rem; border-radius: 0.75rem;
             font-size: 0.875rem; font-weight: 700;
             transition: all 0.15s ease;
-            box-shadow: 0 4px 6px -1px rgba(230, 34, 43, 0.2), 0 2px 4px -1px rgba(230, 34, 43, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
         }
-        .btn-primary:hover { background-color: #dc2626; transform: translateY(-1px); }
+        .btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
         .btn-primary:active { transform: translateY(1px) scale(0.98); }
 
         .btn-secondary {
@@ -148,7 +148,7 @@
             --sidebar-bg: #f8f8ff;
             --sidebar-text: #252a44;
             --sidebar-muted: #646a80;
-            --sidebar-active: #4b8df8;
+            --sidebar-active: #2563eb;
             --sidebar-active-text: #ffffff;
             --sidebar-hover: rgba(88, 98, 170, 0.06);
             --sidebar-radius: 11px;
@@ -224,9 +224,9 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260821a"></script>
-    <script src="js/utils.js?v=20260821a"></script>
-    <script src="js/quote-templates.js?v=20260821a"></script>
-    <script src="app.compiled.js?v=20260821a"></script>
+    <script src="js/calc-engine.js?v=20260821b"></script>
+    <script src="js/utils.js?v=20260821b"></script>
+    <script src="js/quote-templates.js?v=20260821b"></script>
+    <script src="app.compiled.js?v=20260821b"></script>
 </body>
 </html>
