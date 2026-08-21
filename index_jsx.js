@@ -1080,9 +1080,22 @@ function QuoteHeader({
 
     return (
         <header className="bg-white border-b border-neutral-200 px-4 py-3 sticky top-0 z-30 shadow-xs">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 max-w-[1700px] mx-auto">
-                {/* Ligne 1 : Numéro, Titre Projet & Client + Undo/Redo */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* En-tête de l'espace de chiffrage, refondu en DEUX bandes (2026-08-21).
+
+                Avant : identité, undo/redo, les deux champs, le statut, l'indicateur
+                de sauvegarde ET les quatre actions se partageaient une seule ligne
+                flex. Mesuré dans le DOM : les champs « Nom du client » et
+                « Chantier / Projet » tombaient à 108 px chacun — leurs libellés
+                étaient coupés en plein milieu (« Nom du Clien », « Chantier / Proj »).
+                Ce sont pourtant les deux seules zones de saisie de la barre.
+
+                Bande 1 = identité + actions. Bande 2 = les champs, sur toute la
+                largeur : ils passent de 108 px à plus de 350 px chacun. */}
+            <div className="max-w-[1700px] mx-auto flex flex-col gap-2.5">
+
+                {/* Bande 1 — identité du devis, puis actions. */}
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-900 text-white font-mono text-xs font-bold tracking-wide shrink-0">
                         <i className="fa-solid fa-file-invoice text-brand-400 text-[11px]"></i>
                         {quote.number || 'DEV-2026-001'}
@@ -1116,25 +1129,6 @@ function QuoteHeader({
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                        <input
-                            type="text"
-                            value={quote.clientName || ''}
-                            onChange={(e) => onUpdateQuote({ clientName: e.target.value })}
-                            placeholder="Nom du Client (ex: M. KOUASSI, BTP SARL)…"
-                            className="bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
-                            aria-label="Nom du client"
-                        />
-                        <input
-                            type="text"
-                            value={quote.projectRef || ''}
-                            onChange={(e) => onUpdateQuote({ projectRef: e.target.value })}
-                            placeholder="Chantier / Projet (ex: Villa R+1 Cocody)…"
-                            className="hidden sm:block bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
-                            aria-label="Référence du chantier"
-                        />
-                    </div>
-
                     {/* Statut Pill */}
                     <div className="relative shrink-0">
                         <select
@@ -1149,43 +1143,30 @@ function QuoteHeader({
                         </select>
                         <i className="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none opacity-60"></i>
                     </div>
-
-                    {/* Indicateur Sauvegarde Auto */}
-                    <div className="hidden xl:flex items-center gap-1.5 text-[11px] shrink-0 font-medium">
-                        {isSaving ? (
-                            <span className="text-neutral-500 flex items-center gap-1">
-                                <i className="fa-solid fa-spinner fa-spin text-brand-500"></i>
-                                <span>Sauvegarde…</span>
-                            </span>
-                        ) : hasUnsavedChanges ? (
-                            <span className="text-amber-600 flex items-center gap-1 font-bold">
-                                <i className="fa-solid fa-circle-dot text-amber-500 text-[9px]"></i>
-                                <span>Modifications non enregistrées</span>
-                            </span>
-                        ) : (
-                            <span className="text-emerald-600 flex items-center gap-1 font-bold">
-                                <i className="fa-solid fa-cloud-check text-emerald-500"></i>
-                                <span>{autosaveTime ? `Enregistré à ${autosaveTime}` : 'Enregistré localement'}</span>
-                            </span>
-                        )}
                     </div>
-                </div>
 
-                {/* Ligne 2 : Actions principales & Assistant Nouveau Devis */}
-                {/* P0.17 (2026-08-17) — `shrink-0 self-end` sans `flex-wrap` :
-                    sur mobile la rangée, plus large que l'écran et alignée à
-                    droite, débordait par la GAUCHE (bouton "+ Nouveau Devis"
-                    coupé hors viewport). Elle passe désormais à la ligne. */}
                 <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 self-stretch lg:self-center">
+                    {/* Repliées sous 640 px : la barre de totaux, en position
+                        fixed donc toujours à l'écran, propose déjà « Aperçu » et
+                        « Enregistrer », et « Nouveau devis » figure dans le menu
+                        « ⋮ » juste à côté. Sur un téléphone, ces copies empilaient
+                        130 px de boutons avant qu'on voie le devis.
+
+                        Le `hidden` est porté par CE conteneur et non par les
+                        boutons : .btn-primary et .btn-secondary fixent
+                        display: inline-flex dans le <style> de index.html, qui
+                        charge après tailwind.css — posé sur eux, `hidden` reste
+                        sans effet. */}
+                    <div className="hidden sm:flex items-center gap-2">
                     {/* Bouton Nouveau Devis Intelligent */}
                     <button
                         type="button"
                         onClick={onOpenWizard}
-                        className="btn-primary text-xs py-1.5 px-3.5 font-black flex items-center gap-1.5 shadow-sm shadow-brand-500/20"
+                        className="btn-secondary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5"
                         title="Ouvrir l'assistant intelligent de création de devis"
                     >
                         <i className="fa-solid fa-wand-magic-sparkles"></i>
-                        <span>+ Nouveau Devis</span>
+                        <span>Nouveau devis</span>
                     </button>
 
                     <button
@@ -1201,11 +1182,12 @@ function QuoteHeader({
                         type="button"
                         disabled={isReadOnlyDueToDowngrade}
                         onClick={onSaveQuote}
-                        className="btn-primary text-xs py-1.5 px-3.5 font-extrabold flex items-center gap-1.5 shadow-sm shadow-brand-500/20 bg-neutral-900 hover:bg-black text-white"
+                        className="btn-primary text-xs py-1.5 px-3.5 font-extrabold flex items-center gap-1.5 shadow-sm shadow-brand-500/20"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
                         <span>Enregistrer</span>
                     </button>
+                    </div>
 
                     {/* Menu secondaire */}
                     <div ref={menuRef} className="relative">
@@ -1243,6 +1225,50 @@ function QuoteHeader({
                                     <i className="fa-solid fa-clock-rotate-left text-neutral-400"></i> Basculer en Mode Classique V5
                                 </button>
                             </div>
+                        )}
+                    </div>
+                </div>
+                </div>
+
+                {/* Bande 2 — métadonnées du devis. Les champs récupèrent la
+                    largeur que les actions leur prenaient. */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+                        <input
+                            type="text"
+                            value={quote.clientName || ''}
+                            onChange={(e) => onUpdateQuote({ clientName: e.target.value })}
+                            placeholder="Nom du Client (ex: M. KOUASSI, BTP SARL)…"
+                            className="bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
+                            aria-label="Nom du client"
+                        />
+                        <input
+                            type="text"
+                            value={quote.projectRef || ''}
+                            onChange={(e) => onUpdateQuote({ projectRef: e.target.value })}
+                            placeholder="Chantier / Projet (ex: Villa R+1 Cocody)…"
+                            className="hidden sm:block bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
+                            aria-label="Référence du chantier"
+                        />
+                    </div>
+
+                    {/* Indicateur Sauvegarde Auto */}
+                    <div className="hidden sm:flex items-center gap-1.5 text-[11px] shrink-0 font-medium ml-auto">
+                        {isSaving ? (
+                            <span className="text-neutral-500 flex items-center gap-1">
+                                <i className="fa-solid fa-spinner fa-spin text-brand-500"></i>
+                                <span>Sauvegarde…</span>
+                            </span>
+                        ) : hasUnsavedChanges ? (
+                            <span className="text-amber-600 flex items-center gap-1 font-bold">
+                                <i className="fa-solid fa-circle-dot text-amber-500 text-[9px]"></i>
+                                <span>Modifications non enregistrées</span>
+                            </span>
+                        ) : (
+                            <span className="text-emerald-600 flex items-center gap-1 font-bold">
+                                <i className="fa-solid fa-cloud-check text-emerald-500"></i>
+                                <span>{autosaveTime ? `Enregistré à ${autosaveTime}` : 'Enregistré localement'}</span>
+                            </span>
                         )}
                     </div>
                 </div>
