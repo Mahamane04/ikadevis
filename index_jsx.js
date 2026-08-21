@@ -195,14 +195,13 @@ function AuthScreen({ onAuthSuccess }) {
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-brand-600 shadow-2xl mb-6" style={{background: 'linear-gradient(135deg, #E6222B, #9b1c1c)'}}>
-                        <svg viewBox="0 0 40 40" className="w-10 h-10">
-                            <path d="M5 30L17 12L29 30H5Z" fill="white" opacity="0.9"/>
-                            <circle cx="30" cy="12" r="6" fill="white"/>
-                        </svg>
-                    </div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">ikadevis</h1>
-                    <p className="text-neutral-400 font-semibold text-sm mt-1 tracking-widest uppercase">BTP · ERP Calcul de Devis</p>
+                    {/* 2026-08-21 — Cet écran n'affichait pas le logo : une icône
+                        décorative (triangle + cercle dans un carré rouge) et le nom
+                        en texte, sans rapport avec la marque réelle. Remplacé par
+                        LogoSVG, qui porte déjà le mot-symbole — d'où la suppression
+                        du <h1>. En blanc, le fond étant sombre. */}
+                    <LogoSVG className="h-12 w-auto inline-block text-white" />
+                    <p className="text-neutral-400 font-semibold text-sm mt-4 tracking-widest uppercase">BTP · ERP Calcul de Devis</p>
                 </div>
 
                 {/* Card */}
@@ -298,12 +297,32 @@ function AuthScreen({ onAuthSuccess }) {
 }
 
 const LogoSVG = ({ className = "h-8" }) => (
-    <svg className={className} viewBox="0 0 240 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="5" y="10" width="40" height="40" rx="10" fill="#E6222B"/>
-        <path d="M15 35L23 23L31 35H15Z" fill="white"/>
-        <circle cx="33" cy="22" r="4" fill="white"/>
-        <text x="55" y="38" fill="#171717" fontFamily="Inter, sans-serif" fontWeight="900" fontSize="24" letterSpacing="-0.5">ikadevis</text>
-        <text x="55" y="50" fill="#E6222B" fontFamily="Inter, sans-serif" fontWeight="800" fontSize="10" letterSpacing="2">BTP & ERP CALCUL</text>
+    // Marque ikadevis fournie par l'utilisateur le 2026-08-21 (immeubles + coche).
+    // Monochrome, colorée par `currentColor` : le composant hérite donc de la
+    // couleur de texte de son conteneur — sombre dans la barre latérale, blanc
+    // sur l'écran de connexion. Aucune couleur codée en dur ici.
+    // viewBox recadré au plus juste sur le tracé (le fichier source laissait
+    // ~20 % de vide autour), pour que `h-8` donne bien 32 px de marque visible.
+    // Le mot-symbole est vectorisé : plus aucune dépendance à une police —
+    // l'ancien logo réclamait Inter, qui n'est chargée nulle part.
+    <svg className={className} viewBox="23.39 9.60 335.00 104.23" fill="currentColor"
+         xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ikadevis">
+<polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/>
+        <path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/>
+        <g>
+        <g>
+        <path d="M227.64,93.27c-9.57.55-16.75-6.81-16.63-16.13.12-9.14,7.29-16.17,16.53-15.61,3.88.24,7.25,1.61,10.26,4.48l.02-16.97,5.67-.05v43.92s-5.65-.03-5.65-.03l-.12-4c-2.81,2.8-6.12,4.14-10.09,4.37ZM222.29,86.76c3.82,1.96,8.32,1.44,11.57-1.07,3.62-2.8,4.86-7.42,3.43-11.69-1.35-4.01-5.13-6.9-9.41-7.12s-8.58,2.12-10.24,6.3c-2.02,5.09-.38,11,4.65,13.58Z"/>
+        <path d="M198.38,93l-.14-4.19c-3.5,3.54-7.92,4.81-12.62,4.4-5.6-.49-10.37-3.78-12.66-8.95-1.9-4.29-1.95-8.99-.18-13.35,2.17-5.36,7.04-8.77,12.76-9.33,4.83-.47,9.24,1.09,12.71,4.43l.09-3.77h5.71s0,30.59,0,30.59l-5.67.16ZM188.05,87.91c2.78-.11,5.1-1.01,7.03-2.81,3.81-3.53,4.32-9.35,1.5-13.55s-8.2-5.85-13.04-3.84c-4.19,1.74-6.53,5.99-6.24,10.5.36,5.69,4.87,9.92,10.74,9.69Z"/>
+        <path d="M265.87,88.38c3.91.06,7.16-1.38,9.43-4.7l4.38,2.83c-2.83,4.55-7.53,6.7-12.57,7.01-9.49.59-16.93-6.43-17.07-15.85-.13-9.1,6.82-16.17,15.99-16.06,9.63.11,16.17,7.75,15.36,17.49h-25.53c.48,5.26,4.56,9.19,10.01,9.27ZM275.63,74.6c-.92-4.99-5.02-7.81-9.64-7.86-4.86-.07-9.12,3.13-9.95,7.89l19.59-.03Z"/>
+        <polygon points="169.93 92.83 162.53 92.91 150.93 79.81 146.19 84.26 146.08 92.9 140.41 92.92 140.4 49.09 146.15 49.09 146.16 77.02 160.82 62.32 168.44 62.35 154.78 75.94 169.93 92.83"/>
+        <path d="M351.06,91.97c-5.52,2.93-14.01,1.79-18.64-2.96l3.01-3.88c4.27,4.26,13.06,4.8,14.13.57.35-1.36-.03-3.09-1.41-3.74l-4.18-1.97c-4.1-1.93-10.48-3.22-10.01-10.13.19-2.75,1.63-5.3,4.34-6.62,5.4-2.64,11.95-1.88,16.57,2.15l-3.03,3.75c-4.13-3.52-11.61-3.33-12.12.63-.19,1.49.58,2.91,2.06,3.55l8.58,3.7c3.62,1.56,5.49,5.04,4.93,8.87-.39,2.64-1.81,4.8-4.21,6.08Z"/>
+        <polygon points="307.68 62.33 313.73 62.3 300.75 92.9 296.18 93.01 283.17 62.31 289.23 62.26 298.49 85.31 307.68 62.33"/>
+        <polygon points="325.87 92.86 320.14 92.97 320.14 62.3 325.87 62.28 325.87 92.86"/>
+        <polygon points="130.67 92.79 124.98 92.89 124.97 62.29 130.66 62.27 130.67 92.79"/>
+        </g>
+        <path d="M127.04,50.08c2.16-.46,4.08.9,4.44,2.84s-.72,4.01-2.84,4.42c-1.84.35-3.91-.71-4.34-2.65s.44-4.13,2.75-4.61Z"/>
+        <path d="M322.27,50.08c2.2-.46,4.02.94,4.4,2.91s-.82,3.94-2.82,4.36-3.87-.72-4.33-2.61c-.48-2,.46-4.19,2.75-4.66Z"/>
+        </g>
     </svg>
 );
 
@@ -10040,7 +10059,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <aside className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
                 <div className="p-4 flex flex-col gap-3 border-b border-neutral-100 shrink-0">
                     <div className="flex items-center justify-between">
-                        <LogoSVG className="h-8 w-auto" />
+                        <LogoSVG className="h-8 w-auto text-neutral-900" />
                     </div>
                     <OrganizationSwitcher
                         // F2 — L'organisation par défaut s'appelait « Entreprise BTP
@@ -10150,7 +10169,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
                     <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
                         <div className="p-4 flex items-center justify-between border-b border-neutral-100">
-                            <LogoSVG className="h-8" />
+                            <LogoSVG className="h-8 text-neutral-900" />
                             <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
                                 <i className="fa-solid fa-xmark text-xl"></i>
                             </button>
@@ -10191,7 +10210,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         >
                             <i className="fa-solid fa-bars text-xl"></i>
                         </button>
-                        <LogoSVG className="h-7" />
+                        <LogoSVG className="h-7 text-neutral-900" />
                     </div>
                     <div className="flex items-center gap-2">
                         {connectionState.key !== 'local' && (

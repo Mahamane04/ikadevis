@@ -20,6 +20,9 @@ const A_PUBLIER = [
     'tailwind.css',
     'config.js',
     'favicon.ico',
+    'favicon.svg',
+    'assets',   // marque : logo horizontal, carré, icône seule (référencés par
+                // index.html pour le favicon et l'icône d'accueil iOS)
     'vendor',
     'js',   // modules extraits (calc-engine, utils, quote-templates) chargés
             // en <script> par index.html — leur absence casse le moteur de calcul
