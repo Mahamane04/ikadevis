@@ -1983,3 +1983,72 @@ barre d'onglets sombre).
 
 `favicon.svg` et les trois assets servis en **HTTP 200**, type `image/svg+xml`.
 `build:dist` : 13 références, toutes présentes. `npm test` : 40/40, étalons A–G.
+
+---
+
+## 🔵 34. Passage du thème primaire au bleu (2026-08-21)
+
+Le rouge `#e6222b` cède la place au bleu. Demande utilisateur : logo et
+couleurs primaires en bleu.
+
+### 34.1 Le choix du bleu a été mesuré, pas fait à l'œil
+
+Le candidat évident était le bleu déjà présent dans la barre latérale.
+Il ne tient pas :
+
+| Candidat | Contraste sur blanc | Verdict |
+|---|---|---|
+| `#4b8df8` — bleu de la sidebar | 3,25:1 | ❌ sous le seuil AA (4,5:1) |
+| `#3b82f6` — blue-500 Tailwind | 3,68:1 | ❌ |
+| **`#2563eb`** | **5,17:1** | ✅ retenu |
+| `#e6222b` — l'ancien rouge | 4,54:1 | *(tout juste passant)* |
+
+Le seuil AA de 4,5:1 s'applique parce que le texte des boutons fait 14 px en
+graisse 700 — trop petit pour bénéficier du seuil « grand texte » (3:1).
+**Le bleu retenu contraste donc mieux que le rouge qu'il remplace.**
+
+Sur fond sombre, `brand-500` retombe à 3,45:1 : c'est `brand-400` (`#60a5fa`,
+7,02:1) qui porte le logo à l'écran de connexion, et la même règle s'applique
+au favicon.
+
+### 34.2 Ce qui a changé, et ce qui n'a pas changé
+
+**Changé** — l'échelle `brand` dans `tailwind.config.js` : les **424** usages de
+`brand-*` suivent d'un coup, c'est tout l'intérêt du jeton. Plus les valeurs en
+dur : focus des champs, bouton principal et son ombre teintée, liseré de
+l'onglet actif, calepinage 2D ACM, dégradés de la connexion et du chargement
+(la teinte `#1a0505`, rouge très sombre, devient `#0a1a3a`).
+
+`--sidebar-active` passe de `#4b8df8` à `#2563eb`. Ce bleu à part existait
+parce que la marque était rouge ; deux bleus différents côte à côte n'avaient
+plus lieu d'être.
+
+**Non changé — les 116 usages de `red-*`.** Vérifiés un par un : erreurs de
+formulaire, boutons de suppression, marges en perte (`margin.isLoss`), alertes
+de stock, diagnostics en panne. Ce sont des rouges **sémantiques**. Les
+repeindre aurait supprimé le signal de danger et les aurait rendus
+indiscernables de la nouvelle couleur primaire. `.btn-icon:hover` reste rouge
+pour la même raison.
+
+> Règle à retenir pour la suite : `brand-*` = identité, se change d'un bloc ;
+> `red-*` = danger, ne se touche pas.
+
+### 34.3 Un reste de l'ancien logo trouvé au passage
+
+Le **rail tablette** (768–1023 px) affichait encore l'ancien logo codé en dur —
+un carré rouge avec triangle et cercle — manqué lors du changement de marque
+(§ 33). Remplacé par `IconeSVG`, l'icône seule de la vraie marque : le rail fait
+72 px de large, trop étroit pour le logo complet.
+
+### 34.4 Vérifié en direct
+
+| Élément | Valeur mesurée |
+|---|---|
+| Bouton principal | `rgb(37, 99, 235)` |
+| Logo | `rgb(37, 99, 235)` |
+| Item de barre latérale actif | `rgb(37, 99, 235)` |
+| Titre et TOTAL TTC du document | `rgb(29, 78, 216)` |
+| Survol de suppression | `rgb(254, 226, 226)` / `rgb(220, 38, 38)` — **toujours rouge** |
+| `#e6222b` résiduel dans le DOM | **0** |
+
+`npm test` : 40/40, étalons A–G conformes.
