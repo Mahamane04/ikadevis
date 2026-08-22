@@ -8,9 +8,11 @@ export async function run() {
 
     const { page, close } = await launchApp();
     try {
+        await page.setViewport({ width: 690, height: 844 });
         await enterGuestMode(page);
 
         const search = 'input[aria-label="Rechercher un ouvrage à ajouter"]';
+        await page.waitForSelector(search, { timeout: 3000 });
         await page.click(search);
         const compactCatalog = await page.evaluate(() => {
             const list = document.querySelector('[data-testid="quote-solution-scroll"]');
@@ -24,7 +26,17 @@ export async function run() {
         await new Promise(resolve => setTimeout(resolve, 250));
         const addedExisting = await page.evaluate(() => document.body.innerText.includes('Peinture Murale'));
         ok('Un ouvrage existant est ajoutable depuis la ligne de recherche du tableau', addedExisting);
+        const compactItemLayout = await page.evaluate(() => {
+            const mobile = document.querySelector('[data-testid="quote-items-mobile"]');
+            const desktop = document.querySelector('[data-testid="quote-items-desktop"]');
+            return Boolean(mobile && mobile.getBoundingClientRect().width > 0 && desktop && desktop.getBoundingClientRect().width === 0);
+        });
+        ok('Le tableau devient une carte lisible sur tablette étroite', compactItemLayout);
+        ok('Le prix calculé indique sa dépendance au métrage', await page.evaluate(() => document.body.innerText.includes('Calculé selon le métrage')));
 
+        await page.setViewport({ width: 1280, height: 900 });
+        await new Promise(resolve => setTimeout(resolve, 120));
+        await page.waitForSelector(search, { timeout: 3000 });
         await page.click(search);
         await page.type(search, 'Ouvrage créé depuis tableau', { delay: 15 });
         await page.keyboard.press('Enter');

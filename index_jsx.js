@@ -2097,13 +2097,13 @@ function WorkItemTable({
     }
 
     return (
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="p-4 md:p-6 space-y-4">
             {/* M8 (2026-08-18) — Le tableau desktop était réutilisé tel quel en
                 mobile : désignations tronquées à un mot, colonne prix hors écran,
                 contenu qui débordait son conteneur (624px dans 337px mesurés lors
                 du test d'utilisabilité). Une carte par ouvrage sous sm, le tableau
                 au-dessus — c'est justement ce qu'on relit sur le chantier. */}
-            <div className="sm:hidden space-y-3">
+            <div data-testid="quote-items-mobile" className="md:hidden space-y-3">
                 {items.map((item, idx) => {
                     const unitPrice = item.unitPriceHT || 0;
                     const total = item.totalHT || 0;
@@ -2182,7 +2182,9 @@ function WorkItemTable({
                                         }}
                                         className="w-full text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                         aria-label={`Prix unitaire pour ${item.name}`}
+                                        title={item.calcForm ? 'Prix recalculé selon le métrage et la quantité de l’ouvrage' : 'Prix unitaire modifiable'}
                                     />
+                                    {item.calcForm && <span className="block text-[10px] text-neutral-400 mt-1">Calculé selon le métrage</span>}
                                 </div>
                             </div>
 
@@ -2217,7 +2219,7 @@ function WorkItemTable({
                 })}
             </div>
 
-            <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
+            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
@@ -2335,7 +2337,9 @@ function WorkItemTable({
                                             }}
                                             className="w-24 text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                             aria-label={`Prix unitaire pour ${item.name}`}
+                                            title={item.calcForm ? 'Prix recalculé selon le métrage et la quantité de l’ouvrage' : 'Prix unitaire modifiable'}
                                         />
+                                        {item.calcForm && <span className="block text-[10px] text-neutral-400 mt-1">Calculé selon le métrage</span>}
                                     </td>
 
                                     <td className="py-3 px-4 text-right font-bold text-neutral-900 text-sm">
