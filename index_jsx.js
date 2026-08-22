@@ -5195,6 +5195,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const [viewingInvoice, setViewingInvoice] = useState(null);
+    // Liste+détail façon Zoho Books (2026-08-22) : le menu « Nouveau » qui
+    // propose les devis facturables remplace l'ancienne carte toujours visible.
+    const [isCreateInvoiceMenuOpen, setIsCreateInvoiceMenuOpen] = useState(false);
     // Quel document est en cours de génération PDF (null / 'devis' / 'facture').
     // Sert à bloquer un second clic pendant la génération, qui produirait deux
     // fichiers identiques et deux rendus html2canvas simultanés.
@@ -8808,193 +8811,325 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             cancelled: { texte: 'Annulée', classe: 'bg-red-50 text-red-800 border-red-300' }
         };
         const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+        // Toujours retrouver la version fraîche dans `invoices` (le statut change
+        // après émission), jamais l'objet figé au moment du clic. Même patron
+        // que selectedClientId : rien n'est sélectionné par défaut.
+        const activeInvoice = viewingInvoice
+            ? (invoices.find(f => f.id === viewingInvoice.id) || null)
+            : null;
+
+        const creerFactureDepuisDevis = async (q) => {
+            const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
+            try {
+                const res = await InvoiceService.enregistrer({
+                    facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
+                });
+                const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
+                updateInvoices([brouillonFinal, ...invoices]);
+                setViewingInvoice(brouillonFinal);
+                setIsCreateInvoiceMenuOpen(false);
+                showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
+            } catch (err) {
+                showToast(`✕ Création impossible : ${err.message}`, "error");
+            }
+        };
 
         return (
-            <div className="h-full min-h-0 overflow-y-auto custom-scroll space-y-5 pb-8">
-                {/* Le Mode Démo ne peut offrir aucune garantie légale : la
-                    numérotation y est locale et rien n'est verrouillé. Le dire
-                    plutôt que de laisser croire l'inverse. */}
-                {!estCloud && (
-                    <div className="app-card p-4 border-amber-300 bg-amber-50/60 flex items-start gap-3">
-                        <i className="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
-                        <div className="text-xs text-amber-900">
-                            <p className="font-bold">Mode Démo — factures sans valeur légale</p>
-                            <p className="mt-0.5">
-                                La numérotation est calculée sur cet appareil et les factures émises
-                                restent modifiables. Connectez-vous à un compte pour que la numérotation
-                                soit garantie sans trou et les factures verrouillées à l'émission.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <div className="app-card p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <div>
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
+                {/* Pattern liste+détail (Clients / Ressources & Prix / Catalogue
+                    Ouvrages), repris ici le 2026-08-22 pour Factures : la colonne
+                    de droite montre le document rendu, comme un aperçu PDF —
+                    référence Zoho Books partagée par l'utilisateur. */}
+                <div className={`${activeInvoice ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
+                    <div className="flex items-center justify-between px-1 gap-2">
+                        <div className="min-w-0">
                             <h2 className="text-lg font-bold text-neutral-800">Mes Factures</h2>
-                            <p className="text-xs text-neutral-500">
+                            <p className="text-xs text-neutral-500 truncate">
                                 {invoices.length} facture(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
                             </p>
                         </div>
+                        <div className="relative shrink-0">
+                            <button
+                                onClick={() => setIsCreateInvoiceMenuOpen(o => !o)}
+                                disabled={isReadOnlyDueToDowngrade || devisFacturables.length === 0}
+                                className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50 disabled:opacity-40"
+                                aria-label="Créer une facture depuis un devis"
+                                title={devisFacturables.length === 0 ? "Tous vos devis ont déjà une facture" : undefined}
+                            >
+                                <i className="fa-solid fa-plus"></i> Nouveau
+                            </button>
+                            {isCreateInvoiceMenuOpen && devisFacturables.length > 0 && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsCreateInvoiceMenuOpen(false)}></div>
+                                    <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-neutral-200 shadow-floating z-20 max-h-80 overflow-y-auto custom-scroll">
+                                        <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Créer une facture depuis un devis</p>
+                                        {devisFacturables.map(q => (
+                                            <button key={q.id} onClick={() => creerFactureDepuisDevis(q)} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
+                                                <span className="min-w-0">
+                                                    <span className="block text-xs font-bold text-neutral-900 truncate">{q.clientName}</span>
+                                                    <span className="block text-[11px] text-neutral-500 truncate">{q.number} · {q.projectRef}</span>
+                                                </span>
+                                                <span className="text-xs font-bold text-neutral-700 shrink-0">{formatMoney(q.quoteData?.totalTTCConsomme, cur)}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    {invoices.length === 0 ? (
-                        <div className="p-10 text-center border-2 border-dashed border-neutral-200 rounded-2xl">
-                            <i className="fa-solid fa-file-invoice-dollar text-3xl text-neutral-300 mb-3"></i>
-                            <p className="font-bold text-neutral-700 text-sm">Aucune facture pour le moment</p>
-                            <p className="text-xs text-neutral-500 mt-1">
-                                Créez une facture à partir d'un devis enregistré, ci-dessous.
+                    {/* Le Mode Démo ne peut offrir aucune garantie légale : la
+                        numérotation y est locale et rien n'est verrouillé. */}
+                    {!estCloud && (
+                        <div className="app-card p-3 border-amber-300 bg-amber-50/60 flex items-start gap-2.5">
+                            <i className="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-xs"></i>
+                            <p className="text-[11px] text-amber-900 leading-snug">
+                                <span className="font-bold">Mode Démo —</span> numérotation locale, factures modifiables. Connectez-vous pour la garantie légale.
                             </p>
                         </div>
-                    ) : (
-                        <div className="app-table-wrapper">
-                            <table className="app-table">
-                                <thead>
-                                    <tr>
-                                        <th className="app-th">N° Facture</th>
-                                        <th className="app-th">Client &amp; Chantier</th>
-                                        <th className="app-th">Statut</th>
-                                        <th className="app-th text-right">Total TTC</th>
-                                        <th className="app-th text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {invoices.map(f => {
-                                        const st = libelleStatut[f.statut] || libelleStatut.draft;
-                                        return (
-                                            <tr key={f.id} className="hover:bg-neutral-50/60">
-                                                <td className="app-td font-bold text-brand-600 whitespace-nowrap">
-                                                    {f.numero || <span className="text-neutral-400 font-normal italic">— non émise —</span>}
-                                                    {f.devisNumero && (
-                                                        <span className="block text-[10px] text-neutral-400 font-normal">issue du devis {f.devisNumero}</span>
-                                                    )}
-                                                </td>
-                                                <td className="app-td">
-                                                    <span className="font-bold text-neutral-900">{f.clientName}</span>
-                                                    <span className="block text-[11px] text-neutral-500">{f.projectRef}</span>
-                                                </td>
-                                                <td className="app-td">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.classe}`}>{st.texte}</span>
-                                                </td>
-                                                <td className="app-td text-right font-bold text-neutral-900 whitespace-nowrap">
-                                                    {formatMoney(f.totalTTC, cur)}
-                                                </td>
-                                                <td className="app-td">
-                                                    <div className="flex items-center justify-center gap-1.5">
-                                                        <button
-                                                            onClick={() => setViewingInvoice(f)}
-                                                            className="btn-icon text-neutral-500 hover:text-brand-600 hover:bg-brand-50"
-                                                            title="Voir la facture"
-                                                            aria-label={`Voir la facture ${f.numero || 'brouillon'}`}
-                                                        >
-                                                            <i className="fa-solid fa-eye"></i>
-                                                        </button>
-                                                        {f.statut === 'draft' && (
-                                                            <>
-                                                                <button
-                                                                    disabled={isReadOnlyDueToDowngrade}
-                                                                    onClick={() => setConfirmDialog({
-                                                                        isOpen: true,
-                                                                        title: "Émettre la facture",
-                                                                        message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
-                                                                        confirmLabel: "Émettre",
-                                                                        onConfirm: () => { closeConfirm(); emettreFacture(f); }
-                                                                    })}
-                                                                    className="btn-secondary py-1 px-2.5 text-[11px] font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                                                    aria-label={`Émettre la facture de ${f.clientName}`}
-                                                                >
-                                                                    <i className="fa-solid fa-paper-plane mr-1"></i> Émettre
-                                                                </button>
-                                                                <button
-                                                                    disabled={isReadOnlyDueToDowngrade}
-                                                                    onClick={() => setConfirmDialog({
-                                                                        isOpen: true,
-                                                                        title: "Supprimer le brouillon",
-                                                                        message: `Supprimer ce brouillon de facture pour ${f.clientName} ?`,
-                                                                        isDanger: true,
-                                                                        onConfirm: () => {
-                                                                            updateInvoices(invoices.filter(x => x.id !== f.id));
-                                                                            closeConfirm();
-                                                                            showToast("Brouillon supprimé");
-                                                                        }
-                                                                    })}
-                                                                    className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50"
-                                                                    title="Supprimer le brouillon"
-                                                                    aria-label={`Supprimer le brouillon de ${f.clientName}`}
-                                                                >
-                                                                    <i className="fa-solid fa-trash"></i>
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        {f.statut !== 'draft' && (
-                                                            <span
-                                                                className="text-[10px] text-neutral-400 px-1.5"
-                                                                title="Une facture émise est figée : correction par avoir uniquement."
-                                                            >
-                                                                <i className="fa-solid fa-lock"></i>
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
                     )}
+
+                    <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
+                        {invoices.map(f => {
+                            const st = libelleStatut[f.statut] || libelleStatut.draft;
+                            const isActive = !!(activeInvoice && activeInvoice.id === f.id);
+                            return (
+                                <button key={f.id} onClick={() => setViewingInvoice(f)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${isActive ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Voir la facture de ${f.clientName}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold text-brand-600 truncate">{f.numero || 'Brouillon'}</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${st.classe}`}>{st.texte}</span>
+                                    </div>
+                                    <p className="font-bold text-neutral-900 text-sm truncate">{f.clientName}</p>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[11px] text-neutral-500 truncate">{f.projectRef}</span>
+                                        <span className="text-xs font-bold text-neutral-800 shrink-0">{formatMoney(f.totalTTC, cur)}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                        {invoices.length === 0 && (
+                            <div className="text-center py-10 px-4">
+                                <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
+                                    <i className="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <p className="text-sm font-bold text-neutral-800">Aucune facture pour le moment</p>
+                                <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
+                                    Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="app-card p-5">
-                    <h3 className="text-sm font-bold text-neutral-800 mb-1">Créer une facture depuis un devis</h3>
-                    <p className="text-xs text-neutral-500 mb-4">
-                        La facture reprend le client, le chantier, les lignes et le taux de TVA du devis.
-                        Elle est créée en brouillon : rien n'est définitif tant qu'elle n'est pas émise.
-                    </p>
-                    {devisFacturables.length === 0 ? (
-                        <p className="text-xs text-neutral-400 italic">
-                            {savedQuotes.length === 0
-                                ? "Aucun devis enregistré pour l'instant."
-                                : "Tous vos devis enregistrés ont déjà une facture."}
-                        </p>
-                    ) : (
-                        <div className="space-y-2">
-                            {devisFacturables.map(q => (
-                                <div key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-neutral-200 bg-white">
+                {/* COLONNE DÉTAIL — le document lui-même, plus de modale : entre
+                    dans l'architecture documentaire du § 27.1 comme document
+                    « destinataire = client » (logo, pied de page, exonération
+                    déjà en place, sans les redéfinir). Aucun coût d'achat ni
+                    marge n'y figure. */}
+                <div className={`${activeInvoice ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
+                    {!activeInvoice ? (
+                        <div className="app-card p-16 text-center text-neutral-400">
+                            <i className="fa-solid fa-file-invoice-dollar text-3xl mb-3 text-neutral-300"></i>
+                            <p className="text-sm font-bold text-neutral-600">Sélectionnez une facture pour l'afficher</p>
+                        </div>
+                    ) : (() => {
+                        const cur2 = activeInvoice.companyInfoSnapshot?.currency || companyInfo.currency;
+                        const ci = activeInvoice.companyInfoSnapshot || companyInfo;
+                        const estBrouillon = activeInvoice.statut === 'draft';
+                        return (
+                        <div className="app-card flex flex-col">
+                            <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white flex-wrap">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <button onClick={() => setViewingInvoice(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                        <i className="fa-solid fa-arrow-left"></i>
+                                    </button>
+                                    <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-1.5 rounded-lg shrink-0">
+                                        {activeInvoice.numero || 'BROUILLON'}
+                                    </span>
                                     <div className="min-w-0">
-                                        <span className="font-bold text-brand-600 text-xs mr-2">{q.number}</span>
-                                        <span className="font-bold text-neutral-900 text-sm">{q.clientName}</span>
-                                        <span className="block text-[11px] text-neutral-500">{q.projectRef}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <span className="font-bold text-neutral-800 text-sm">
-                                            {formatMoney(q.quoteData?.totalTTCConsomme, cur)}
-                                        </span>
-                                        <button
-                                            disabled={isReadOnlyDueToDowngrade}
-                                            onClick={async () => {
-                                                const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
-                                                try {
-                                                    const res = await InvoiceService.enregistrer({
-                                                        facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
-                                                    });
-                                                    const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
-                                                    updateInvoices([brouillonFinal, ...invoices]);
-                                                    showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
-                                                } catch (err) {
-                                                    showToast(`✕ Création impossible : ${err.message}`, "error");
-                                                }
-                                            }}
-                                            className="btn-secondary py-1.5 px-3 text-xs font-bold text-brand-600 border-brand-200 hover:bg-brand-50"
-                                            aria-label={`Créer une facture depuis ${q.number}`}
-                                        >
-                                            <i className="fa-solid fa-file-invoice-dollar mr-1.5"></i> Créer la facture
-                                        </button>
+                                        <h2 className="text-lg font-bold text-neutral-800 truncate">{activeInvoice.clientName}</h2>
+                                        <p className="text-xs text-neutral-500 truncate">{activeInvoice.projectRef}</p>
                                     </div>
                                 </div>
-                            ))}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {estBrouillon ? (
+                                        <>
+                                            <button
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={() => setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: "Émettre la facture",
+                                                    message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
+                                                    confirmLabel: "Émettre",
+                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice); }
+                                                })}
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold"
+                                                aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
+                                            >
+                                                <i className="fa-solid fa-paper-plane"></i> Émettre
+                                            </button>
+                                            <button
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={() => setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: "Supprimer le brouillon",
+                                                    message: `Supprimer ce brouillon de facture pour ${activeInvoice.clientName} ?`,
+                                                    isDanger: true,
+                                                    onConfirm: () => {
+                                                        updateInvoices(invoices.filter(x => x.id !== activeInvoice.id));
+                                                        setViewingInvoice(null);
+                                                        closeConfirm();
+                                                        showToast("Brouillon supprimé");
+                                                    }
+                                                })}
+                                                className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50"
+                                                title="Supprimer le brouillon"
+                                                aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
+                                            >
+                                                <i className="fa-solid fa-trash"></i>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => telechargerDocument(
+                                                    `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                    'facture'
+                                                )}
+                                                disabled={pdfEnCours === 'facture'}
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60"
+                                                title="Télécharger la facture au format PDF"
+                                                aria-label="Télécharger la facture en PDF"
+                                            >
+                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                                {pdfEnCours === 'facture' ? ' Génération…' : ' Télécharger le PDF'}
+                                            </button>
+                                            <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
+                                                <i className="fa-solid fa-print"></i> Imprimer
+                                            </button>
+                                            <span className="text-[10px] text-neutral-400 px-1" title="Une facture émise est figée : correction par avoir uniquement.">
+                                                <i className="fa-solid fa-lock"></i>
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                                {estBrouillon && (
+                                    <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
+                                        <i className="fa-solid fa-pen-ruler text-amber-600 mt-0.5"></i>
+                                        <div>
+                                            <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
+                                            <p className="text-[11px] text-amber-800">
+                                                Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id={estBrouillon ? undefined : 'printArea'}>
+                                    <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
+                                        <div>
+                                            {ci.logo && (
+                                                <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain mb-2" />
+                                            )}
+                                            <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
+                                            <p className="text-[11px] text-neutral-400">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">Facture</h2>
+                                            <p className="text-sm font-bold text-neutral-800 mt-1">
+                                                {activeInvoice.numero ? `N° : ${activeInvoice.numero}` : 'Brouillon (non numéroté)'}
+                                            </p>
+                                            <p className="text-xs text-neutral-500">
+                                                {activeInvoice.dateEmission
+                                                    ? `Émise le ${new Date(activeInvoice.dateEmission).toLocaleDateString('fr-FR')}`
+                                                    : 'Non émise'}
+                                            </p>
+                                            {activeInvoice.devisNumero && (
+                                                <p className="text-[11px] text-neutral-400 mt-0.5">Devis d'origine : {activeInvoice.devisNumero}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
+                                            <p className="font-semibold text-neutral-900 text-base">{activeInvoice.clientName}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
+                                            <p className="font-bold text-neutral-800">{activeInvoice.projectRef}</p>
+                                        </div>
+                                    </div>
+
+                                    <table className="w-full text-left text-xs border-collapse">
+                                        <thead>
+                                            <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                                <th className="p-3 rounded-l-lg">Désignation</th>
+                                                <th className="p-3 text-center">Quantité</th>
+                                                <th className="p-3 text-right">Prix Unitaire HT</th>
+                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-neutral-100">
+                                            {(activeInvoice.lignes || []).map((l, i) => (
+                                                <tr key={i}>
+                                                    <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
+                                                    <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                                                    <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, cur2)}</td>
+                                                    <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, cur2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+
+                                    <div className="flex justify-end pt-4 border-t border-neutral-200">
+                                        <div className="w-72 space-y-2 text-xs">
+                                            <div className="flex justify-between font-bold text-neutral-800 text-sm">
+                                                <span>Total HT :</span>
+                                                <span>{formatMoney(activeInvoice.totalHT, cur2)}</span>
+                                            </div>
+                                            {activeInvoice.tauxTva === 0 ? (
+                                                <div className="text-neutral-500">
+                                                    <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
+                                                    {ci.vatExemptionNote && (
+                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">{ci.vatExemptionNote}</p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-between text-neutral-500">
+                                                    <span>TVA ({activeInvoice.tauxTva}%) :</span>
+                                                    <span>+{formatMoney(activeInvoice.totalTva, cur2)}</span>
+                                                </div>
+                                            )}
+                                            {activeInvoice.deduitTTC > 0 && (
+                                                <div className="flex justify-between text-neutral-500">
+                                                    <span>Acomptes déjà facturés :</span>
+                                                    <span>-{formatMoney(activeInvoice.deduitTTC, cur2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
+                                                <span>NET À PAYER :</span>
+                                                <span>{formatMoney(activeInvoice.netAPayerTTC, cur2)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {ci.pdfFooterNote && (
+                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                            {ci.pdfFooterNote}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
         );
@@ -11626,177 +11761,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 quote={viewingSavedQuote}
                 showToast={showToast}
             />
-
-            {/* ══ DOCUMENT FACTURE (2026-08-20, § 30) ═══════════════════════
-                Entre dans l'architecture documentaire du § 27.1 comme document
-                « destinataire = client » : il hérite donc du logo, du pied de
-                page et de la mention d'exonération déjà en place, sans les
-                redéfinir. Aucun coût d'achat ni marge n'y figure. */}
-            {viewingInvoice && (() => {
-                const cur = viewingInvoice.companyInfoSnapshot?.currency || companyInfo.currency;
-                const ci = viewingInvoice.companyInfoSnapshot || companyInfo;
-                const estBrouillon = viewingInvoice.statut === 'draft';
-                return (
-                <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
-                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
-                        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">
-                                    {viewingInvoice.numero || 'BROUILLON'}
-                                </span>
-                                <div>
-                                    <h3 className="font-semibold text-neutral-900 text-lg leading-tight">{viewingInvoice.clientName}</h3>
-                                    <p className="text-xs text-neutral-500">{viewingInvoice.projectRef}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {!estBrouillon && (<>
-                                    <button
-                                        onClick={() => telechargerDocument(
-                                            `Facture ${viewingInvoice.numero} ${viewingInvoice.clientName}`,
-                                            'facture'
-                                        )}
-                                        disabled={pdfEnCours === 'facture'}
-                                        className="btn-primary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60"
-                                        title="Télécharger la facture au format PDF"
-                                        aria-label="Télécharger la facture en PDF"
-                                    >
-                                        <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                        {pdfEnCours === 'facture' ? ' Génération…' : ' Télécharger le PDF'}
-                                    </button>
-                                    <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
-                                        <i className="fa-solid fa-print"></i> Imprimer
-                                    </button>
-                                </>)}
-                                <button onClick={() => setViewingInvoice(null)} className="btn-icon w-8 h-8" aria-label="Fermer">
-                                    <i className="fa-solid fa-xmark text-xl"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                            {/* Un brouillon ne doit pas pouvoir être imprimé et
-                                confondu avec une facture réelle : il n'a pas de
-                                numéro légal. */}
-                            {estBrouillon && (
-                                <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
-                                    <i className="fa-solid fa-pen-ruler text-amber-600 mt-0.5"></i>
-                                    <div>
-                                        <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
-                                        <p className="text-[11px] text-amber-800">
-                                            Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id={estBrouillon ? undefined : 'printArea'}>
-                                <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
-                                    <div>
-                                        {ci.logo && (
-                                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain mb-2" />
-                                        )}
-                                        <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
-                                        <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
-                                        <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
-                                        <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
-                                        <p className="text-[11px] text-neutral-400">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">Facture</h2>
-                                        <p className="text-sm font-bold text-neutral-800 mt-1">
-                                            {viewingInvoice.numero ? `N° : ${viewingInvoice.numero}` : 'Brouillon (non numéroté)'}
-                                        </p>
-                                        <p className="text-xs text-neutral-500">
-                                            {viewingInvoice.dateEmission
-                                                ? `Émise le ${new Date(viewingInvoice.dateEmission).toLocaleDateString('fr-FR')}`
-                                                : 'Non émise'}
-                                        </p>
-                                        {viewingInvoice.devisNumero && (
-                                            <p className="text-[11px] text-neutral-400 mt-0.5">Devis d'origine : {viewingInvoice.devisNumero}</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
-                                    <div>
-                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
-                                        <p className="font-semibold text-neutral-900 text-base">{viewingInvoice.clientName}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
-                                        <p className="font-bold text-neutral-800">{viewingInvoice.projectRef}</p>
-                                    </div>
-                                </div>
-
-                                <table className="w-full text-left text-xs border-collapse">
-                                    <thead>
-                                        <tr className="bg-neutral-900 text-white font-bold uppercase">
-                                            <th className="p-3 rounded-l-lg">Désignation</th>
-                                            <th className="p-3 text-center">Quantité</th>
-                                            <th className="p-3 text-right">Prix Unitaire HT</th>
-                                            <th className="p-3 text-right rounded-r-lg">Total HT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-neutral-100">
-                                        {(viewingInvoice.lignes || []).map((l, i) => (
-                                            <tr key={i}>
-                                                <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
-                                                <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
-                                                <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, cur)}</td>
-                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, cur)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-
-                                <div className="flex justify-end pt-4 border-t border-neutral-200">
-                                    <div className="w-72 space-y-2 text-xs">
-                                        <div className="flex justify-between font-bold text-neutral-800 text-sm">
-                                            <span>Total HT :</span>
-                                            <span>{formatMoney(viewingInvoice.totalHT, cur)}</span>
-                                        </div>
-                                        {viewingInvoice.tauxTva === 0 ? (
-                                            <div className="text-neutral-500">
-                                                <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
-                                                {ci.vatExemptionNote && (
-                                                    <p className="text-[10px] text-neutral-400 mt-1 italic">{ci.vatExemptionNote}</p>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-between text-neutral-500">
-                                                <span>TVA ({viewingInvoice.tauxTva}%) :</span>
-                                                <span>+{formatMoney(viewingInvoice.totalTva, cur)}</span>
-                                            </div>
-                                        )}
-                                        {viewingInvoice.deduitTTC > 0 && (
-                                            <div className="flex justify-between text-neutral-500">
-                                                <span>Acomptes déjà facturés :</span>
-                                                <span>-{formatMoney(viewingInvoice.deduitTTC, cur)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
-                                            <span>NET À PAYER :</span>
-                                            <span>{formatMoney(viewingInvoice.netAPayerTTC, cur)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {ci.pdfFooterNote && (
-                                    <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
-                                        {ci.pdfFooterNote}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button onClick={() => setViewingInvoice(null)} className="btn-secondary">Fermer</button>
-                        </div>
-                    </div>
-                </div>
-                );
-            })()}
 
             {viewingSavedQuote && (() => {
                 // B3 (2026-08-18) — Un devis ne quitte l'app (impression, partage,
