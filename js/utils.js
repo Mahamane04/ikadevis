@@ -1,10 +1,36 @@
 // Utilitaires de formatage — pur JS, aucune dépendance React/JSX.
 // Extrait de index_jsx.js le 2026-08-16 (PROJECT_MASTER_TRACKER.md § 15).
 // Chargé en script classique AVANT app.compiled.js (voir index.html).
+// Référentiel d'affichage monétaire V2. La devise est organisationnelle :
+// aucune conversion ni aucun taux de change n'est appliqué ici.
+const CURRENCY_OPTIONS = [
+    { value: 'FCFA', code: 'XOF', label: 'XOF — Franc CFA (FCFA)' },
+    { value: 'EUR', code: 'EUR', label: 'EUR — Euro (€)' },
+    { value: 'USD', code: 'USD', label: 'USD — Dollar américain ($)' }
+];
+
+const normalizeCurrency = (currency) => {
+    const raw = String(currency || 'FCFA').trim().toUpperCase();
+    if (raw === 'XOF' || raw === 'CFA' || raw === 'F CFA' || raw === 'FCFA') return 'FCFA';
+    if (raw === '€' || raw === 'EURO' || raw === 'EUR') return 'EUR';
+    if (raw === '$' || raw === 'DOLLAR' || raw === 'USD') return 'USD';
+    return String(currency || 'FCFA').trim() || 'FCFA';
+};
+
 const formatMoney = (amount, currency = 'FCFA') => {
-    if (isNaN(amount) || amount === null || amount === undefined) return `0 ${currency}`;
+    const normalized = normalizeCurrency(currency);
+    if (isNaN(amount) || amount === null || amount === undefined) {
+        return normalized === 'EUR' ? '0,00 €' : normalized === 'USD' ? '$0.00' : `0 ${normalized}`;
+    }
     const rounded = Math.round(amount);
-    return `${rounded.toLocaleString('fr-FR')} ${currency}`;
+    if (normalized === 'EUR') {
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(rounded);
+    }
+    if (normalized === 'USD') {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(rounded);
+    }
+    if (normalized === 'FCFA') return `${rounded.toLocaleString('fr-FR')} FCFA`;
+    return `${rounded.toLocaleString('fr-FR')} ${normalized}`;
 };
 
 // 2026-08-20 — "Mode: rectangle • 2m × 1m" affichait le nom interne du mode

@@ -36,6 +36,8 @@ import * as goldG from './test_gold_standard_g_villa.mjs';
 import * as clientCombobox from './test_client_combobox.mjs';
 import * as inlineWorkItemCombobox from './test_inline_work_item_combobox.mjs';
 import * as inspectorNavigation from './test_inspector_navigation.mjs';
+import * as documentsOrganizationCurrency from './test_documents_organization_currency.mjs';
+import * as responsiveSmoke from './test_responsive_smoke.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -51,6 +53,8 @@ const SUITES = [
     { name: 'Phase 1 — ClientCombobox et création contextuelle', mod: clientCombobox, expectedToFail: false },
     { name: 'Phase 2 — Ajout d’ouvrage depuis le tableau', mod: inlineWorkItemCombobox, expectedToFail: false },
     { name: 'Phase 3 — Inspecteur latéral et navigation des ouvrages', mod: inspectorNavigation, expectedToFail: false },
+    { name: 'Phases 4 à 8 — Documents, organisation et devise', mod: documentsOrganizationCurrency, expectedToFail: false },
+    { name: 'Phase 9 — Fumée responsive', mod: responsiveSmoke, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

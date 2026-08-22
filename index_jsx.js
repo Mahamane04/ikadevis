@@ -4146,6 +4146,14 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
     const [currency, setCurrency] = useState('FCFA');
     const [isLoading, setIsLoading] = useState(false);
 
+    useEffect(() => {
+        if (isOpen) {
+            setName('');
+            setCurrency('FCFA');
+            setIsLoading(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
@@ -4161,55 +4169,110 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-neutral-200 animate-scale-up">
-                <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
+        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[130] p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white w-full h-full sm:h-[min(92dvh,760px)] sm:max-w-5xl sm:rounded-3xl shadow-2xl overflow-hidden border border-neutral-200 animate-scale-up flex flex-col lg:flex-row">
+                <aside className="hidden lg:flex w-64 shrink-0 bg-neutral-950 text-white p-7 flex-col">
+                    <div className="flex items-center gap-3 mb-10">
+                        <div className="w-10 h-10 rounded-xl bg-brand-500/20 text-brand-300 flex items-center justify-center">
                             <i className="fa-solid fa-building"></i>
                         </div>
-                        <h3 className="font-semibold text-neutral-900 text-base">Nouvelle Entreprise / Organisation</h3>
+                        <div>
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500 font-bold">ikadevis</p>
+                            <p className="font-bold text-sm">Nouvelle organisation</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-neutral-50/50">
-                    <div>
-                        <label className="app-label">Raison Sociale / Nom de l'Organisation</label>
-                        <input
-                            type="text"
-                            required
-                            autoFocus
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex : KOUASSI BTP & Co"
-                            className="app-input font-bold"
-                        />
+                    <div className="space-y-5">
+                        {[
+                            { label: 'Informations générales', active: true, icon: 'fa-building' },
+                            { label: 'Coordonnées', active: false, icon: 'fa-location-dot' },
+                            { label: 'Informations légales', active: false, icon: 'fa-file-contract' },
+                            { label: 'Activité', active: false, icon: 'fa-briefcase' },
+                            { label: 'Devise & fiscalité', active: true, icon: 'fa-coins' },
+                            { label: 'Confirmation', active: false, icon: 'fa-check' }
+                        ].map((step, index) => (
+                            <div key={step.label} className={`flex items-center gap-3 ${step.active ? 'text-white' : 'text-neutral-600'}`}>
+                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] ${step.active ? 'bg-brand-500 text-white' : 'bg-neutral-800 text-neutral-500'}`}>
+                                    <i className={`fa-solid ${step.icon}`}></i>
+                                </span>
+                                <span className="text-xs font-semibold">{step.label}</span>
+                            </div>
+                        ))}
                     </div>
-                    <div>
-                        <label className="app-label">Devise de l'Entreprise</label>
-                        <input
-                            type="text"
-                            required
-                            value={currency}
-                            onChange={(e) => setCurrency(e.target.value)}
-                            placeholder="FCFA, EUR, USD..."
-                            className="app-input font-bold"
-                        />
+                    <div className="mt-auto pt-8 border-t border-neutral-800 text-[11px] text-neutral-500 leading-relaxed">
+                        Les informations réellement disponibles sont enregistrées maintenant. Les coordonnées et mentions légales se complètent ensuite dans les paramètres du compte.
                     </div>
-                    <div className="pt-2 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-4 font-bold">Annuler</button>
-                        <button
-                            type="submit"
-                            disabled={isLoading || !name.trim()}
-                            className="btn-primary text-xs py-2 px-5 font-bold flex items-center gap-1.5"
-                        >
-                            {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check"></i>}
-                            <span>Créer l'Organisation</span>
+                </aside>
+
+                <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="px-5 sm:px-8 py-4 sm:py-5 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-600 mb-1">Étape 1 sur 6</p>
+                            <h3 className="font-bold text-neutral-900 text-lg sm:text-xl">Créer une organisation</h3>
+                            <p className="text-xs text-neutral-500 mt-1">Préparez l’espace de travail de votre équipe.</p>
+                        </div>
+                        <button onClick={onClose} className="btn-icon w-9 h-9 text-neutral-400 hover:text-neutral-700" aria-label="Fermer la création d'organisation">
+                            <i className="fa-solid fa-xmark text-lg"></i>
                         </button>
                     </div>
-                </form>
+
+                    <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+                        <div className="flex-1 overflow-y-auto custom-scroll p-5 sm:p-8 bg-neutral-50/60 space-y-5">
+                            <div className="max-w-2xl">
+                                <h4 className="text-sm font-bold text-neutral-900">Informations générales</h4>
+                                <p className="text-xs text-neutral-500 mt-1">Ces deux informations deviennent immédiatement le contexte de vos devis, ressources et factures.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
+                                <div className="md:col-span-2">
+                                    <label htmlFor="new_org_name" className="app-label">Raison sociale / nom de l'organisation</label>
+                                    <input
+                                        id="new_org_name"
+                                        type="text"
+                                        required
+                                        autoFocus
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Ex : KOUASSI BTP & Co"
+                                        className="app-input font-bold text-base"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="new_org_currency" className="app-label">Devise par défaut</label>
+                                    <select
+                                        id="new_org_currency"
+                                        required
+                                        value={currency}
+                                        onChange={(e) => setCurrency(e.target.value)}
+                                        className="app-select font-bold"
+                                    >
+                                        {CURRENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                    </select>
+                                    <p className="text-[11px] text-neutral-400 mt-1.5">Une organisation utilise une seule devise à la fois. Aucune conversion automatique n'est appliquée.</p>
+                                </div>
+                            </div>
+
+                            <div className="max-w-3xl rounded-2xl border border-brand-200 bg-brand-50/60 p-4 flex items-start gap-3">
+                                <i className="fa-solid fa-circle-info text-brand-600 mt-0.5"></i>
+                                <div>
+                                    <p className="text-xs font-bold text-brand-900">Après création</p>
+                                    <p className="text-[11px] text-brand-800/80 mt-1 leading-relaxed">Vous pourrez compléter l'adresse, le téléphone, l'e-mail, le NIF, le RCCM, le logo et les documents depuis Paramètres du Compte. Aucun champ non pris en charge par le modèle actuel n'est perdu ou simulé ici.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-5 sm:px-8 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={onClose} className="btn-secondary text-xs py-2.5 px-4 font-bold">Annuler</button>
+                            <button
+                                type="submit"
+                                disabled={isLoading || !name.trim()}
+                                className="btn-primary text-xs py-2.5 px-5 font-bold flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                                <span>Créer l'organisation</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );
@@ -6200,6 +6263,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [clientSearchQuery, setClientSearchQuery] = useState('');
     const [projectSearchQuery, setProjectSearchQuery] = useState('');
+    const [savedQuoteSearchQuery, setSavedQuoteSearchQuery] = useState('');
+    const [savedQuoteStatusFilter, setSavedQuoteStatusFilter] = useState('all');
+    const [savedQuoteSort, setSavedQuoteSort] = useState('recent');
+    const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+    const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
     // P0.15 (2026-08-17) — Clients (CRM) et Affaires & Projets passent de
     // grilles de cartes au même pattern liste+détail que Ressources & Prix /
     // Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur).
@@ -9206,6 +9274,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const activeInvoice = viewingInvoice
             ? (invoices.find(f => f.id === viewingInvoice.id) || null)
             : null;
+        const invoiceQuery = normalizeSearchText(invoiceSearchQuery);
+        const visibleInvoices = invoices.filter(f => invoiceStatusFilter === 'all' || f.statut === invoiceStatusFilter)
+            .filter(f => !invoiceQuery || [f.numero, f.clientName, f.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(invoiceQuery)));
 
         const creerFactureDepuisDevis = async (q) => {
             const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
@@ -9234,7 +9305,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="min-w-0">
                             <h2 className="text-lg font-bold text-neutral-800">Mes Factures</h2>
                             <p className="text-xs text-neutral-500 truncate">
-                                {invoices.length} facture(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
+                                {visibleInvoices.length} résultat(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
                             </p>
                         </div>
                         <div className="relative shrink-0">
@@ -9267,6 +9338,33 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                     </div>
 
+                    <div className="app-card p-2.5 space-y-2">
+                        <div className="relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                            <input
+                                type="search"
+                                value={invoiceSearchQuery}
+                                onChange={e => setInvoiceSearchQuery(e.target.value)}
+                                placeholder="Rechercher une facture, client ou chantier…"
+                                className="app-input pl-8 pr-3 py-2 text-xs"
+                                aria-label="Rechercher dans les factures"
+                            />
+                        </div>
+                        <select
+                            value={invoiceStatusFilter}
+                            onChange={e => setInvoiceStatusFilter(e.target.value)}
+                            className="app-select py-2 px-2 text-xs"
+                            aria-label="Filtrer les factures par statut"
+                        >
+                            <option value="all">Tous les statuts</option>
+                            <option value="draft">Brouillons</option>
+                            <option value="issued">Émises</option>
+                            <option value="partially_paid">Partiellement réglées</option>
+                            <option value="paid">Payées</option>
+                            <option value="cancelled">Annulées</option>
+                        </select>
+                    </div>
+
                     {/* Le Mode Démo ne peut offrir aucune garantie légale : la
                         numérotation y est locale et rien n'est verrouillé. */}
                     {!estCloud && (
@@ -9279,7 +9377,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     )}
 
                     <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
-                        {invoices.map(f => {
+                        {visibleInvoices.map(f => {
                             const st = libelleStatut[f.statut] || libelleStatut.draft;
                             const isActive = !!(activeInvoice && activeInvoice.id === f.id);
                             return (
@@ -9296,14 +9394,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </button>
                             );
                         })}
-                        {invoices.length === 0 && (
+                        {visibleInvoices.length === 0 && (
                             <div className="text-center py-10 px-4">
                                 <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
                                     <i className="fa-solid fa-file-invoice-dollar"></i>
                                 </div>
-                                <p className="text-sm font-bold text-neutral-800">Aucune facture pour le moment</p>
+                                <p className="text-sm font-bold text-neutral-800">{(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Aucune facture correspondante' : 'Aucune facture pour le moment'}</p>
                                 <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
-                                    Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.
+                                    {(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Modifiez votre recherche ou votre filtre pour afficher d’autres factures.' : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
                                 </p>
                             </div>
                         )}
@@ -10227,11 +10325,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const canViewInternalDocs = activeOrganizationRole === 'owner'
             || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
         // P0.16 — Filtre "devis de ce client", posé depuis la fiche CRM.
-        const visibleQuotes = !quotesClientFilter
+        const scopedQuotes = !quotesClientFilter
             ? savedQuotes
             : quotesClientFilter.kind === 'quote'
                 ? savedQuotes.filter(q => q.id === quotesClientFilter.id)
                 : savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name);
+        const quoteQuery = normalizeSearchText(savedQuoteSearchQuery);
+        const visibleQuotes = scopedQuotes
+            .filter(q => savedQuoteStatusFilter === 'all' || q.status === savedQuoteStatusFilter)
+            .filter(q => !quoteQuery || [q.number, q.clientName, q.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(quoteQuery)))
+            .slice()
+            .sort((a, b) => {
+                if (savedQuoteSort === 'amount_desc') return (b.quoteData?.totalTTCConsomme || 0) - (a.quoteData?.totalTTCConsomme || 0);
+                if (savedQuoteSort === 'client_asc') return String(a.clientName || '').localeCompare(String(b.clientName || ''), 'fr');
+                return (Number(b.id) || 0) - (Number(a.id) || 0);
+            });
         // Liste+détail desktop (2026-08-22, référence Zoho Books) : la colonne de
         // droite montre le même contenu que la modale mobile, factorisé dans
         // renderQuoteDetailPanel (voir plus haut) — aucune logique dupliquée.
@@ -10401,8 +10509,48 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="min-w-0">
                         <h2 className="text-lg font-bold text-neutral-800">Mes Devis Enregistrés</h2>
                         <p className="text-xs text-neutral-500 truncate">
-                            {savedQuotes.length} devis · prochain DEV-{new Date().getFullYear()}-{String(nextQuoteSeq).padStart(3, '0')}
+                            {visibleQuotes.length} résultat(s) · prochain DEV-{new Date().getFullYear()}-{String(nextQuoteSeq).padStart(3, '0')}
                         </p>
+                    </div>
+                </div>
+
+                <div className="app-card p-2.5 space-y-2">
+                    <div className="relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                        <input
+                            type="search"
+                            value={savedQuoteSearchQuery}
+                            onChange={e => setSavedQuoteSearchQuery(e.target.value)}
+                            placeholder="Rechercher un devis, client ou chantier…"
+                            className="app-input pl-8 pr-3 py-2 text-xs"
+                            aria-label="Rechercher dans les devis"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <select
+                            value={savedQuoteStatusFilter}
+                            onChange={e => setSavedQuoteStatusFilter(e.target.value)}
+                            className="app-select py-2 px-2 text-xs"
+                            aria-label="Filtrer les devis par statut"
+                        >
+                            <option value="all">Tous les statuts</option>
+                            <option value="draft">Brouillons</option>
+                            <option value="to_verify">À vérifier</option>
+                            <option value="ready">Prêts</option>
+                            <option value="sent">Envoyés</option>
+                            <option value="accepted">Acceptés</option>
+                            <option value="approved">Approuvés</option>
+                        </select>
+                        <select
+                            value={savedQuoteSort}
+                            onChange={e => setSavedQuoteSort(e.target.value)}
+                            className="app-select py-2 px-2 text-xs"
+                            aria-label="Trier les devis"
+                        >
+                            <option value="recent">Plus récents</option>
+                            <option value="amount_desc">Montant décroissant</option>
+                            <option value="client_asc">Client A → Z</option>
+                        </select>
                     </div>
                 </div>
 
@@ -12292,7 +12440,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="company_currency" className="app-label">Devise principale</label>
-                                        <input id="company_currency" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.currency} onChange={e => updateCompanyInfo({...companyInfo, currency: e.target.value})} placeholder="FCFA, EUR, USD..." />
+                                        <select
+                                            id="company_currency"
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            className="app-select font-bold"
+                                            value={companyInfo.currency || 'FCFA'}
+                                            onChange={e => updateCompanyInfo({ ...companyInfo, currency: e.target.value })}
+                                        >
+                                            {CURRENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                            {!CURRENCY_OPTIONS.some(option => option.value === companyInfo.currency) && companyInfo.currency && (
+                                                <option value={companyInfo.currency}>{companyInfo.currency} — devise existante</option>
+                                            )}
+                                        </select>
+                                        <p className="text-[11px] text-neutral-400 mt-1.5">Devise d'affichage par défaut, sans conversion automatique.</p>
                                     </div>
                                     <div>
                                         <label htmlFor="company_validity" className="app-label app-label--split">
