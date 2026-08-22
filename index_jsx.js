@@ -4612,6 +4612,58 @@ const InvoiceService = {
         return `FACT-${annee}-${String(max + 1).padStart(3, '0')}`;
     },
 
+    // Persiste le brouillon côté serveur (mode cloud uniquement). Étape
+    // nécessaire AVANT émission : issue_invoice_v6 exige un p_invoice_id
+    // existant, or brouillonDepuisDevis() ne construit qu'un objet local —
+    // sans cet appel, facture.serverId restait undefined et l'émission
+    // échouait silencieusement (PostgREST traduit `undefined` en appel sans
+    // paramètre, d'où « function issue_invoice_v6 without parameters »).
+    // RLS autorise l'insertion directe (owner/admin/estimator/commercial),
+    // pas besoin de RPC dédiée comme pour les devis.
+    enregistrer: async ({ facture, supabaseClient, sbUser, activeOrgId }) => {
+        const estLocal = !supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrgId;
+        if (estLocal) {
+            return { isLocal: true, serverId: null };
+        }
+        const { data: invoiceRow, error: invoiceErr } = await supabaseClient
+            .from('invoices')
+            .insert({
+                organization_id: activeOrgId,
+                client_name: facture.clientName || 'Client Passage',
+                project_ref: facture.projectRef || null,
+                invoice_type: facture.type || 'standard',
+                status: 'draft',
+                vat_rate: facture.tauxTva,
+                total_ht: facture.totalHT,
+                total_vat: facture.totalTva,
+                total_ttc: facture.totalTTC,
+                deducted_ttc: facture.deduitTTC || 0,
+                net_to_pay_ttc: facture.netAPayerTTC,
+                amount_paid: facture.montantRegle || 0,
+                company_snapshot: facture.companyInfoSnapshot || {},
+                created_by: sbUser.id
+            })
+            .select('id')
+            .single();
+        if (invoiceErr) throw new Error(invoiceErr.message || "Échec de la création de la facture sur le serveur.");
+
+        const lignes = (facture.lignes || []).map(l => ({
+            organization_id: activeOrgId,
+            invoice_id: invoiceRow.id,
+            line_order: l.ordre,
+            designation: l.designation,
+            unit: l.unite,
+            quantity: l.quantite,
+            unit_price_ht: l.prixUnitaireHT,
+            total_ht: l.totalHT
+        }));
+        if (lignes.length > 0) {
+            const { error: linesErr } = await supabaseClient.from('invoice_lines').insert(lignes);
+            if (linesErr) throw new Error(linesErr.message || "Échec de l'enregistrement des lignes de facture.");
+        }
+        return { isLocal: false, serverId: invoiceRow.id };
+    },
+
     // Émission. En cloud, c'est le SERVEUR qui attribue le numéro et le
     // renvoie — contrairement aux devis, où le numéro serveur était calculé
     // puis jeté, laissant le client sur le sien (§ 30.2).
@@ -4623,6 +4675,9 @@ const InvoiceService = {
                 dateEmission: new Date().toISOString(),
                 garantieServeur: false
             };
+        }
+        if (!facture.serverId) {
+            throw new Error("Ce brouillon n'a pas été synchronisé côté serveur — supprimez-le et recréez-le depuis le devis.");
         }
         const { data, error } = await supabaseClient.rpc('issue_invoice_v6', {
             p_invoice_id: facture.serverId
@@ -8917,10 +8972,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </span>
                                         <button
                                             disabled={isReadOnlyDueToDowngrade}
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
-                                                updateInvoices([brouillon, ...invoices]);
-                                                showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
+                                                try {
+                                                    const res = await InvoiceService.enregistrer({
+                                                        facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
+                                                    });
+                                                    const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
+                                                    updateInvoices([brouillonFinal, ...invoices]);
+                                                    showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
+                                                } catch (err) {
+                                                    showToast(`✕ Création impossible : ${err.message}`, "error");
+                                                }
                                             }}
                                             className="btn-secondary py-1.5 px-3 text-xs font-bold text-brand-600 border-brand-200 hover:bg-brand-50"
                                             aria-label={`Créer une facture depuis ${q.number}`}
