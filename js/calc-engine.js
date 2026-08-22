@@ -1070,6 +1070,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         clientId: hybridQuote.clientId || null,
         clientName: hybridQuote.clientName?.trim() || 'Client Passage',
+        projectId: hybridQuote.projectId || null,
         projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
         notes: hybridQuote.notes || '',
         vatRate: calc.vatRate !== undefined ? calc.vatRate : 18,

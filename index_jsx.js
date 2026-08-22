@@ -460,7 +460,7 @@ function ClientCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none"></i>
+                <i className="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
@@ -474,7 +474,7 @@ function ClientCombobox({
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Rechercher ou créer un client…"
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-8 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-10 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Client du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-client-listbox"
@@ -542,6 +542,177 @@ function ClientCombobox({
                                 <i className="fa-solid fa-user-slash text-neutral-300 text-lg mb-1.5 block"></i>
                                 Aucun client correspondant.
                             </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Même interaction que le client : un projet existant est sélectionnable
+// directement depuis le devis, ou créé depuis la recherche s'il n'existe pas.
+function ProjectCombobox({
+    value = '',
+    projectId = null,
+    projects = [],
+    clientId = null,
+    clientName = '',
+    onChange,
+    onSelectProject,
+    onRequestCreate,
+    disabled = false
+}) {
+    const [query, setQuery] = useState(value || '');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const rootRef = useRef(null);
+
+    useEffect(() => setQuery(value || ''), [value]);
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const projectsForClient = projects.filter(project =>
+        !clientId || project.clientId === clientId || (clientName && project.clientName === clientName)
+    );
+    const normalizedQuery = normalizeSearchText(query.trim());
+    const filteredProjects = projectsForClient.filter(project => {
+        if (!normalizedQuery) return true;
+        return [project.name, project.code, project.siteAddress, project.city]
+            .filter(Boolean)
+            .some(valueToSearch => normalizeSearchText(valueToSearch).includes(normalizedQuery));
+    }).slice(0, 8);
+    const exactProject = projectsForClient.find(project => normalizeSearchText(project.name) === normalizedQuery);
+    const canCreate = Boolean(normalizedQuery && !exactProject);
+    const optionCount = filteredProjects.length + (canCreate ? 1 : 0);
+
+    useEffect(() => setHighlightedIndex(0), [normalizedQuery, clientId]);
+
+    const selectProject = (project) => {
+        setQuery(project.name || '');
+        setIsOpen(false);
+        onSelectProject?.(project);
+    };
+
+    const requestCreate = () => {
+        const initialName = query.trim();
+        if (!initialName) return;
+        setIsOpen(false);
+        onRequestCreate?.(initialName, clientId, clientName);
+    };
+
+    const handleKeyDown = (event) => {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            setIsOpen(false);
+            return;
+        }
+        if (!isOpen && ['ArrowDown', 'Enter'].includes(event.key)) {
+            event.preventDefault();
+            setIsOpen(true);
+            return;
+        }
+        if (!isOpen) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.min(index + 1, Math.max(0, optionCount - 1)));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.max(0, index - 1));
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (highlightedIndex < filteredProjects.length) selectProject(filteredProjects[highlightedIndex]);
+            else if (canCreate) requestCreate();
+        }
+    };
+
+    return (
+        <div ref={rootRef} className="relative flex-1 min-w-0">
+            <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
+                <i className="fa-solid fa-helmet-safety absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <input
+                    type="text"
+                    value={query}
+                    disabled={disabled}
+                    onFocus={() => setIsOpen(true)}
+                    onChange={(event) => {
+                        const nextQuery = event.target.value;
+                        setQuery(nextQuery);
+                        setIsOpen(true);
+                        onChange?.({ projectRef: nextQuery, projectId: null });
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Rechercher ou créer un projet…"
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-10 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    aria-label="Projet du devis"
+                    aria-autocomplete="list"
+                    aria-controls="quote-project-listbox"
+                    aria-expanded={isOpen}
+                    aria-haspopup="listbox"
+                    role="combobox"
+                />
+                {query && !disabled && (
+                    <button
+                        type="button"
+                        onClick={() => { setQuery(''); onChange?.({ projectRef: '', projectId: null }); setIsOpen(true); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        aria-label="Effacer le projet"
+                    >
+                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                    </button>
+                )}
+            </div>
+
+            {isOpen && !disabled && (
+                <div id="quote-project-listbox" role="listbox" className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        {normalizedQuery ? 'Projets correspondants' : (clientId ? 'Projets de ce client' : 'Projets récents')}
+                    </div>
+                    <div className="max-h-56 overflow-y-auto custom-scroll p-1.5">
+                        {filteredProjects.map((project, index) => (
+                            <button
+                                key={project.id || project.name}
+                                type="button"
+                                role="option"
+                                aria-selected={String(projectId) === String(project.id)}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                onClick={() => selectProject(project)}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-colors ${highlightedIndex === index ? 'bg-brand-50 text-brand-900' : 'text-neutral-700 hover:bg-neutral-50'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+                                    <i className="fa-solid fa-helmet-safety text-[11px]"></i>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-bold truncate">{project.name}</span>
+                                    <span className="block text-[10px] text-neutral-400 truncate">{[project.code, project.clientName, project.city].filter(Boolean).join(' · ') || 'Affaire'}</span>
+                                </span>
+                                {String(projectId) === String(project.id) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                            </button>
+                        ))}
+
+                        {canCreate && (
+                            <button
+                                type="button"
+                                role="option"
+                                aria-selected={highlightedIndex === filteredProjects.length}
+                                onMouseEnter={() => setHighlightedIndex(filteredProjects.length)}
+                                onClick={requestCreate}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-brand-700 transition-colors ${highlightedIndex === filteredProjects.length ? 'bg-brand-50' : 'hover:bg-brand-50/60'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
+                                    <i className="fa-solid fa-plus text-[11px]"></i>
+                                </span>
+                                <span className="text-xs font-bold truncate">Créer le projet « {query.trim()} »</span>
+                            </button>
+                        )}
+
+                        {filteredProjects.length === 0 && !canCreate && (
+                            <div className="px-3 py-4 text-center text-[11px] text-neutral-500">Aucun projet correspondant.</div>
                         )}
                     </div>
                 </div>
@@ -1369,8 +1540,10 @@ function AcmCalepinageVisualizer({
 function QuoteHeader({
     quote,
     clients = [],
+    projects = [],
     onUpdateQuote,
     onRequestClientCreate,
+    onRequestProjectCreate,
     saveQuoteStatus = "idle",
     saveQuoteError = null,
     onSaveQuote,
@@ -1563,22 +1736,29 @@ function QuoteHeader({
                 {/* Bande 2 — métadonnées du devis. Les champs récupèrent la
                     largeur que les actions leur prenaient. */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-[280px]">
                         <ClientCombobox
                             value={quote.clientName || ''}
                             clientId={quote.clientId || null}
                             clients={clients}
                             onChange={onUpdateQuote}
-                            onSelectClient={(client) => onUpdateQuote({ clientName: client.name, clientId: client.id })}
+                            onSelectClient={(client) => onUpdateQuote({ clientName: client.name, clientId: client.id, projectId: null })}
                             onRequestCreate={onRequestClientCreate}
                         />
-                        <input
-                            type="text"
+                        <ProjectCombobox
                             value={quote.projectRef || ''}
-                            onChange={(e) => onUpdateQuote({ projectRef: e.target.value })}
-                            placeholder="Chantier / Projet (ex: Villa R+1 Cocody)…"
-                            className="hidden sm:block bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
-                            aria-label="Référence du chantier"
+                            projectId={quote.projectId || null}
+                            projects={projects}
+                            clientId={quote.clientId || null}
+                            clientName={quote.clientName || ''}
+                            onChange={onUpdateQuote}
+                            onSelectProject={(project) => onUpdateQuote({
+                                projectRef: project.name,
+                                projectId: project.id,
+                                clientId: project.clientId || quote.clientId || null,
+                                clientName: project.clientName || quote.clientName || ''
+                            })}
+                            onRequestCreate={onRequestProjectCreate}
                         />
                     </div>
 
@@ -3325,7 +3505,9 @@ function QuoteWorkspace({
     hybridQuote,
     setHybridQuote,
     clients = [],
+    projects = [],
     onRequestClientCreate,
+    onRequestProjectCreate,
     activeOrganizationRole = "owner",
     solutions,
     materials,
@@ -3773,7 +3955,9 @@ function QuoteWorkspace({
         setHybridQuote({
             id: Date.now(),
             number: nextNum,
+            clientId: null,
             clientName: '',
+            projectId: null,
             projectRef: '',
             status: 'draft',
             vatRate: 18,
@@ -3801,8 +3985,10 @@ function QuoteWorkspace({
             <QuoteHeader
                 quote={calculatedQuote}
                 clients={clients}
+                projects={projects}
                 onUpdateQuote={(patch) => { pushState(); handleUpdateQuote(patch); }}
                 onRequestClientCreate={onRequestClientCreate}
+                onRequestProjectCreate={onRequestProjectCreate}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onOpenWizard={() => setIsWizardOpen(true)}
@@ -5216,6 +5402,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Ouvrage, Nouveau composant...).
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+    const [newProjectOriginModal, setNewProjectOriginModal] = useState(null);
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
     // P0.16 (2026-08-17) — Le même formulaire sert à créer ET à modifier une
@@ -5264,7 +5451,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return {
             id: Date.now(),
             number: `DEV-${new Date().getFullYear()}-001`,
+            clientId: null,
             clientName: '',
+            projectId: null,
             projectRef: '',
             status: 'draft',
             vatRate: 18,
@@ -7900,12 +8089,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     labor={labor}
                     recipes={recipes}
                     clients={clients}
+                    projects={projects}
                     companyInfo={companyInfo}
                     onRequestClientCreate={(initialName = '') => {
                         setEditingClientId(null);
                         setNewClientOriginModal('quote');
                         setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
                         setIsNewClientModalOpen(true);
+                    }}
+                    onRequestProjectCreate={(initialName = '', clientId = null, clientName = '') => {
+                        const matchedClient = clients.find(client => client.id === clientId || (clientName && client.name === clientName));
+                        setNewProjectOriginModal('quote');
+                        setNewProjectForm({
+                            name: initialName,
+                            clientId: matchedClient?.id || '',
+                            siteAddress: '',
+                            city: matchedClient?.city || 'Dakar',
+                            budgetEstimated: ''
+                        });
+                        setIsNewProjectModalOpen(true);
                     }}
                     saveQuoteStatus={saveQuoteStatus}
                     saveQuoteError={saveQuoteError}
@@ -12032,7 +12234,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">Nouvelle Affaire</h3>
-                            <button onClick={() => setIsNewProjectModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                            <button onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                             <form id="newProjectForm" onSubmit={(e) => {
@@ -12056,7 +12258,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 };
                                 updateProjects([newP, ...projects]);
                                 showToast(`✓ Affaire ${newCode} créée avec succès !`, 'success');
+                                if (newProjectOriginModal === 'quote') {
+                                    setHybridQuote(prev => ({
+                                        ...prev,
+                                        clientId: selectedClient.id,
+                                        clientName: selectedClient.name,
+                                        projectId: newP.id,
+                                        projectRef: newP.name
+                                    }));
+                                    showToast(`✓ Projet « ${newP.name} » sélectionné dans le devis`, 'success');
+                                }
                                 setIsNewProjectModalOpen(false);
+                                setNewProjectOriginModal(null);
                             }} className="space-y-4">
                                 <div>
                                     <label className="app-label">Nom de l'affaire</label>
@@ -12114,7 +12327,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsNewProjectModalOpen(false)} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
+                            <button type="button" onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
                             <button type="submit" form="newProjectForm" className="btn-primary" aria-label="Créer l'affaire"><i className="fa-solid fa-check mr-1"></i> Créer l'affaire</button>
                         </div>
                     </div>
