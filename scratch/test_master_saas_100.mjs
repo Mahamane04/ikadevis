@@ -33,6 +33,7 @@ import * as goldD from './test_gold_standard_d_menuiserie.mjs';
 import * as goldE from './test_gold_standard_e_enseigne.mjs';
 import * as goldF from './test_gold_standard_f_acm.mjs';
 import * as goldG from './test_gold_standard_g_villa.mjs';
+import * as clientCombobox from './test_client_combobox.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -45,6 +46,7 @@ const SUITES = [
     { name: 'Étalon E — Enseigne Lumineuse LED (tolérance zéro)', mod: goldE, expectedToFail: false },
     { name: 'Étalon F — Façade Panneaux ACM (tolérance zéro)', mod: goldF, expectedToFail: false },
     { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: false },
+    { name: 'Phase 1 — ClientCombobox et création contextuelle', mod: clientCombobox, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

@@ -1068,6 +1068,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         id: hybridQuote.id || Date.now(),
         number: quoteNumber,
         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        clientId: hybridQuote.clientId || null,
         clientName: hybridQuote.clientName?.trim() || 'Client Passage',
         projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
         notes: hybridQuote.notes || '',
@@ -1284,4 +1285,3 @@ function calculateAcmNestingOptimal({ width = 12, height = 6, panelWidth = 1.5, 
         tubesBarCount: Math.ceil(totalLinearTubes / 6)
     };
 }
-

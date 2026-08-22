@@ -374,6 +374,182 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false })
     );
 };
 
+// V2 UI/UX — Sélecteur contextuel de client pour le devis.
+// Le champ reste compatible avec l'ancien modèle texte (clientName), tout en
+// proposant la recherche, le clavier et la création contextuelle sans quitter
+// l'espace de chiffrage.
+function ClientCombobox({
+    value = '',
+    clientId = null,
+    clients = [],
+    onChange,
+    onSelectClient,
+    onRequestCreate,
+    disabled = false
+}) {
+    const [query, setQuery] = useState(value || '');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const rootRef = useRef(null);
+
+    useEffect(() => {
+        setQuery(value || '');
+    }, [value]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const normalizedQuery = normalizeSearchText(query.trim());
+    const filteredClients = clients.filter(client => {
+        if (!normalizedQuery) return true;
+        return [client.name, client.contactPerson, client.phone, client.email, client.id]
+            .filter(Boolean)
+            .some(valueToSearch => normalizeSearchText(valueToSearch).includes(normalizedQuery));
+    }).slice(0, 8);
+    const exactClient = clients.find(client => normalizeSearchText(client.name) === normalizedQuery);
+    const canCreate = Boolean(normalizedQuery && !exactClient);
+    const optionCount = filteredClients.length + (canCreate ? 1 : 0);
+
+    useEffect(() => {
+        setHighlightedIndex(0);
+    }, [normalizedQuery]);
+
+    const selectClient = (client) => {
+        setQuery(client.name || '');
+        setIsOpen(false);
+        onSelectClient?.(client);
+    };
+
+    const requestCreate = () => {
+        const initialName = query.trim();
+        if (!initialName && !onRequestCreate) return;
+        setIsOpen(false);
+        onRequestCreate?.(initialName);
+    };
+
+    const handleKeyDown = (event) => {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            setIsOpen(false);
+            return;
+        }
+        if (!isOpen && ['ArrowDown', 'Enter'].includes(event.key)) {
+            event.preventDefault();
+            setIsOpen(true);
+            return;
+        }
+        if (!isOpen) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.min(index + 1, Math.max(0, optionCount - 1)));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.max(0, index - 1));
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (highlightedIndex < filteredClients.length) selectClient(filteredClients[highlightedIndex]);
+            else if (canCreate) requestCreate();
+        }
+    };
+
+    return (
+        <div ref={rootRef} className="relative flex-1 min-w-0">
+            <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
+                <i className="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none"></i>
+                <input
+                    type="text"
+                    value={query}
+                    disabled={disabled}
+                    onFocus={() => setIsOpen(true)}
+                    onChange={(event) => {
+                        const nextQuery = event.target.value;
+                        setQuery(nextQuery);
+                        setIsOpen(true);
+                        onChange?.({ clientName: nextQuery, clientId: null });
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Rechercher ou créer un client…"
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-8 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    aria-label="Client du devis"
+                    aria-autocomplete="list"
+                    aria-controls="quote-client-listbox"
+                    aria-expanded={isOpen}
+                    aria-haspopup="listbox"
+                    role="combobox"
+                />
+                {query && !disabled && (
+                    <button
+                        type="button"
+                        onClick={() => { setQuery(''); onChange?.({ clientName: '', clientId: null }); setIsOpen(true); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        aria-label="Effacer le client"
+                    >
+                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                    </button>
+                )}
+            </div>
+
+            {isOpen && !disabled && (
+                <div id="quote-client-listbox" role="listbox" className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        {normalizedQuery ? 'Résultats clients' : 'Clients récents'}
+                    </div>
+                    <div className="max-h-56 overflow-y-auto custom-scroll p-1.5">
+                        {filteredClients.map((client, index) => (
+                            <button
+                                key={client.id || client.name}
+                                type="button"
+                                role="option"
+                                aria-selected={String(clientId) === String(client.id)}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                onClick={() => selectClient(client)}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-colors ${highlightedIndex === index ? 'bg-brand-50 text-brand-900' : 'text-neutral-700 hover:bg-neutral-50'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+                                    <i className="fa-solid fa-building text-[11px]"></i>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-bold truncate">{client.name}</span>
+                                    <span className="block text-[10px] text-neutral-400 truncate">{client.contactPerson || client.phone || client.email || 'Fiche client'}</span>
+                                </span>
+                                {String(clientId) === String(client.id) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                            </button>
+                        ))}
+
+                        {canCreate && (
+                            <button
+                                type="button"
+                                role="option"
+                                aria-selected={highlightedIndex === filteredClients.length}
+                                onMouseEnter={() => setHighlightedIndex(filteredClients.length)}
+                                onClick={requestCreate}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-brand-700 transition-colors ${highlightedIndex === filteredClients.length ? 'bg-brand-50' : 'hover:bg-brand-50/60'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
+                                    <i className="fa-solid fa-plus text-[11px]"></i>
+                                </span>
+                                <span className="text-xs font-bold truncate">Créer « {query.trim()} »</span>
+                            </button>
+                        )}
+
+                        {filteredClients.length === 0 && !canCreate && (
+                            <div className="px-3 py-4 text-center text-[11px] text-neutral-500">
+                                <i className="fa-solid fa-user-slash text-neutral-300 text-lg mb-1.5 block"></i>
+                                Aucun client correspondant.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOC 3/10 : MOTEUR UNIVERSEL DE MÉTRÉ, UNITÉS & AST SÉCURISÉ (ZERO new Function)
 // ═══════════════════════════════════════════════════════════════
@@ -1040,7 +1216,9 @@ function AcmCalepinageVisualizer({
 
 function QuoteHeader({
     quote,
+    clients = [],
     onUpdateQuote,
+    onRequestClientCreate,
     saveQuoteStatus = "idle",
     saveQuoteError = null,
     onSaveQuote,
@@ -1234,13 +1412,13 @@ function QuoteHeader({
                     largeur que les actions leur prenaient. */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-[280px]">
-                        <input
-                            type="text"
+                        <ClientCombobox
                             value={quote.clientName || ''}
-                            onChange={(e) => onUpdateQuote({ clientName: e.target.value })}
-                            placeholder="Nom du Client (ex: M. KOUASSI, BTP SARL)…"
-                            className="bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-brand-500 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-brand-500/10 outline-none flex-1 min-w-0 transition-all"
-                            aria-label="Nom du client"
+                            clientId={quote.clientId || null}
+                            clients={clients}
+                            onChange={onUpdateQuote}
+                            onSelectClient={(client) => onUpdateQuote({ clientName: client.name, clientId: client.id })}
+                            onRequestCreate={onRequestClientCreate}
                         />
                         <input
                             type="text"
@@ -2961,6 +3139,8 @@ function QuoteWorkspace({
     onDirtyChange,
     hybridQuote,
     setHybridQuote,
+    clients = [],
+    onRequestClientCreate,
     activeOrganizationRole = "owner",
     solutions,
     materials,
@@ -3435,7 +3615,9 @@ function QuoteWorkspace({
             {/* Header Devis */}
             <QuoteHeader
                 quote={calculatedQuote}
+                clients={clients}
                 onUpdateQuote={(patch) => { pushState(); handleUpdateQuote(patch); }}
+                onRequestClientCreate={onRequestClientCreate}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onOpenWizard={() => setIsWizardOpen(true)}
@@ -7448,7 +7630,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     materials={materials}
                     labor={labor}
                     recipes={recipes}
+                    clients={clients}
                     companyInfo={companyInfo}
+                    onRequestClientCreate={(initialName = '') => {
+                        setEditingClientId(null);
+                        setNewClientOriginModal('quote');
+                        setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                        setIsNewClientModalOpen(true);
+                    }}
                     saveQuoteStatus={saveQuoteStatus}
                     saveQuoteError={saveQuoteError}
                     // B4 — La boîte de confirmation vit dans App ; on l'expose au
@@ -11477,6 +11666,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     showToast("✓ Fiche client créée !", "success");
                                     if (newClientOriginModal === 'project') {
                                         setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
+                                    } else if (newClientOriginModal === 'quote') {
+                                        setHybridQuote(prev => ({ ...prev, clientId: newClientId, clientName: name }));
+                                        showToast(`✓ « ${name} » sélectionné dans le devis`, "success");
                                     }
                                 }
                                 setIsNewClientModalOpen(false);
