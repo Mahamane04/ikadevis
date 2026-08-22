@@ -4877,7 +4877,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setIsRecipeModalOpen(false);
                 setIsSolutionModalOpen(false);
                 setIsAllowedModesModalOpen(false);
-                setIsHealthModalOpen(false);
                 setViewingSavedQuote(null);
             }
         };
