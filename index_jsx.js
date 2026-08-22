@@ -10357,29 +10357,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }}
                     className={`bg-white border-2 rounded-2xl p-4 space-y-3 cursor-pointer transition-all duration-200 ${isActive ? 'border-brand-500 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 shadow-sm'}`}
                 >
-                    <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 mb-1">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-3">
+                            <div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">Société</span>
+                                <h3 className="font-semibold text-neutral-900 text-base truncate">{sq.clientName || 'Société non renseignée'}</h3>
+                            </div>
+                            <div className="border-l-2 border-brand-200 pl-3">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-500 block mb-1">Projet</span>
+                                <p className="text-sm font-semibold text-neutral-700 truncate">{sq.projectRef || 'Projet non renseigné'}</p>
+                            </div>
+                        </div>
+                        <div className="text-right shrink-0 space-y-1">
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700">
                                 {sq.number}
                             </span>
-                            <h3 className="font-semibold text-neutral-900 text-base truncate">{sq.clientName || 'Client sans nom'}</h3>
-                            <p className="text-xs text-neutral-500 truncate">{sq.projectRef || 'Sans référence projet'}</p>
-                        </div>
-                        <span className="text-xs font-medium text-neutral-400 shrink-0">{sq.date}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200/80 text-xs">
-                        <div>
-                            <span className="text-neutral-400 block text-[10px] uppercase font-bold">Net HT</span>
-                            <span className="font-bold text-neutral-700">
-                                {formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
-                            </span>
-                        </div>
-                        <div>
-                            <span className="text-neutral-400 block text-[10px] uppercase font-bold">Total TTC</span>
-                            <span className="font-bold text-brand-600 text-sm">
-                                {formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
-                            </span>
+                            <span className="text-xs font-medium text-neutral-400 block">{sq.date}</span>
                         </div>
                     </div>
 

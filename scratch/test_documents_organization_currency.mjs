@@ -33,6 +33,14 @@ export async function run() {
         ok('La liste des devis expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les devis"]') !== null);
         ok('La liste des devis expose un filtre de statut', await page.$('select[aria-label="Filtrer les devis par statut"]') !== null);
         ok('La liste des devis expose un tri', await page.$('select[aria-label="Trier les devis"]') !== null);
+        const simpleQuoteCard = await page.evaluate(() => {
+            const heading = [...document.querySelectorAll('h3')]
+                .find(node => node.textContent.includes('Société Immobilière NBB'));
+            return heading?.closest('div.border-2')?.innerText || '';
+        });
+        const simpleQuoteCardUpper = simpleQuoteCard.toUpperCase();
+        ok('La carte de devis privilégie la société et le projet', simpleQuoteCardUpper.includes('SOCIÉTÉ') && simpleQuoteCardUpper.includes('PROJET'));
+        ok('La carte de devis reste volontairement synthétique', !simpleQuoteCardUpper.includes('NET HT') && !simpleQuoteCardUpper.includes('TOTAL TTC'));
 
         await page.type('input[aria-label="Rechercher dans les devis"]', 'NBB');
         await wait(180);
