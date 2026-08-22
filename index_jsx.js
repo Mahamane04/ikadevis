@@ -9802,6 +9802,109 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             )}
                         </div>
 
+                        <div className="px-6 py-3 border-t border-neutral-100 bg-neutral-50/70 flex flex-wrap items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 mr-1">Actions du devis</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const hq = adaptSavedQuoteToHybrid(viewingSavedQuote, solutions, materials, labor, recipes);
+                                    setHybridQuote(hq);
+                                    setUseHybridEditor(true);
+                                    setActiveView('calculator');
+                                    showToast(`Devis ${viewingSavedQuote.number} ouvert dans l'Éditeur Hybride !`);
+                                }}
+                                className="btn-secondary text-xs py-1.5 px-3 font-bold"
+                                aria-label={`Modifier le devis ${viewingSavedQuote.number}`}
+                            >
+                                Modifier
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const currentVersion = viewingSavedQuote.versionNumber || 1;
+                                    const nextVersion = currentVersion + 1;
+                                    const baseNum = viewingSavedQuote.number.replace(/-V\d+$/, '');
+                                    const newVersionNum = `${baseNum}-V${nextVersion}`;
+                                    const newId = Date.now() + Math.floor(Math.random() * 100000);
+                                    const newVersionQuote = {
+                                        ...JSON.parse(JSON.stringify(viewingSavedQuote)),
+                                        id: newId,
+                                        number: newVersionNum,
+                                        versionNumber: nextVersion,
+                                        parentQuoteId: viewingSavedQuote.id,
+                                        status: 'draft',
+                                        signedAt: null,
+                                        signedByName: null,
+                                        signatureData: null,
+                                        date: new Date().toLocaleDateString('fr-FR')
+                                    };
+                                    if (newVersionQuote.hybridQuoteSnapshot) {
+                                        newVersionQuote.hybridQuoteSnapshot.id = newId;
+                                        newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
+                                    }
+                                    updateSavedQuotes([newVersionQuote, ...savedQuotes]);
+                                    showToast(`✓ Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, 'success');
+                                }}
+                                className="btn-secondary text-xs py-1.5 px-3 font-bold"
+                                aria-label={`Créer une révision de ${viewingSavedQuote.number}`}
+                            >
+                                Nouvelle révision
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setConfirmDialog({
+                                    isOpen: true,
+                                    title: 'Dupliquer ce devis ?',
+                                    message: `Une copie de ${viewingSavedQuote.number} sera créée sous le numéro ${generateNextQuoteNumber(savedQuotes)}, au nom de « ${viewingSavedQuote.clientName} (Copie) ».\n\nL'original n'est pas modifié.`,
+                                    confirmLabel: 'Dupliquer',
+                                    onConfirm: () => {
+                                        closeConfirm();
+                                        const newId = Date.now() + Math.floor(Math.random() * 100000);
+                                        const nextNum = generateNextQuoteNumber(savedQuotes);
+                                        const duplicated = {
+                                            ...JSON.parse(JSON.stringify(viewingSavedQuote)),
+                                            id: newId,
+                                            number: nextNum,
+                                            clientName: `${viewingSavedQuote.clientName} (Copie)`,
+                                            date: new Date().toLocaleDateString('fr-FR')
+                                        };
+                                        if (duplicated.hybridQuoteSnapshot) {
+                                            duplicated.hybridQuoteSnapshot.id = newId;
+                                            duplicated.hybridQuoteSnapshot.number = nextNum;
+                                            duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
+                                        }
+                                        updateSavedQuotes([duplicated, ...savedQuotes]);
+                                        updateNextQuoteSeq(nextQuoteSeq + 1);
+                                        showToast(`Devis ${viewingSavedQuote.number} dupliqué avec succès !`, 'success');
+                                    }
+                                })}
+                                className="btn-secondary text-xs py-1.5 px-3 font-bold"
+                                aria-label={`Dupliquer le devis ${viewingSavedQuote.number}`}
+                            >
+                                Dupliquer
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isReadOnlyDueToDowngrade}
+                                onClick={() => setConfirmDialog({
+                                    isOpen: true,
+                                    title: 'Supprimer Devis',
+                                    message: `Supprimer définitivement le devis ${viewingSavedQuote.number} ?`,
+                                    isDanger: true,
+                                    onConfirm: () => {
+                                        updateSavedQuotes(savedQuotes.filter(x => x.id !== viewingSavedQuote.id));
+                                        setViewingSavedQuote(null);
+                                        closeConfirm();
+                                        showToast('Devis supprimé');
+                                    }
+                                })}
+                                className="btn-secondary text-xs py-1.5 px-3 font-bold text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
+                                aria-label={`Supprimer le devis ${viewingSavedQuote.number}`}
+                            >
+                                Supprimer
+                            </button>
+                        </div>
+
                         {!canSend && (
                             <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 shrink-0">
                                 <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">

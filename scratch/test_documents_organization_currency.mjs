@@ -45,6 +45,11 @@ export async function run() {
         await wait(180);
         const detailShown = await page.evaluate(() => document.body.innerText.includes('DEVIS COMMERCIAL') && document.body.innerText.includes('Construction Siège NBB'));
         ok('Un clic sur une ligne ouvre le détail à droite', detailShown);
+        const detailActions = await page.$('button[aria-label="Modifier le devis DEV-2026-001"]') !== null
+            && await page.$('button[aria-label="Créer une révision de DEV-2026-001"]') !== null
+            && await page.$('button[aria-label="Dupliquer le devis DEV-2026-001"]') !== null
+            && await page.$('button[aria-label="Supprimer le devis DEV-2026-001"]') !== null;
+        ok('Les actions restent disponibles dans le détail', detailActions);
 
         await page.type('input[aria-label="Rechercher dans les devis"]', 'NBB');
         await wait(180);
