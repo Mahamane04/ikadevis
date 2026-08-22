@@ -29,6 +29,10 @@ export async function run() {
         await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
             .find(node => node.textContent.includes('Société Immobilière NBB'))?.click());
         await wait();
+        await page.click(projectInput);
+        await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
+            .find(node => node.textContent.includes('Construction Siège NBB'))?.click());
+        await wait();
 
         await page.click(projectInput);
         const existingProject = await page.evaluate(() => {
@@ -40,6 +44,25 @@ export async function run() {
         await wait();
         const selectedProject = await page.$eval(projectInput, input => input.value);
         ok('Un projet existant du client est sélectionnable depuis le devis', existingProject && selectedProject === 'Construction Siège NBB', selectedProject);
+
+        await page.click(projectInput);
+        await page.type(projectInput, 'Recherche projet non validée', { delay: 10 });
+        await page.keyboard.press('Escape');
+        await wait(80);
+        const restoredProject = await page.$eval(projectInput, input => input.value);
+        ok('Une recherche projet annulée restaure le projet sélectionné', restoredProject === 'Construction Siège NBB', restoredProject);
+
+        await page.click(clientInput);
+        await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
+            .find(node => node.textContent.includes('Résidence Les Almadies'))?.click());
+        await wait();
+        const projectClearedOnClientChange = await page.$eval(projectInput, input => input.value);
+        ok('Changer de client efface le projet précédent', projectClearedOnClientChange === '', projectClearedOnClientChange);
+
+        await page.click(clientInput);
+        await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
+            .find(node => node.textContent.includes('Société Immobilière NBB'))?.click());
+        await wait();
 
         await page.click(projectInput);
         await page.evaluate((name) => {

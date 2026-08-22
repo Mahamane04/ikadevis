@@ -14,6 +14,14 @@ export async function run() {
 
         const clientInput = 'input[aria-label="Client du devis"]';
         await page.click(clientInput);
+        await page.type(clientInput, 'Recherche non validée', { delay: 10 });
+        await page.keyboard.press('Escape');
+        await new Promise(resolve => setTimeout(resolve, 80));
+        const cancelledSearch = await page.$eval(clientInput, input => input.value);
+        ok('Une recherche client annulée ne devient pas une sélection', cancelledSearch === '', cancelledSearch);
+
+        await page.click(clientInput);
+        await new Promise(resolve => setTimeout(resolve, 100));
         await page.evaluate(() => {
             const option = [...document.querySelectorAll('[role="option"]')]
                 .find(node => node.textContent.includes('Société Immobilière NBB'));

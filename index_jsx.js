@@ -396,9 +396,14 @@ function ClientCombobox({
         setQuery(value || '');
     }, [value]);
 
+    const restoreCommittedValue = () => setQuery(value || '');
+
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+            if (rootRef.current && !rootRef.current.contains(event.target)) {
+                restoreCommittedValue();
+                setIsOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -435,6 +440,7 @@ function ClientCombobox({
     const handleKeyDown = (event) => {
         if (event.key === 'Escape') {
             event.stopPropagation();
+            restoreCommittedValue();
             setIsOpen(false);
             return;
         }
@@ -466,11 +472,11 @@ function ClientCombobox({
                     value={query}
                     disabled={disabled}
                     onFocus={() => setIsOpen(true)}
+                    onClick={() => setIsOpen(true)}
                     onChange={(event) => {
                         const nextQuery = event.target.value;
                         setQuery(nextQuery);
                         setIsOpen(true);
-                        onChange?.({ clientName: nextQuery, clientId: null });
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Rechercher ou créer un client…"
@@ -569,9 +575,13 @@ function ProjectCombobox({
     const rootRef = useRef(null);
 
     useEffect(() => setQuery(value || ''), [value]);
+    const restoreCommittedProject = () => setQuery(value || '');
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+            if (rootRef.current && !rootRef.current.contains(event.target)) {
+                restoreCommittedProject();
+                setIsOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -609,6 +619,7 @@ function ProjectCombobox({
     const handleKeyDown = (event) => {
         if (event.key === 'Escape') {
             event.stopPropagation();
+            restoreCommittedProject();
             setIsOpen(false);
             return;
         }
@@ -640,11 +651,11 @@ function ProjectCombobox({
                     value={query}
                     disabled={disabled}
                     onFocus={() => setIsOpen(true)}
+                    onClick={() => setIsOpen(true)}
                     onChange={(event) => {
                         const nextQuery = event.target.value;
                         setQuery(nextQuery);
                         setIsOpen(true);
-                        onChange?.({ projectRef: nextQuery, projectId: null });
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Rechercher ou créer un projet…"
@@ -1742,7 +1753,7 @@ function QuoteHeader({
                             clientId={quote.clientId || null}
                             clients={clients}
                             onChange={onUpdateQuote}
-                            onSelectClient={(client) => onUpdateQuote({ clientName: client.name, clientId: client.id, projectId: null })}
+                            onSelectClient={(client) => onUpdateQuote({ clientName: client.name, clientId: client.id, projectId: null, projectRef: '' })}
                             onRequestCreate={onRequestClientCreate}
                         />
                         <ProjectCombobox
