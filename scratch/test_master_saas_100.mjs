@@ -34,6 +34,8 @@ import * as goldE from './test_gold_standard_e_enseigne.mjs';
 import * as goldF from './test_gold_standard_f_acm.mjs';
 import * as goldG from './test_gold_standard_g_villa.mjs';
 import * as clientCombobox from './test_client_combobox.mjs';
+import * as inlineWorkItemCombobox from './test_inline_work_item_combobox.mjs';
+import * as inspectorNavigation from './test_inspector_navigation.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -47,6 +49,8 @@ const SUITES = [
     { name: 'Étalon F — Façade Panneaux ACM (tolérance zéro)', mod: goldF, expectedToFail: false },
     { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: false },
     { name: 'Phase 1 — ClientCombobox et création contextuelle', mod: clientCombobox, expectedToFail: false },
+    { name: 'Phase 2 — Ajout d’ouvrage depuis le tableau', mod: inlineWorkItemCombobox, expectedToFail: false },
+    { name: 'Phase 3 — Inspecteur latéral et navigation des ouvrages', mod: inspectorNavigation, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

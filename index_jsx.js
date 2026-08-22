@@ -550,6 +550,158 @@ function ClientCombobox({
     );
 }
 
+// Même langage d'interaction que ClientCombobox, adapté au catalogue métier.
+// La ligne de recherche vit dans le tableau : elle devient le point d'entrée
+// naturel pour ajouter un ouvrage sans ouvrir une modale à chaque ligne.
+function SolutionCombobox({
+    solutions = [],
+    onSelectSolution,
+    onCreateSolution,
+    placeholder = 'Rechercher un ouvrage à ajouter…'
+}) {
+    const [query, setQuery] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const rootRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (rootRef.current && !rootRef.current.contains(event.target)) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const normalizedQuery = normalizeSearchText(query.trim());
+    const filteredSolutions = solutions.filter(solution => {
+        if (!normalizedQuery) return true;
+        return [solution.name, solution.reference, solution.code, ...(solution.keywords || [])]
+            .filter(Boolean)
+            .some(valueToSearch => normalizeSearchText(valueToSearch).includes(normalizedQuery));
+    }).slice(0, 8);
+    const exactSolution = solutions.find(solution => normalizeSearchText(solution.name) === normalizedQuery);
+    const canCreate = Boolean(normalizedQuery && !exactSolution);
+    const optionCount = filteredSolutions.length + (canCreate ? 1 : 0);
+
+    useEffect(() => setHighlightedIndex(0), [normalizedQuery]);
+
+    const selectSolution = (solution) => {
+        setQuery('');
+        setIsOpen(false);
+        onSelectSolution?.(solution);
+    };
+
+    const createSolution = () => {
+        const name = query.trim();
+        if (!name) return;
+        setQuery('');
+        setIsOpen(false);
+        onCreateSolution?.(name);
+    };
+
+    const handleKeyDown = (event) => {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            setIsOpen(false);
+            return;
+        }
+        if (!isOpen && ['ArrowDown', 'Enter'].includes(event.key)) {
+            event.preventDefault();
+            setIsOpen(true);
+            return;
+        }
+        if (!isOpen) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.min(index + 1, Math.max(0, optionCount - 1)));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightedIndex(index => Math.max(0, index - 1));
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (highlightedIndex < filteredSolutions.length) selectSolution(filteredSolutions[highlightedIndex]);
+            else if (canCreate) createSolution();
+        }
+    };
+
+    return (
+        <div ref={rootRef} className="relative w-full">
+            <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
+                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                <input
+                    type="text"
+                    value={query}
+                    onFocus={() => setIsOpen(true)}
+                    onChange={event => { setQuery(event.target.value); setIsOpen(true); }}
+                    onKeyDown={handleKeyDown}
+                    placeholder={placeholder}
+                    className={`w-full bg-white border rounded-xl pl-9 pr-10 py-2.5 text-xs font-semibold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200 hover:border-neutral-300'}`}
+                    aria-label="Rechercher un ouvrage à ajouter"
+                    aria-autocomplete="list"
+                    aria-controls="quote-solution-listbox"
+                    aria-expanded={isOpen}
+                    aria-haspopup="listbox"
+                    role="combobox"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-neutral-400 pointer-events-none">↵</span>
+            </div>
+
+            {isOpen && (
+                <div id="quote-solution-listbox" role="listbox" className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        {normalizedQuery ? 'Ouvrages correspondants' : 'Ouvrages récents et favoris'}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto custom-scroll p-1.5">
+                        {filteredSolutions.map((solution, index) => (
+                            <button
+                                key={solution.id || solution.name}
+                                type="button"
+                                role="option"
+                                aria-selected={false}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                onClick={() => selectSolution(solution)}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-colors ${highlightedIndex === index ? 'bg-brand-50 text-brand-900' : 'text-neutral-700 hover:bg-neutral-50'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+                                    <i className={`fa-solid ${solution.icon || 'fa-cube'} text-[11px]`}></i>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-bold truncate">{solution.name}</span>
+                                    <span className="block text-[10px] text-neutral-400 truncate">{solution.reference || solution.code || `${(solution.allowedModes || []).join(' · ') || 'Ouvrage métier'}`}</span>
+                                </span>
+                                <i className="fa-solid fa-arrow-right text-[10px] text-neutral-300"></i>
+                            </button>
+                        ))}
+
+                        {canCreate && (
+                            <button
+                                type="button"
+                                role="option"
+                                aria-selected={highlightedIndex === filteredSolutions.length}
+                                onMouseEnter={() => setHighlightedIndex(filteredSolutions.length)}
+                                onClick={createSolution}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-brand-700 transition-colors ${highlightedIndex === filteredSolutions.length ? 'bg-brand-50' : 'hover:bg-brand-50/60'}`}
+                            >
+                                <span className="w-7 h-7 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
+                                    <i className="fa-solid fa-plus text-[11px]"></i>
+                                </span>
+                                <span className="text-xs font-bold truncate">Créer « {query.trim()} »</span>
+                            </button>
+                        )}
+
+                        {filteredSolutions.length === 0 && !canCreate && (
+                            <div className="px-3 py-4 text-center text-[11px] text-neutral-500">
+                                <i className="fa-solid fa-cube text-neutral-300 text-lg mb-1.5 block"></i>
+                                Aucun ouvrage correspondant.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOC 3/10 : MOTEUR UNIVERSEL DE MÉTRÉ, UNITÉS & AST SÉCURISÉ (ZERO new Function)
 // ═══════════════════════════════════════════════════════════════
@@ -1675,27 +1827,6 @@ function ActiveLotHeader({
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
                 <button
                     type="button"
-                    onClick={onOpenPicker}
-                    className="btn-primary text-xs py-2 px-3.5 font-semibold flex items-center justify-center gap-1.5 flex-1 sm:flex-initial whitespace-nowrap"
-                    aria-label="Ajouter un ouvrage depuis le catalogue"
-                >
-                    <i className="fa-solid fa-plus"></i>
-                    <span>+ Ajouter un Ouvrage</span>
-                </button>
-
-                <button
-                    type="button"
-                    onClick={onAddCustomLine}
-                    className="btn-secondary text-xs py-2 px-3 font-bold flex items-center justify-center gap-1.5"
-                    title="Ajouter une ligne libre non cataloguée"
-                    aria-label="Ajouter une ligne libre"
-                >
-                    <i className="fa-solid fa-pen-ruler text-neutral-500"></i>
-                    <span>+ Ligne Libre</span>
-                </button>
-
-                <button
-                    type="button"
                     onClick={onDuplicateLot}
                     className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs"
                     title="Dupliquer ce lot"
@@ -1722,33 +1853,52 @@ function ActiveLotHeader({
 
 function WorkItemTable({
     items,
+    solutions = [],
     onUpdateItem,
     onOpenInspector,
     onDuplicateItem,
     onDeleteItem,
     onOpenPicker,
+    onSelectSolution,
+    onCreateSolution,
     onAddCustomLine,
     currency = 'FCFA'
 }) {
     if (!items || items.length === 0) {
         return (
-            <div className="p-8 sm:p-12 text-center border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 sm:m-6 space-y-4">
+            <div className="p-5 sm:p-8 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 sm:m-6 space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto text-2xl">
                     <i className="fa-solid fa-cube"></i>
                 </div>
-                <div>
+                <div className="text-center">
                     <h3 className="text-base font-semibold text-neutral-800">Ce lot ne contient aucun ouvrage pour le moment</h3>
                     <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
-                        Sélectionnez un ouvrage dans votre bibliothèque métier ou ajoutez une ligne personnalisée pour calculer le devis.
+                        Commencez directement dans le tableau : recherchez un ouvrage ou créez-en un nouveau.
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <div className="max-w-xl mx-auto pt-2">
+                    <SolutionCombobox
+                        solutions={solutions}
+                        onSelectSolution={onSelectSolution}
+                        onCreateSolution={onCreateSolution}
+                        placeholder="Rechercher un ouvrage par nom, mot-clé ou référence…"
+                    />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
                     <button
                         type="button"
                         onClick={onOpenPicker}
-                        className="btn-primary text-xs py-2.5 px-4 font-semibold flex items-center gap-2"
+                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
                     >
-                        <i className="fa-solid fa-plus"></i> Choisir dans le Catalogue
+                        <i className="fa-solid fa-layer-group"></i> Choisir dans le Catalogue complet
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onAddCustomLine}
+                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
+                        aria-label="Ajouter une ligne libre"
+                    >
+                        <i className="fa-solid fa-pen-ruler"></i> Ajouter une ligne libre
                     </button>
                 </div>
             </div>
@@ -2050,31 +2200,38 @@ function WorkItemTable({
                 </table>
             </div>
 
-            {/* Demandé par l'utilisateur (2026-08-19) — avec beaucoup d'ouvrages
-                dans un lot, "+ Ajouter un Ouvrage" (dans l'en-tête, en haut) sort
-                de l'écran une fois qu'on a scrollé jusqu'en bas de la liste :
-                obligeait à remonter tout en haut pour ajouter la ligne suivante.
-                Reprend les deux mêmes actions que l'en-tête, juste après la
-                dernière ligne. */}
-            <div className="flex items-center justify-center gap-3 pt-1">
-                <button
-                    type="button"
-                    onClick={onOpenPicker}
-                    className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-2 text-brand-600 border-brand-200 hover:bg-brand-50"
-                    aria-label="Ajouter un autre ouvrage depuis le catalogue"
-                >
-                    <i className="fa-solid fa-plus"></i> Ajouter un Ouvrage
-                </button>
-                {onAddCustomLine && (
+            {/* Point d'entrée unique du tableau : la recherche reste au bas de
+                la liste, là où l'utilisateur vient d'ajouter ou de relire une
+                ligne. Le catalogue complet conserve ses catégories et son mode
+                d'ajout multiple comme action secondaire. */}
+            <div className="border-t border-neutral-100 pt-3 space-y-2.5">
+                <div className="max-w-2xl mx-auto">
+                    <SolutionCombobox
+                        solutions={solutions}
+                        onSelectSolution={onSelectSolution}
+                        onCreateSolution={onCreateSolution}
+                    />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3">
                     <button
                         type="button"
-                        onClick={onAddCustomLine}
-                        className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-2"
-                        aria-label="Ajouter une ligne libre"
+                        onClick={onOpenPicker}
+                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2 text-brand-700 border-brand-200 hover:bg-brand-50"
+                        aria-label="Ouvrir le catalogue complet des ouvrages"
                     >
-                        <i className="fa-solid fa-wand-magic-sparkles"></i> Ligne Libre
+                        <i className="fa-solid fa-layer-group"></i> Catalogue complet / ajout multiple
                     </button>
-                )}
+                    {onAddCustomLine && (
+                        <button
+                            type="button"
+                            onClick={onAddCustomLine}
+                            className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
+                            aria-label="Ajouter une ligne libre"
+                        >
+                            <i className="fa-solid fa-pen-ruler"></i> Ajouter une ligne libre
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -2345,6 +2502,9 @@ function WorkItemInspector({
     isOpen,
     onClose,
     item,
+    itemIndex = 0,
+    itemCount = 1,
+    onNavigate,
     onUpdateItem,
     solutions,
     materials,
@@ -2446,6 +2606,31 @@ function WorkItemInspector({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                        {itemCount > 1 && (
+                            <div className="flex items-center gap-1 mr-1" role="group" aria-label="Navigation entre les ouvrages">
+                                <button
+                                    type="button"
+                                    onClick={() => onNavigate?.(Math.max(0, itemIndex - 1))}
+                                    disabled={itemIndex <= 0}
+                                    className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Ouvrage précédent"
+                                    aria-label="Ouvrage précédent"
+                                >
+                                    <i className="fa-solid fa-chevron-left text-[10px]"></i>
+                                </button>
+                                <span className="text-[10px] font-bold text-neutral-400 min-w-[34px] text-center">{itemIndex + 1}/{itemCount}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => onNavigate?.(Math.min(itemCount - 1, itemIndex + 1))}
+                                    disabled={itemIndex >= itemCount - 1}
+                                    className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Ouvrage suivant"
+                                    aria-label="Ouvrage suivant"
+                                >
+                                    <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        )}
                         {/* Progressive Disclosure Toggle */}
                         <div className="bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-semibold">
                             <button
@@ -3674,12 +3859,54 @@ function QuoteWorkspace({
                     />
                 </div>
 
-                <main className="flex-1 min-w-0 bg-white flex flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24">
-                    {inspectorItemIndex !== null ? (
+                <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
+                    <main className={`${inspectorItemIndex !== null ? 'hidden lg:flex' : 'flex'} flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24`}>
+                        <ActiveLotHeader
+                            lot={activeLot}
+                            lotIndex={activeLotIndex}
+                            lotsCount={calculatedQuote.lots?.length || 1}
+                            onUpdateLot={handleUpdateActiveLot}
+                            onOpenPicker={() => setIsPickerOpen(true)}
+                            onOpenBulkPicker={() => setIsPickerOpen(true)}
+                            onAddCustomLine={handleAddCustomLine}
+                            onDuplicateLot={handleDuplicateLot}
+                            onDeleteLot={handleDeleteLot}
+                            currency={companyInfo.currency}
+                        />
+
+                        <WorkItemTable
+                            items={activeLot.items || []}
+                            solutions={solutions}
+                            onUpdateItem={handleUpdateItem}
+                            onOpenInspector={(idx) => setInspectorItemIndex(idx)}
+                            onDuplicateItem={handleDuplicateItem}
+                            onDeleteItem={handleDeleteItem}
+                            onOpenPicker={() => setIsPickerOpen(true)}
+                            onSelectSolution={handleSelectSolutionForLot}
+                            onCreateSolution={(name) => {
+                                const newSol = {
+                                    id: Date.now(),
+                                    name: name || 'Nouvel Ouvrage',
+                                    icon: 'fa-cube',
+                                    allowedModes: ['rectangle', 'surface'],
+                                    customVars: []
+                                };
+                                onQuickCreateSolution(newSol);
+                                handleSelectSolutionForLot(newSol);
+                            }}
+                            onAddCustomLine={handleAddCustomLine}
+                            currency={companyInfo.currency}
+                        />
+                    </main>
+
+                    <aside className={`${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:w-[min(430px,38vw)] shrink-0 min-h-0 bg-white border-l border-neutral-200 lg:h-full`} aria-label="Inspecteur de l'ouvrage">
                         <WorkItemInspector
-                            isOpen={true}
+                            isOpen={inspectorItemIndex !== null}
                             onClose={() => setInspectorItemIndex(null)}
                             item={activeLot.items?.[inspectorItemIndex]}
+                            itemIndex={inspectorItemIndex || 0}
+                            itemCount={activeLot.items?.length || 0}
+                            onNavigate={(nextIndex) => setInspectorItemIndex(nextIndex)}
                             onUpdateItem={(patch) => handleUpdateItem(inspectorItemIndex, patch)}
                             solutions={solutions}
                             materials={materials}
@@ -3687,34 +3914,8 @@ function QuoteWorkspace({
                             recipes={recipes}
                             currency={companyInfo.currency}
                         />
-                    ) : (
-                        <>
-                            <ActiveLotHeader
-                                lot={activeLot}
-                                lotIndex={activeLotIndex}
-                                lotsCount={calculatedQuote.lots?.length || 1}
-                                onUpdateLot={handleUpdateActiveLot}
-                                onOpenPicker={() => setIsPickerOpen(true)}
-                                onOpenBulkPicker={() => setIsPickerOpen(true)}
-                                onAddCustomLine={handleAddCustomLine}
-                                onDuplicateLot={handleDuplicateLot}
-                                onDeleteLot={handleDeleteLot}
-                                currency={companyInfo.currency}
-                            />
-
-                            <WorkItemTable
-                                items={activeLot.items || []}
-                                onUpdateItem={handleUpdateItem}
-                                onOpenInspector={(idx) => setInspectorItemIndex(idx)}
-                                onDuplicateItem={handleDuplicateItem}
-                                onDeleteItem={handleDeleteItem}
-                                onOpenPicker={() => setIsPickerOpen(true)}
-                                onAddCustomLine={handleAddCustomLine}
-                                currency={companyInfo.currency}
-                            />
-                        </>
-                    )}
-                </main>
+                    </aside>
+                </div>
             </div>
 
             {/* Tiroir Sélecteur d'Ouvrages (Zoho-Style) */}
