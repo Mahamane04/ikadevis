@@ -33,14 +33,18 @@ export async function run() {
         ok('La liste des devis expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les devis"]') !== null);
         ok('La liste des devis expose un filtre de statut', await page.$('select[aria-label="Filtrer les devis par statut"]') !== null);
         ok('La liste des devis expose un tri', await page.$('select[aria-label="Trier les devis"]') !== null);
-        const simpleQuoteCard = await page.evaluate(() => {
-            const heading = [...document.querySelectorAll('h3')]
+        const simpleQuoteRow = await page.evaluate(() => {
+            const row = [...document.querySelectorAll('tbody tr')]
                 .find(node => node.textContent.includes('Société Immobilière NBB'));
-            return heading?.closest('div.border-2')?.innerText || '';
+            return { text: row?.innerText || '', hasIcon: Boolean(row?.querySelector('i')) };
         });
-        const simpleQuoteCardUpper = simpleQuoteCard.toUpperCase();
-        ok('La carte de devis privilégie la société et le projet', simpleQuoteCardUpper.includes('SOCIÉTÉ') && simpleQuoteCardUpper.includes('PROJET'));
-        ok('La carte de devis reste volontairement synthétique', !simpleQuoteCardUpper.includes('NET HT') && !simpleQuoteCardUpper.includes('TOTAL TTC'));
+        const simpleQuoteRowUpper = simpleQuoteRow.text.toUpperCase();
+        ok('La liste des devis utilise une table Société/Projet/Devis/Date', ['SOCIÉTÉ IMMOBILIÈRE NBB', 'CONSTRUCTION SIÈGE NBB', 'DEV-2026-001', '22/08/'].every(value => simpleQuoteRowUpper.includes(value)));
+        ok('Les lignes de devis sont dépourvues d’icônes et d’actions', !simpleQuoteRow.hasIcon);
+        await page.click('tbody tr[role="button"]');
+        await wait(180);
+        const detailShown = await page.evaluate(() => document.body.innerText.includes('DEVIS COMMERCIAL') && document.body.innerText.includes('Construction Siège NBB'));
+        ok('Un clic sur une ligne ouvre le détail à droite', detailShown);
 
         await page.type('input[aria-label="Rechercher dans les devis"]', 'NBB');
         await wait(180);

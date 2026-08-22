@@ -10319,9 +10319,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     const renderSavedQuotes = () => {
-        // 2026-08-20 — même règle que dans l'aperçu : les boutons qui ouvrent
-        // directement l'étude de prix (coûts, coefficient, marge) n'existent que
-        // pour les rôles autorisés.
         const canViewInternalDocs = activeOrganizationRole === 'owner'
             || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
         // P0.16 — Filtre "devis de ce client", posé depuis la fiche CRM.
@@ -10340,14 +10337,51 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 if (savedQuoteSort === 'client_asc') return String(a.clientName || '').localeCompare(String(b.clientName || ''), 'fr');
                 return (Number(b.id) || 0) - (Number(a.id) || 0);
             });
-        // Liste+détail desktop (2026-08-22, référence Zoho Books) : la colonne de
-        // droite montre le même contenu que la modale mobile, factorisé dans
-        // renderQuoteDetailPanel (voir plus haut) — aucune logique dupliquée.
-        // Le mobile garde exactement son comportement d'avant (cartes + modale) :
-        // seul le rendu ≥1024px change.
+        // Liste+détail (2026-08-22, format table type Excel) : la colonne de
+        // gauche reste une liste dense et lisible, sans actions ni icônes dans
+        // les lignes. Un clic sur une ligne alimente le détail à droite sur
+        // desktop et ouvre le même document en vue mobile.
         const activeQuote = viewingSavedQuote
             ? (savedQuotes.find(q => q.id === viewingSavedQuote.id) || null)
             : null;
+
+        // Vue table dédiée : les actions restent disponibles dans le panneau
+        // de détail, jamais dans les lignes de cette liste synthétique.
+        const ligneDevis = (sq) => {
+            const isActive = !!(activeQuote && activeQuote.id === sq.id);
+            const selectQuote = () => {
+                setViewingSavedQuote(sq);
+                setIsCommercialMode(true);
+            };
+            return (
+                <tr
+                    key={sq.id}
+                    onClick={selectQuote}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            selectQuote();
+                        }
+                    }}
+                    tabIndex="0"
+                    role="button"
+                    aria-selected={isActive}
+                    aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                    className={`cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
+                >
+                    <td className="px-3.5 py-3.5 font-semibold text-neutral-900 max-w-[15rem]">
+                        <span className="block truncate">{sq.clientName || 'Société non renseignée'}</span>
+                    </td>
+                    <td className="px-3.5 py-3.5 text-neutral-700 max-w-[17rem]">
+                        <span className="block truncate">{sq.projectRef || 'Projet non renseigné'}</span>
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                        <span className="font-mono text-xs font-semibold text-brand-700">{sq.number}</span>
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap text-xs text-neutral-500">{sq.date}</td>
+                </tr>
+            );
+        };
 
         const carteDevis = (sq) => {
             const isActive = !!(activeQuote && activeQuote.id === sq.id);
@@ -10494,10 +10528,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         return (
         <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-            {/* COLONNE LISTE — cartes réutilisées telles quelles sur mobile (cf.
-                comportement d'avant, inchangé : clic → modale) et sur desktop
-                (clic → panneau de détail ci-contre). Même carte, même code. */}
-            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
+            {/* COLONNE LISTE — table dense type Excel. Les lignes sont les seuls
+                éléments interactifs de la liste : clic ou clavier → détail. */}
+            <div className="w-full lg:w-[min(680px,54vw)] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
                 <div className="flex items-center justify-between px-1 gap-2">
                     <div className="min-w-0">
                         <h2 className="text-lg font-bold text-neutral-800">Mes Devis Enregistrés</h2>
@@ -10564,7 +10597,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 )}
 
                 <div className="flex flex-col gap-3 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
-                    {visibleQuotes.map(sq => carteDevis(sq))}
+                    {visibleQuotes.length > 0 && (
+                        <div className="app-card p-0 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[560px] text-left text-xs border-collapse">
+                                    <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500">
+                                        <tr>
+                                            <th className="px-3.5 py-3 font-bold">Société</th>
+                                            <th className="px-3.5 py-3 font-bold">Projet</th>
+                                            <th className="px-3.5 py-3 font-bold">Devis</th>
+                                            <th className="px-3.5 py-3 font-bold">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {visibleQuotes.map(sq => ligneDevis(sq))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                     {visibleQuotes.length === 0 && (
                         <div className="text-center py-10 px-4">
                             <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
