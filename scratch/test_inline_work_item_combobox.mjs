@@ -12,6 +12,13 @@ export async function run() {
 
         const search = 'input[aria-label="Rechercher un ouvrage à ajouter"]';
         await page.click(search);
+        const compactCatalog = await page.evaluate(() => {
+            const list = document.querySelector('[data-testid="quote-solution-scroll"]');
+            if (!list) return false;
+            const style = window.getComputedStyle(list);
+            return style.overflowY === 'auto' && list.clientHeight <= 160 && list.scrollHeight > list.clientHeight;
+        });
+        ok('Le catalogue affiche trois ouvrages au plus avec défilement interne', compactCatalog);
         await page.type(search, 'Peinture Murale', { delay: 15 });
         await page.keyboard.press('Enter');
         await new Promise(resolve => setTimeout(resolve, 250));

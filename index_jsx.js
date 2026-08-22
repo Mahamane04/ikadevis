@@ -822,7 +822,7 @@ function SolutionCombobox({
                     <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         {normalizedQuery ? 'Ouvrages correspondants' : 'Ouvrages récents et favoris'}
                     </div>
-                    <div className="max-h-64 overflow-y-auto custom-scroll p-1.5">
+                    <div data-testid="quote-solution-scroll" className="max-h-[9.5rem] overflow-y-auto custom-scroll p-1.5">
                         {filteredSolutions.map((solution, index) => (
                             <button
                                 key={solution.id || solution.name}
