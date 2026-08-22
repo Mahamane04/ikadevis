@@ -10835,7 +10835,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
             {/* COLONNE LISTE — table dense type Excel. Les lignes sont les seuls
                 éléments interactifs de la liste : clic ou clavier → détail. */}
-            <div className="w-full lg:w-[min(680px,54vw)] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
+            <div data-testid="saved-quotes-list" className="w-full lg:w-3/5 shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
                 <div className="flex items-center justify-between px-1 gap-2">
                     <div className="min-w-0">
                         <h2 className="text-lg font-bold text-neutral-800">Mes Devis Enregistrés</h2>
@@ -10938,7 +10938,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             {/* COLONNE DÉTAIL — desktop uniquement (≥1024px). Le mobile garde sa
                 modale historique (rendue à la racine de l'app, voir
                 renderQuoteDetailPanel), inchangée. */}
-            <div className="hidden lg:flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0">
+            <div data-testid="saved-quote-detail" className="hidden lg:flex lg:w-2/5 shrink-0 min-w-0 w-full flex-col lg:h-full lg:min-h-0">
                 {!activeQuote ? (
                     <div className="app-card p-16 text-center text-neutral-400">
                         <i className="fa-solid fa-folder-open text-3xl mb-3 text-neutral-300"></i>

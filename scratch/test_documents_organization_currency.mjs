@@ -41,10 +41,19 @@ export async function run() {
         const simpleQuoteRowUpper = simpleQuoteRow.text.toUpperCase();
         ok('La liste des devis utilise une table Société/Projet/Devis/Date', ['SOCIÉTÉ IMMOBILIÈRE NBB', 'CONSTRUCTION SIÈGE NBB', 'DEV-2026-001', '22/08/'].every(value => simpleQuoteRowUpper.includes(value)));
         ok('Les lignes de devis sont dépourvues d’icônes et d’actions', !simpleQuoteRow.hasIcon);
-        await page.click('tbody tr[role="button"]');
+        await page.click('tbody tr[role="button"] td:nth-child(2)');
         await wait(180);
         const detailShown = await page.evaluate(() => document.body.innerText.includes('DEVIS COMMERCIAL') && document.body.innerText.includes('Construction Siège NBB'));
-        ok('Un clic sur une ligne ouvre le détail à droite', detailShown);
+        ok('Un clic sur une cellule ouvre le détail à droite', detailShown);
+        const desktopSplitVisible = await page.evaluate(() => {
+            const list = document.querySelector('[data-testid="saved-quotes-list"]');
+            const detail = document.querySelector('[data-testid="saved-quote-detail"]');
+            if (!list || !detail) return false;
+            const listRect = list.getBoundingClientRect();
+            const detailRect = detail.getBoundingClientRect();
+            return listRect.width > 0 && detailRect.width > 260 && detailRect.left >= listRect.right - 2;
+        });
+        ok('La table et le détail sont visibles côte à côte sur desktop', desktopSplitVisible);
         const detailActions = await page.$('button[aria-label="Modifier le devis DEV-2026-001"]') !== null
             && await page.$('button[aria-label="Créer une révision de DEV-2026-001"]') !== null
             && await page.$('button[aria-label="Dupliquer le devis DEV-2026-001"]') !== null
