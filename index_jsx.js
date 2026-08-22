@@ -9135,6 +9135,702 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
+    // Contenu du document (devis client ou étude interne), factorisé le
+    // 2026-08-22 pour être partagé entre la modale mobile (<1024px, chrome
+    // inchangée) et le panneau de détail desktop (liste+détail, § reprise
+    // 2026-08-22) — même logique métier partout, seul le cadre change selon
+    // opts.asModal. Rien n'a été réécrit à l'intérieur de ce bloc.
+    const renderQuoteDetailPanel = (viewingSavedQuote, opts) => {
+                // B3 (2026-08-18) — Un devis ne quitte l'app (impression, partage,
+                // signature) qu'avec une identité légale complète. On lit
+                // companyInfoSnapshot en priorité : c'est l'identité telle
+                // qu'enregistrée AVEC ce devis précis, pas l'état courant des
+                // réglages (qui a pu changer depuis). Un devis prévisualisé avant
+                // le premier enregistrement n'a pas encore de snapshot : on se
+                // rabat alors sur companyInfo, seule source disponible.
+                // Même repli champ par champ que celui déjà utilisé dans tout
+                // le corps imprimé (voir plus bas : `snapshot?.name || companyInfo.name`,
+                // etc.) — sinon le bandeau pouvait rester bloqué en réclamant un
+                // champ que l'utilisateur venait de compléter dans les
+                // Paramètres, simplement parce que l'ancien instantané (pris à
+                // l'ouverture de l'aperçu) l'avait figé vide.
+                const snap = viewingSavedQuote.companyInfoSnapshot || {};
+                const effectiveCompanyInfo = {
+                    name: snap.name || companyInfo.name,
+                    address: snap.address || companyInfo.address,
+                    phone: snap.phone || companyInfo.phone,
+                    email: snap.email || companyInfo.email,
+                    nif: snap.nif || companyInfo.nif,
+                    rccm: snap.rccm || companyInfo.rccm
+                };
+                const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
+                // F5 — Même logique de repli que l'identité légale ci-dessus :
+                // priorité à l'instantané pris avec CE devis, retour à
+                // l'échéancier courant des Paramètres si l'instantané n'en
+                // porte pas (anciens devis enregistrés avant ce correctif).
+                const paymentSchedule = (snap.paymentSchedule && snap.paymentSchedule.length > 0)
+                    ? snap.paymentSchedule
+                    : (companyInfo.paymentSchedule || []);
+                // F5 — Un échéancier qui ne totalise pas 100 % n'est pas
+                // envoyable : chaque champ de ce formulaire (dont les tranches)
+                // se sauvegarde à la frappe (voir le formulaire Paramètres plus
+                // bas), donc rien n'empêchait un total de 110 % de se retrouver
+                // sur un devis client. C'est ICI, à l'endroit qui décide
+                // réellement si le devis part, que l'anomalie doit être arrêtée.
+                const scheduleTotal = paymentSchedule.reduce((s, st) => s + (parseFloat(st.pct) || 0), 0);
+                const scheduleInvalid = paymentSchedule.length > 0 && Math.round(scheduleTotal) !== 100;
+                const canSend = missingLegal.length === 0 && !scheduleInvalid;
+                // 2026-08-20 — L'étude de prix expose coûts d'achat, coefficient et
+                // marge. Jusqu'ici la bascule "Vue Interne" était offerte à TOUT le
+                // monde, y compris un rôle 'viewer'. Réservée aux rôles autorisés,
+                // configurables par le propriétaire (Paramètres → Documents & PDF) ;
+                // 'owner' passe toujours, pour ne pas pouvoir se verrouiller dehors.
+                const canViewInternalDocs = activeOrganizationRole === 'owner'
+                    || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
+                // Choix ponctuel s'il y en a un, sinon le défaut réglé dans
+                // Paramètres → Documents & PDF.
+                const clientTemplate = clientDetailOverride || companyInfo.clientQuoteTemplate || 'synthese';
+                return (
+                <div className={opts?.asModal ? "fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto lg:hidden" : "flex flex-col w-full h-full min-h-0"}>
+                    <div className={opts?.asModal ? "bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto" : "app-card flex flex-col w-full h-full min-h-0 overflow-hidden"}>
+                        {/* En-tête refondu en DEUX bandes (2026-08-21).
+
+                            Avant : tout sur une seule ligne. Mesuré dans le DOM —
+                            7 contrôles réclamant 920 px dans une modale de 896.
+                            Deux conséquences visibles : le bloc d'identité comprimé
+                            à 148 px, ce qui coupait le nom du client sur deux lignes
+                            et faisait passer la date à la ligne ; et le bouton
+                            « Imprimer » (130 px) purement et simplement poussé hors
+                            du cadre — la fonction avait disparu de l'interface sans
+                            que rien ne le signale.
+
+                            Sortir les deux sélecteurs d'affichage sur leur propre
+                            bande libère 315 px : les quatre actions tiennent
+                            désormais sur la première ligne, et les deux axes
+                            (destinataire / niveau de détail) reçoivent enfin un
+                            intitulé. Jusqu'ici deux groupes d'apparence identique
+                            se suivaient sans rien pour dire ce que chacun réglait. */}
+                        <div className="border-b border-neutral-100 bg-white shrink-0">
+
+                            {/* Bande 1 — identité du document, puis actions. */}
+                            <div className="px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
+                                    {/* min-w-0 + truncate : sans eux, un nom de client long
+                                        repousse les actions au lieu de s'abréger. */}
+                                    <div className="min-w-0">
+                                        <h3 className="font-semibold text-neutral-900 text-lg leading-tight truncate">{viewingSavedQuote.clientName}</h3>
+                                        <p className="text-xs text-neutral-500 truncate">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {canSend ? (<>
+                                    {/* Une seule action porte un intitulé — le téléchargement,
+                                        celle qu'on vient chercher. Les trois secondaires sont en
+                                        icônes : libellées, elles consommaient 364 px et le nom du
+                                        client tombait à « Clien… ». En icônes, l'identité récupère
+                                        ~250 px et redevient lisible. Le sens passe par le title et
+                                        l'aria-label, tous deux déjà présents. */}
+                                    <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Partager le devis au client" aria-label="Partager le devis">
+                                        <i className="fa-solid fa-share-nodes text-brand-600"></i>
+                                    </button>
+                                    <button onClick={() => setIsSignatureModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
+                                        <i className="fa-solid fa-signature text-emerald-600"></i>
+                                    </button>
+                                    <button onClick={() => window.print()} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Imprimer — donne un PDF vectoriel, au texte sélectionnable" aria-label="Imprimer le devis">
+                                        <i className="fa-solid fa-print"></i>
+                                    </button>
+                                    <button
+                                        onClick={() => telechargerDocument(
+                                            `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
+                                            'devis'
+                                        )}
+                                        disabled={pdfEnCours === 'devis'}
+                                        className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-sm disabled:opacity-60"
+                                        title="Télécharger au format PDF"
+                                        aria-label="Télécharger le devis en PDF"
+                                    >
+                                        <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                        <span>{pdfEnCours === 'devis' ? 'Génération…' : (<><span className="sm:hidden">PDF</span><span className="hidden sm:inline">Télécharger le PDF</span></>)}</span>
+                                    </button>
+                                    </>) : (
+                                    <button
+                                        onClick={() => setIsCompanyModalOpen(true)}
+                                        className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
+                                        title="Ce devis doit être corrigé avant tout envoi au client"
+                                        aria-label="Corriger ce devis avant de l'envoyer"
+                                    >
+                                        <i className="fa-solid fa-triangle-exclamation"></i>
+                                        <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
+                                    </button>
+                                    )}
+                                    <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8 ml-1" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                                </div>
+                            </div>
+
+                            {/* Bande 2 — réglages d'affichage. Deux axes indépendants
+                                (§ 27.1) : QUI reçoit le document, et à QUEL niveau de
+                                détail. Chacun porte son intitulé : les confondre
+                                exposerait la marge au client. */}
+                            {(canViewInternalDocs || isCommercialMode) && (
+                                <div className="px-6 pb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                                    {canViewInternalDocs && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
+                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Destinataire du document">
+                                                <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
+                                                    Étude de prix (interne)
+                                                </button>
+                                                <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
+                                                    Devis client
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Le niveau de détail n'a aucun sens sur l'étude interne,
+                                        détaillée par nature : masqué dans ce cas. */}
+                                    {isCommercialMode && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Niveau de détail</span>
+                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
+                                                <button
+                                                    onClick={() => setClientDetailOverride('synthese')}
+                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'synthese' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                                    title="Une ligne par ouvrage"
+                                                >
+                                                    Synthèse
+                                                </button>
+                                                <button
+                                                    onClick={() => setClientDetailOverride('detaille')}
+                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'detaille' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
+                                                    title="Chaque fourniture et main-d'œuvre, au prix de vente"
+                                                >
+                                                    Détaillé
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {!canSend && (
+                            <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 shrink-0">
+                                <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">
+                                    <i className="fa-solid fa-circle-info"></i>
+                                    {missingLegal.length > 0 && (
+                                        <span>Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.</span>
+                                    )}
+                                    {missingLegal.length > 0 && scheduleInvalid && <span className="mx-1">&bull;</span>}
+                                    {scheduleInvalid && (
+                                        <span>L'échéancier de paiement totalise {scheduleTotal}% au lieu de 100% — corrigez-le avant d'envoyer ce devis.</span>
+                                    )}
+                                </p>
+                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-primary text-xs py-1.5 px-3 shrink-0 font-bold">
+                                    Compléter maintenant
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="p-6 overflow-auto custom-scroll bg-neutral-50/50 space-y-6">
+                            {/* Défense en profondeur : même si isCommercialMode restait à
+                                false (état hérité d'une session où l'utilisateur avait le
+                                droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
+                            {(isCommercialMode || !canViewInternalDocs) ? (
+                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id="printArea">
+                                    <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
+                                        <div>
+                                            {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
+                                                du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
+                                                jamais le logo de l'entreprise émettrice. Corrigé : le logo de
+                                                l'entreprise si renseigné (Paramètres du Compte → Documents & PDF),
+                                                sinon rien plutôt que de perpétuer le même problème avec un repli
+                                                sur la marque du logiciel. */}
+                                            {(viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo) && (
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <img
+                                                        src={viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo}
+                                                        alt={`Logo ${viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}`}
+                                                        className="h-10 max-w-[160px] object-contain"
+                                                    />
+                                                </div>
+                                            )}
+                                            <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">{viewingSavedQuote.companyInfoSnapshot?.tagline || companyInfo.tagline}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">Adresse: {viewingSavedQuote.companyInfoSnapshot?.address || companyInfo.address}</p>
+                                            <p className="text-xs text-neutral-500 font-medium">Contact: {viewingSavedQuote.companyInfoSnapshot?.email || companyInfo.email} &bull; Tel: {viewingSavedQuote.companyInfoSnapshot?.phone || companyInfo.phone}</p>
+                                            <p className="text-[11px] text-neutral-400">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">DEVIS COMMERCIAL</h2>
+                                            <p className="text-sm font-bold text-neutral-800 mt-1">N° : {viewingSavedQuote.number}</p>
+                                            <p className="text-xs text-neutral-500">Date : {viewingSavedQuote.date}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">CLIENT</p>
+                                            <p className="font-semibold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                                            <p className="font-bold text-neutral-800">{viewingSavedQuote.projectRef}</p>
+                                        </div>
+                                    </div>
+
+                                    {viewingSavedQuote.notes && (
+                                        <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900">
+                                            <p className="font-bold text-[10px] uppercase text-amber-700 tracking-wider mb-1"><i className="fa-solid fa-note-sticky mr-1"></i>Notes & Remarques :</p>
+                                            <p className="whitespace-pre-line">{viewingSavedQuote.notes}</p>
+                                        </div>
+                                    )}
+
+                                    {/* F4 (2026-08-18) — Le tableau aplatissait toutes les lignes en
+                                        une seule liste, sans intitulé de lot ni sous-total, alors que
+                                        commercialItems porte déjà lotCode/lotName depuis leur création
+                                        (js/calc-engine.js). C'est pourtant la découpe en lots qui permet
+                                        au client d'arbitrer (« je prends le mur, je reporte l'enseigne »)
+                                        — la norme d'un bordereau BTP. Un seul lot ne montre pas d'en-tête
+                                        ni de sous-total : la redondance n'apporterait rien face au total
+                                        général juste en dessous. */}
+                                    {(() => {
+                                        const printCurrency = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
+
+                                        // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
+                                        // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
+                                        // le prix du lot au prorata des coûts, somme garantie exacte —
+                                        // voir js/utils.js). Le client ne voit jamais un coût d'achat, un
+                                        // coefficient ni une marge : c'est la règle de l'axe
+                                        // « destinataire = client », et elle tient ici parce que
+                                        // AUCUN champ de coût n'est lu dans cette branche.
+                                        if (clientTemplate === 'detaille') {
+                                            const detLots = viewingSavedQuote.quoteData?.lots || [];
+                                            const anyDetail = detLots.some(l => (l.quoteData?.details || []).length > 0);
+                                            if (anyDetail) {
+                                                return (
+                                                    <table className="w-full text-left text-xs border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                                                <th className="p-3 rounded-l-lg">Désignation</th>
+                                                                <th className="p-3 text-center">Quantité</th>
+                                                                <th className="p-3 text-right">Prix Unitaire HT</th>
+                                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-neutral-100">
+                                                            {detLots.map((lot, li) => {
+                                                                const ld = lot.quoteData || {};
+                                                                const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
+                                                                const groupes = new Map();
+                                                                (reparties || []).forEach(d => {
+                                                                    const cat = d.costCategory || 'material';
+                                                                    if (!groupes.has(cat)) groupes.set(cat, []);
+                                                                    groupes.get(cat).push(d);
+                                                                });
+                                                                return (
+                                                                    <React.Fragment key={lot.id || li}>
+                                                                        <tr className="bg-neutral-100">
+                                                                            <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                                                {formatLotHeading(lot.lotName, li)}
+                                                                            </td>
+                                                                        </tr>
+                                                                        {!reparties ? (
+                                                                            <tr>
+                                                                                <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
+                                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                                            </tr>
+                                                                        ) : [...groupes.entries()].map(([cat, lignes]) => (
+                                                                            <React.Fragment key={cat}>
+                                                                                <tr className="bg-neutral-50/70">
+                                                                                    <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
+                                                                                        {COST_CATEGORY_LABELS[cat] || cat}
+                                                                                    </td>
+                                                                                </tr>
+                                                                                {lignes.map((d, di) => (
+                                                                                    <tr key={cat + di}>
+                                                                                        <td className="p-3 pl-6">
+                                                                                            <p className="font-bold text-neutral-900">{d.label}</p>
+                                                                                            {d.name && d.name !== d.label && (
+                                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
+                                                                                            )}
+                                                                                        </td>
+                                                                                        <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                                        <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
+                                                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </React.Fragment>
+                                                                        ))}
+                                                                        <tr className="bg-neutral-50/60">
+                                                                            <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                                                Sous-total Lot {li + 1} HT
+                                                                            </td>
+                                                                            <td className="px-3 py-2 text-right font-semibold text-neutral-800">
+                                                                                {formatMoney(ld.netHTConsomme, printCurrency)}
+                                                                            </td>
+                                                                        </tr>
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                );
+                                            }
+                                            // Devis antérieur à l'enregistrement du détail : on retombe
+                                            // silencieusement sur la synthèse plutôt que d'afficher un
+                                            // tableau vide.
+                                        }
+
+                                        const items = viewingSavedQuote.quoteData?.commercialItems || [];
+                                        const lotsMap = new Map();
+                                        items.forEach(item => {
+                                            const code = item.lotCode || '01';
+                                            if (!lotsMap.has(code)) lotsMap.set(code, { lotCode: code, lotName: item.lotName || `Lot ${code}`, items: [] });
+                                            lotsMap.get(code).items.push(item);
+                                        });
+                                        const lots = [...lotsMap.values()];
+                                        const showLotHeaders = lots.length > 1;
+                                        return (
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead>
+                                                    <tr className="bg-neutral-900 text-white font-bold uppercase">
+                                                        <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
+                                                        <th className="p-3.5 text-center">Quantité</th>
+                                                        <th className="p-3.5 text-right">Prix Unitaire HT</th>
+                                                        <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-100">
+                                                    {lots.map(lot => {
+                                                        const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
+                                                        return (
+                                                            <React.Fragment key={lot.lotCode}>
+                                                                {showLotHeaders && (
+                                                                    <tr className="bg-neutral-50">
+                                                                        <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                                            {lot.lotName}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                                {lot.items.map(item => (
+                                                                    <tr key={item.id}>
+                                                                        <td className="p-3.5">
+                                                                            <p className="font-bold text-neutral-900">{item.label}</p>
+                                                                            {item.dimensionSummary && (
+                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
+                                                                        <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
+                                                                        <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                                {showLotHeaders && (
+                                                                    <tr className="bg-neutral-50/60">
+                                                                        <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                                            Sous-total Lot {lot.lotCode} HT
+                                                                        </td>
+                                                                        <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
+                                                                            {formatMoney(lotSubtotal, printCurrency)}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        );
+                                    })()}
+
+                                    <div className="flex justify-end pt-4 border-t border-neutral-200">
+                                        <div className="w-72 space-y-2 text-xs">
+                                            <div className="flex justify-between font-bold text-neutral-800 text-sm">
+                                                <span>Net HT Client :</span>
+                                                <span>{formatMoney(viewingSavedQuote.quoteData?.netHTConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
+                                            </div>
+                                            {/* 2026-08-20 — Un devis exonéré doit porter la mention
+                                                légale correspondante, pas une ligne « TVA (0%) : +0 »
+                                                qui n'informe de rien. */}
+                                            {(viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18) === 0 ? (
+                                                <div className="text-neutral-500">
+                                                    <div className="flex justify-between">
+                                                        <span>TVA :</span>
+                                                        <span className="font-bold">Exonéré</span>
+                                                    </div>
+                                                    {(viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote) && (
+                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">
+                                                            {viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-between text-neutral-500">
+                                                    <span>TVA ({viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18}%) :</span>
+                                                    <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
+                                                <span>TOTAL TTC :</span>
+                                                <span>{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {paymentSchedule.length > 0 && (
+                                    <div className="pt-4 border-t border-neutral-200">
+                                        <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                            <i className="fa-solid fa-calendar-check text-brand-600"></i>
+                                            Échéancier Prévisionnel des Règlements
+                                        </h4>
+                                        <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+                                            <table className="w-full text-left text-xs">
+                                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
+                                                    <tr>
+                                                        <th className="p-2.5 pl-3">Étape</th>
+                                                        <th className="p-2.5 text-center">Taux (%)</th>
+                                                        <th className="p-2.5 text-right pr-3">Montant TTC</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-100 font-medium">
+                                                    {paymentSchedule.map((stage, idx) => {
+                                                        const isLast = idx === paymentSchedule.length - 1;
+                                                        const pct = parseFloat(stage.pct) || 0;
+                                                        const amount = (viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * (pct / 100);
+                                                        return (
+                                                            <tr key={idx} className={isLast ? 'bg-neutral-50/60 font-bold' : undefined}>
+                                                                <td className={`p-2.5 pl-3 ${isLast ? 'text-brand-700' : ''}`}>{stage.label}</td>
+                                                                <td className={`p-2.5 text-center ${isLast ? 'text-brand-700' : 'font-bold text-neutral-700'}`}>{pct}%</td>
+                                                                <td className={`p-2.5 text-right pr-3 font-mono ${isLast ? 'text-brand-700' : 'font-bold text-neutral-900'}`}>{formatMoney(amount, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    )}
+
+                                    <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
+                                        <div>
+                                            <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
+                                            <p>{viewingSavedQuote.companyInfoSnapshot?.quoteValidity || companyInfo.quoteValidity}</p>
+                                        </div>
+                                        <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
+                                            <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
+                                            <p className="text-[10px] text-neutral-400">Date et cachet</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
+                                        mentions légales, RIB, CGV... Absent si jamais renseigné, pas de bloc
+                                        vide sur le devis. */}
+                                    {(viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote) && (
+                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                            {viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 print:border-0 print:p-0" id="printArea">
+                                    {(() => {
+                                        // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
+                                        // cartes, PAS un document : elle n'avait pas d'id="printArea", donc
+                                        // l'imprimer produisait une PAGE BLANCHE (la feuille de style
+                                        // d'impression masque tout sauf #printArea). Refaite en document A4
+                                        // imprimable — métré, décomposition ligne à ligne, prix & marge,
+                                        // contrôles et visa — pour valider un devis avant de l'envoyer.
+                                        const cur = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
+                                        const qd = viewingSavedQuote.quoteData || {};
+                                        const lots = qd.lots || [];
+                                        const savedMargePct = qd.margePctConsommeReelle !== undefined
+                                            ? qd.margePctConsommeReelle
+                                            : (qd.netHTConsomme > 0 ? ((qd.margeValeurConsomme || 0) / qd.netHTConsomme) * 100 : 0);
+                                        const coeffK = qd.totalDebourseConsomme > 0
+                                            ? (qd.netHTConsomme / qd.totalDebourseConsomme)
+                                            : null;
+
+                                        // Contrôles réels, calculés depuis les lignes du devis — aucun
+                                        // n'est affiché s'il ne se déclenche pas (pas de bloc décoratif).
+                                        const alertes = [];
+                                        lots.forEach((l, li) => {
+                                            const ld = l.quoteData || {};
+                                            if (ld.netHTConsomme != null && ld.totalDebourseConsomme != null && ld.netHTConsomme < ld.totalDebourseConsomme) {
+                                                alertes.push(`Lot ${li + 1} « ${l.lotName} » : vendu sous le déboursé sec (vente à perte).`);
+                                            }
+                                            (ld.details || []).forEach(d => {
+                                                const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
+                                                if (mat && mat.stockQty !== null && mat.stockQty !== undefined && d.billedQty > mat.stockQty) {
+                                                    alertes.push(`Lot ${li + 1} — « ${d.label} » : ${d.billedQty.toFixed(2)} ${d.unit} nécessaires, ${mat.stockQty} ${d.unit} en stock.`);
+                                                }
+                                            });
+                                        });
+                                        (qd.commercialItems || []).forEach(ci => {
+                                            if (ci.isCustom && !(parseFloat(ci.costUnit) > 0)) {
+                                                alertes.push(`« ${ci.label || ci.name} » : ligne libre sans coût d'achat renseigné — la marge affichée n'est pas fiable.`);
+                                            }
+                                        });
+
+                                        return (
+                                            <>
+                                                <div className="border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
+                                                    <i className="fa-solid fa-lock text-amber-600 mt-0.5"></i>
+                                                    <div>
+                                                        <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
+                                                        <p className="text-[11px] text-amber-800">Contient vos coûts d'achat, votre coefficient de vente et votre marge.</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex justify-between items-start border-b border-neutral-200 pb-4">
+                                                    <div>
+                                                        <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
+                                                        <p className="text-[11px] text-neutral-500">Client : <strong className="text-neutral-700">{viewingSavedQuote.clientName}</strong></p>
+                                                        <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <h2 className="text-lg font-bold text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
+                                                        <p className="text-xs font-bold text-neutral-700 mt-0.5">Devis n° {viewingSavedQuote.number}</p>
+                                                        <p className="text-[11px] text-neutral-500">{viewingSavedQuote.date}</p>
+                                                    </div>
+                                                </div>
+
+                                                {lots.map((l, li) => {
+                                                    const ld = l.quoteData || {};
+                                                    const dets = ld.details || [];
+                                                    return (
+                                                        <div key={l.id || li} className="border border-neutral-200 rounded-xl overflow-hidden break-inside-avoid">
+                                                            <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200 flex justify-between items-baseline gap-3">
+                                                                <div className="min-w-0">
+                                                                    <strong className="text-neutral-900 text-sm">{formatLotHeading(l.lotName, li)}</strong>
+                                                                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                                                                        Métré : {formatItemMetre({ ...(l.dimensions || {}), takeoffMode: l.takeoffMode })}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-xs font-bold text-neutral-900 shrink-0">{formatMoney(ld.netHTConsomme, cur)}</span>
+                                                            </div>
+
+                                                            {dets.length === 0 ? (
+                                                                <p className="px-4 py-3 text-[11px] text-neutral-400 italic">
+                                                                    Décomposition non disponible pour ce lot (devis antérieur à l'enregistrement du détail).
+                                                                </p>
+                                                            ) : (
+                                                                <table className="w-full text-left text-[11px] border-collapse">
+                                                                    <thead className="bg-white border-b border-neutral-200 text-[9px] font-semibold text-neutral-500 uppercase tracking-wider">
+                                                                        <tr>
+                                                                            <th className="px-4 py-2">Poste</th>
+                                                                            <th className="px-2 py-2 text-right">Qté nette</th>
+                                                                            <th className="px-2 py-2 text-right">Perte</th>
+                                                                            <th className="px-2 py-2 text-left">Achat</th>
+                                                                            <th className="px-2 py-2 text-right">Coût unit.</th>
+                                                                            <th className="px-4 py-2 text-right">Coût total</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-neutral-100">
+                                                                        {dets.map((d, di) => {
+                                                                            const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
+                                                                            const packLabel = (mat && mat.purchaseMode === 'pack' && d.packsNeeded > 0)
+                                                                                ? `${d.packsNeeded} × ${d.packUnitBuy || mat.unitBuy}`
+                                                                                : '—';
+                                                                            return (
+                                                                                <tr key={di}>
+                                                                                    <td className="px-4 py-1.5">
+                                                                                        <span className="font-bold text-neutral-800">{d.label}</span>
+                                                                                        {d.name && d.name !== d.label && (
+                                                                                            <span className="block text-[10px] text-neutral-400">{d.name}</span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono text-neutral-500">{d.type === 'material' ? `${d.wastePct || 0}%` : '—'}</td>
+                                                                                    <td className="px-2 py-1.5 text-neutral-500">{packLabel}</td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono">{formatMoney(d.unitCost, cur)}</td>
+                                                                                    <td className="px-4 py-1.5 text-right font-bold text-neutral-900 font-mono">{formatMoney(d.totalCost, cur)}</td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                    <tfoot className="bg-neutral-50 border-t border-neutral-200">
+                                                                        <tr className="text-[11px]">
+                                                                            <td className="px-4 py-2 font-bold text-neutral-700" colSpan="5">Déboursé sec du lot</td>
+                                                                            <td className="px-4 py-2 text-right font-bold text-neutral-900 font-mono">{formatMoney(ld.totalDebourseConsomme, cur)}</td>
+                                                                        </tr>
+                                                                    </tfoot>
+                                                                </table>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 break-inside-avoid">
+                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
+                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Déboursé sec</span><span className="font-mono font-bold">{formatMoney(qd.totalDebourseConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Frais généraux</span><span className="font-mono font-bold">{formatMoney(qd.fraisGenerauxConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Prix de revient</span><span className="font-mono font-bold">{formatMoney(qd.totalRevientConsomme, cur)}</span></div>
+                                                        <div className={`flex justify-between font-bold ${(qd.margeValeurConsomme || 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                                                            <span>Marge {(qd.margeValeurConsomme || 0) < 0 ? '(PERTE)' : 'réelle'}</span>
+                                                            <span className="font-mono">{(qd.margeValeurConsomme || 0) < 0 ? '' : '+'}{formatMoney(qd.margeValeurConsomme, cur)} ({savedMargePct.toFixed(1)}%)</span>
+                                                        </div>
+                                                        {coeffK !== null && (
+                                                            <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Coefficient de vente</span><span className="font-mono font-bold">K = {coeffK.toFixed(3)}</span></div>
+                                                        )}
+                                                    </div>
+                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
+                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">Total net HT</span><span className="font-mono font-bold">{formatMoney(qd.netHTConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between"><span className="text-neutral-600">TVA ({qd.vatRate !== undefined ? qd.vatRate : 18}%)</span><span className="font-mono font-bold">{formatMoney(qd.tvaConsomme, cur)}</span></div>
+                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-bold text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
+                                                    </div>
+                                                </div>
+
+                                                {alertes.length > 0 && (
+                                                    <div className="border border-red-200 bg-red-50/60 rounded-xl p-4 break-inside-avoid">
+                                                        <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wider mb-2">
+                                                            <i className="fa-solid fa-triangle-exclamation mr-1"></i> Points à vérifier avant envoi ({alertes.length})
+                                                        </p>
+                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-800">
+                                                            {alertes.map((a, ai) => <li key={ai}>{a}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-2 gap-6 pt-4 border-t border-neutral-100 text-[11px] text-neutral-500 break-inside-avoid">
+                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
+                                                        <p className="font-bold text-neutral-700 mb-6">Étude vérifiée par :</p>
+                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                    </div>
+                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
+                                                        <p className="font-bold text-neutral-700 mb-6">Bon pour envoi au client :</p>
+                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Pied allégé (2026-08-21). Il portait deux doublons :
+                            « Imprimer Devis », désormais dans la barre d'outils avec
+                            les trois autres actions de sortie ; et, quand le devis
+                            n'est pas envoyable, un troisième rappel de l'anomalie —
+                            déjà signalée par le bandeau ambre ET par le bouton de
+                            la barre d'outils.
+
+                            « Fermer » était en `btn-primary` : le bouton le plus
+                            appuyé du dialogue était celui qui ne fait rien. L'action
+                            principale, c'est le téléchargement, et elle est dans la
+                            barre d'outils. « Fermer » repasse donc en secondaire. */}
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
+                            <button onClick={() => setViewingSavedQuote(null)} className="btn-secondary">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+                );
+    };
+
     const renderSavedQuotes = () => {
         // 2026-08-20 — même règle que dans l'aperçu : les boutons qui ouvrent
         // directement l'étude de prix (coûts, coefficient, marge) n'existent que
@@ -9147,21 +9843,182 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             : quotesClientFilter.kind === 'quote'
                 ? savedQuotes.filter(q => q.id === quotesClientFilter.id)
                 : savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name);
-        return (
-        <div className="w-full max-w-[1400px] mx-auto h-full min-h-0 overflow-y-auto custom-scroll">
-            <div className="app-card flex flex-col">
-                <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
-                    <div>
-                        <h2 className="text-xl font-bold text-neutral-800">Mes Devis Enregistrés</h2>
-                        <p className="text-sm text-neutral-500 mt-1 font-medium">Historique des devis créés, consultation de l'étude interne et impression du PDF client.</p>
+        // Liste+détail desktop (2026-08-22, référence Zoho Books) : la colonne de
+        // droite montre le même contenu que la modale mobile, factorisé dans
+        // renderQuoteDetailPanel (voir plus haut) — aucune logique dupliquée.
+        // Le mobile garde exactement son comportement d'avant (cartes + modale) :
+        // seul le rendu ≥1024px change.
+        const activeQuote = viewingSavedQuote
+            ? (savedQuotes.find(q => q.id === viewingSavedQuote.id) || null)
+            : null;
+
+        const carteDevis = (sq) => {
+            const isActive = !!(activeQuote && activeQuote.id === sq.id);
+            return (
+                <div
+                    key={sq.id}
+                    onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }}
+                    className={`bg-white border-2 rounded-2xl p-4 space-y-3 cursor-pointer transition-all duration-200 ${isActive ? 'border-brand-500 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 shadow-sm'}`}
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 mb-1">
+                                {sq.number}
+                            </span>
+                            <h3 className="font-semibold text-neutral-900 text-base truncate">{sq.clientName || 'Client sans nom'}</h3>
+                            <p className="text-xs text-neutral-500 truncate">{sq.projectRef || 'Sans référence projet'}</p>
+                        </div>
+                        <span className="text-xs font-medium text-neutral-400 shrink-0">{sq.date}</span>
                     </div>
-                    <span className="bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg text-xs font-bold">
-                        {savedQuotes.length} devis enregistrés (Prochain : DEV-{new Date().getFullYear()}-{String(nextQuoteSeq).padStart(3, '0')})
-                    </span>
+
+                    <div className="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200/80 text-xs">
+                        <div>
+                            <span className="text-neutral-400 block text-[10px] uppercase font-bold">Net HT</span>
+                            <span className="font-bold text-neutral-700">
+                                {formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-neutral-400 block text-[10px] uppercase font-bold">Total TTC</span>
+                            <span className="font-bold text-brand-600 text-sm">
+                                {formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={() => {
+                                const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
+                                setHybridQuote(hq);
+                                setUseHybridEditor(true);
+                                setActiveView('calculator');
+                                showToast(`Devis ${sq.number} ouvert dans l'Éditeur Hybride !`);
+                            }}
+                            className="btn-primary py-1.5 px-2.5 text-xs font-bold justify-center bg-brand-600 hover:bg-brand-700 text-white"
+                            aria-label={`Modifier dans l'éditeur hybride ${sq.number}`}
+                            title="Modifier dans l'Éditeur Hybride V6"
+                        >
+                            <i className="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        {/* BLOC 7.3 : VERSIONING STRICT (V1 -> V2 -> V3) */}
+                        <button
+                            onClick={() => {
+                                const currentVersion = sq.versionNumber || 1;
+                                const nextVersion = currentVersion + 1;
+                                const baseNum = sq.number.replace(/-V\d+$/, '');
+                                const newVersionNum = `${baseNum}-V${nextVersion}`;
+                                const newId = Date.now() + Math.floor(Math.random() * 100000);
+
+                                const newVersionQuote = {
+                                    ...JSON.parse(JSON.stringify(sq)),
+                                    id: newId,
+                                    number: newVersionNum,
+                                    versionNumber: nextVersion,
+                                    parentQuoteId: sq.id,
+                                    status: 'draft',
+                                    signedAt: null,
+                                    signedByName: null,
+                                    signatureData: null,
+                                    date: new Date().toLocaleDateString('fr-FR')
+                                };
+                                if (newVersionQuote.hybridQuoteSnapshot) {
+                                    newVersionQuote.hybridQuoteSnapshot.id = newId;
+                                    newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
+                                }
+                                updateSavedQuotes([newVersionQuote, ...savedQuotes]);
+                                showToast(`✓ Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, "success");
+                            }}
+                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                            title="Créer une nouvelle révision (V2, V3) sans écraser la version envoyée"
+                            aria-label={`Créer une révision de ${sq.number}`}
+                        >
+                            <i className="fa-solid fa-code-branch"></i>
+                        </button>
+                        <button
+                            onClick={() => setConfirmDialog({
+                                isOpen: true,
+                                title: 'Dupliquer ce devis ?',
+                                // Dupliquer crée un DOCUMENT de plus dans la liste, avec son
+                                // propre numéro consommé sur la séquence. Rien n'est détruit,
+                                // mais la confusion entre l'original et la copie coûte cher :
+                                // on annonce donc le numéro attribué à la copie.
+                                message: `Une copie de ${sq.number} sera créée sous le numéro ${generateNextQuoteNumber(savedQuotes)}, au nom de « ${sq.clientName} (Copie) ».\n\nL'original n'est pas modifié.`,
+                                confirmLabel: 'Dupliquer',
+                                onConfirm: () => {
+                                    closeConfirm();
+                                    const newId = Date.now() + Math.floor(Math.random() * 100000);
+                                    const nextNum = generateNextQuoteNumber(savedQuotes);
+                                    const duplicated = {
+                                        ...JSON.parse(JSON.stringify(sq)),
+                                        id: newId,
+                                        number: nextNum,
+                                        clientName: `${sq.clientName} (Copie)`,
+                                        date: new Date().toLocaleDateString('fr-FR')
+                                    };
+                                    if (duplicated.hybridQuoteSnapshot) {
+                                        duplicated.hybridQuoteSnapshot.id = newId;
+                                        duplicated.hybridQuoteSnapshot.number = nextNum;
+                                        duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
+                                    }
+                                    updateSavedQuotes([duplicated, ...savedQuotes]);
+                                    updateNextQuoteSeq(nextQuoteSeq + 1);
+                                    showToast(`Devis ${sq.number} dupliqué avec succès !`, "success");
+                                }
+                            })}
+                            className="btn-icon text-neutral-600 hover:bg-neutral-100"
+                            title="Dupliquer ce devis"
+                            aria-label={`Dupliquer ${sq.number}`}
+                        >
+                            <i className="fa-solid fa-clone"></i>
+                        </button>
+                        {canViewInternalDocs && (
+                            <button
+                                onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }}
+                                className="btn-icon text-brand-600 hover:bg-brand-50"
+                                aria-label={`Voir l'étude de prix interne ${sq.number}`}
+                                title="Étude de prix (interne)"
+                            >
+                                <i className="fa-solid fa-eye"></i>
+                            </button>
+                        )}
+                        <button
+                            disabled={isReadOnlyDueToDowngrade}
+                            onClick={() => setConfirmDialog({
+                                isOpen: true,
+                                title: "Supprimer Devis",
+                                message: `Supprimer définitivement le devis ${sq.number} ?`,
+                                isDanger: true,
+                                onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }
+                            })}
+                            className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 ml-auto"
+                            aria-label={`Supprimer le devis ${sq.number}`}
+                            title="Supprimer"
+                        >
+                            <i className="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
+            {/* COLONNE LISTE — cartes réutilisées telles quelles sur mobile (cf.
+                comportement d'avant, inchangé : clic → modale) et sur desktop
+                (clic → panneau de détail ci-contre). Même carte, même code. */}
+            <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
+                <div className="flex items-center justify-between px-1 gap-2">
+                    <div className="min-w-0">
+                        <h2 className="text-lg font-bold text-neutral-800">Mes Devis Enregistrés</h2>
+                        <p className="text-xs text-neutral-500 truncate">
+                            {savedQuotes.length} devis · prochain DEV-{new Date().getFullYear()}-{String(nextQuoteSeq).padStart(3, '0')}
+                        </p>
+                    </div>
                 </div>
 
                 {quotesClientFilter && (
-                    <div className="px-5 sm:px-6 py-3 bg-brand-50/60 border-b border-brand-100 flex items-center justify-between gap-3">
+                    <div className="app-card p-3 bg-brand-50/60 border-brand-100 flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0">
                             <i className="fa-solid fa-filter shrink-0"></i>
                             <span className="truncate">
@@ -9176,222 +10033,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 )}
 
-                {/* VUE CARTES SOUS 1024px */}
-                <div className="block lg:hidden p-4 space-y-3">
-                    {visibleQuotes.map(sq => (
-                        <div key={sq.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 mb-1">
-                                        {sq.number}
-                                    </span>
-                                    <h3 className="font-semibold text-neutral-900 text-base">{sq.clientName || 'Client sans nom'}</h3>
-                                    <p className="text-xs text-neutral-500">{sq.projectRef || 'Sans référence projet'}</p>
-                                </div>
-                                <span className="text-xs font-medium text-neutral-400">{sq.date}</span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-neutral-200/80 text-xs">
-                                <div>
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Net HT</span>
-                                    <span className="font-bold text-neutral-700">
-                                        {formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Total TTC</span>
-                                    <span className="font-bold text-brand-600 text-sm">
-                                        {formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <button 
-                                    onClick={() => {
-                                        const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
-                                        setHybridQuote(hq);
-                                        setUseHybridEditor(true);
-                                        setActiveView('calculator');
-                                        showToast(`Devis ${sq.number} ouvert dans l'Éditeur Hybride !`);
-                                    }}
-                                    className="btn-primary flex-1 py-2 px-3 text-xs font-bold justify-center bg-brand-600 hover:bg-brand-700 text-white"
-                                    aria-label={`Modifier dans l'éditeur hybride ${sq.number}`}
-                                >
-                                    <i className="fa-solid fa-pen-to-square mr-1.5"></i> Modifier (V6)
-                                </button>
-                                <button 
-                                    onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }} 
-                                    className="btn-secondary flex-1 py-2 px-3 text-xs font-bold justify-center"
-                                    aria-label={`Voir le devis client PDF ${sq.number}`}
-                                >
-                                    <i className="fa-solid fa-file-pdf mr-1.5"></i> PDF
-                                </button>
-                                {canViewInternalDocs && (
-                                <button 
-                                    onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }} 
-                                    className="btn-secondary py-2 px-3 text-xs font-bold justify-center"
-                                    aria-label={`Voir l'étude de prix interne ${sq.number}`}
-                                >
-                                    <i className="fa-solid fa-eye"></i>
-                                </button>
-                                )}
-                                <button 
-                                    disabled={isReadOnlyDueToDowngrade} 
-                                    onClick={() => setConfirmDialog({ 
-                                        isOpen: true, 
-                                        title: "Supprimer Devis", 
-                                        message: `Supprimer définitivement le devis ${sq.number} ?`, 
-                                        isDanger: true, 
-                                        onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }
-                                    })} 
-                                    className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 p-2"
-                                    aria-label={`Supprimer le devis ${sq.number}`}
-                                    title="Supprimer"
-                                >
-                                    <i className="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                <div className="flex flex-col gap-3 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
+                    {visibleQuotes.map(sq => carteDevis(sq))}
                     {visibleQuotes.length === 0 && (
-                        <div className="p-8 text-center text-neutral-400">
-                            <i className="fa-solid fa-folder-open text-4xl mb-3 block opacity-30"></i>
-                            Aucun devis enregistré pour le moment.
+                        <div className="text-center py-10 px-4">
+                            <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
+                                <i className="fa-solid fa-folder-open"></i>
+                            </div>
+                            <p className="text-sm font-bold text-neutral-800">Aucun devis enregistré</p>
+                            <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
+                                Créez un devis dans le calculateur puis cliquez sur « Enregistrer le Devis ».
+                            </p>
                         </div>
                     )}
                 </div>
+            </div>
 
-                {/* VUE TABLEAU LARGE DESKTOP (≥ 1024px) */}
-                <div className="hidden lg:block app-table-wrapper rounded-none border-0">
-                    <table className="app-table">
-                        <thead className="bg-neutral-50/80">
-                            <tr>
-                                <th className="app-th pl-6">N° Devis</th>
-                                <th className="app-th">Date</th>
-                                <th className="app-th">Client & Projet</th>
-                                <th className="app-th text-right">Net HT</th>
-                                <th className="app-th text-right">Total TTC</th>
-                                <th className="app-th text-right pr-6 w-48">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {visibleQuotes.map(sq => (
-                                <tr key={sq.id} className="app-td border-b border-neutral-100 hover:bg-neutral-50/50">
-                                    <td className="p-4 pl-6 font-semibold text-brand-600">{sq.number}</td>
-                                    <td className="p-4 text-xs font-medium text-neutral-500">{sq.date}</td>
-                                    <td className="p-4">
-                                        <div className="font-bold text-neutral-800">{sq.clientName}</div>
-                                        <div className="text-xs text-neutral-500">{sq.projectRef}</div>
-                                    </td>
-                                    <td className="p-4 text-right font-bold text-neutral-700">{formatMoney(sq.quoteData?.netHTConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                    <td className="p-4 text-right font-semibold text-neutral-900">{formatMoney(sq.quoteData?.totalTTCConsomme, sq.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                    <td className="p-4 pr-6 text-right">
-                                        <div className="flex justify-end items-center gap-1.5">
-                                            <button 
-                                                onClick={() => {
-                                                    const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
-                                                    setHybridQuote(hq);
-                                                    setUseHybridEditor(true);
-                                                    setActiveView('calculator');
-                                                    showToast(`Devis ${sq.number} ouvert dans l'Éditeur Hybride !`);
-                                                }}
-                                                className="btn-secondary py-1 px-2.5 text-xs font-bold text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100 flex items-center gap-1" 
-                                                title="Modifier dans l'Éditeur Hybride V6"
-                                            >
-                                                <i className="fa-solid fa-pen-to-square text-brand-600"></i> Éditer
-                                            </button>
-                                            {/* BLOC 7.3 : VERSIONING STRICT (V1 -> V2 -> V3) */}
-                                            <button 
-                                                onClick={() => {
-                                                    const currentVersion = sq.versionNumber || 1;
-                                                    const nextVersion = currentVersion + 1;
-                                                    const baseNum = sq.number.replace(/-V\d+$/, '');
-                                                    const newVersionNum = `${baseNum}-V${nextVersion}`;
-                                                    const newId = Date.now() + Math.floor(Math.random() * 100000);
-                                                    
-                                                    const newVersionQuote = {
-                                                        ...JSON.parse(JSON.stringify(sq)),
-                                                        id: newId,
-                                                        number: newVersionNum,
-                                                        versionNumber: nextVersion,
-                                                        parentQuoteId: sq.id,
-                                                        status: 'draft',
-                                                        signedAt: null,
-                                                        signedByName: null,
-                                                        signatureData: null,
-                                                        date: new Date().toLocaleDateString('fr-FR')
-                                                    };
-                                                    if (newVersionQuote.hybridQuoteSnapshot) {
-                                                        newVersionQuote.hybridQuoteSnapshot.id = newId;
-                                                        newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
-                                                    }
-                                                    updateSavedQuotes([newVersionQuote, ...savedQuotes]);
-                                                    showToast(`✓ Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, "success");
-                                                }}
-                                                className="btn-secondary py-1 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1"
-                                                title="Créer une nouvelle révision (V2, V3) sans écraser la version envoyée"
-                                            >
-                                                <i className="fa-solid fa-code-branch text-indigo-600"></i> Révision (V{(sq.versionNumber || 1) + 1})
-                                            </button>
-
-                                            <button 
-                                                onClick={() => setConfirmDialog({
-                                                    isOpen: true,
-                                                    title: 'Dupliquer ce devis ?',
-                                                    // Dupliquer crée un DOCUMENT de plus dans la liste, avec son
-                                                    // propre numéro consommé sur la séquence. Rien n'est détruit,
-                                                    // mais la confusion entre l'original et la copie coûte cher :
-                                                    // on annonce donc le numéro attribué à la copie.
-                                                    message: `Une copie de ${sq.number} sera créée sous le numéro ${generateNextQuoteNumber(savedQuotes)}, au nom de « ${sq.clientName} (Copie) ».\n\nL'original n'est pas modifié.`,
-                                                    confirmLabel: 'Dupliquer',
-                                                    onConfirm: () => {
-                                                    closeConfirm();
-                                                    const currentYear = new Date().getFullYear();
-                                                    const newId = Date.now() + Math.floor(Math.random() * 100000);
-                                                    const nextNum = generateNextQuoteNumber(savedQuotes);
-                                                    const duplicated = {
-                                                        ...JSON.parse(JSON.stringify(sq)),
-                                                        id: newId,
-                                                        number: nextNum,
-                                                        clientName: `${sq.clientName} (Copie)`,
-                                                        date: new Date().toLocaleDateString('fr-FR')
-                                                    };
-                                                    if (duplicated.hybridQuoteSnapshot) {
-                                                        duplicated.hybridQuoteSnapshot.id = newId;
-                                                        duplicated.hybridQuoteSnapshot.number = nextNum;
-                                                        duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
-                                                    }
-                                                    updateSavedQuotes([duplicated, ...savedQuotes]);
-                                                    updateNextQuoteSeq(nextQuoteSeq + 1);
-                                                    showToast(`Devis ${sq.number} dupliqué avec succès !`, "success");
-                                                    }
-                                                })}
-                                                className="btn-icon text-neutral-600 hover:bg-neutral-100" 
-                                                title="Dupliquer ce devis"
-                                                aria-label={`Dupliquer ${sq.number}`}
-                                            >
-                                                <i className="fa-solid fa-clone"></i>
-                                            </button>
-                                            <button onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="Aperçu Devis Client (PDF)" aria-label={`Aperçu devis client ${sq.number}`}><i className="fa-solid fa-file-pdf"></i></button>
-                                            {canViewInternalDocs && <button onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }} className="btn-icon text-brand-600 hover:bg-brand-50" title="Étude de prix (interne)" aria-label={`Étude de prix interne ${sq.number}`}><i className="fa-solid fa-eye"></i></button>}
-                                            <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Supprimer Devis", message: `Supprimer le devis ${sq.number} ?`, isDanger: true, onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }})} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} aria-label={`Supprimer ${sq.number}`} title="Supprimer"><i className="fa-solid fa-trash"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {visibleQuotes.length === 0 && (
-                                <tr>
-                                    <td colSpan="6" className="p-12 text-center text-neutral-400 font-medium">
-                                        <i className="fa-solid fa-folder-open text-4xl mb-3 block opacity-30"></i>
-                                        Aucun devis enregistré pour le moment.<br/>
-                                        Créez un devis dans le calculateur puis cliquez sur "Enregistrer le Devis".
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* COLONNE DÉTAIL — desktop uniquement (≥1024px). Le mobile garde sa
+                modale historique (rendue à la racine de l'app, voir
+                renderQuoteDetailPanel), inchangée. */}
+            <div className="hidden lg:flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0">
+                {!activeQuote ? (
+                    <div className="app-card p-16 text-center text-neutral-400">
+                        <i className="fa-solid fa-folder-open text-3xl mb-3 text-neutral-300"></i>
+                        <p className="text-sm font-bold text-neutral-600">Sélectionnez un devis pour l'afficher</p>
+                    </div>
+                ) : renderQuoteDetailPanel(activeQuote, { asModal: false })}
             </div>
         </div>
         );
@@ -11762,695 +12429,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 showToast={showToast}
             />
 
-            {viewingSavedQuote && (() => {
-                // B3 (2026-08-18) — Un devis ne quitte l'app (impression, partage,
-                // signature) qu'avec une identité légale complète. On lit
-                // companyInfoSnapshot en priorité : c'est l'identité telle
-                // qu'enregistrée AVEC ce devis précis, pas l'état courant des
-                // réglages (qui a pu changer depuis). Un devis prévisualisé avant
-                // le premier enregistrement n'a pas encore de snapshot : on se
-                // rabat alors sur companyInfo, seule source disponible.
-                // Même repli champ par champ que celui déjà utilisé dans tout
-                // le corps imprimé (voir plus bas : `snapshot?.name || companyInfo.name`,
-                // etc.) — sinon le bandeau pouvait rester bloqué en réclamant un
-                // champ que l'utilisateur venait de compléter dans les
-                // Paramètres, simplement parce que l'ancien instantané (pris à
-                // l'ouverture de l'aperçu) l'avait figé vide.
-                const snap = viewingSavedQuote.companyInfoSnapshot || {};
-                const effectiveCompanyInfo = {
-                    name: snap.name || companyInfo.name,
-                    address: snap.address || companyInfo.address,
-                    phone: snap.phone || companyInfo.phone,
-                    email: snap.email || companyInfo.email,
-                    nif: snap.nif || companyInfo.nif,
-                    rccm: snap.rccm || companyInfo.rccm
-                };
-                const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
-                // F5 — Même logique de repli que l'identité légale ci-dessus :
-                // priorité à l'instantané pris avec CE devis, retour à
-                // l'échéancier courant des Paramètres si l'instantané n'en
-                // porte pas (anciens devis enregistrés avant ce correctif).
-                const paymentSchedule = (snap.paymentSchedule && snap.paymentSchedule.length > 0)
-                    ? snap.paymentSchedule
-                    : (companyInfo.paymentSchedule || []);
-                // F5 — Un échéancier qui ne totalise pas 100 % n'est pas
-                // envoyable : chaque champ de ce formulaire (dont les tranches)
-                // se sauvegarde à la frappe (voir le formulaire Paramètres plus
-                // bas), donc rien n'empêchait un total de 110 % de se retrouver
-                // sur un devis client. C'est ICI, à l'endroit qui décide
-                // réellement si le devis part, que l'anomalie doit être arrêtée.
-                const scheduleTotal = paymentSchedule.reduce((s, st) => s + (parseFloat(st.pct) || 0), 0);
-                const scheduleInvalid = paymentSchedule.length > 0 && Math.round(scheduleTotal) !== 100;
-                const canSend = missingLegal.length === 0 && !scheduleInvalid;
-                // 2026-08-20 — L'étude de prix expose coûts d'achat, coefficient et
-                // marge. Jusqu'ici la bascule "Vue Interne" était offerte à TOUT le
-                // monde, y compris un rôle 'viewer'. Réservée aux rôles autorisés,
-                // configurables par le propriétaire (Paramètres → Documents & PDF) ;
-                // 'owner' passe toujours, pour ne pas pouvoir se verrouiller dehors.
-                const canViewInternalDocs = activeOrganizationRole === 'owner'
-                    || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
-                // Choix ponctuel s'il y en a un, sinon le défaut réglé dans
-                // Paramètres → Documents & PDF.
-                const clientTemplate = clientDetailOverride || companyInfo.clientQuoteTemplate || 'synthese';
-                return (
-                <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto">
-                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto">
-                        {/* En-tête refondu en DEUX bandes (2026-08-21).
-
-                            Avant : tout sur une seule ligne. Mesuré dans le DOM —
-                            7 contrôles réclamant 920 px dans une modale de 896.
-                            Deux conséquences visibles : le bloc d'identité comprimé
-                            à 148 px, ce qui coupait le nom du client sur deux lignes
-                            et faisait passer la date à la ligne ; et le bouton
-                            « Imprimer » (130 px) purement et simplement poussé hors
-                            du cadre — la fonction avait disparu de l'interface sans
-                            que rien ne le signale.
-
-                            Sortir les deux sélecteurs d'affichage sur leur propre
-                            bande libère 315 px : les quatre actions tiennent
-                            désormais sur la première ligne, et les deux axes
-                            (destinataire / niveau de détail) reçoivent enfin un
-                            intitulé. Jusqu'ici deux groupes d'apparence identique
-                            se suivaient sans rien pour dire ce que chacun réglait. */}
-                        <div className="border-b border-neutral-100 bg-white shrink-0">
-
-                            {/* Bande 1 — identité du document, puis actions. */}
-                            <div className="px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
-                                    {/* min-w-0 + truncate : sans eux, un nom de client long
-                                        repousse les actions au lieu de s'abréger. */}
-                                    <div className="min-w-0">
-                                        <h3 className="font-semibold text-neutral-900 text-lg leading-tight truncate">{viewingSavedQuote.clientName}</h3>
-                                        <p className="text-xs text-neutral-500 truncate">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0">
-                                    {canSend ? (<>
-                                    {/* Une seule action porte un intitulé — le téléchargement,
-                                        celle qu'on vient chercher. Les trois secondaires sont en
-                                        icônes : libellées, elles consommaient 364 px et le nom du
-                                        client tombait à « Clien… ». En icônes, l'identité récupère
-                                        ~250 px et redevient lisible. Le sens passe par le title et
-                                        l'aria-label, tous deux déjà présents. */}
-                                    <button onClick={() => setIsShareModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Partager le devis au client" aria-label="Partager le devis">
-                                        <i className="fa-solid fa-share-nodes text-brand-600"></i>
-                                    </button>
-                                    <button onClick={() => setIsSignatureModalOpen(true)} className="btn-secondary w-9 h-9 p-0 justify-center text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
-                                        <i className="fa-solid fa-signature text-emerald-600"></i>
-                                    </button>
-                                    <button onClick={() => window.print()} className="btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Imprimer — donne un PDF vectoriel, au texte sélectionnable" aria-label="Imprimer le devis">
-                                        <i className="fa-solid fa-print"></i>
-                                    </button>
-                                    <button
-                                        onClick={() => telechargerDocument(
-                                            `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
-                                            'devis'
-                                        )}
-                                        disabled={pdfEnCours === 'devis'}
-                                        className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-sm disabled:opacity-60"
-                                        title="Télécharger au format PDF"
-                                        aria-label="Télécharger le devis en PDF"
-                                    >
-                                        <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                        <span>{pdfEnCours === 'devis' ? 'Génération…' : (<><span className="sm:hidden">PDF</span><span className="hidden sm:inline">Télécharger le PDF</span></>)}</span>
-                                    </button>
-                                    </>) : (
-                                    <button
-                                        onClick={() => setIsCompanyModalOpen(true)}
-                                        className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
-                                        title="Ce devis doit être corrigé avant tout envoi au client"
-                                        aria-label="Corriger ce devis avant de l'envoyer"
-                                    >
-                                        <i className="fa-solid fa-triangle-exclamation"></i>
-                                        <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
-                                    </button>
-                                    )}
-                                    <button onClick={() => setViewingSavedQuote(null)} className="btn-icon w-8 h-8 ml-1" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
-                                </div>
-                            </div>
-
-                            {/* Bande 2 — réglages d'affichage. Deux axes indépendants
-                                (§ 27.1) : QUI reçoit le document, et à QUEL niveau de
-                                détail. Chacun porte son intitulé : les confondre
-                                exposerait la marge au client. */}
-                            {(canViewInternalDocs || isCommercialMode) && (
-                                <div className="px-6 pb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-                                    {canViewInternalDocs && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
-                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Destinataire du document">
-                                                <button onClick={() => setIsCommercialMode(false)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!isCommercialMode ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher l'étude de prix interne">
-                                                    Étude de prix (interne)
-                                                </button>
-                                                <button onClick={() => setIsCommercialMode(true)} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${isCommercialMode ? 'bg-brand-600 text-white shadow-sm' : 'text-neutral-500'}`} aria-label="Afficher le devis commercial client">
-                                                    Devis client
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Le niveau de détail n'a aucun sens sur l'étude interne,
-                                        détaillée par nature : masqué dans ce cas. */}
-                                    {isCommercialMode && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Niveau de détail</span>
-                                            <div className="flex bg-neutral-100 p-1 rounded-xl" role="group" aria-label="Niveau de détail du devis client">
-                                                <button
-                                                    onClick={() => setClientDetailOverride('synthese')}
-                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'synthese' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
-                                                    title="Une ligne par ouvrage"
-                                                >
-                                                    Synthèse
-                                                </button>
-                                                <button
-                                                    onClick={() => setClientDetailOverride('detaille')}
-                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${clientTemplate === 'detaille' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
-                                                    title="Chaque fourniture et main-d'œuvre, au prix de vente"
-                                                >
-                                                    Détaillé
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {!canSend && (
-                            <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-4 shrink-0">
-                                <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">
-                                    <i className="fa-solid fa-circle-info"></i>
-                                    {missingLegal.length > 0 && (
-                                        <span>Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.</span>
-                                    )}
-                                    {missingLegal.length > 0 && scheduleInvalid && <span className="mx-1">&bull;</span>}
-                                    {scheduleInvalid && (
-                                        <span>L'échéancier de paiement totalise {scheduleTotal}% au lieu de 100% — corrigez-le avant d'envoyer ce devis.</span>
-                                    )}
-                                </p>
-                                <button onClick={() => setIsCompanyModalOpen(true)} className="btn-primary text-xs py-1.5 px-3 shrink-0 font-bold">
-                                    Compléter maintenant
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="p-6 overflow-auto custom-scroll bg-neutral-50/50 space-y-6">
-                            {/* Défense en profondeur : même si isCommercialMode restait à
-                                false (état hérité d'une session où l'utilisateur avait le
-                                droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
-                            {(isCommercialMode || !canViewInternalDocs) ? (
-                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id="printArea">
-                                    <div className="flex justify-between items-start border-b border-neutral-200 pb-6">
-                                        <div>
-                                            {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
-                                                du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
-                                                jamais le logo de l'entreprise émettrice. Corrigé : le logo de
-                                                l'entreprise si renseigné (Paramètres du Compte → Documents & PDF),
-                                                sinon rien plutôt que de perpétuer le même problème avec un repli
-                                                sur la marque du logiciel. */}
-                                            {(viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo) && (
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <img
-                                                        src={viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo}
-                                                        alt={`Logo ${viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}`}
-                                                        className="h-10 max-w-[160px] object-contain"
-                                                    />
-                                                </div>
-                                            )}
-                                            <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">{viewingSavedQuote.companyInfoSnapshot?.tagline || companyInfo.tagline}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Adresse: {viewingSavedQuote.companyInfoSnapshot?.address || companyInfo.address}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Contact: {viewingSavedQuote.companyInfoSnapshot?.email || companyInfo.email} &bull; Tel: {viewingSavedQuote.companyInfoSnapshot?.phone || companyInfo.phone}</p>
-                                            <p className="text-[11px] text-neutral-400">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <h2 className="text-2xl font-bold text-neutral-900 uppercase tracking-tight">DEVIS COMMERCIAL</h2>
-                                            <p className="text-sm font-bold text-neutral-800 mt-1">N° : {viewingSavedQuote.number}</p>
-                                            <p className="text-xs text-neutral-500">Date : {viewingSavedQuote.date}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">CLIENT</p>
-                                            <p className="font-semibold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
-                                            <p className="font-bold text-neutral-800">{viewingSavedQuote.projectRef}</p>
-                                        </div>
-                                    </div>
-
-                                    {viewingSavedQuote.notes && (
-                                        <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900">
-                                            <p className="font-bold text-[10px] uppercase text-amber-700 tracking-wider mb-1"><i className="fa-solid fa-note-sticky mr-1"></i>Notes & Remarques :</p>
-                                            <p className="whitespace-pre-line">{viewingSavedQuote.notes}</p>
-                                        </div>
-                                    )}
-
-                                    {/* F4 (2026-08-18) — Le tableau aplatissait toutes les lignes en
-                                        une seule liste, sans intitulé de lot ni sous-total, alors que
-                                        commercialItems porte déjà lotCode/lotName depuis leur création
-                                        (js/calc-engine.js). C'est pourtant la découpe en lots qui permet
-                                        au client d'arbitrer (« je prends le mur, je reporte l'enseigne »)
-                                        — la norme d'un bordereau BTP. Un seul lot ne montre pas d'en-tête
-                                        ni de sous-total : la redondance n'apporterait rien face au total
-                                        général juste en dessous. */}
-                                    {(() => {
-                                        const printCurrency = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
-
-                                        // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
-                                        // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
-                                        // le prix du lot au prorata des coûts, somme garantie exacte —
-                                        // voir js/utils.js). Le client ne voit jamais un coût d'achat, un
-                                        // coefficient ni une marge : c'est la règle de l'axe
-                                        // « destinataire = client », et elle tient ici parce que
-                                        // AUCUN champ de coût n'est lu dans cette branche.
-                                        if (clientTemplate === 'detaille') {
-                                            const detLots = viewingSavedQuote.quoteData?.lots || [];
-                                            const anyDetail = detLots.some(l => (l.quoteData?.details || []).length > 0);
-                                            if (anyDetail) {
-                                                return (
-                                                    <table className="w-full text-left text-xs border-collapse">
-                                                        <thead>
-                                                            <tr className="bg-neutral-900 text-white font-bold uppercase">
-                                                                <th className="p-3 rounded-l-lg">Désignation</th>
-                                                                <th className="p-3 text-center">Quantité</th>
-                                                                <th className="p-3 text-right">Prix Unitaire HT</th>
-                                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-neutral-100">
-                                                            {detLots.map((lot, li) => {
-                                                                const ld = lot.quoteData || {};
-                                                                const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
-                                                                const groupes = new Map();
-                                                                (reparties || []).forEach(d => {
-                                                                    const cat = d.costCategory || 'material';
-                                                                    if (!groupes.has(cat)) groupes.set(cat, []);
-                                                                    groupes.get(cat).push(d);
-                                                                });
-                                                                return (
-                                                                    <React.Fragment key={lot.id || li}>
-                                                                        <tr className="bg-neutral-100">
-                                                                            <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
-                                                                                {formatLotHeading(lot.lotName, li)}
-                                                                            </td>
-                                                                        </tr>
-                                                                        {!reparties ? (
-                                                                            <tr>
-                                                                                <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
-                                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
-                                                                            </tr>
-                                                                        ) : [...groupes.entries()].map(([cat, lignes]) => (
-                                                                            <React.Fragment key={cat}>
-                                                                                <tr className="bg-neutral-50/70">
-                                                                                    <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
-                                                                                        {COST_CATEGORY_LABELS[cat] || cat}
-                                                                                    </td>
-                                                                                </tr>
-                                                                                {lignes.map((d, di) => (
-                                                                                    <tr key={cat + di}>
-                                                                                        <td className="p-3 pl-6">
-                                                                                            <p className="font-bold text-neutral-900">{d.label}</p>
-                                                                                            {d.name && d.name !== d.label && (
-                                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
-                                                                                            )}
-                                                                                        </td>
-                                                                                        <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
-                                                                                        <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
-                                                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                            </React.Fragment>
-                                                                        ))}
-                                                                        <tr className="bg-neutral-50/60">
-                                                                            <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
-                                                                                Sous-total Lot {li + 1} HT
-                                                                            </td>
-                                                                            <td className="px-3 py-2 text-right font-semibold text-neutral-800">
-                                                                                {formatMoney(ld.netHTConsomme, printCurrency)}
-                                                                            </td>
-                                                                        </tr>
-                                                                    </React.Fragment>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                );
-                                            }
-                                            // Devis antérieur à l'enregistrement du détail : on retombe
-                                            // silencieusement sur la synthèse plutôt que d'afficher un
-                                            // tableau vide.
-                                        }
-
-                                        const items = viewingSavedQuote.quoteData?.commercialItems || [];
-                                        const lotsMap = new Map();
-                                        items.forEach(item => {
-                                            const code = item.lotCode || '01';
-                                            if (!lotsMap.has(code)) lotsMap.set(code, { lotCode: code, lotName: item.lotName || `Lot ${code}`, items: [] });
-                                            lotsMap.get(code).items.push(item);
-                                        });
-                                        const lots = [...lotsMap.values()];
-                                        const showLotHeaders = lots.length > 1;
-                                        return (
-                                            <table className="w-full text-left text-xs border-collapse">
-                                                <thead>
-                                                    <tr className="bg-neutral-900 text-white font-bold uppercase">
-                                                        <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
-                                                        <th className="p-3.5 text-center">Quantité</th>
-                                                        <th className="p-3.5 text-right">Prix Unitaire HT</th>
-                                                        <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-neutral-100">
-                                                    {lots.map(lot => {
-                                                        const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
-                                                        return (
-                                                            <React.Fragment key={lot.lotCode}>
-                                                                {showLotHeaders && (
-                                                                    <tr className="bg-neutral-50">
-                                                                        <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
-                                                                            {lot.lotName}
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                                {lot.items.map(item => (
-                                                                    <tr key={item.id}>
-                                                                        <td className="p-3.5">
-                                                                            <p className="font-bold text-neutral-900">{item.label}</p>
-                                                                            {item.dimensionSummary && (
-                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
-                                                                            )}
-                                                                        </td>
-                                                                        <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
-                                                                        <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
-                                                                        <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
-                                                                    </tr>
-                                                                ))}
-                                                                {showLotHeaders && (
-                                                                    <tr className="bg-neutral-50/60">
-                                                                        <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
-                                                                            Sous-total Lot {lot.lotCode} HT
-                                                                        </td>
-                                                                        <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
-                                                                            {formatMoney(lotSubtotal, printCurrency)}
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                            </React.Fragment>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        );
-                                    })()}
-
-                                    <div className="flex justify-end pt-4 border-t border-neutral-200">
-                                        <div className="w-72 space-y-2 text-xs">
-                                            <div className="flex justify-between font-bold text-neutral-800 text-sm">
-                                                <span>Net HT Client :</span>
-                                                <span>{formatMoney(viewingSavedQuote.quoteData?.netHTConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                            </div>
-                                            {/* 2026-08-20 — Un devis exonéré doit porter la mention
-                                                légale correspondante, pas une ligne « TVA (0%) : +0 »
-                                                qui n'informe de rien. */}
-                                            {(viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18) === 0 ? (
-                                                <div className="text-neutral-500">
-                                                    <div className="flex justify-between">
-                                                        <span>TVA :</span>
-                                                        <span className="font-bold">Exonéré</span>
-                                                    </div>
-                                                    {(viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote) && (
-                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">
-                                                            {viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="flex justify-between text-neutral-500">
-                                                    <span>TVA ({viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18}%) :</span>
-                                                    <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
-                                                <span>TOTAL TTC :</span>
-                                                <span>{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {paymentSchedule.length > 0 && (
-                                    <div className="pt-4 border-t border-neutral-200">
-                                        <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <i className="fa-solid fa-calendar-check text-brand-600"></i>
-                                            Échéancier Prévisionnel des Règlements
-                                        </h4>
-                                        <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
-                                            <table className="w-full text-left text-xs">
-                                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
-                                                    <tr>
-                                                        <th className="p-2.5 pl-3">Étape</th>
-                                                        <th className="p-2.5 text-center">Taux (%)</th>
-                                                        <th className="p-2.5 text-right pr-3">Montant TTC</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-neutral-100 font-medium">
-                                                    {paymentSchedule.map((stage, idx) => {
-                                                        const isLast = idx === paymentSchedule.length - 1;
-                                                        const pct = parseFloat(stage.pct) || 0;
-                                                        const amount = (viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * (pct / 100);
-                                                        return (
-                                                            <tr key={idx} className={isLast ? 'bg-neutral-50/60 font-bold' : undefined}>
-                                                                <td className={`p-2.5 pl-3 ${isLast ? 'text-brand-700' : ''}`}>{stage.label}</td>
-                                                                <td className={`p-2.5 text-center ${isLast ? 'text-brand-700' : 'font-bold text-neutral-700'}`}>{pct}%</td>
-                                                                <td className={`p-2.5 text-right pr-3 font-mono ${isLast ? 'text-brand-700' : 'font-bold text-neutral-900'}`}>{formatMoney(amount, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    )}
-
-                                    <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
-                                        <div>
-                                            <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
-                                            <p>{viewingSavedQuote.companyInfoSnapshot?.quoteValidity || companyInfo.quoteValidity}</p>
-                                        </div>
-                                        <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
-                                            <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
-                                            <p className="text-[10px] text-neutral-400">Date et cachet</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
-                                        mentions légales, RIB, CGV... Absent si jamais renseigné, pas de bloc
-                                        vide sur le devis. */}
-                                    {(viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote) && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
-                                            {viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 print:border-0 print:p-0" id="printArea">
-                                    {(() => {
-                                        // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
-                                        // cartes, PAS un document : elle n'avait pas d'id="printArea", donc
-                                        // l'imprimer produisait une PAGE BLANCHE (la feuille de style
-                                        // d'impression masque tout sauf #printArea). Refaite en document A4
-                                        // imprimable — métré, décomposition ligne à ligne, prix & marge,
-                                        // contrôles et visa — pour valider un devis avant de l'envoyer.
-                                        const cur = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
-                                        const qd = viewingSavedQuote.quoteData || {};
-                                        const lots = qd.lots || [];
-                                        const savedMargePct = qd.margePctConsommeReelle !== undefined
-                                            ? qd.margePctConsommeReelle
-                                            : (qd.netHTConsomme > 0 ? ((qd.margeValeurConsomme || 0) / qd.netHTConsomme) * 100 : 0);
-                                        const coeffK = qd.totalDebourseConsomme > 0
-                                            ? (qd.netHTConsomme / qd.totalDebourseConsomme)
-                                            : null;
-
-                                        // Contrôles réels, calculés depuis les lignes du devis — aucun
-                                        // n'est affiché s'il ne se déclenche pas (pas de bloc décoratif).
-                                        const alertes = [];
-                                        lots.forEach((l, li) => {
-                                            const ld = l.quoteData || {};
-                                            if (ld.netHTConsomme != null && ld.totalDebourseConsomme != null && ld.netHTConsomme < ld.totalDebourseConsomme) {
-                                                alertes.push(`Lot ${li + 1} « ${l.lotName} » : vendu sous le déboursé sec (vente à perte).`);
-                                            }
-                                            (ld.details || []).forEach(d => {
-                                                const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
-                                                if (mat && mat.stockQty !== null && mat.stockQty !== undefined && d.billedQty > mat.stockQty) {
-                                                    alertes.push(`Lot ${li + 1} — « ${d.label} » : ${d.billedQty.toFixed(2)} ${d.unit} nécessaires, ${mat.stockQty} ${d.unit} en stock.`);
-                                                }
-                                            });
-                                        });
-                                        (qd.commercialItems || []).forEach(ci => {
-                                            if (ci.isCustom && !(parseFloat(ci.costUnit) > 0)) {
-                                                alertes.push(`« ${ci.label || ci.name} » : ligne libre sans coût d'achat renseigné — la marge affichée n'est pas fiable.`);
-                                            }
-                                        });
-
-                                        return (
-                                            <>
-                                                <div className="border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
-                                                    <i className="fa-solid fa-lock text-amber-600 mt-0.5"></i>
-                                                    <div>
-                                                        <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
-                                                        <p className="text-[11px] text-amber-800">Contient vos coûts d'achat, votre coefficient de vente et votre marge.</p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-between items-start border-b border-neutral-200 pb-4">
-                                                    <div>
-                                                        <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
-                                                        <p className="text-[11px] text-neutral-500">Client : <strong className="text-neutral-700">{viewingSavedQuote.clientName}</strong></p>
-                                                        <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <h2 className="text-lg font-bold text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
-                                                        <p className="text-xs font-bold text-neutral-700 mt-0.5">Devis n° {viewingSavedQuote.number}</p>
-                                                        <p className="text-[11px] text-neutral-500">{viewingSavedQuote.date}</p>
-                                                    </div>
-                                                </div>
-
-                                                {lots.map((l, li) => {
-                                                    const ld = l.quoteData || {};
-                                                    const dets = ld.details || [];
-                                                    return (
-                                                        <div key={l.id || li} className="border border-neutral-200 rounded-xl overflow-hidden break-inside-avoid">
-                                                            <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200 flex justify-between items-baseline gap-3">
-                                                                <div className="min-w-0">
-                                                                    <strong className="text-neutral-900 text-sm">{formatLotHeading(l.lotName, li)}</strong>
-                                                                    <p className="text-[11px] text-neutral-500 mt-0.5">
-                                                                        Métré : {formatItemMetre({ ...(l.dimensions || {}), takeoffMode: l.takeoffMode })}
-                                                                    </p>
-                                                                </div>
-                                                                <span className="text-xs font-bold text-neutral-900 shrink-0">{formatMoney(ld.netHTConsomme, cur)}</span>
-                                                            </div>
-
-                                                            {dets.length === 0 ? (
-                                                                <p className="px-4 py-3 text-[11px] text-neutral-400 italic">
-                                                                    Décomposition non disponible pour ce lot (devis antérieur à l'enregistrement du détail).
-                                                                </p>
-                                                            ) : (
-                                                                <table className="w-full text-left text-[11px] border-collapse">
-                                                                    <thead className="bg-white border-b border-neutral-200 text-[9px] font-semibold text-neutral-500 uppercase tracking-wider">
-                                                                        <tr>
-                                                                            <th className="px-4 py-2">Poste</th>
-                                                                            <th className="px-2 py-2 text-right">Qté nette</th>
-                                                                            <th className="px-2 py-2 text-right">Perte</th>
-                                                                            <th className="px-2 py-2 text-left">Achat</th>
-                                                                            <th className="px-2 py-2 text-right">Coût unit.</th>
-                                                                            <th className="px-4 py-2 text-right">Coût total</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="divide-y divide-neutral-100">
-                                                                        {dets.map((d, di) => {
-                                                                            const mat = d.type === 'material' ? materials.find(m => m.id === d.matId) : null;
-                                                                            const packLabel = (mat && mat.purchaseMode === 'pack' && d.packsNeeded > 0)
-                                                                                ? `${d.packsNeeded} × ${d.packUnitBuy || mat.unitBuy}`
-                                                                                : '—';
-                                                                            return (
-                                                                                <tr key={di}>
-                                                                                    <td className="px-4 py-1.5">
-                                                                                        <span className="font-bold text-neutral-800">{d.label}</span>
-                                                                                        {d.name && d.name !== d.label && (
-                                                                                            <span className="block text-[10px] text-neutral-400">{d.name}</span>
-                                                                                        )}
-                                                                                    </td>
-                                                                                    <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
-                                                                                    <td className="px-2 py-1.5 text-right font-mono text-neutral-500">{d.type === 'material' ? `${d.wastePct || 0}%` : '—'}</td>
-                                                                                    <td className="px-2 py-1.5 text-neutral-500">{packLabel}</td>
-                                                                                    <td className="px-2 py-1.5 text-right font-mono">{formatMoney(d.unitCost, cur)}</td>
-                                                                                    <td className="px-4 py-1.5 text-right font-bold text-neutral-900 font-mono">{formatMoney(d.totalCost, cur)}</td>
-                                                                                </tr>
-                                                                            );
-                                                                        })}
-                                                                    </tbody>
-                                                                    <tfoot className="bg-neutral-50 border-t border-neutral-200">
-                                                                        <tr className="text-[11px]">
-                                                                            <td className="px-4 py-2 font-bold text-neutral-700" colSpan="5">Déboursé sec du lot</td>
-                                                                            <td className="px-4 py-2 text-right font-bold text-neutral-900 font-mono">{formatMoney(ld.totalDebourseConsomme, cur)}</td>
-                                                                        </tr>
-                                                                    </tfoot>
-                                                                </table>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 break-inside-avoid">
-                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
-                                                        <div className="flex justify-between"><span className="text-neutral-600">Déboursé sec</span><span className="font-mono font-bold">{formatMoney(qd.totalDebourseConsomme, cur)}</span></div>
-                                                        <div className="flex justify-between"><span className="text-neutral-600">Frais généraux</span><span className="font-mono font-bold">{formatMoney(qd.fraisGenerauxConsomme, cur)}</span></div>
-                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Prix de revient</span><span className="font-mono font-bold">{formatMoney(qd.totalRevientConsomme, cur)}</span></div>
-                                                        <div className={`flex justify-between font-bold ${(qd.margeValeurConsomme || 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                                                            <span>Marge {(qd.margeValeurConsomme || 0) < 0 ? '(PERTE)' : 'réelle'}</span>
-                                                            <span className="font-mono">{(qd.margeValeurConsomme || 0) < 0 ? '' : '+'}{formatMoney(qd.margeValeurConsomme, cur)} ({savedMargePct.toFixed(1)}%)</span>
-                                                        </div>
-                                                        {coeffK !== null && (
-                                                            <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Coefficient de vente</span><span className="font-mono font-bold">K = {coeffK.toFixed(3)}</span></div>
-                                                        )}
-                                                    </div>
-                                                    <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
-                                                        <div className="flex justify-between"><span className="text-neutral-600">Total net HT</span><span className="font-mono font-bold">{formatMoney(qd.netHTConsomme, cur)}</span></div>
-                                                        <div className="flex justify-between"><span className="text-neutral-600">TVA ({qd.vatRate !== undefined ? qd.vatRate : 18}%)</span><span className="font-mono font-bold">{formatMoney(qd.tvaConsomme, cur)}</span></div>
-                                                        <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-bold text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
-                                                    </div>
-                                                </div>
-
-                                                {alertes.length > 0 && (
-                                                    <div className="border border-red-200 bg-red-50/60 rounded-xl p-4 break-inside-avoid">
-                                                        <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wider mb-2">
-                                                            <i className="fa-solid fa-triangle-exclamation mr-1"></i> Points à vérifier avant envoi ({alertes.length})
-                                                        </p>
-                                                        <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-800">
-                                                            {alertes.map((a, ai) => <li key={ai}>{a}</li>)}
-                                                        </ul>
-                                                    </div>
-                                                )}
-
-                                                <div className="grid grid-cols-2 gap-6 pt-4 border-t border-neutral-100 text-[11px] text-neutral-500 break-inside-avoid">
-                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
-                                                        <p className="font-bold text-neutral-700 mb-6">Étude vérifiée par :</p>
-                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
-                                                    </div>
-                                                    <div className="border border-dashed border-neutral-300 rounded-xl p-4">
-                                                        <p className="font-bold text-neutral-700 mb-6">Bon pour envoi au client :</p>
-                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Pied allégé (2026-08-21). Il portait deux doublons :
-                            « Imprimer Devis », désormais dans la barre d'outils avec
-                            les trois autres actions de sortie ; et, quand le devis
-                            n'est pas envoyable, un troisième rappel de l'anomalie —
-                            déjà signalée par le bandeau ambre ET par le bouton de
-                            la barre d'outils.
-
-                            « Fermer » était en `btn-primary` : le bouton le plus
-                            appuyé du dialogue était celui qui ne fait rien. L'action
-                            principale, c'est le téléchargement, et elle est dans la
-                            barre d'outils. « Fermer » repasse donc en secondaire. */}
-                        <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setViewingSavedQuote(null)} className="btn-secondary">Fermer</button>
-                        </div>
-                    </div>
-                </div>
-                ); })()}
+            {viewingSavedQuote && renderQuoteDetailPanel(viewingSavedQuote, { asModal: true })}
 
             {/* P0.1 V5.2 — Modal d'Importation Explicite des Données Locales */}
             {showImportBanner && (
