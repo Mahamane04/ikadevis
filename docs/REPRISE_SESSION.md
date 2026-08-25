@@ -4,11 +4,21 @@ Point de situation au **2026-08-22**, pour reprendre dans une nouvelle conversat
 Le détail complet est dans `PROJECT_MASTER_TRACKER.md` (§ 32 à 36) ; ce document
 ne garde que ce qu'il faut pour repartir sans relire.
 
+> **Mise à jour 2026-08-25** : les sections 1 et 2 ci-dessous sont un instantané
+> du **22 août**, périmé — le dépôt est aujourd'hui sur une autre branche
+> (`codex/v2-uiux`, distincte de `main`) avec beaucoup de travail non commité.
+> Ne pas se fier aux commandes de la section 1 sans vérifier d'abord `git
+> status` / `git log --oneline -5` / `git branch`. Pour le chantier actif en
+> ce moment (calcul guidé des composants), voir
+> `REPRISE_CALCUL_COMPOSANTS_2026-08-24.md` dans ce même dossier — c'est la
+> fiche à jour. Les sections 4 (pièges) et 5 (direction visuelle) restent
+> valables telles quelles.
+
 ---
 
-## 1. À faire en premier, dès la reprise
+## 1. À faire en premier, dès la reprise *(périmé — voir note ci-dessus)*
 
-Deux choses sont en attente, dans cet ordre :
+Deux choses étaient en attente le 22 août, dans cet ordre :
 
 ```bash
 # 1. Pousser le dernier commit (PWA) — 1 commit local non poussé
@@ -32,9 +42,9 @@ curl -sL https://ikadevis.officemicro89.workers.dev/ | grep -oE 'v=[0-9]{8}[a-z]
 
 ---
 
-## 2. Où en est le produit
+## 2. Où en est le produit *(état au 22 août — périmé, voir note en tête de fiche)*
 
-| | État |
+| | État au 22 août |
 |---|---|
 | **En ligne** | https://ikadevis.officemicro89.workers.dev |
 | **Migrations production** | ✅ appliquées le 2026-08-21 (contrôle 6 · 1 · 3 · 1) |

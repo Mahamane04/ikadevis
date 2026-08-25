@@ -3,9 +3,14 @@
 Moteur SaaS d'étude de prix, de métré automatique et de calcul de déboursé sec
 pour le BTP (gros œuvre, métallerie, menuiserie, signalétique, façades ACM).
 
-> **Documentation de référence : [`PROJECT_MASTER_TRACKER.md`](PROJECT_MASTER_TRACKER.md)**
+> **Documentation de référence : [`docs/PROJECT_MASTER_TRACKER.md`](docs/PROJECT_MASTER_TRACKER.md)**
 > — architecture, historique des décisions, état vérifié de chaque
 > fonctionnalité. C'est ce document qui fait foi, pas ce README.
+>
+> Fiches de reprise (point de situation pour continuer sans tout relire) :
+> [`docs/REPRISE_SESSION.md`](docs/REPRISE_SESSION.md) (général) et
+> [`docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md`](docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md)
+> (chantier calcul guidé des composants).
 
 ---
 
