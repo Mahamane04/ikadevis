@@ -2,15 +2,15 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content">
     <title>ikadevis — Calculateur de Devis BTP</title>
     <!-- 2026-08-21 — L'application n'avait aucun favicon : favicon.ico existait
          mais faisait 0 octet et n'était référencé nulle part. L'onglet affichait
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260822c">
-    <link rel="apple-touch-icon" href="assets/logo-ikadevis-carre.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260825calcmixte3">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
          sans service worker, la page ne se chargeait même pas sans réseau :
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260822c">
+    <link rel="stylesheet" href="tailwind.css?v=20260825calcmixte3">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -64,6 +64,19 @@
             outline: none;
             box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.14);
         }
+
+        /* Les utilitaires de padding Tailwind perdaient contre la règle
+           générique .app-input, ce qui plaçait l'icône de recherche sur le
+           premier caractère. On conserve les classes présentes dans les
+           écrans et on leur donne une priorité explicite. */
+        .app-input.pl-8 { padding-left: 2rem; }
+        .app-input.pl-9 { padding-left: 2.25rem; }
+        .app-input.pl-10 { padding-left: 2.5rem; }
+        .app-input.pr-8 { padding-right: 2rem; }
+        .app-input.pr-10 { padding-right: 2.5rem; }
+        .app-input.pr-12 { padding-right: 3rem; }
+        .app-input.pr-14 { padding-right: 3.5rem; }
+        .app-input.pr-16 { padding-right: 4rem; }
 
         /* 2026-08-20 — Beaucoup de champs numériques (prix, quantités,
            tailles...) portent un suffixe absolu à droite (FCFA, m², u...).
@@ -186,17 +199,27 @@
         }
         .sidebar-shell { width: var(--sidebar-width); background-color: var(--sidebar-bg); }
         .sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); background-color: var(--sidebar-bg); }
+        /* Page Paramètres : elle remplace la modale historique. Sur ordinateur,
+           le menu principal reste visible ; sur mobile, les réglages occupent
+           tout l'écran afin de préserver une zone de travail confortable. */
+        .settings-page-shell { left: 0; }
+        @media (min-width: 768px) {
+            .settings-page-shell { left: var(--sidebar-collapsed-width); }
+        }
+        @media (min-width: 1024px) {
+            .settings-page-shell { left: var(--sidebar-width); }
+        }
         .sidebar-section-label {
             padding: 0 14px; margin-bottom: 6px;
-            font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
             text-transform: uppercase; color: var(--sidebar-muted);
         }
         .sidebar-item {
-            display: flex; align-items: center; gap: 14px;
-            min-height: 52px; width: 100%; padding: 0 14px;
+            display: flex; align-items: center; gap: 11px;
+            min-height: 46px; width: 100%; padding: 0 12px;
             border-radius: var(--sidebar-radius);
             background: transparent; color: var(--sidebar-text);
-            font-size: 15px; font-weight: 500; text-align: left;
+            font-size: 14px; font-weight: 500; letter-spacing: -0.01em; text-align: left;
             transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
         }
         .sidebar-item:hover { background: var(--sidebar-hover); }
@@ -208,11 +231,29 @@
             box-shadow: inset 2px 0 0 0 var(--sidebar-accent);
         }
         .sidebar-item-collapsed { justify-content: center; padding: 0; gap: 0; }
-        .sidebar-item-icon { width: 22px; font-size: 17px; text-align: center; flex-shrink: 0; }
+        .sidebar-item-icon { width: 19px; font-size: 15px; text-align: center; flex-shrink: 0; }
+        .sidebar-item-icon-img { height: 19px; object-fit: contain; filter: invert(35%) sepia(61%) saturate(1800%) hue-rotate(205deg) brightness(88%) contrast(92%); }
+        .sidebar-item:not(.sidebar-item-active) .sidebar-item-icon-img { opacity: 0.62; }
+        .sidebar-item-active .sidebar-item-icon-img { opacity: 1; }
         .sidebar-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-catalog-group { display: flex; flex-direction: column; gap: 3px; }
+        .sidebar-catalog-toggle {
+            display: flex; align-items: center; gap: 11px; min-height: 46px; width: 100%; padding: 0 12px;
+            border-radius: var(--sidebar-radius); background: transparent; color: var(--sidebar-text);
+            font-size: 14px; font-weight: 500; letter-spacing: -0.01em; text-align: left;
+            transition: background-color 180ms ease, color 180ms ease;
+        }
+        .sidebar-catalog-toggle:hover { background: var(--sidebar-hover); }
+        .sidebar-catalog-toggle:active { transform: scale(0.99); }
+        .sidebar-catalog-chevron { margin-left: auto; color: #8b95ad; font-size: 10px; }
+        .sidebar-catalog-children { display: flex; flex-direction: column; gap: 3px; margin-left: 14px; padding-left: 10px; border-left: 1px solid #dfe4f0; }
+        .sidebar-catalog-children .sidebar-item { min-height: 40px; font-size: 13px; }
+        .sidebar-catalog-children .sidebar-item-icon { width: 17px; }
+        .sidebar-catalog-children .sidebar-item-icon-img { height: 17px; }
+        .sidebar-catalog-group-mobile .sidebar-catalog-children { margin-left: 10px; }
         .sidebar-tooltip {
             position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-            background: #1e2033; color: #fff; font-size: 12px; font-weight: 600;
+            background: #1e2033; color: #fff; font-size: 11px; font-weight: 600;
             padding: 6px 10px; border-radius: 8px; white-space: nowrap;
             opacity: 0; pointer-events: none; transition: opacity 150ms ease;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 40;
@@ -237,6 +278,276 @@
             .quote-totals-bar { left: var(--sidebar-width); }
         }
 
+        /* PWA MOBILE — cette couche ne s'applique qu'aux écrans de téléphone.
+           Elle protège l'interface sous l'encoche iOS, empêche Safari de
+           zoomer les formulaires et transforme les sélecteurs/détails en vues
+           réellement utilisables au doigt. Le bureau et la tablette gardent
+           leurs dimensions et leur comportement précédents. */
+        .solution-picker-mobile-header,
+        .solution-picker-mobile-search,
+        .saved-quote-mobile-more { display: none; }
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+        @media (max-width: 480px) {
+            /* Le clavier virtuel ne doit jamais recalculer la hauteur de toute
+               l'application. La coque garde la hauteur du téléphone ouvert,
+               et le clavier vient au-dessus du contenu comme dans une app
+               native. `100lvh` est ignoré sans risque par les anciens Safari. */
+            html, body { min-height: 100%; overscroll-behavior: none; }
+            .mobile-app-shell {
+                height: 100vh !important;
+                min-height: 100vh !important;
+                max-height: 100vh !important;
+                overscroll-behavior: none;
+            }
+            @supports (height: 100lvh) {
+                .mobile-app-shell {
+                    height: 100lvh !important;
+                    min-height: 100lvh !important;
+                    max-height: 100lvh !important;
+                }
+                .saved-quote-detail-card { height: 100lvh !important; }
+            }
+            .mobile-app-shell > .relative,
+            #main-content { overscroll-behavior-y: contain; }
+
+            /* iOS zoome automatiquement un champ dont la taille est < 16px.
+               La règle est limitée aux téléphones pour ne pas agrandir les
+               formulaires sur desktop/tablette. */
+            input, select, textarea { font-size: 16px !important; }
+
+            .mobile-app-header {
+                height: calc(4rem + env(safe-area-inset-top, 0px));
+                min-height: calc(4rem + env(safe-area-inset-top, 0px));
+                padding-top: env(safe-area-inset-top, 0px);
+            }
+            .mobile-header-brand { flex: 1 1 auto; max-width: calc(100% - 8.5rem); }
+            .mobile-header-actions { flex: 0 0 auto; max-width: 8.5rem; }
+            .mobile-header-logo { width: auto; max-width: 9rem; }
+            .mobile-install-button,
+            .mobile-company-button {
+                width: 2.5rem;
+                height: 2.5rem;
+                min-width: 2.5rem;
+                padding: 0 !important;
+                flex: 0 0 2.5rem;
+                justify-content: center;
+            }
+            .mobile-company-button i { margin: 0 !important; }
+
+            /* Le choix rapide devient une page de sélection, pas un menu
+               flottant coincé sous le tableau. */
+            .solution-picker-popover {
+                position: fixed !important;
+                inset: 0 !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                margin: 0 !important;
+                padding-top: env(safe-area-inset-top, 0px);
+                border: 0 !important;
+                border-radius: 0 !important;
+                display: flex;
+                flex-direction: column;
+                background: #ffffff;
+                z-index: 190 !important;
+                animation: none;
+            }
+            .solution-picker-mobile-header {
+                display: flex;
+                align-items: center;
+                gap: .75rem;
+                min-height: 4.25rem;
+                padding: .75rem 1rem;
+                border-bottom: 1px solid #e2e8f0;
+                background: #ffffff;
+                flex: 0 0 auto;
+            }
+            .solution-picker-mobile-back {
+                width: 2.5rem;
+                height: 2.5rem;
+                border: 1px solid #e2e8f0;
+                border-radius: .75rem;
+                color: #334155;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 auto;
+            }
+            .solution-picker-mobile-clear {
+                color: #3b5bdb;
+                font-size: .75rem;
+                font-weight: 700;
+                flex: 0 0 auto;
+            }
+            .solution-picker-mobile-search {
+                display: flex;
+                align-items: center;
+                gap: .65rem;
+                margin: .75rem 1rem .25rem;
+                padding: .75rem .9rem;
+                border: 1px solid #cbd5e1;
+                border-radius: .9rem;
+                background: #f8fafc;
+                flex: 0 0 auto;
+            }
+            .solution-picker-mobile-search:focus-within {
+                border-color: #3b5bdb;
+                box-shadow: 0 0 0 3px rgba(59, 91, 219, .12);
+                background: #ffffff;
+            }
+            .solution-picker-mobile-search > i { color: #94a3b8; font-size: .9rem; }
+            .solution-picker-mobile-search input {
+                width: 100%;
+                min-width: 0;
+                border: 0;
+                outline: 0;
+                background: transparent;
+                color: #0f172a;
+                font-size: 16px !important;
+                font-weight: 600;
+            }
+            .solution-picker-popover-label {
+                padding: .75rem 1rem .4rem !important;
+                flex: 0 0 auto;
+            }
+            .solution-picker-results {
+                max-height: none !important;
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: .5rem .75rem calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            .solution-picker-results [role="option"] {
+                min-height: 4.25rem;
+                padding: .8rem .75rem !important;
+                border-radius: .85rem;
+            }
+            .solution-picker-results [role="option"] span.w-7 {
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+            .solution-picker-results [role="option"] .text-xs { font-size: .9rem; }
+
+            /* Détail d'un devis : sur téléphone il se comporte comme un écran
+               de l'application, avec une seule zone de défilement horizontale
+               interdite. */
+            .saved-quote-detail-modal {
+                padding: 0 !important;
+                align-items: stretch !important;
+                overflow: hidden !important;
+                background: #0f172a !important;
+            }
+            .saved-quote-detail-card {
+                width: 100% !important;
+                max-width: none !important;
+                height: 100dvh !important;
+                max-height: none !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+            }
+            .saved-quote-detail-header-primary { padding: .85rem 1rem .75rem !important; }
+            .saved-quote-detail-header-primary h3 { font-size: 1.1rem; }
+            .saved-quote-top-actions { flex-wrap: nowrap !important; overflow: visible; }
+            .saved-quote-top-secondary-action { display: none !important; }
+            .saved-quote-mobile-more { display: block; }
+            .saved-quote-mobile-more-menu { z-index: 30; }
+            .saved-quote-detail-display-options {
+                padding: 0 1rem .75rem !important;
+                gap: .6rem !important;
+                overflow-x: auto;
+                flex-wrap: nowrap !important;
+            }
+            .saved-quote-detail-display-options > div { flex: 0 0 auto; }
+            .saved-quote-detail-display-options button { font-size: 13px !important; }
+            .saved-quote-action-strip {
+                padding: .75rem 1rem !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .saved-quote-action-label { display: none; }
+            .saved-quote-action-primary { flex: 0 0 auto; min-height: 2.75rem; }
+            .saved-quote-action-secondary { flex: 0 0 auto; min-height: 2.75rem; }
+            .saved-quote-document-scroll {
+                overflow-x: hidden !important;
+                padding: .75rem !important;
+                gap: .75rem !important;
+            }
+            .saved-quote-document {
+                width: 100% !important;
+                min-width: 0 !important;
+                padding: 1rem !important;
+                border-radius: 1rem !important;
+                overflow: hidden;
+                gap: 1rem !important;
+            }
+            .saved-quote-document .grid {
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: .75rem !important;
+            }
+            .saved-quote-document table {
+                width: 100% !important;
+                min-width: 0 !important;
+                table-layout: fixed;
+                font-size: .68rem !important;
+            }
+            .saved-quote-document th,
+            .saved-quote-document td {
+                padding: .45rem .3rem !important;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+
+            /* Totaux toujours visibles, mais en deux rangées lisibles au lieu
+               d'une barre qui déborde latéralement. */
+            .quote-totals-bar {
+                padding: .65rem .75rem calc(.65rem + env(safe-area-inset-bottom, 0px)) !important;
+                max-height: 12rem;
+                overflow-y: auto;
+            }
+            .quote-totals-bar > .max-w-\[1700px\] {
+                flex-direction: column;
+                align-items: stretch;
+                gap: .65rem;
+            }
+            .quote-mobile-metrics {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: .55rem .75rem;
+            }
+            .quote-mobile-metrics > div {
+                min-width: 0;
+                padding-left: 0 !important;
+                border-left: 0 !important;
+            }
+            .quote-mobile-metrics > div:nth-child(n+3) { border-top: 1px solid #e2e8f0; padding-top: .45rem; }
+            .quote-mobile-actions { width: 100%; }
+            .quote-mobile-actions button { flex: 1 1 0; min-width: 0; padding-left: .65rem !important; padding-right: .65rem !important; }
+            .quote-mobile-actions button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+            /* Dès qu'un champ prend le focus, les deux barres fixes se retirent
+               sans modifier la mise en page. Elles ne gênent ni le clavier ni
+               la saisie, puis reviennent à la sortie du champ. */
+            .mobile-bottom-nav,
+            .quote-totals-bar {
+                transition: opacity 120ms ease;
+            }
+            html.pwa-keyboard-open .mobile-bottom-nav,
+            html.pwa-keyboard-open .quote-totals-bar {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+        }
+
+        @media (max-width: 480px) and (prefers-reduced-motion: reduce) {
+            .mobile-bottom-nav,
+            .quote-totals-bar { transition: none; }
+        }
+
         /* P1.2 DEPARTURE A4 PRINT STYLESHEET */
         @media print {
             body * { visibility: hidden !important; }
@@ -258,10 +569,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260822c"></script>
-    <script src="js/utils.js?v=20260822c"></script>
-    <script src="js/quote-templates.js?v=20260822c"></script>
-    <script src="app.compiled.js?v=20260822c"></script>
+    <script src="js/calc-engine.js?v=20260825calcmixte3"></script>
+    <script src="js/utils.js?v=20260825calcmixte3"></script>
+    <script src="js/quote-templates.js?v=20260825calcmixte3"></script>
+    <script src="app.compiled.js?v=20260825calcmixte3"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

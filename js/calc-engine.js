@@ -14,8 +14,18 @@ const RESERVED_KEYWORDS = [
 
 
 const ALLOWED_VARS_BY_MODE = {
-    rectangle: ['SURFACE', 'PERIMETRE', 'LARGEUR', 'HAUTEUR', 'QTY', 'FACES', 'L', 'H', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
-    surface: ['SURFACE', 'QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
+    // Un ouvrage combinant plusieurs composants (ex. cadre au périmètre +
+    // bâche à la surface) ne peut avoir qu'UN seul jeu de dimensions saisi
+    // par le client (largeur/hauteur) : le mode 'rectangle' doit donc pouvoir
+    // nourrir SURFACE, PERIMETRE, VOLUME (avec l'épaisseur) et LONGUEUR/LINEAIRE
+    // (alias de la largeur) à partir de ces mêmes largeur/hauteur, sinon un
+    // composant du mauvais type se voit privé de sa variable et échoue.
+    // Voir REPRISE_CALCUL_COMPOSANTS_2026-08-24.md §5 et §7 Étape 4.
+    rectangle: ['SURFACE', 'PERIMETRE', 'VOLUME', 'PROFONDEUR', 'EPAISSEUR', 'LONGUEUR', 'LINEAIRE', 'LARGEUR', 'HAUTEUR', 'QTY', 'FACES', 'L', 'H', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
+    // Un métré surface peut aussi utiliser VOLUME comme valeur optionnelle
+    // dans une formule hybride (ex. béton : VOLUME > 0 ? VOLUME : SURFACE * 0.20).
+    // En mode surface, VOLUME vaut 0 quand aucun volume n'est saisi.
+    surface: ['SURFACE', 'VOLUME', 'QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
     volume: ['SURFACE', 'VOLUME', 'PERIMETRE', 'LARGEUR', 'HAUTEUR', 'PROFONDEUR', 'EPAISSEUR', 'QTY', 'FACES', 'L', 'H', 'P', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
     linear: ['LONGUEUR', 'LINEAIRE', 'PERIMETRE', 'QTY', 'FACES', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
     floor: ['SURFACE', 'PERIMETRE', 'LARGEUR', 'LONGUEUR', 'LINEAIRE', 'QTY', 'FACES', 'L', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE', 'TARIF_MO', 'TARIF_MATIERE'],
@@ -999,12 +1009,18 @@ function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
     const salesMultiplierK = totalDebourse > 0 ? parseFloat((totalNetHT / totalDebourse).toFixed(3)) : 1.0;
     const profitabilityStatus = globalMarginPct < 15 ? 'warning' : 'healthy';
 
-    const paymentSchedule = {
-        deposit: { pct: 40, label: 'Acompte à la commande (40%)', amount: Math.round(totalTTC * 0.40) },
-        midterm: { pct: 30, label: 'Situation intermédiaire / Hors d’eau (30%)', amount: Math.round(totalTTC * 0.30) },
-        finishes: { pct: 20, label: 'Second œuvre & Finitions (20%)', amount: Math.round(totalTTC * 0.20) },
-        balance: { pct: 10, label: 'Solde à la réception des travaux (10%)', amount: Math.round(totalTTC * 0.10) }
-    };
+    const paymentSchedule = quote.activityType === 'event'
+        ? {
+            deposit: { pct: 50, label: 'Acompte à la commande (50%)', amount: Math.round(totalTTC * 0.50) },
+            preEvent: { pct: 30, label: 'Avant l’événement (30%)', amount: Math.round(totalTTC * 0.30) },
+            installation: { pct: 20, label: 'Après installation (20%)', amount: Math.round(totalTTC * 0.20) }
+        }
+        : {
+            deposit: { pct: 40, label: 'Acompte à la commande (40%)', amount: Math.round(totalTTC * 0.40) },
+            midterm: { pct: 30, label: 'Situation intermédiaire / Hors d’eau (30%)', amount: Math.round(totalTTC * 0.30) },
+            finishes: { pct: 20, label: 'Second œuvre & Finitions (20%)', amount: Math.round(totalTTC * 0.20) },
+            balance: { pct: 10, label: 'Solde à la réception des travaux (10%)', amount: Math.round(totalTTC * 0.10) }
+        };
 
     return {
         ...quote,

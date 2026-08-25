@@ -6,7 +6,7 @@
 // et deux mécanismes de cache désalignés servent tôt ou tard une version
 // périmée sans que rien ne le signale — le piège déjà rencontré sur ce
 // projet avec un tailwind.css obsolète. Un seul jeton pilote les deux.
-const VERSION = '20260822c';
+const VERSION = '20260825calcmixte3';
 const CACHE = `ikadevis-${VERSION}`;
 
 // Coquille minimale : ce qu'il faut pour que l'application DÉMARRE sans
@@ -17,7 +17,7 @@ const CACHE = `ikadevis-${VERSION}`;
 const COQUILLE = [
     './',
     './favicon.svg',
-    './assets/logo-ikadevis-carre.svg',
+    './assets/icon-192.png',
     './manifest.webmanifest',
     './tailwind.css',
     './vendor/react.production.min.js',
@@ -32,10 +32,8 @@ const COQUILLE = [
     './app.compiled.js',
     './vendor/fonts/files/open-sans-0.woff2',
     './vendor/fonts/files/open-sans-1.woff2',
-    './vendor/fontawesome/webfonts/fa-brands-400.woff2',
-    './vendor/fontawesome/webfonts/fa-regular-400.woff2',
     './vendor/fontawesome/webfonts/fa-solid-900.woff2',
-    './vendor/fontawesome/webfonts/fa-v4compatibility.woff2',
+    './vendor/fontawesome/webfonts/fa-brands-400.woff2',
 ];
 
 self.addEventListener('install', (e) => {
@@ -85,8 +83,9 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // vendor/ ne change qu'avec une mise à jour de dépendance, et pèse
-    // 1,8 Mo : cache d'abord, réseau seulement si absent.
+    // Les dépendances publiques changent rarement : cache d'abord, réseau
+    // seulement si elles sont absentes. La coquille PWA ne précharge que les
+    // fichiers utiles à son démarrage hors ligne.
     if (url.pathname.includes('/vendor/')) {
         e.respondWith((async () => {
             const hit = await caches.match(req, { ignoreSearch: true });
