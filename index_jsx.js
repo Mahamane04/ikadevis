@@ -2095,7 +2095,11 @@ function ActiveLotHeader({
         // écrasaient le titre et la ligne "Sous-total HT · Marge · ouvrages" en
         // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
         <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0 sm:min-w-[240px]">
+            {/* w-full sm:w-auto : items-start (au lieu du stretch par défaut)
+                laisse ce bloc prendre la largeur naturelle d'un nom de lot long
+                au lieu de se contraindre à la carte — même piège que celui
+                corrigé sur l'en-tête Catégorie Ouvrage (index_jsx.js ~12430). */}
+            <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto sm:min-w-[240px]">
                 <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-bold text-sm shrink-0">
                     {lot.code || String(lotIndex + 1).padStart(2, '0')}
                 </span>
@@ -12427,7 +12431,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     // débordement horizontal sur mobile (< 640px, sm:).
                     <div className="app-card flex flex-col min-w-0">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
-                            <div className="flex items-center gap-3 min-w-0">
+                            {/* w-full : sous sm:, ce conteneur reçoit items-start (pas le
+                                stretch par défaut), donc sans largeur explicite il prend la
+                                largeur naturelle de son contenu (le nom de l'ouvrage) au lieu
+                                de rester dans la carte — même piège que app-card ci-dessus,
+                                mais au niveau du parent plutôt que de l'enfant. Le groupe de
+                                boutons juste en dessous s'en protège déjà avec w-full sm:w-auto. */}
+                            <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                                 <button onClick={() => setSelectedSolutionForEdit(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste des ouvrages">
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </button>
