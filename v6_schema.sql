@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS public.company_settings (
     currency TEXT DEFAULT 'FCFA',
     quote_validity TEXT DEFAULT '30 jours',
     payment_terms TEXT DEFAULT '40% à la commande, 30% à l''approvisionnement, 20% à l''avancement, 10% à la réception.',
+    brand_color TEXT,
+    pdf_font TEXT,
+    pdf_header_alignment TEXT,
+    commercial_settings JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -343,6 +347,58 @@ BEGIN
     ) RETURNING id INTO v_log_id;
 
     RETURN v_log_id;
+END;
+$$;
+
+-- RPC 3 bis : création de devis avec retour explicite de l'identifiant et du
+-- numéro attribué par la séquence transactionnelle. La RPC historique
+-- `create_quote_v6` reste conservée pour compatibilité ; cette façade permet
+-- au client de ne plus afficher un numéro calculé localement qui pourrait
+-- diverger en cas de création simultanée sur plusieurs appareils.
+CREATE OR REPLACE FUNCTION public.create_quote_v7(
+    p_org_id UUID,
+    p_client_name TEXT,
+    p_project_ref TEXT,
+    p_company_snapshot JSONB DEFAULT '{}'::jsonb,
+    p_calc_form_snapshot JSONB DEFAULT '{}'::jsonb,
+    p_lines JSONB DEFAULT '[]'::jsonb,
+    p_hybrid_snapshot JSONB DEFAULT '{}'::jsonb,
+    p_client_id UUID DEFAULT NULL,
+    p_project_id UUID DEFAULT NULL,
+    p_vat_rate NUMERIC DEFAULT 18,
+    p_parent_quote_id UUID DEFAULT NULL
+)
+RETURNS TABLE(quote_id UUID, quote_number TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    quote_id := public.create_quote_v6(
+        p_org_id,
+        p_client_name,
+        p_project_ref,
+        p_company_snapshot,
+        p_calc_form_snapshot,
+        p_lines,
+        p_hybrid_snapshot,
+        p_client_id,
+        p_project_id,
+        p_vat_rate,
+        p_parent_quote_id
+    );
+
+    SELECT q.quote_number
+    INTO quote_number
+    FROM public.quotes q
+    WHERE q.id = quote_id
+      AND q.organization_id = p_org_id;
+
+    IF quote_number IS NULL THEN
+        RAISE EXCEPTION 'Devis créé mais numéro serveur introuvable';
+    END IF;
+
+    RETURN NEXT;
 END;
 $$;
 

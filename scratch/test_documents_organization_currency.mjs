@@ -6,17 +6,23 @@ import { launchApp, enterGuestMode } from './lib/harness.mjs';
 
 const wait = (ms = 150) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function clickVisibleButton(page, predicate) {
-    return page.evaluate((source) => {
+async function clickVisibleButton(page, predicate, exact = false) {
+    return page.evaluate(({ source, exactMatch }) => {
         const matches = [...document.querySelectorAll('button')]
-            .filter(button => button.textContent.includes(source));
+            .filter(button => {
+                const text = button.textContent || '';
+                const aria = button.getAttribute('aria-label') || '';
+                return exactMatch
+                    ? text.trim() === source || aria.trim() === source
+                    : text.includes(source) || aria.includes(source);
+            });
         const visible = matches.find(button => {
             const rect = button.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0;
         });
         visible?.click();
         return Boolean(visible);
-    }, predicate);
+    }, { source: predicate, exactMatch: exact });
 }
 
 export async function run() {
@@ -28,8 +34,8 @@ export async function run() {
         await page.setViewport({ width: 1280, height: 900 });
         await enterGuestMode(page);
 
-        await clickVisibleButton(page, 'Devis Enregistrés');
-        await page.waitForFunction(() => document.body.innerText.includes('Mes Devis Enregistrés'));
+        await clickVisibleButton(page, 'Devis', true);
+        await page.waitForFunction(() => document.body.innerText.includes('Mes Devis'));
         ok('La liste des devis expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les devis"]') !== null);
         ok('La liste des devis expose un filtre de statut', await page.$('select[aria-label="Filtrer les devis par statut"]') !== null);
         ok('La liste des devis expose un tri', await page.$('select[aria-label="Trier les devis"]') !== null);
@@ -39,7 +45,7 @@ export async function run() {
             return { text: row?.innerText || '', hasIcon: Boolean(row?.querySelector('i')) };
         });
         const simpleQuoteRowUpper = simpleQuoteRow.text.toUpperCase();
-        ok('La liste des devis utilise une table Société/Projet/Devis/Date', ['SOCIÉTÉ IMMOBILIÈRE NBB', 'CONSTRUCTION SIÈGE NBB', 'DEV-2026-001', '22/08/'].every(value => simpleQuoteRowUpper.includes(value)));
+        ok('La liste des devis utilise une table Société/Projet/Devis/Date', ['SOCIÉTÉ IMMOBILIÈRE NBB', 'CONSTRUCTION SIÈGE NBB', 'DEV-2026-001'].every(value => simpleQuoteRowUpper.includes(value)) && /\d{2}\/\d{2}\/\d{4}/.test(simpleQuoteRow.text));
         ok('Les lignes de devis sont dépourvues d’icônes et d’actions', !simpleQuoteRow.hasIcon);
         await page.click('tbody tr[role="button"] td:nth-child(2)');
         await wait(180);
@@ -71,7 +77,7 @@ export async function run() {
         await wait(120);
         ok('Le filtre de statut affiche un état vide explicite', (await page.evaluate(() => document.body.innerText)).includes('Aucun devis enregistré'));
 
-        await clickVisibleButton(page, 'Factures');
+        await clickVisibleButton(page, 'Facture', true);
         await page.waitForFunction(() => document.body.innerText.includes('Mes Factures'));
         ok('La liste des factures expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les factures"]') !== null);
         ok('La liste des factures expose un filtre de statut', await page.$('select[aria-label="Filtrer les factures par statut"]') !== null);
@@ -100,7 +106,16 @@ export async function run() {
         const settingsOptions = await page.$$eval('#company_currency option', options => options.map(option => option.value));
         ok('Les paramètres conservent les devises prises en charge', ['FCFA', 'EUR', 'USD'].every(value => settingsOptions.includes(value)));
 
-        await page.click('button[aria-label="Fermer la boîte de dialogue"]');
+        ok('Les paramètres proposent une section Facturation & envoi', await clickVisibleButton(page, 'Facturation & envoi'));
+        await page.waitForSelector('#commercial_bank_name', { timeout: 3000 });
+        ok('La section commerciale expose les coordonnées bancaires', await page.$('#commercial_bank_account') !== null);
+        ok('La section commerciale expose les modèles de messages', await page.$('#commercial_quote_email_body') !== null && await page.$('#commercial_invoice_email_body') !== null);
+
+        // Depuis la refonte des paramètres, l'ancienne modale a été remplacée
+        // par une page master-detail pleine largeur. Garder le repli modal
+        // permet à ce banc de rester compatible avec une ancienne build locale.
+        const leftSettingsPage = await clickVisibleButton(page, 'Retour à l’application');
+        if (!leftSettingsPage) await page.click('button[aria-label="Fermer la boîte de dialogue"]');
         await clickVisibleButton(page, 'Créer un Devis');
         await page.waitForFunction(() => document.body.innerText.includes('LOTS DU DEVIS'));
         ok('Le formatter monétaire suit la devise organisationnelle', (await page.evaluate(() => document.body.innerText)).includes('€'));

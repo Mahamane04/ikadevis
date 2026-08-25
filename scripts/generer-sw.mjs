@@ -8,7 +8,7 @@
 // oubliait six ressources — dont config.js et les polices — et l'application
 // s'ouvrait sur une PAGE BLANCHE hors réseau. Une liste dérivée ne peut pas
 // se périmer quand on ajoute un <script> ou un <link>.
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,14 +26,16 @@ const refs = [...html.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)]
     .map((u) => u.split('?')[0].replace(/^\.?\//, ''))
     .filter(Boolean);
 
-// Polices et icônes appelées depuis les CSS embarquées : sans elles, la
-// première ouverture hors réseau s'affiche sans icônes ni typographie.
-const binaires = [];
-for (const dossier of ['vendor/fonts/files', 'vendor/fontawesome/webfonts']) {
-    const abs = path.join(racine, dossier);
-    if (!existsSync(abs)) continue;
-    for (const f of readdirSync(abs)) binaires.push(`${dossier}/${f}`);
-}
+// Polices et icônes réellement employées par l'interface. Ne pas précharger
+// toutes les variantes Font Awesome : l'application n'utilise ni Regular ni
+// le paquet de compatibilité v4. Elles resteraient en cache sans jamais être
+// demandées, ce qui pénalise l'installation PWA sur un réseau mobile.
+const binaires = [
+    'vendor/fonts/files/open-sans-0.woff2',
+    'vendor/fonts/files/open-sans-1.woff2',
+    'vendor/fontawesome/webfonts/fa-solid-900.woff2',
+    'vendor/fontawesome/webfonts/fa-brands-400.woff2',
+].filter((f) => existsSync(path.join(racine, f)));
 
 const liste = [...new Set(['./', ...refs, ...binaires])]
     .filter((u) => existsSync(path.join(racine, u.replace(/^\.\//, '') || 'index.html')) || u === './')

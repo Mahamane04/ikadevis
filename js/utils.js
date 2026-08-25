@@ -254,16 +254,32 @@ async function telechargerElementEnPdf(element, nomFichier) {
 
     // On tague l'élément pour le retrouver dans le clone. Tout est modifié sur le
     // clone hors écran, jamais sur le DOM affiché : l'utilisateur ne voit rien bouger.
+    const estCanvasValide = (c) => Number.isFinite(Number(c?.width))
+        && Number.isFinite(Number(c?.height))
+        && Number(c.width) > 0
+        && Number(c.height) > 0;
+
+    // Certains navigateurs ne savent pas recalculer correctement une modale
+    // React redimensionnée dans le clone de html2canvas : le rendu obtenu fait
+    // alors 0 px de haut et jsPDF échoue ensuite avec une erreur peu lisible
+    // (« Invalid argument passed to jsPDF.scale »). On tente la capture A4
+    // optimisée, puis on revient immédiatement à la mise en page réellement
+    // affichée si le clone n'est pas exploitable. Le téléchargement reste ainsi
+    // fiable, y compris dans un panneau de détail étroit.
+    const optionsCapture = {
+        scale: 2,           // ~200 dpi en A4 : net à l'impression sans exploser le poids
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY
+    };
+
     element.setAttribute('data-pdf-cible', '1');
     let canvas;
     try {
         canvas = await window.html2canvas(element, {
-            scale: 2,           // ~200 dpi en A4 : net à l'impression sans exploser le poids
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            scrollX: 0,
-            scrollY: -window.scrollY,
+            ...optionsCapture,
             windowWidth: LARGEUR_CAPTURE + 120,
             onclone: (docClone) => {
                 const cible = docClone.querySelector('[data-pdf-cible]');
@@ -281,8 +297,19 @@ async function telechargerElementEnPdf(element, nomFichier) {
                 }
             }
         });
+
+        // Repli sûr : on capture exactement le document tel qu'il est rendu
+        // dans l'interface plutôt que de laisser un canvas vide faire échouer
+        // le téléchargement au moment de la création du PDF.
+        if (!estCanvasValide(canvas)) {
+            canvas = await window.html2canvas(element, optionsCapture);
+        }
     } finally {
         element.removeAttribute('data-pdf-cible');
+    }
+
+    if (!estCanvasValide(canvas)) {
+        throw new Error("Le document n'a pas pu être rendu pour le PDF. Réessayez après avoir rouvert le document.");
     }
 
     const { jsPDF } = window.jspdf;
@@ -292,6 +319,10 @@ async function telechargerElementEnPdf(element, nomFichier) {
     const marge = 8;
     const imgL = pageL - marge * 2;
     const imgH = (canvas.height * imgL) / canvas.width;
+
+    if (![pageL, pageH, imgL, imgH].every(Number.isFinite) || imgL <= 0 || imgH <= 0) {
+        throw new Error("Les dimensions du document PDF sont invalides. Réessayez après avoir rouvert le document.");
+    }
 
     const image = canvas.toDataURL('image/jpeg', 0.92);
     let restant = imgH;

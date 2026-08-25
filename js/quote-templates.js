@@ -199,6 +199,19 @@ const EVENT_TEMPLATE_QUOTE = {
     clientName: 'AGENCE IMPACT COM',
     projectRef: 'Salon International de l’Innovation — Stand Premium 36m²',
     status: 'draft',
+    activityType: 'event',
+    eventDetails: {
+        name: 'Salon International de l’Innovation',
+        venue: 'Centre de conférences',
+        date: '',
+        participants: '250',
+        responsible: ''
+    },
+    paymentSchedule: [
+        { label: 'À la commande', pct: 50 },
+        { label: 'Avant l’événement', pct: 30 },
+        { label: 'Après installation', pct: 20 }
+    ],
     vatRate: 18,
     overheadRate: 5,
     margin: 30,
@@ -841,4 +854,3 @@ const SIGNAGE_BRANDING_TEMPLATE_QUOTE = {
         }
     ]
 };
-

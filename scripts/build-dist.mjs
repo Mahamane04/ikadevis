@@ -25,7 +25,22 @@ const A_PUBLIER = [
     'sw.js',   // application installable — voir scripts/sw.template.js
     'assets',   // marque : logo horizontal, carré, icône seule (référencés par
                 // index.html pour le favicon et l'icône d'accueil iOS)
-    'vendor',
+    // Dépendances effectivement utilisées par le navigateur. On ne publie pas
+    // tout `vendor/` : `vendor/tailwindcss.js` est le moteur de développement
+    // d'une ancienne maquette, il n'est référencé par aucune page livrée.
+    'vendor/react.production.min.js',
+    'vendor/react-dom.production.min.js',
+    'vendor/supabase.min.js',
+    // Le PDF est chargé à la demande depuis utils.js.
+    'vendor/html2canvas.min.js',
+    'vendor/jspdf.umd.min.js',
+    'vendor/fontawesome/css/all.min.css',
+    // L'interface emploie uniquement les familles Solid et Brands.
+    'vendor/fontawesome/webfonts/fa-solid-900.woff2',
+    'vendor/fontawesome/webfonts/fa-brands-400.woff2',
+    'vendor/fonts/open-sans.css',
+    'vendor/fonts/files/open-sans-0.woff2',
+    'vendor/fonts/files/open-sans-1.woff2',
     'js',   // modules extraits (calc-engine, utils, quote-templates) chargés
             // en <script> par index.html — leur absence casse le moteur de calcul
 ];

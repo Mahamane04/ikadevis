@@ -58,9 +58,10 @@ CREATE TABLE IF NOT EXISTS public.invoices (
     corrects_invoice_id UUID REFERENCES public.invoices(id) ON DELETE SET NULL,
 
     status TEXT NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft','issued','partially_paid','paid','cancelled')),
+        CHECK (status IN ('draft','issued','sent','partially_paid','paid','cancelled')),
 
     issued_at TIMESTAMPTZ,
+    sent_at   TIMESTAMPTZ,
     due_date  DATE,
 
     vat_rate NUMERIC(5,2) NOT NULL DEFAULT 18,

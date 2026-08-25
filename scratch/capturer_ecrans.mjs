@@ -12,7 +12,10 @@ const faits = [], rates = [];
 async function clicTexte(page, texte, exact = false) {
     return page.evaluate((t, ex) => {
         const b = [...document.querySelectorAll('button')].find(x => {
-            const s = x.textContent.trim();
+            const s = (x.textContent || '').trim();
+            const aria = (x.getAttribute('aria-label') || '').trim();
+            if (!ex && (s.includes(t) || aria.includes(t))) return true;
+            if (ex && (s === t || aria === t)) return true;
             return ex ? s === t : s.includes(t);
         });
         if (!b) return false;
@@ -142,12 +145,11 @@ await etape('aperçu document', async () => {
 });
 
 for (const [menu, nom, lib] of [
-    ['Affaires & Projets', '07-affaires-projets', 'Affaires & Projets'],
-    ['Clients (CRM)', '08-clients-crm', 'Clients (CRM)'],
-    ['Devis Enregistrés', '09-devis-enregistres', 'Devis Enregistrés'],
-    ['Factures', '10-factures', 'Factures'],
-    ['Catalogue Ouvrages', '11-catalogue-ouvrages', 'Catalogue Ouvrages'],
-    ['Ressources & Prix', '12-ressources-prix', 'Ressources & Prix'],
+    ['Projet', '07-projet', 'Projet'],
+    ['Client', '08-client', 'Client'],
+    ['Devis', '09-devis', 'Devis'],
+    ['Facture', '10-facture', 'Facture'],
+    ['Catalogue technique', '11-catalogue-technique', 'Catalogue technique'],
     ['Paramètres du Compte', '13-parametres-compte', 'Paramètres du Compte — Entreprise'],
 ]) {
     await etape(lib, async () => {

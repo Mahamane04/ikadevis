@@ -65,8 +65,9 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // vendor/ ne change qu'avec une mise à jour de dépendance, et pèse
-    // 1,8 Mo : cache d'abord, réseau seulement si absent.
+    // Les dépendances publiques changent rarement : cache d'abord, réseau
+    // seulement si elles sont absentes. La coquille PWA ne précharge que les
+    // fichiers utiles à son démarrage hors ligne.
     if (url.pathname.includes('/vendor/')) {
         e.respondWith((async () => {
             const hit = await caches.match(req, { ignoreSearch: true });
