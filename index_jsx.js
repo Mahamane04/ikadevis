@@ -3646,11 +3646,17 @@ function QuoteTotalsBar({
                     .btn-primary et .btn-secondary fixent display: inline-flex dans
                     le <style> de index.html, qui charge après tailwind.css — posé
                     sur eux, il resterait sans effet. */}
-                <div className="quote-mobile-actions flex sm:hidden items-center gap-2">
+                {/* Empilés en pleine largeur plutôt que côte à côte : à deux sur
+                    une seule ligne sous 375px, « Aperçu Client & PDF » et
+                    « Enregistrer le Devis » se partagent une largeur trop
+                    étroite et leur libellé se coupe. items-stretch (au lieu de
+                    items-center) laisse chaque bouton — inline-flex, sans
+                    largeur fixe — remplir la largeur de la colonne. */}
+                <div className="quote-mobile-actions flex flex-col sm:hidden items-stretch gap-2">
                     <button
                         type="button"
                         onClick={onPreviewQuote}
-                        className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
+                        className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-1.5"
                     >
                         <i className="fa-solid fa-eye text-neutral-500"></i>
                         <span>Aperçu Client &amp; PDF</span>
@@ -3660,7 +3666,7 @@ function QuoteTotalsBar({
                         type="button"
                         disabled={isReadOnlyDueToDowngrade}
                         onClick={onSaveQuote}
-                        className="btn-primary text-xs py-2.5 px-5 font-semibold flex items-center gap-2 shadow-sm"
+                        className="btn-primary text-xs py-2.5 px-5 font-semibold flex items-center justify-center gap-2 shadow-sm"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
                         <span>Enregistrer le Devis</span>
