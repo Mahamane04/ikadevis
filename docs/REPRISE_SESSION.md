@@ -41,7 +41,7 @@ npm run deploy:build && npx wrangler deploy && node scripts/generate-config.mjs 
 
 | | État au 26 août |
 |---|---|
-| **En ligne** | https://ikadevis.officemicro89.workers.dev — jeton `v=20260826brief` (déployé le 26 août) |
+| **En ligne** | https://ikadevis.officemicro89.workers.dev — jeton `v=20260826lots3` (déployé le 26 août, version `e022ba7e`) |
 | **Branche de travail** | `codex/v2-uiux` (poussée), **≠ `main`** — `main` est resté à `0ee0d2b` |
 | **Dépôt** | arbre propre |
 | **Migrations production** | ✅ appliquées le 2026-08-21 (contrôle 6 · 1 · 3 · 1) |
