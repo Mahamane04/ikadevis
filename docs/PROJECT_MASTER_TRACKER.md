@@ -2365,3 +2365,86 @@ propriété CSS crée un contexte que le z-index ne peut pas franchir.
 3. `:has()` demande iOS Safari 15.4+. Sans lui, la barre de navigation
    repasse devant le panneau plein écran — dégradation cosmétique, pas une
    panne.
+
+---
+
+## 📅 38. Brief événement : sorti de la hauteur de l'en-tête (2026-08-26)
+
+### 38.1 Le constat
+
+Signalé par l'utilisateur, capture mobile à l'appui : « le brief événementiel
+n'est pas à sa place ». Passer le type d'activité à **Événementiel** faisait
+apparaître un panneau de cinq champs — nom, lieu, date, participants,
+responsable — **à l'intérieur de l'en-tête `sticky top-0`** du devis.
+
+Mesuré sur un téléphone de 375 px : en-tête 420 px + barre de totaux 230 px +
+barre d'onglets 90 px = **740 px sur 812**. La liste des lots — l'objet même de
+l'écran — n'avait plus un pixel, et le bas de l'en-tête recouvrait le libellé
+« DÉBOURSÉ SEC » de la barre de totaux. Sur desktop, la même section tenait sur
+une ligne et ne posait pas de problème : c'est bien un défaut de **hauteur**,
+pas de placement logique.
+
+### 38.2 Ce qui a été fait
+
+Le panneau devient **repliable**, avec un résumé d'une ligne comme état
+replié :
+
+```
+📅 BRIEF ÉVÉNEMENT
+   Gala annuel Orange · Hôtel Azalaï · 12/09/2026 · 250 pers. · Awa Traoré  ▾
+```
+
+- Le résumé ne liste que les champs **renseignés**, dans l'ordre de lecture du
+  formulaire (`eventBriefSummary`). Tant que rien n'est saisi, il invite à
+  compléter — un panneau replié et muet ne serait jamais ouvert.
+- La date de l'`<input type="date">` est reformatée en `JJ/MM/AAAA`
+  (`formatBriefDate`) ; une valeur non parsable est renvoyée telle quelle
+  plutôt que d'afficher « Invalid Date » en plein en-tête.
+- **Déplié d'office à partir de 1024 px**, replié en dessous. L'état est lu une
+  seule fois au montage, volontairement : dès que l'utilisateur a ouvert ou
+  fermé le panneau, son geste prime sur un simple changement de largeur
+  (rotation de l'écran, apparition du clavier virtuel).
+- La puce « Paiement conseillé : 50 / 30 / 20 » reste sur la ligne de résumé à
+  partir de `sm:`, et passe au-dessus des champs en dessous — sur 375 px elle
+  écrasait le résumé.
+- Accessibilité : le bandeau est un vrai `<button>` porteur d'`aria-expanded`
+  et d'`aria-controls="event-brief-fields"`.
+
+Résultat mesuré à 375 px : l'en-tête retombe à **230 px**, la liste des lots
+est de nouveau entièrement visible, et la barre de totaux n'est plus recouverte.
+Desktop 1440 px : rendu **strictement identique** à l'avant, au chevron de
+repli près.
+
+> **L'intention d'origine est préservée.** Le sous-titre disait « les
+> informations utiles restent visibles pendant le chiffrage » — c'est
+> précisément ce que fait la ligne de résumé, que le panneau soit ouvert ou non.
+> Un déplacement du brief hors de l'en-tête (colonne centrale, ou modale) aurait
+> coûté cette visibilité : sur téléphone la colonne centrale est masquée tant
+> qu'aucun lot n'est ouvert, et une modale demande un geste de plus.
+
+### 38.3 Constat annexe : `eventDetails` ne sort jamais de l'écran de saisie
+
+Vérifié par recherche sur tout le dépôt : `eventDetails` n'apparaît **que**
+dans ce formulaire et dans le gabarit `js/quote-templates.js`. Les cinq champs
+sont bien **persistés** (ils voyagent dans `hybridQuoteSnapshot`, § adaptateurs
+de `js/calc-engine.js`), mais ne sont repris **ni dans l'aperçu client, ni dans
+le PDF, ni dans l'étude de prix interne**. C'est défendable pour un brief
+interne ; ça ne l'est plus si l'on attend de retrouver « Gala annuel · 250
+personnes » en tête du devis remis au client. À arbitrer.
+
+### 38.4 État de la suite de tests — échec **antérieur** à ce changement
+
+`npm test` s'interrompt en **Phase 2 — Ajout d'ouvrage depuis le tableau**
+(`scratch/test_inline_work_item_combobox.mjs:16`), sur
+`Node is either not clickable or not an Element` : le test se place en viewport
+**690 × 844** et clique `input[aria-label="Rechercher un ouvrage à ajouter"]`,
+qui vit dans la colonne centrale — masquée sous `lg:` tant qu'aucun lot n'est
+ouvert depuis la campagne mobile du § 37. Le test n'a pas suivi le nouveau
+parcours liste↔détail.
+
+**Ce n'est pas une régression du § 38** : la même commande échoue exactement au
+même endroit sur `HEAD` sans les modifications (vérifié par `git stash`). Toutes
+les phases précédentes — dont les 7 devis étalons à tolérance zéro et les deux
+comboboxes — passent à l'identique avant et après. Le crash empêche en revanche
+les phases suivantes de s'exécuter : **le test à corriger avant de pouvoir
+juger du reste**.

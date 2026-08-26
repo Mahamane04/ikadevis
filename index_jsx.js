@@ -1749,6 +1749,17 @@ function AcmCalepinageVisualizer({
 }
 
 
+// Date du brief événement : l'<input type="date"> rend du AAAA-MM-JJ, illisible
+// dans un résumé d'une ligne. Toute valeur non parsable est renvoyée telle
+// quelle plutôt que de faire apparaître « Invalid Date » dans l'en-tête.
+function formatBriefDate(value) {
+    if (!value) return '';
+    const d = new Date(`${value}T00:00:00`);
+    return Number.isNaN(d.getTime())
+        ? value
+        : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function QuoteHeader({
     quote,
     clients = [],
@@ -1774,6 +1785,13 @@ function QuoteHeader({
     onLoadEventTemplate
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    // Brief événement : déplié d'office là où la place existe (≥ lg), replié
+    // sur téléphone. Lu une seule fois au montage, volontairement : une fois
+    // que l'utilisateur a ouvert ou fermé le panneau, son geste prime sur un
+    // simple changement de largeur (rotation de l'écran, clavier virtuel).
+    const [isEventBriefOpen, setIsEventBriefOpen] = useState(
+        () => typeof window !== 'undefined' && window.innerWidth >= 1024
+    );
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -1793,6 +1811,18 @@ function QuoteHeader({
     ];
 
     const currentStatus = statusOptions.find(s => s.value === (quote.status || 'draft')) || statusOptions[0];
+
+    // Résumé affiché quand le brief est replié : uniquement les champs
+    // renseignés, dans l'ordre de lecture du formulaire. Vide tant que rien
+    // n'est saisi — le bandeau invite alors à compléter.
+    const eventDetails = quote.eventDetails || {};
+    const eventBriefSummary = [
+        eventDetails.name,
+        eventDetails.venue,
+        formatBriefDate(eventDetails.date),
+        eventDetails.participants ? `${eventDetails.participants} pers.` : '',
+        eventDetails.responsible
+    ].map(v => String(v || '').trim()).filter(Boolean).join(' · ');
 
     return (
         <header className="bg-white border-b border-neutral-200 px-4 py-3 sticky top-0 z-30 shadow-xs">
@@ -2033,34 +2063,62 @@ function QuoteHeader({
                 </div>
 
                 {quote.activityType === 'event' && (
-                    <section className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 sm:p-3.5" aria-label="Informations de l’événement">
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="w-6 h-6 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[11px]"><i className="fa-solid fa-calendar-days"></i></span>
-                                <div><p className="text-[11px] font-bold uppercase tracking-wider text-violet-800">Brief événement</p><p className="text-[10px] text-violet-700/70">Les informations utiles restent visibles pendant le chiffrage.</p></div>
+                    <section className="rounded-xl border border-violet-200 bg-violet-50/60" aria-label="Informations de l’événement">
+                        {/* Repliable depuis le 2026-08-26. Déplié en permanence, ce
+                            brief ajoutait près de 190 px à un en-tête `sticky` : sur un
+                            téléphone de 375 px, en-tête + barre de totaux + barre
+                            d’onglets occupaient la totalité de l’écran et la liste des
+                            lots n’apparaissait plus du tout. Replié, il ne garde qu’une
+                            ligne de résumé : l’information reste sous les yeux pendant
+                            le chiffrage — l’intention d’origine — sans coûter la vue. */}
+                        <button
+                            type="button"
+                            onClick={() => setIsEventBriefOpen(open => !open)}
+                            aria-expanded={isEventBriefOpen}
+                            aria-controls="event-brief-fields"
+                            className="w-full flex items-center gap-2 p-3 sm:p-3.5 text-left rounded-xl hover:bg-violet-100/40 transition-colors"
+                        >
+                            <span className="w-6 h-6 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[11px] shrink-0"><i className="fa-solid fa-calendar-days"></i></span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-violet-800">Brief événement</span>
+                                <span className={`block text-[10px] truncate ${eventBriefSummary ? 'text-violet-700 font-semibold' : 'text-violet-700/70'}`}>
+                                    {eventBriefSummary || (isEventBriefOpen
+                                        ? 'Les informations utiles restent visibles pendant le chiffrage.'
+                                        : 'Aucune information saisie — appuyez pour compléter.')}
+                                </span>
+                            </span>
+                            <span className="hidden sm:inline text-[10px] font-bold text-violet-700 bg-white/70 border border-violet-200 rounded-full px-2 py-1 shrink-0">Paiement conseillé : 50 / 30 / 20</span>
+                            <i className={`fa-solid fa-chevron-down text-[10px] text-violet-700 shrink-0 transition-transform ${isEventBriefOpen ? 'rotate-180' : ''}`}></i>
+                        </button>
+
+                        {isEventBriefOpen && (
+                            <div id="event-brief-fields" className="px-3 sm:px-3.5 pb-3 sm:pb-3.5">
+                                {/* La puce de paiement est dans l’entête à partir de sm:,
+                                    où la ligne est assez large ; sous 640 px elle passe
+                                    ici pour ne pas écraser le résumé. */}
+                                <span className="sm:hidden inline-block mb-2 text-[10px] font-bold text-violet-700 bg-white/70 border border-violet-200 rounded-full px-2 py-1">Paiement conseillé : 50 / 30 / 20</span>
+                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+                                    {[
+                                        ['name', 'Nom de l’événement', 'Ex : Gala annuel'],
+                                        ['venue', 'Lieu', 'Ex : Hôtel Azalaï'],
+                                        ['date', 'Date', ''],
+                                        ['participants', 'Participants', 'Ex : 250'],
+                                        ['responsible', 'Responsable', 'Nom du contact']
+                                    ].map(([key, label, placeholder]) => (
+                                        <label key={key} className="min-w-0">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-800/75 mb-1">{label}</span>
+                                            <input
+                                                type={key === 'date' ? 'date' : 'text'}
+                                                value={eventDetails[key] || ''}
+                                                placeholder={placeholder}
+                                                onChange={(e) => onUpdateQuote({ eventDetails: { ...eventDetails, [key]: e.target.value } })}
+                                                className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
-                            <span className="text-[10px] font-bold text-violet-700 bg-white/70 border border-violet-200 rounded-full px-2 py-1">Paiement conseillé : 50 / 30 / 20</span>
-                        </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-                            {[
-                                ['name', 'Nom de l’événement', 'Ex : Gala annuel'],
-                                ['venue', 'Lieu', 'Ex : Hôtel Azalaï'],
-                                ['date', 'Date', ''],
-                                ['participants', 'Participants', 'Ex : 250'],
-                                ['responsible', 'Responsable', 'Nom du contact']
-                            ].map(([key, label, placeholder]) => (
-                                <label key={key} className="min-w-0">
-                                    <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-800/75 mb-1">{label}</span>
-                                    <input
-                                        type={key === 'date' ? 'date' : 'text'}
-                                        value={quote.eventDetails?.[key] || ''}
-                                        placeholder={placeholder}
-                                        onChange={(e) => onUpdateQuote({ eventDetails: { ...(quote.eventDetails || {}), [key]: e.target.value } })}
-                                        className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
-                                    />
-                                </label>
-                            ))}
-                        </div>
+                        )}
                     </section>
                 )}
             </div>

@@ -2,7 +2,7 @@
 
 Point de situation au **2026-08-26**, pour reprendre dans une nouvelle
 conversation. Le détail complet est dans `PROJECT_MASTER_TRACKER.md` (§ 32 à
-**37**) ; ce document ne garde que ce qu'il faut pour repartir sans relire.
+**38**) ; ce document ne garde que ce qu'il faut pour repartir sans relire.
 
 > Le chantier « calcul guidé des composants » est **résolu** — voir
 > `REPRISE_CALCUL_COMPOSANTS_2026-08-24.md` (§ 11) dans ce même dossier pour
@@ -46,7 +46,7 @@ npm run deploy:build && npx wrangler deploy && node scripts/generate-config.mjs 
 | **Dépôt** | arbre propre |
 | **Migrations production** | ✅ appliquées le 2026-08-21 (contrôle 6 · 1 · 3 · 1) |
 | **Domaines `ikadevis.com` / `app.ikadevis.com`** | ❌ ne résolvent pas — à brancher dans Cloudflare |
-| **Tests** | `npm test` → 40/40 au 22 août ; **non rejoué depuis** la campagne mobile |
+| **Tests** | ❌ **s'interrompt** en Phase 2 (rejoué le 26 août) — `test_inline_work_item_combobox.mjs` clique un champ que la campagne mobile a masqué sous `lg:`. Échec **antérieur** aux modifications en cours, vérifié sur `HEAD` ; il empêche les phases suivantes de tourner. Voir § 38.4 du tracker |
 
 > `codex/v2-uiux` porte ~20 commits d'avance sur `main` sans divergence : la
 > refonte UI des devis, la facturation, l'import CSV, le calcul mixte et toute
@@ -95,7 +95,7 @@ Restent aussi ouverts, sans urgence :
 - Fiche UI/UX (`fiche-ui-ux-ikadevis.zip`) : à regénérer après le PWA.
 - Colonne « Désignation Ouvrage » à 184 px — élargir davantage impose de rétrécir
   les colonnes chiffrées, arbitrage non tranché.
-- `npm test` non rejoué depuis la campagne mobile.
+- `npm test` s'interrompt en Phase 2 depuis la campagne mobile (§ 38.4 du tracker) : le test à réparer en premier, il masque tout ce qui vient après.
 
 ---
 
