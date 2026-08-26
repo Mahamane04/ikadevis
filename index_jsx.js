@@ -487,7 +487,7 @@ function ClientCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-user absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px] sm:text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
@@ -500,8 +500,11 @@ function ClientCombobox({
                         setIsOpen(true);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Rechercher ou créer un client…"
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-10 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    placeholder="Client"
+                    // Puce compacte sous sm: (rounded-full, plus étroite, placeholder
+                    // court) au lieu de la barre de recherche pleine largeur — même
+                    // input, mêmes onChange/onFocus, seule l'habillage change.
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-full sm:rounded-lg pl-7 sm:pl-10 pr-4 sm:pr-8 py-2 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Client du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-client-listbox"
@@ -666,7 +669,7 @@ function ProjectCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-helmet-safety absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-helmet-safety absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px] sm:text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
@@ -679,8 +682,8 @@ function ProjectCombobox({
                         setIsOpen(true);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Rechercher ou créer un projet…"
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-lg pl-10 pr-8 py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    placeholder="Projet"
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-full sm:rounded-lg pl-7 sm:pl-10 pr-4 sm:pr-8 py-2 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Projet du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-project-listbox"
@@ -1815,8 +1818,11 @@ function QuoteHeader({
 
                 {/* Bande 2 — métadonnées du devis. Les champs récupèrent la
                     largeur que les actions leur prenaient. */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-[280px]">
+                <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-3">
+                    {/* min-w-0 sous sm: (au lieu de 280px) : Client + Projet tiennent
+                        sur la même rangée que le sélecteur Type d'activité au lieu de
+                        lui prendre toute la largeur et le repousser sur sa propre ligne. */}
+                    <div className="flex flex-row items-center gap-2 flex-1 min-w-0 sm:min-w-[280px]">
                         <ClientCombobox
                             value={quote.clientName || ''}
                             clientId={quote.clientId || null}
@@ -1848,7 +1854,12 @@ function QuoteHeader({
                             id="quote-activity-type"
                             value={quote.activityType || 'btp'}
                             onChange={(e) => onUpdateQuote({ activityType: e.target.value })}
-                            className="bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none"
+                            // w-[84px] sous sm: — sans largeur fixe, ce <select> se
+                            // dimensionne sur sa plus longue option ("Événementiel",
+                            // ~170px) même quand "BTP" est sélectionné, écrasant
+                            // l'espace des puces Client/Projet à côté. Le menu déroulé
+                            // affiche toujours les libellés complets une fois ouvert.
+                            className="w-[84px] sm:w-auto bg-white border border-neutral-200 rounded-full sm:rounded-lg px-2.5 py-2 sm:py-1.5 text-xs font-bold text-neutral-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none truncate"
                             aria-label="Type d’activité du devis"
                         >
                             <option value="btp">BTP</option>
@@ -2010,6 +2021,11 @@ function LotNavigator({
                                 <p className="text-xs font-bold text-neutral-900 truncate flex-1 min-w-0 leading-tight">
                                     {lot.name || `Lot ${originalIndex + 1}`}
                                 </p>
+                                {/* Chevron mobile : la rangée entière ouvre le détail du lot
+                                    (onSelectLot du div englobant) — affordance de navigation,
+                                    sans rapport avec les flèches de réordonnancement ci-dessous
+                                    (survol souris, donc invisibles au toucher de toute façon). */}
+                                <i className="fa-solid fa-chevron-right text-neutral-300 text-[10px] shrink-0 lg:hidden" aria-hidden="true"></i>
                                 <div className="hidden group-hover:flex items-center shrink-0">
                                     {originalIndex > 0 && (
                                         <button
@@ -2036,17 +2052,20 @@ function LotNavigator({
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 mt-0.5 pl-[26px] text-[10px]">
+                            <div className="flex items-center gap-1.5 mt-0.5 pl-[26px] text-[10px]">
+                                <span className="font-semibold text-neutral-900 shrink-0">
+                                    {formatMoney(subtotal, currency)}
+                                </span>
+                                {lot.lotMarginPct !== undefined && (
+                                    <span className="text-neutral-400 font-medium shrink-0">&bull; {lot.lotMarginPct}%</span>
+                                )}
                                 <span className="text-neutral-500 font-medium truncate">
-                                    {itemsCount} {itemsCount > 1 ? 'ouvrages' : 'ouvrage'}
+                                    &bull; {itemsCount} {itemsCount > 1 ? 'ouvrages' : 'ouvrage'}
                                     {lot.isComplete ? (
                                         <span className="text-emerald-600 font-bold ml-1.5"><i className="fa-solid fa-circle-check"></i></span>
                                     ) : itemsCount > 0 ? (
                                         <span className="text-amber-600 font-bold ml-1.5" title="À vérifier"><i className="fa-solid fa-circle-exclamation"></i></span>
                                     ) : null}
-                                </span>
-                                <span className="font-semibold text-neutral-900 shrink-0">
-                                    {formatMoney(subtotal, currency)}
                                 </span>
                             </div>
                         </div>
@@ -2073,6 +2092,7 @@ function ActiveLotHeader({
     onAddCustomLine,
     onDuplicateLot,
     onDeleteLot,
+    onBackToLotList,
     currency = 'FCFA'
 }) {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -2100,6 +2120,25 @@ function ActiveLotHeader({
                 au lieu de se contraindre à la carte — même piège que celui
                 corrigé sur l'en-tête Catégorie Ouvrage (index_jsx.js ~12430). */}
             <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto sm:min-w-[240px]">
+                {onBackToLotList && (
+                    // lg:hidden sur un conteneur, jamais sur .btn-icon lui-même : ce
+                    // dernier fixe `display: inline-flex` dans le <style> de
+                    // index.html, chargé après tailwind.css — à égale spécificité,
+                    // l'ordre de chargement gagne et rend `hidden` inopérant, quelle
+                    // que soit la largeur d'écran (piège documenté dans
+                    // docs/REPRISE_SESSION.md §4.1, ici sur le débordement de
+                    // display plutôt que sur background/margin).
+                    <span className="lg:hidden shrink-0">
+                        <button
+                            type="button"
+                            onClick={onBackToLotList}
+                            className="btn-icon text-neutral-500 hover:text-neutral-800"
+                            aria-label="Retour à la liste des lots"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
+                        </button>
+                    </span>
+                )}
                 <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center font-bold text-sm shrink-0">
                     {lot.code || String(lotIndex + 1).padStart(2, '0')}
                 </span>
@@ -2188,42 +2227,57 @@ function WorkItemTable({
 }) {
     if (!items || items.length === 0) {
         return (
-            <div className="p-5 sm:p-8 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 sm:m-6 space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto text-2xl">
-                    <i className="fa-solid fa-cube"></i>
+            <>
+                {/* Sous sm: — le bloc complet (recherche + 2 boutons) prend trop de
+                    place sur un écran de 375px pour ce qui n'est qu'un état vide.
+                    Une seule puce compacte, ouvrant le même sélecteur complet
+                    (onOpenPicker) que « Choisir dans le Catalogue complet ». */}
+                <button
+                    type="button"
+                    onClick={onOpenPicker}
+                    className="sm:hidden flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 py-8 text-neutral-400 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/30 transition-colors"
+                >
+                    <i className="fa-solid fa-file-circle-plus text-xl"></i>
+                    <span className="text-sm font-semibold">Ajouter un ouvrage…</span>
+                </button>
+
+                <div className="hidden sm:block p-5 sm:p-8 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 sm:m-6 space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto text-2xl">
+                        <i className="fa-solid fa-cube"></i>
+                    </div>
+                    <div className="text-center">
+                        <h3 className="text-base font-semibold text-neutral-800">Ce lot ne contient aucun ouvrage pour le moment</h3>
+                        <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
+                            Commencez directement dans le tableau : recherchez un ouvrage ou créez-en un nouveau.
+                        </p>
+                    </div>
+                    <div className="max-w-xl mx-auto pt-2">
+                        <SolutionCombobox
+                            solutions={solutions}
+                            onSelectSolution={onSelectSolution}
+                            onCreateSolution={onCreateSolution}
+                            placeholder="Rechercher un ouvrage par nom, mot-clé ou référence…"
+                        />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                        <button
+                            type="button"
+                            onClick={onOpenPicker}
+                            className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
+                        >
+                            <i className="fa-solid fa-layer-group"></i> Choisir dans le Catalogue complet
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onAddCustomLine}
+                            className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
+                            aria-label="Ajouter une ligne libre"
+                        >
+                            <i className="fa-solid fa-pen-ruler"></i> Ajouter une ligne libre
+                        </button>
+                    </div>
                 </div>
-                <div className="text-center">
-                    <h3 className="text-base font-semibold text-neutral-800">Ce lot ne contient aucun ouvrage pour le moment</h3>
-                    <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto">
-                        Commencez directement dans le tableau : recherchez un ouvrage ou créez-en un nouveau.
-                    </p>
-                </div>
-                <div className="max-w-xl mx-auto pt-2">
-                    <SolutionCombobox
-                        solutions={solutions}
-                        onSelectSolution={onSelectSolution}
-                        onCreateSolution={onCreateSolution}
-                        placeholder="Rechercher un ouvrage par nom, mot-clé ou référence…"
-                    />
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-                    <button
-                        type="button"
-                        onClick={onOpenPicker}
-                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
-                    >
-                        <i className="fa-solid fa-layer-group"></i> Choisir dans le Catalogue complet
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onAddCustomLine}
-                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
-                        aria-label="Ajouter une ligne libre"
-                    >
-                        <i className="fa-solid fa-pen-ruler"></i> Ajouter une ligne libre
-                    </button>
-                </div>
-            </div>
+            </>
         );
     }
 
@@ -3650,30 +3704,30 @@ function QuoteTotalsBar({
                     .btn-primary et .btn-secondary fixent display: inline-flex dans
                     le <style> de index.html, qui charge après tailwind.css — posé
                     sur eux, il resterait sans effet. */}
-                {/* Empilés en pleine largeur plutôt que côte à côte : à deux sur
-                    une seule ligne sous 375px, « Aperçu Client & PDF » et
-                    « Enregistrer le Devis » se partagent une largeur trop
-                    étroite et leur libellé se coupe. items-stretch (au lieu de
-                    items-center) laisse chaque bouton — inline-flex, sans
-                    largeur fixe — remplir la largeur de la colonne. */}
-                <div className="quote-mobile-actions flex flex-col sm:hidden items-stretch gap-2">
+                {/* Côte à côte, chacun flex-1 (largeur égale) : avec les libellés
+                    complets ("Aperçu Client & PDF" / "Enregistrer le Devis") les
+                    deux boutons se coupaient sous 375px — raccourcis ici ("Aperçu
+                    PDF" / "Enregistrer") pour tenir sur une ligne pleine largeur,
+                    sans toucher aux libellés desktop (bande sticky séparée,
+                    hidden sm:flex, plus haut dans ce fichier). */}
+                <div className="quote-mobile-actions flex sm:hidden items-stretch gap-2">
                     <button
                         type="button"
                         onClick={onPreviewQuote}
-                        className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-1.5"
+                        className="flex-1 btn-secondary text-xs py-2.5 px-3 font-bold flex items-center justify-center gap-1.5"
                     >
                         <i className="fa-solid fa-eye text-neutral-500"></i>
-                        <span>Aperçu Client &amp; PDF</span>
+                        <span>Aperçu PDF</span>
                     </button>
 
                     <button
                         type="button"
                         disabled={isReadOnlyDueToDowngrade}
                         onClick={onSaveQuote}
-                        className="btn-primary text-xs py-2.5 px-5 font-semibold flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 btn-primary text-xs py-2.5 px-3 font-semibold flex items-center justify-center gap-2 shadow-sm"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
-                        <span>Enregistrer le Devis</span>
+                        <span>Enregistrer</span>
                     </button>
                 </div>
             </div>
@@ -3714,6 +3768,14 @@ function QuoteWorkspace({
     saveQuoteError = null
 }) {
     const [activeLotIndex, setActiveLotIndex] = useState(0);
+    // Sous lg:, la liste des lots (LotNavigator) et le détail du lot actif
+    // (ActiveLotHeader + WorkItemTable) s'affichaient tous les deux à la fois,
+    // empilés — redondant : le lot apparaissait déjà en résumé dans la liste,
+    // puis en détail juste en dessous. true = écran liste, false = écran
+    // détail du lot ; ignoré à partir de lg: (les deux colonnes restent
+    // visibles côte à côte comme avant). Pattern déjà utilisé par
+    // inspectorItemIndex un niveau plus bas (liste des ouvrages ↔ inspecteur).
+    const [mobileShowLotList, setMobileShowLotList] = useState(true);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // 2026-08-20 — Taux de TVA proposés dans le devis, réglés par l'utilisateur
@@ -4249,11 +4311,11 @@ function QuoteWorkspace({
                 {/* Quand l'inspecteur est ouvert, la liste des lots se replie pour
                     libérer l'espace au tableau. Le bouton retour de l'inspecteur
                     la restaure sans perdre le lot sélectionné. */}
-                <div className={`${inspectorItemIndex !== null ? 'hidden' : 'flex'} lg:h-full lg:min-h-0`}>
+                <div className={`${(mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} ${inspectorItemIndex === null ? 'lg:flex' : 'lg:hidden'} lg:h-full lg:min-h-0`}>
                     <LotNavigator
                         lots={calculatedQuote.lots || []}
                         activeLotIndex={activeLotIndex}
-                        onSelectLot={(idx) => { setActiveLotIndex(idx); setInspectorItemIndex(null); }}
+                        onSelectLot={(idx) => { setActiveLotIndex(idx); setInspectorItemIndex(null); setMobileShowLotList(false); }}
                         onAddLot={handleAddLot}
                         onDuplicateLot={handleDuplicateLot}
                         onMoveLot={handleMoveLot}
@@ -4263,7 +4325,7 @@ function QuoteWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
-                    <main className={`${inspectorItemIndex !== null ? 'hidden lg:flex' : 'flex'} flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24`}>
+                    <main className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24`}>
                         <ActiveLotHeader
                             lot={activeLot}
                             lotIndex={activeLotIndex}
@@ -4274,6 +4336,7 @@ function QuoteWorkspace({
                             onAddCustomLine={handleAddCustomLine}
                             onDuplicateLot={handleDuplicateLot}
                             onDeleteLot={handleDeleteLot}
+                            onBackToLotList={() => setMobileShowLotList(true)}
                             currency={companyInfo.currency}
                         />
 
@@ -10073,9 +10136,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="app-card flex flex-col">
                             <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <button onClick={() => setSelectedProjectId(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                    <span className="lg:hidden shrink-0"><button onClick={() => setSelectedProjectId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
-                                    </button>
+                                    </button></span>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">{selectedProject.code}</span>
@@ -10392,9 +10455,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="app-card flex flex-col">
                             <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <button onClick={() => setSelectedClientId(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                    <span className="lg:hidden shrink-0"><button onClick={() => setSelectedClientId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
-                                    </button>
+                                    </button></span>
                                     <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-bold text-sm flex items-center justify-center shrink-0">
                                         {selectedClient.name.substring(0, 2).toUpperCase()}
                                     </div>
@@ -10759,9 +10822,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="app-card flex flex-col">
                             <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <button onClick={() => setViewingInvoice(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                    <span className="lg:hidden shrink-0"><button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
-                                    </button>
+                                    </button></span>
                                     <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-1.5 rounded-lg shrink-0">
                                         {activeInvoice.numero || 'BROUILLON'}
                                     </span>
@@ -12438,9 +12501,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 mais au niveau du parent plutôt que de l'enfant. Le groupe de
                                 boutons juste en dessous s'en protège déjà avec w-full sm:w-auto. */}
                             <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                                <button onClick={() => setSelectedSolutionForEdit(null)} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste des ouvrages">
+                                <span className="lg:hidden shrink-0"><button onClick={() => setSelectedSolutionForEdit(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste des ouvrages">
                                     <i className="fa-solid fa-arrow-left"></i>
-                                </button>
+                                </button></span>
                                 <div className="min-w-0">
                                 <h3 className="text-neutral-400 text-[10px] font-semibold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
                                 <h2 className="text-xl font-bold text-neutral-800 truncate">{selectedSolutionForEdit.name}</h2>
@@ -12566,39 +12629,45 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         )}
 
-                        {/* CARTES SOUS 1024px */}
-                        <div className="block lg:hidden p-4 space-y-3">
+                        {/* LISTE SOUS 1024px — rangées compactes plutôt que des cartes
+                            individuelles : toute la rangée ouvre « Modifier » (comme le
+                            ferait un chevron de navigation), le montant/calcul détaillé
+                            reste dans la fenêtre d'édition plutôt que d'alourdir la liste.
+                            La suppression reste à un tap, via l'icône dédiée. */}
+                        <div className="block lg:hidden divide-y divide-neutral-100 border-t border-b border-neutral-100">
                             {recipes.filter(r => r.solutionId === selectedSolutionForEdit.id).map(r => {
                                 const isMatMissing = r.type === 'material' && !materials.find(m => m.id === r.refId);
                                 const isLabMissing = r.type === 'labor' && !labor.find(l => l.id === r.refId);
                                 const isMissing = isMatMissing || isLabMissing;
-                                const linkedName = r.type === 'material' 
-                                    ? (materials.find(m=>m.id===r.refId)?.name || 'Ressource introuvable') 
+                                const linkedName = r.type === 'material'
+                                    ? (materials.find(m=>m.id===r.refId)?.name || 'Ressource introuvable')
                                     : (labor.find(l=>l.id===r.refId)?.name || 'Prestation introuvable');
 
                                 return (
-                                    <div key={r.id} className={`p-4 rounded-2xl border ${isMissing ? 'bg-red-50/60 border-red-200' : 'bg-neutral-50 border-neutral-200'} space-y-2`}>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-semibold text-sm text-neutral-900">{r.label}</p>
-                                                <p className="text-xs text-neutral-600 mt-0.5">{linkedName}</p>
-                                            </div>
-                                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-white text-neutral-700 border-neutral-300">
-                                                {r.costCategory || r.type}
+                                    <div key={r.id} className={`flex items-center gap-1 ${isMissing ? 'bg-red-50/60' : ''}`}>
+                                        <button
+                                            type="button"
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            onClick={() => { setRecipeForm({ ...r }); setIsRecipeModalOpen(true); }}
+                                            className="flex-1 min-w-0 flex items-center justify-between gap-3 py-3 pl-4 pr-1 text-left"
+                                            aria-label={`Modifier le composant ${r.label}`}
+                                        >
+                                            <span className="min-w-0">
+                                                <span className="flex items-center gap-2">
+                                                    <span className="font-semibold text-sm text-neutral-900 truncate">{r.label}</span>
+                                                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-white text-neutral-700 border-neutral-300">
+                                                        {r.costCategory || r.type}
+                                                    </span>
+                                                </span>
+                                                <span className="block text-xs text-neutral-500 mt-0.5 truncate">
+                                                    {isMissing ? 'Ressource supprimée' : linkedName}
+                                                </span>
                                             </span>
-                                        </div>
-                                        <div className="bg-white p-2.5 rounded-xl border border-neutral-200/80 text-xs">
-                                            <span className="text-neutral-400 font-bold block text-[10px] uppercase">Calcul automatique</span>
-                                            <span className="text-brand-700 font-bold">{getRecipeFormulaLabel(r.formula)}</span>
-                                        </div>
-                                        <div className="flex justify-end gap-2 pt-1">
-                                            <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setRecipeForm({ ...r }); setIsRecipeModalOpen(true); }} className="btn-secondary py-1.5 px-3 text-xs font-bold" aria-label={`Modifier le composant ${r.label}`}>
-                                                <i className="fa-solid fa-pen mr-1"></i> Modifier
-                                            </button>
-                                            <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className="btn-icon text-neutral-400 hover:text-red-600 p-1.5" aria-label={`Retirer le composant ${r.label}`}>
-                                                <i className="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
+                                            <i className="fa-solid fa-chevron-right text-neutral-300 text-xs shrink-0" aria-hidden="true"></i>
+                                        </button>
+                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className="shrink-0 btn-icon text-neutral-400 hover:text-red-600 p-2.5 mr-1" aria-label={`Retirer le composant ${r.label}`}>
+                                            <i className="fa-solid fa-trash text-xs"></i>
+                                        </button>
                                     </div>
                                 );
                             })}
@@ -12938,9 +13007,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="app-card flex flex-col">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white">
                             <div className="flex items-center gap-3 min-w-0">
-                                <button onClick={closeDetail} className="lg:hidden btn-icon text-neutral-500 hover:text-neutral-800 shrink-0" aria-label="Retour à la liste">
+                                <span className="lg:hidden shrink-0"><button onClick={closeDetail} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                     <i className="fa-solid fa-arrow-left"></i>
-                                </button>
+                                </button></span>
                                 <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">
                                     {isResourceEditMode ? (editingIsNew ? `Nouvelle ${resourceTab === 'materials' ? 'matière' : 'prestation'}` : `Modifier « ${selectedItem.name} »`) : selectedItem.name}
                                 </h2>
