@@ -379,16 +379,34 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false, [
                 <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-500' : 'text-neutral-400'}`}></i>
             </button>
             {isOpen && !disabled && (
-                <div role="listbox" className="absolute z-[100] w-full mt-2 bg-white border border-neutral-100 rounded-xl shadow-floating overflow-hidden max-h-60 overflow-y-auto animate-fade-in origin-top">
-                    {options.map((opt) => (
-                        <button key={opt.value} type="button" onClick={() => { onChange({ target: { value: opt.value }}); setIsOpen(false); }}
-                            role="option"
-                            aria-selected={String(value) === String(opt.value)}
-                            className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${String(value) === String(opt.value) ? 'bg-brand-50 text-brand-700 font-bold' : 'text-neutral-700 font-medium hover:bg-neutral-50 hover:text-neutral-900'}`}>
-                            <span>{opt.label}</span>
-                            {String(value) === String(opt.value) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                // picker-popover : sur téléphone (< 480px) ce panneau devient une
+                // page de sélection plein écran — voir le bloc PWA MOBILE dans
+                // index.html. Au-dessus, il reste le menu flottant habituel.
+                <div role="listbox" className="picker-popover absolute z-[100] w-full mt-2 bg-white border border-neutral-100 rounded-xl shadow-floating overflow-hidden animate-fade-in origin-top">
+                    <div className="picker-mobile-header">
+                        <button
+                            type="button"
+                            onClick={() => setIsOpen(false)}
+                            className="picker-mobile-back"
+                            aria-label="Fermer la liste"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
                         </button>
-                    ))}
+                        <p className="min-w-0 flex-1 text-sm font-bold text-neutral-900 truncate">
+                            {ariaLabel || 'Choisir une option'}
+                        </p>
+                    </div>
+                    <div className="picker-results max-h-60 overflow-y-auto">
+                        {options.map((opt) => (
+                            <button key={opt.value} type="button" onClick={() => { onChange({ target: { value: opt.value }}); setIsOpen(false); }}
+                                role="option"
+                                aria-selected={String(value) === String(opt.value)}
+                                className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${String(value) === String(opt.value) ? 'bg-brand-50 text-brand-700 font-bold' : 'text-neutral-700 font-medium hover:bg-neutral-50 hover:text-neutral-900'}`}>
+                                <span>{opt.label}</span>
+                                {String(value) === String(opt.value) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
@@ -412,10 +430,21 @@ function ClientCombobox({
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const rootRef = useRef(null);
+    const mobileSearchRef = useRef(null);
 
     useEffect(() => {
         setQuery(value || '');
     }, [value]);
+
+    // Sur téléphone la liste s'ouvre en page plein écran : le champ de
+    // recherche de cette page doit prendre le focus, sinon Safari le garde sur
+    // la puce restée derrière le panneau et déclenche un zoom parasite.
+    // Même mécanique que SolutionCombobox.
+    useEffect(() => {
+        if (!isOpen || typeof window === 'undefined' || !window.matchMedia('(max-width: 480px)').matches) return;
+        const timer = window.setTimeout(() => mobileSearchRef.current?.focus({ preventScroll: true }), 30);
+        return () => window.clearTimeout(timer);
+    }, [isOpen]);
 
     const restoreCommittedValue = () => setQuery(value || '');
 
@@ -487,7 +516,7 @@ function ClientCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-user absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px] sm:text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-user absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
@@ -504,7 +533,7 @@ function ClientCombobox({
                     // Puce compacte sous sm: (rounded-full, plus étroite, placeholder
                     // court) au lieu de la barre de recherche pleine largeur — même
                     // input, mêmes onChange/onFocus, seule l'habillage change.
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-full sm:rounded-lg pl-7 sm:pl-10 pr-4 sm:pr-8 py-2 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Client du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-client-listbox"
@@ -522,14 +551,62 @@ function ClientCombobox({
                         <i className="fa-solid fa-xmark text-[10px]"></i>
                     </button>
                 )}
+                {/* Chevron de rangée : signale que taper ouvre une page de
+                    sélection. Masqué quand la croix d'effacement occupe la place. */}
+                {!query && (
+                    // sm:hidden porté par le <span>, jamais par le <i> : Font Awesome
+                    // (chargé APRÈS tailwind.css) impose `display: inline-block` à
+                    // .fa-solid et gagne à spécificité égale — posé sur l'icône,
+                    // `hidden` resterait sans effet et le chevron s'afficherait aussi
+                    // sur desktop. Même piège que .btn-icon / .btn-primary.
+                    <span className="sm:hidden absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 text-[10px] pointer-events-none" aria-hidden="true">
+                        <i className="fa-solid fa-chevron-right"></i>
+                    </span>
+                )}
             </div>
 
             {isOpen && !disabled && (
-                <div id="quote-client-listbox" role="listbox" className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
-                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                <div id="quote-client-listbox" role="listbox" className="picker-popover absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="picker-mobile-header">
+                        <button
+                            type="button"
+                            onClick={() => { restoreCommittedValue(); setIsOpen(false); }}
+                            className="picker-mobile-back"
+                            aria-label="Retour au devis"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-neutral-900 truncate">Choisir un client</p>
+                            <p className="text-[11px] text-neutral-500 truncate">Recherchez une fiche ou créez-en une</p>
+                        </div>
+                        {query && (
+                            <button
+                                type="button"
+                                onClick={() => setQuery('')}
+                                className="picker-mobile-clear"
+                                aria-label="Effacer la recherche"
+                            >
+                                Effacer
+                            </button>
+                        )}
+                    </div>
+                    <div className="picker-mobile-search">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <input
+                            ref={mobileSearchRef}
+                            type="text"
+                            value={query}
+                            onChange={(event) => { setQuery(event.target.value); setIsOpen(true); }}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Rechercher un client…"
+                            aria-label="Rechercher un client"
+                        />
+                    </div>
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         {normalizedQuery ? 'Résultats clients' : 'Clients récents'}
                     </div>
-                    <div className="max-h-56 overflow-y-auto custom-scroll p-1.5">
+                    <div className="picker-results max-h-56 overflow-y-auto custom-scroll p-1.5">
                         {filteredClients.map((client, index) => (
                             <button
                                 key={client.id || client.name}
@@ -597,8 +674,15 @@ function ProjectCombobox({
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const rootRef = useRef(null);
+    const mobileSearchRef = useRef(null);
 
     useEffect(() => setQuery(value || ''), [value]);
+    // Focus du champ de la page plein écran sur téléphone — voir ClientCombobox.
+    useEffect(() => {
+        if (!isOpen || typeof window === 'undefined' || !window.matchMedia('(max-width: 480px)').matches) return;
+        const timer = window.setTimeout(() => mobileSearchRef.current?.focus({ preventScroll: true }), 30);
+        return () => window.clearTimeout(timer);
+    }, [isOpen]);
     const restoreCommittedProject = () => setQuery(value || '');
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -669,7 +753,7 @@ function ProjectCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-helmet-safety absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px] sm:text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-helmet-safety absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
@@ -683,7 +767,7 @@ function ProjectCombobox({
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Projet"
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-full sm:rounded-lg pl-7 sm:pl-10 pr-4 sm:pr-8 py-2 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Projet du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-project-listbox"
@@ -701,14 +785,60 @@ function ProjectCombobox({
                         <i className="fa-solid fa-xmark text-[10px]"></i>
                     </button>
                 )}
+                {!query && (
+                    // sm:hidden porté par le <span>, jamais par le <i> : Font Awesome
+                    // (chargé APRÈS tailwind.css) impose `display: inline-block` à
+                    // .fa-solid et gagne à spécificité égale — posé sur l'icône,
+                    // `hidden` resterait sans effet et le chevron s'afficherait aussi
+                    // sur desktop. Même piège que .btn-icon / .btn-primary.
+                    <span className="sm:hidden absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 text-[10px] pointer-events-none" aria-hidden="true">
+                        <i className="fa-solid fa-chevron-right"></i>
+                    </span>
+                )}
             </div>
 
             {isOpen && !disabled && (
-                <div id="quote-project-listbox" role="listbox" className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
-                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                <div id="quote-project-listbox" role="listbox" className="picker-popover absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="picker-mobile-header">
+                        <button
+                            type="button"
+                            onClick={() => { restoreCommittedProject(); setIsOpen(false); }}
+                            className="picker-mobile-back"
+                            aria-label="Retour au devis"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-neutral-900 truncate">Choisir un projet</p>
+                            <p className="text-[11px] text-neutral-500 truncate">Recherchez une affaire ou créez-en une</p>
+                        </div>
+                        {query && (
+                            <button
+                                type="button"
+                                onClick={() => setQuery('')}
+                                className="picker-mobile-clear"
+                                aria-label="Effacer la recherche"
+                            >
+                                Effacer
+                            </button>
+                        )}
+                    </div>
+                    <div className="picker-mobile-search">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <input
+                            ref={mobileSearchRef}
+                            type="text"
+                            value={query}
+                            onChange={(event) => { setQuery(event.target.value); setIsOpen(true); }}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Rechercher un projet…"
+                            aria-label="Rechercher un projet"
+                        />
+                    </div>
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         {normalizedQuery ? 'Projets correspondants' : (clientId ? 'Projets de ce client' : 'Projets récents')}
                     </div>
-                    <div className="max-h-56 overflow-y-auto custom-scroll p-1.5">
+                    <div className="picker-results max-h-56 overflow-y-auto custom-scroll p-1.5">
                         {filteredProjects.map((project, index) => (
                             <button
                                 key={project.id || project.name}
@@ -864,12 +994,12 @@ function SolutionCombobox({
             </div>
 
             {isOpen && (
-                <div id="quote-solution-listbox" role="listbox" className="solution-picker-popover absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
-                    <div className="solution-picker-mobile-header">
+                <div id="quote-solution-listbox" role="listbox" className="picker-popover absolute left-0 right-0 top-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden z-[100] animate-fade-in">
+                    <div className="picker-mobile-header">
                         <button
                             type="button"
                             onClick={() => setIsOpen(false)}
-                            className="solution-picker-mobile-back"
+                            className="picker-mobile-back"
                             aria-label="Retour au devis"
                         >
                             <i className="fa-solid fa-arrow-left"></i>
@@ -882,14 +1012,14 @@ function SolutionCombobox({
                             <button
                                 type="button"
                                 onClick={() => setQuery('')}
-                                className="solution-picker-mobile-clear"
+                                className="picker-mobile-clear"
                                 aria-label="Effacer la recherche"
                             >
                                 Effacer
                             </button>
                         )}
                     </div>
-                    <div className="solution-picker-mobile-search">
+                    <div className="picker-mobile-search">
                         <i className="fa-solid fa-magnifying-glass"></i>
                         <input
                             ref={mobileSearchRef}
@@ -901,10 +1031,10 @@ function SolutionCombobox({
                             aria-label="Rechercher un ouvrage dans le catalogue"
                         />
                     </div>
-                    <div className="solution-picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         {normalizedQuery ? 'Ouvrages correspondants' : 'Ouvrages récents et favoris'}
                     </div>
-                    <div data-testid="quote-solution-scroll" className="solution-picker-results max-h-[9.5rem] overflow-y-auto custom-scroll p-1.5">
+                    <div data-testid="quote-solution-scroll" className="picker-results max-h-[9.5rem] overflow-y-auto custom-scroll p-1.5">
                         {filteredSolutions.map((solution, index) => (
                             <button
                                 key={solution.id || solution.name}
@@ -1818,11 +1948,13 @@ function QuoteHeader({
 
                 {/* Bande 2 — métadonnées du devis. Les champs récupèrent la
                     largeur que les actions leur prenaient. */}
-                <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-3">
-                    {/* min-w-0 sous sm: (au lieu de 280px) : Client + Projet tiennent
-                        sur la même rangée que le sélecteur Type d'activité au lieu de
-                        lui prendre toute la largeur et le repousser sur sa propre ligne. */}
-                    <div className="flex flex-row items-center gap-2 flex-1 min-w-0 sm:min-w-[280px]">
+                {/* Sur téléphone, Client / Projet / Type d'activité s'empilent en
+                    trois rangées pleine largeur plutôt que de se serrer sur une
+                    seule ligne : à trois sur 375 px, chaque puce tombait sous les
+                    100 px et son libellé se coupait. À partir de sm:, la rangée
+                    d'origine est conservée. */}
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0 sm:min-w-[280px]">
                         <ClientCombobox
                             value={quote.clientName || ''}
                             clientId={quote.clientId || null}
@@ -1848,18 +1980,18 @@ function QuoteHeader({
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
                         <label htmlFor="quote-activity-type" className="sr-only">Type d’activité</label>
                         <select
                             id="quote-activity-type"
                             value={quote.activityType || 'btp'}
                             onChange={(e) => onUpdateQuote({ activityType: e.target.value })}
-                            // w-[84px] sous sm: — sans largeur fixe, ce <select> se
-                            // dimensionne sur sa plus longue option ("Événementiel",
-                            // ~170px) même quand "BTP" est sélectionné, écrasant
-                            // l'espace des puces Client/Projet à côté. Le menu déroulé
-                            // affiche toujours les libellés complets une fois ouvert.
-                            className="w-[84px] sm:w-auto bg-white border border-neutral-200 rounded-full sm:rounded-lg px-2.5 py-2 sm:py-1.5 text-xs font-bold text-neutral-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none truncate"
+                            // Rangée pleine largeur sur téléphone, comme Client et
+                            // Projet au-dessus. Reste un <select> natif : le sélecteur
+                            // système d'iOS/Android est déjà une vue plein écran, il n'y
+                            // a rien à réimplémenter — contrairement aux comboboxes
+                            // maison, qui reçoivent la classe picker-popover.
+                            className="w-full sm:w-auto bg-white border border-neutral-200 rounded-xl sm:rounded-lg px-3 sm:px-2.5 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none truncate"
                             aria-label="Type d’activité du devis"
                         >
                             <option value="btp">BTP</option>

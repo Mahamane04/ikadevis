@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260826uiredesign2">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260826pickers2">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260826uiredesign2">
+    <link rel="stylesheet" href="tailwind.css?v=20260826pickers2">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -283,8 +283,8 @@
            zoomer les formulaires et transforme les sélecteurs/détails en vues
            réellement utilisables au doigt. Le bureau et la tablette gardent
            leurs dimensions et leur comportement précédents. */
-        .solution-picker-mobile-header,
-        .solution-picker-mobile-search,
+        .picker-mobile-header,
+        .picker-mobile-search,
         .saved-quote-mobile-more { display: none; }
         html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
@@ -335,9 +335,27 @@
             }
             .mobile-company-button i { margin: 0 !important; }
 
-            /* Le choix rapide devient une page de sélection, pas un menu
-               flottant coincé sous le tableau. */
-            .solution-picker-popover {
+            /* Tout menu déroulant devient une page de sélection plein écran,
+               pas un menu flottant coincé sous son champ : un panneau absolu
+               de 150 px de haut est inutilisable au doigt, et il sort de
+               l'écran dès que le champ est en bas de page. Ce jeu de classes
+               est générique (il servait d'abord au seul choix d'ouvrage) :
+               l'appliquer à un nouveau menu ne demande que d'ajouter
+               `picker-popover` + un en-tête `picker-mobile-header` et de
+               marquer la zone défilante `picker-results`. */
+            /* `position: sticky` crée TOUJOURS un contexte d'empilement, quel
+               que soit son z-index. Le panneau plein écran vit à l'intérieur de
+               l'en-tête sticky du devis (z-30) : si haut soit son propre
+               z-index, il restait donc prisonnier de ce contexte et la barre de
+               navigation du bas (z-40, ailleurs dans l'arbre) repassait devant
+               lui. Le temps d'une sélection, l'hôte sticky renonce à son
+               contexte — il est de toute façon masqué par le panneau. */
+            header:has(.picker-popover),
+            .sticky:has(.picker-popover) {
+                position: static !important;
+                z-index: auto !important;
+            }
+            .picker-popover {
                 position: fixed !important;
                 inset: 0 !important;
                 top: 0 !important;
@@ -353,7 +371,7 @@
                 z-index: 190 !important;
                 animation: none;
             }
-            .solution-picker-mobile-header {
+            .picker-mobile-header {
                 display: flex;
                 align-items: center;
                 gap: .75rem;
@@ -363,7 +381,7 @@
                 background: #ffffff;
                 flex: 0 0 auto;
             }
-            .solution-picker-mobile-back {
+            .picker-mobile-back {
                 width: 2.5rem;
                 height: 2.5rem;
                 border: 1px solid #e2e8f0;
@@ -374,13 +392,13 @@
                 justify-content: center;
                 flex: 0 0 auto;
             }
-            .solution-picker-mobile-clear {
+            .picker-mobile-clear {
                 color: #3b5bdb;
                 font-size: .75rem;
                 font-weight: 700;
                 flex: 0 0 auto;
             }
-            .solution-picker-mobile-search {
+            .picker-mobile-search {
                 display: flex;
                 align-items: center;
                 gap: .65rem;
@@ -391,13 +409,13 @@
                 background: #f8fafc;
                 flex: 0 0 auto;
             }
-            .solution-picker-mobile-search:focus-within {
+            .picker-mobile-search:focus-within {
                 border-color: #3b5bdb;
                 box-shadow: 0 0 0 3px rgba(59, 91, 219, .12);
                 background: #ffffff;
             }
-            .solution-picker-mobile-search > i { color: #94a3b8; font-size: .9rem; }
-            .solution-picker-mobile-search input {
+            .picker-mobile-search > i { color: #94a3b8; font-size: .9rem; }
+            .picker-mobile-search input {
                 width: 100%;
                 min-width: 0;
                 border: 0;
@@ -407,11 +425,11 @@
                 font-size: 16px !important;
                 font-weight: 600;
             }
-            .solution-picker-popover-label {
+            .picker-popover-label {
                 padding: .75rem 1rem .4rem !important;
                 flex: 0 0 auto;
             }
-            .solution-picker-results {
+            .picker-results {
                 max-height: none !important;
                 flex: 1 1 auto;
                 min-height: 0;
@@ -419,16 +437,16 @@
                 -webkit-overflow-scrolling: touch;
                 padding: .5rem .75rem calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
             }
-            .solution-picker-results [role="option"] {
+            .picker-results [role="option"] {
                 min-height: 4.25rem;
                 padding: .8rem .75rem !important;
                 border-radius: .85rem;
             }
-            .solution-picker-results [role="option"] span.w-7 {
+            .picker-results [role="option"] span.w-7 {
                 width: 2.5rem;
                 height: 2.5rem;
             }
-            .solution-picker-results [role="option"] .text-xs { font-size: .9rem; }
+            .picker-results [role="option"] .text-xs { font-size: .9rem; }
 
             /* Détail d'un devis : sur téléphone il se comporte comme un écran
                de l'application, avec une seule zone de défilement horizontale
@@ -569,10 +587,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260826uiredesign2"></script>
-    <script src="js/utils.js?v=20260826uiredesign2"></script>
-    <script src="js/quote-templates.js?v=20260826uiredesign2"></script>
-    <script src="app.compiled.js?v=20260826uiredesign2"></script>
+    <script src="js/calc-engine.js?v=20260826pickers2"></script>
+    <script src="js/utils.js?v=20260826pickers2"></script>
+    <script src="js/quote-templates.js?v=20260826pickers2"></script>
+    <script src="app.compiled.js?v=20260826pickers2"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
