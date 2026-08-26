@@ -2448,3 +2448,100 @@ les phases précédentes — dont les 7 devis étalons à tolérance zéro et le
 comboboxes — passent à l'identique avant et après. Le crash empêche en revanche
 les phases suivantes de s'exécuter : **le test à corriger avant de pouvoir
 juger du reste**.
+
+---
+
+## 📜 39. Colonnes défilantes : la barre de totaux ne réservait pas sa hauteur (2026-08-26)
+
+### 39.1 Le constat
+
+Signalé par l'utilisateur, capture à l'appui : « on voit qu'il y a 8 lots
+ajoutés mais on ne peut pas défiler vers le bas sur smartphone ». La liste
+s'arrêtait visuellement au Lot 03.
+
+Mesuré à 375 px, devis de 8 lots :
+
+| | Avant |
+|---|---|
+| Hauteur du conteneur défilant | 499 px |
+| Hauteur du contenu | 585 px |
+| **Course de défilement disponible** | **86 px** |
+| Bas du conteneur (viewport) | y = 796 |
+| Haut de la barre de totaux | y = 573 |
+
+Le geste n'était donc pas mort — il ne servait simplement à rien : à fond de
+course, le bas de la liste arrivait à y = 788, soit **215 px sous la barre de
+totaux**. Les lots 05 à 08 restaient définitivement dessous.
+
+### 39.2 La cause
+
+`.quote-totals-bar` est en **`position: fixed` à toutes les largeurs**
+(index.html) : sous 768 px elle flotte à `bottom: 4.5rem`, au-dessus de la
+barre d'onglets ; au-delà elle est collée en bas. Étant hors flux, elle ne
+pousse rien : les colonnes défilantes s'étendent **sous** elle et doivent
+réserver sa hauteur elles-mêmes.
+
+La colonne centrale le faisait (`pb-36 sm:pb-24`). **La colonne des lots ne le
+faisait pas du tout** — elle n'avait que son `p-2`.
+
+### 39.3 Le correctif, et pourquoi pas un simple `pb-36` de plus
+
+Poser le même `pb-36` sur la liste des lots ne suffisait pas : mesuré après
+coup, il restait **79 px** de retard. La convention en place était donc
+elle-même fausse — la colonne centrale masquait déjà la dernière ligne du
+tableau des ouvrages de ces mêmes 79 px, sans que personne ne l'ait vu. Deux
+`pb-*` posés à la main avaient dérivé de la géométrie réelle.
+
+D'où une **source de vérité unique**, `.clear-totals-bar` dans index.html,
+appliquée aux deux colonnes :
+
+```css
+.clear-totals-bar { padding-bottom: 15rem; }
+@media (min-width: 768px) { .clear-totals-bar { padding-bottom: 6rem; } }
+```
+
+- **15rem sous 768 px** = 4.5rem (décalage au-dessus de la barre d'onglets)
+  + 12rem (`max-height` de la barre, qui grandit quand ses métriques passent à
+  la ligne). Couvre le cas le plus haut, pas seulement le cas courant.
+- **Le point de rupture est 768 px**, celui des règles de `.quote-totals-bar`,
+  et **non le `sm:` de Tailwind (640 px)**. C'est précisément ce décalage qui
+  laissait un trou entre 640 et 768 px : la barre y flottait encore au-dessus
+  de la barre d'onglets alors que le dégagement était déjà retombé à 96 px.
+- La feuille d'index.html est chargée **après** tailwind.css : à spécificité
+  égale elle gagne, donc le `p-2` porté par le même `<nav>` n'écrase pas ce
+  `padding-bottom`. Même mécanique qu'au § 37.3 — ici elle joue en notre
+  faveur, mais elle reste à connaître.
+
+### 39.4 Vérifications
+
+| Largeur | Avant | Après |
+|---|---|---|
+| 375 px — course de défilement | 86 px | **318 px** |
+| 375 px — dégagement du Lot 08 | −215 px (sous la barre) | **+17 px** |
+| 375 px — dernière ligne du tableau d'ouvrages | −79 px | **+211 px** |
+| 700 px (bande 640–768) | dégagement 96 px, insuffisant | **+107 px** |
+| 1440 px — 8 lots, défilement interne de la colonne | ✅ | **+51 px** |
+| 375 px, **1 seul lot** | pas de défilement | **pas de défilement** — le dégagement ne crée pas de course inutile |
+
+> Le dernier point méritait d'être vérifié : un `padding-bottom` de 240 px
+> aurait pu rendre défilante une liste d'un seul lot, qui tient largement à
+> l'écran. Ce n'est pas le cas — la colonne n'a de hauteur propre que sur
+> desktop, et sous `lg:` c'est le conteneur parent qui défile, seulement quand
+> le contenu déborde réellement.
+
+### 39.5 Le troisième cas : l'inspecteur d'ouvrage
+
+Vérifié dans la foulée plutôt que laissé en suspens — et il était atteint lui
+aussi, plus gravement. Sur téléphone, `WorkItemInspector` mesurait **852 px de
+haut dans un conteneur de 716**, sans aucun défileur interne : ses deux vues
+(`Simple` et le contenu d'onglet du mode `Avancé`) n'avaient que leur `p-5`.
+Le dernier champ — **« Description commerciale pour le devis client** » — était
+donc hors d'atteinte : le texte que le client lira sur son devis ne pouvait pas
+être saisi depuis un téléphone.
+
+Les deux vues portent maintenant la même classe. Après correctif : course de
+défilement 356 px, dernier champ dégagé de **202 px** au-dessus de la barre.
+
+**Trois colonnes défilantes, trois fois le même oubli.** C'est ce qui justifie
+la classe partagée plutôt qu'un quatrième `pb-*` à la main : le prochain
+panneau défilant n'aura qu'à la porter.

@@ -2175,8 +2175,16 @@ function LotNavigator({
                 )}
             </div>
 
-            {/* Liste scrollable des Lots */}
-            <nav className="flex-1 min-h-0 overflow-y-auto custom-scroll p-2 space-y-1.5" aria-label="Navigation des lots de travaux">
+            {/* Liste scrollable des Lots.
+
+                `clear-totals-bar` — le dégagement partagé avec la colonne
+                centrale, défini dans index.html (§ 39). La barre de totaux est
+                en `position: fixed` à TOUTES les largeurs : elle flottait
+                au-dessus de la colonne des lots, qui n'en réservait pas la
+                hauteur. Sur téléphone, un devis de 8 lots ne défilait que de
+                86 px et les quatre derniers restaient sous la barre,
+                inatteignables — le devis paraissait tronqué. */}
+            <nav className="flex-1 min-h-0 overflow-y-auto custom-scroll p-2 clear-totals-bar space-y-1.5" aria-label="Navigation des lots de travaux">
                 {filteredLots.map((lot, idx) => {
                     const originalIndex = lots.findIndex(l => l.id === lot.id);
                     const isActive = originalIndex === activeLotIndex;
@@ -3234,7 +3242,7 @@ function WorkItemInspector({
 
                 {/* MODE SIMPLE (Novice / Rapide) */}
                 {inspectorMode === 'simple' ? (
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5 animate-fade-in">
+                    <div className="flex-1 overflow-y-auto p-5 space-y-5 clear-totals-bar animate-fade-in">
                         <div className="p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Paramètres Essentiels de l'Ouvrage</span>
@@ -3405,7 +3413,7 @@ function WorkItemInspector({
                         </div>
 
                         {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                        <div className="flex-1 overflow-y-auto p-5 space-y-5 clear-totals-bar">
                             {activeTab === 'dimensions' && (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
@@ -4527,7 +4535,7 @@ function QuoteWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
-                    <main className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll pb-36 sm:pb-24`}>
+                    <main className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}>
                         <ActiveLotHeader
                             lot={activeLot}
                             lotIndex={activeLotIndex}

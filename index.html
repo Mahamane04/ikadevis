@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260826brief">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260826lots3">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260826brief">
+    <link rel="stylesheet" href="tailwind.css?v=20260826lots3">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -276,6 +276,34 @@
         }
         @media (min-width: 1024px) {
             .quote-totals-bar { left: var(--sidebar-width); }
+        }
+
+        /* Dégagement de la barre de totaux — voir § 39 du tracker.
+
+           `.quote-totals-bar` est en `position: fixed` à TOUTES les largeurs :
+           elle flotte au-dessus des colonnes défilantes sans jamais réserver
+           sa hauteur. Toute colonne qui défile doit donc la réserver
+           elle-même, sinon ses derniers éléments restent sous la barre,
+           inatteignables même à fond de course.
+
+           Une seule source de vérité, ici : deux `pb-*` Tailwind posés à la
+           main dans le JSX avaient déjà divergé de la réalité de 79 px.
+
+           Sous 768 px la barre flotte AU-DESSUS de la barre d'onglets
+           (`bottom: 4.5rem`) et peut monter jusqu'à `max-height: 12rem` :
+           15rem couvre les deux cas. À partir de 768 px elle est collée en bas
+           et bien plus basse — 6rem suffit largement.
+
+           Le point de rupture est 768 px, celui des règles ci-dessus, et non
+           le `sm:` de Tailwind (640 px) : c'est précisément ce décalage qui
+           laissait un trou entre 640 et 768 px.
+
+           Cette feuille est chargée APRÈS tailwind.css : à spécificité égale
+           elle gagne, donc `p-2` posé sur le même élément ne réécrase pas ce
+           padding-bottom. Piège documenté au § 37.3. */
+        .clear-totals-bar { padding-bottom: 15rem; }
+        @media (min-width: 768px) {
+            .clear-totals-bar { padding-bottom: 6rem; }
         }
 
         /* PWA MOBILE — cette couche ne s'applique qu'aux écrans de téléphone.
@@ -587,10 +615,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260826brief"></script>
-    <script src="js/utils.js?v=20260826brief"></script>
-    <script src="js/quote-templates.js?v=20260826brief"></script>
-    <script src="app.compiled.js?v=20260826brief"></script>
+    <script src="js/calc-engine.js?v=20260826lots3"></script>
+    <script src="js/utils.js?v=20260826lots3"></script>
+    <script src="js/quote-templates.js?v=20260826lots3"></script>
+    <script src="app.compiled.js?v=20260826lots3"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
