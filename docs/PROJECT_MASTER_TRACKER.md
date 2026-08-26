@@ -2280,3 +2280,88 @@ dans la vraie base. À faire depuis
 3. Changer un taux de TVA, vérifier qu'il tient après rechargement.
 4. Émettre une facture depuis un devis, puis vérifier qu'elle devient
    immuable et que la numérotation ne saute pas.
+
+---
+
+## 📱 37. Campagne mobile / PWA & calcul mixte (2026-08-25 → 26)
+
+Deux chantiers menés à la suite, tous deux vérifiés en direct dans le
+navigateur puis déployés en production.
+
+### 37.1 Calcul mixte des composants — résolu
+
+Un ouvrage combinant plusieurs méthodes de calcul (cadre au périmètre + bâche
+à la surface) était bloqué. Cause et correctif détaillés dans la fiche dédiée
+**`REPRISE_CALCUL_COMPOSANTS_2026-08-24.md`** (§11), qui fait foi ; en
+résumé :
+
+| Verrou | Correctif |
+|---|---|
+| `getRecipeFormulaCompatibility` exigeait que **tous** les modes autorisés sachent évaluer la formule | Compatible dès qu'**au moins un** mode y arrive |
+| Le menu « Mode de calcul » ne proposait que les formules déjà couvertes par l'ouvrage | Les 5 modes métier sont toujours proposés pour une matière |
+| Rien ne suggérait « Périmètre » pour un tube/cadre | `inferMaterialRecipeFormula` déduit le mode de l'unité + du nom |
+| Ajouter un composant incompatible ouvrait une boîte de dialogue bloquante | `ensureSolutionModesForFormula` élargit l'ouvrage automatiquement |
+| `ALLOWED_VARS_BY_MODE.rectangle` ne portait ni volume ni longueur | Le mode rectangle devient le contexte universel (une seule saisie L × H alimente tous les composants) |
+
+Vérifié au franc près sur deux cas : bâche + cadre (32 175 FCFA) et un ouvrage
+combinant **les 5 modes à la fois** (128 913 FCFA), chaque fois égal à la somme
+des calculs manuels. Catalogue resté 18/18 conforme.
+
+### 37.2 Campagne mobile — 5 correctifs successifs
+
+Audit écran par écran en viewport 375–390 px (Tableau de bord, Projet, Client,
+Créer un Devis, Mes devis, Catalogue, Ressources, Facture, Paramètres), puis
+trois passes de redesign sur maquettes fournies par l'utilisateur.
+
+| Commit | Objet |
+|---|---|
+| `c2d3c39` | Barre d'action mobile : boutons empilés pleine largeur (libellés coupés à deux par ligne) |
+| `dd5aa08` | Vraie cause du débordement horizontal du panneau catalogue (voir 37.3) |
+| `5b0673b` | Fusion liste des lots ↔ détail (`mobileShowLotList`) ; composants du catalogue en liste compacte |
+| `b342248` | Client / Projet / Type en colonne ; **tout menu déroulant devient une page plein écran** |
+| `76f8480` | Le détail d'un lot devient une vraie page dédiée |
+
+**Menus déroulants en page plein écran.** Le pattern existait pour le seul
+choix d'ouvrage (`.solution-picker-*`). Classes renommées en `.picker-*`
+(générique, comportement inchangé) puis appliquées à `ClientCombobox`,
+`ProjectCombobox` et surtout **`CustomSelect`** — donc à tous les menus de
+l'application d'un seul coup. Ajouter un nouveau menu à ce pattern ne demande
+que trois classes : `picker-popover`, `picker-mobile-header`, `picker-results`.
+Le `<select>` Type d'activité reste natif : iOS/Android ouvrent déjà leur
+propre sélecteur plein écran.
+
+**Détail d'un lot en page dédiée.** Le basculement liste↔détail existait déjà
+(`mobileShowLotList`, ajouté en `5b0673b`) mais ne se voyait pas : la bande
+d'en-tête du devis restait affichée au-dessus et prenait la moitié haute de
+l'écran. Elle se replie désormais tant qu'un lot ou un ouvrage est ouvert —
+wrapper en `display: contents` pour que le `<header>` reste l'enfant flex
+direct de la coque, sinon son `sticky top-0` casse. `lg:contents` garde le
+desktop strictement inchangé.
+
+### 37.3 Quatre pièges de mise en page, tous de la même famille
+
+Tous relèvent du principe déjà documenté au § 4.1 de `REPRISE_SESSION.md` :
+**une feuille chargée après `tailwind.css` gagne à spécificité égale**, ou une
+propriété CSS crée un contexte que le z-index ne peut pas franchir.
+
+| Piège | Ce qui se passait | Remède |
+|---|---|---|
+| `.btn-icon` fixe `display: inline-flex` | `lg:hidden` posé sur le bouton restait inopérant — 6 boutons « retour » visibles sur desktop | Porter `lg:hidden` sur un conteneur, jamais sur `.btn-icon` |
+| Font Awesome fixe `display: inline-block` sur `.fa-solid` | `sm:hidden` sur une icône chevron restait inopérant | Porter `sm:hidden` sur un `<span>` englobant |
+| `items-start` + bloc de texte sans largeur propre | Le bloc prenait la largeur **naturelle** de son contenu (511 px mesuré) au lieu de se contraindre à la carte — `min-w-0` seul ne suffit pas, c'est la largeur du parent qui est en cause | `w-full sm:w-auto` sur le bloc titre |
+| `position: sticky` crée **toujours** un contexte d'empilement | Le panneau plein écran (z-190), enfant de l'en-tête sticky du devis (z-30), restait prisonnier sous la barre de navigation (z-40) | L'hôte sticky renonce à son contexte le temps de la sélection (`:has`) |
+
+> Le troisième mérite d'être retenu : le premier correctif (`min-w-0` sur
+> `app-card`) réduisait le débordement sans l'éliminer, et l'utilisateur l'a
+> signalé une seconde fois en conditions réelles. `min-w-0` traite le
+> **min-width de l'enfant** ; ici le problème était la **largeur du parent**.
+
+### 37.4 Reste à faire
+
+1. **Usage réellement hors-ligne** (mode avion) et **installation à l'écran
+   d'accueil** jamais éprouvés — seuls le rendu et les interactions en ligne
+   l'ont été.
+2. Le parcours **connecté** reste non exercé (voir § 36.7) : inchangé.
+3. `:has()` demande iOS Safari 15.4+. Sans lui, la barre de navigation
+   repasse devant le panneau plein écran — dégradation cosmétique, pas une
+   panne.

@@ -121,8 +121,24 @@ entièrement visibles et utilisables. Ouvrage de test supprimé après vérifica
 
 **Non vérifié** : usage réellement hors-ligne (avion/sans réseau) et l'installation à
 l'écran d'accueil elle-même — seul le rendu et les interactions en ligne ont été
-testés. Une passe complète de la checklist §9 (incluant ces deux points) reste à faire
-avant toute publication en production.
+testés. Ces deux points de la checklist §9 restent ouverts.
+
+### 11.3 Suite — publié en production
+
+Le correctif a été **déployé en production le 2026-08-25** puis vérifié en direct
+sur https://ikadevis.officemicro89.workers.dev (l'écran exact signalé par
+l'utilisateur a été rejoué sur le site en ligne). La campagne mobile qui a suivi
+(25–26 août) est journalisée au **§ 37 de `PROJECT_MASTER_TRACKER.md`** ; les
+pièges de mise en page rencontrés ont été ajoutés au § 4.1 / 4.1 bis de
+`REPRISE_SESSION.md`.
+
+> Incident lors de cette vérification en production : un script de test a supprimé
+> le composant « Fer du cadre (Tubes 25x25) » de l'ouvrage de démonstration au lieu
+> du doublon créé pour le test — le sélecteur ciblait la *ressource liée*, identique
+> sur les deux cartes. Détecté immédiatement (Santé du Catalogue passée à 18
+> composants au lieu de 19) et restauré à l'identique, mode « Périmètre » compris.
+> Données du mode Invité uniquement. **Leçon** : sur un site en ligne, ancrer un
+> sélecteur de suppression sur l'intitulé du composant, jamais sur la ressource.
 
 ## 1. Objectif de cette fiche
 
