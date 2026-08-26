@@ -2246,12 +2246,13 @@ function ActiveLotHeader({
         // sans ça, les boutons d'action (whitespace-nowrap, donc incompressibles)
         // écrasaient le titre et la ligne "Sous-total HT · Marge · ouvrages" en
         // une colonne d'une dizaine de pixels dès que la fenêtre rétrécissait.
-        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-3">
-            {/* w-full sm:w-auto : items-start (au lieu du stretch par défaut)
-                laisse ce bloc prendre la largeur naturelle d'un nom de lot long
-                au lieu de se contraindre à la carte — même piège que celui
-                corrigé sur l'en-tête Catégorie Ouvrage (index_jsx.js ~12430). */}
-            <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto sm:min-w-[240px]">
+        // Rangée unique, y compris sur téléphone : en `flex-col`, le bloc
+        // d'actions passait sous le titre et le bouton « Dupliquer » se
+        // retrouvait seul sur une ligne à lui, au milieu de l'en-tête. Le
+        // bloc titre porte `flex-1 min-w-0` et tronque, les actions restent
+        // `shrink-0` à droite — c'est la barre de titre d'une page.
+        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-row sm:flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 sm:min-w-[240px]">
                 {onBackToLotList && (
                     // lg:hidden sur un conteneur, jamais sur .btn-icon lui-même : ce
                     // dernier fixe `display: inline-flex` dans le <style> de
@@ -2300,7 +2301,7 @@ function ActiveLotHeader({
                         </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-xs">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-3 mt-1 text-xs">
                         <span className="font-semibold text-neutral-900">
                             Sous-total HT : <strong className="text-brand-600 font-bold">{formatMoney(lot.lotTotalHT || 0, currency)}</strong>
                         </span>
@@ -2317,7 +2318,7 @@ function ActiveLotHeader({
             </div>
 
             {/* Boutons d'action du lot */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
+            <div className="flex items-center gap-2 w-auto shrink-0">
                 <button
                     type="button"
                     onClick={onDuplicateLot}
@@ -4372,7 +4373,17 @@ function QuoteWorkspace({
 
     return (
         <div className="h-full min-h-0 bg-neutral-100 flex flex-col overflow-hidden">
-            {/* Header Devis */}
+            {/* Header Devis.
+                Sur téléphone, ouvrir un lot (ou un ouvrage) doit donner une
+                VRAIE page : cette bande — numéro, statut, client, projet, type
+                d'activité — se replie alors, sinon elle occupe la moitié
+                supérieure de l'écran et le détail n'hérite que du bas de la
+                vue, ce qui ne se distingue pas de la liste. Le bouton retour du
+                lot la restaure. `contents` (et non `block`) pour que le
+                <header> reste l'enfant flex direct de la coque : un wrapper
+                visible casserait le `sticky top-0` et la répartition en
+                colonne. À partir de lg: elle est toujours affichée. */}
+            <div className={(mobileShowLotList && inspectorItemIndex === null) ? 'contents' : 'hidden lg:contents'}>
             <QuoteHeader
                 quote={calculatedQuote}
                 clients={clients}
@@ -4411,6 +4422,7 @@ function QuoteWorkspace({
                     showToast('Modèle événementiel chargé : 4 lots prêts à personnaliser', 'success');
                 }}
             />
+            </div>
 
             {/* Assistant Intelligent de Démarrage */}
             <NewQuoteWizardModal
