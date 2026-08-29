@@ -72,10 +72,26 @@ import { launchApp, enterGuestMode, loadOneClickTemplate, readFinancials } from 
 // coïncident déjà — ce sont les lots à conditionnement fixe qui bougent.
 //
 // Les nouvelles valeurs sont MESURÉES, et leur cohérence interne est vérifiée :
-// netHT / debourseSec = 1,5100 exactement (= coeffK affiché, inchangé) et
-// totalTTC = netHT × 1,18 au franc près. Seule la base a bougé ; toute la
-// chaîne financière au-dessus est intacte.
-const EXPECTED = { debourseSec: 60226028, coeffK: 1.51, netHT: 90939042, totalTTC: 107308070 };
+// netHT / debourseSec = coeffK affiché, et totalTTC = netHT × 1,18 au franc près.
+//
+// Recalibré une QUATRIÈME fois le 2026-08-26, quelques heures après, sur un bug
+// autrement plus grave signalé par l'utilisateur — et que cet étalon laissait
+// passer depuis l'origine (02e177d, 2026-08-16) :
+//
+//   En modes 'rectangle' et 'volume', SURFACE et VOLUME ne comptaient qu'UN
+//   exemplaire de l'ouvrage, jamais la quantité. Ici, le lot « Menuiserie
+//   Aluminium & Serrurerie » (12 baies de 2,40 × 2,20 m) était chiffré sur
+//   5,28 m² au lieu de 63,36 m² — douze fois trop peu. D'où +34 % sur le
+//   déboursé de la villa : ce devis était SOUS-FACTURÉ, pas surfacturé.
+//
+// Pourquoi l'étalon ne l'a jamais vu : il ne vérifiait que des totaux, jamais la
+// quantité d'un lot précis, et les étalons A–F n'utilisent que des ouvrages en
+// quantité 1 ou des modes ('surface', 'floor', 'linear') qui, eux, appliquaient
+// bien la quantité. L'anomalie était donc invisible à 7 étalons sur 7.
+// Le coefficient K passe de 1,510 à 1,507 : ce n'est pas un changement de
+// politique, seulement la nouvelle répartition entre lots à conditionnement
+// (arrondis d'achat) et lots au réel.
+const EXPECTED = { debourseSec: 80716652, coeffK: 1.507, netHT: 121674978, totalTTC: 143576474 };
 const TOLERANCE = 0;
 
 export async function run() {

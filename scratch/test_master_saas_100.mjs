@@ -33,6 +33,7 @@ import * as goldD from './test_gold_standard_d_menuiserie.mjs';
 import * as goldE from './test_gold_standard_e_enseigne.mjs';
 import * as goldF from './test_gold_standard_f_acm.mjs';
 import * as goldG from './test_gold_standard_g_villa.mjs';
+import * as quantityPropagation from './test_quantity_propagation.mjs';
 import * as clientCombobox from './test_client_combobox.mjs';
 import * as projectCombobox from './test_project_combobox.mjs';
 import * as inlineWorkItemCombobox from './test_inline_work_item_combobox.mjs';
@@ -51,6 +52,7 @@ const SUITES = [
     { name: 'Étalon E — Enseigne Lumineuse LED (tolérance zéro)', mod: goldE, expectedToFail: false },
     { name: 'Étalon F — Façade Panneaux ACM (tolérance zéro)', mod: goldF, expectedToFail: false },
     { name: 'Étalon G — Villa R+1, 11 lots (tolérance zéro)', mod: goldG, expectedToFail: false },
+    { name: 'Propagation de la quantité à tous les métrés', mod: quantityPropagation, expectedToFail: false },
     { name: 'Phase 1 — ClientCombobox et création contextuelle', mod: clientCombobox, expectedToFail: false },
     { name: 'Phase 1 bis — ProjetCombobox et création contextuelle', mod: projectCombobox, expectedToFail: false },
     { name: 'Phase 2 — Ajout d’ouvrage depuis le tableau', mod: inlineWorkItemCombobox, expectedToFail: false },

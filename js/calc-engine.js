@@ -730,12 +730,27 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     let calcPerimeter = 2 * (widthVal + heightVal);
     let calcVolume = widthVal * heightVal * depthVal;
 
+    // 2026-08-26 — SURFACE et VOLUME ne comptaient qu'UN exemplaire de l'ouvrage
+    // en modes 'rectangle' et 'volume' : 7 lettres de 0,60 × 0,50 m donnaient
+    // 0,30 m² de plexi au lieu de 2,10 m². Le devis sous-facturait donc toute la
+    // matière calculée à la surface dès que la quantité dépassait 1.
+    //
+    // Pourquoi seulement ces deux modes : ces valeurs sont transmises telles
+    // quelles à evaluateDynamicFormula comme SURFACE/VOLUME explicites, et cette
+    // fonction ne remultiplie par la quantité que dans les branches 'surface',
+    // 'floor' et 'linear' (déjà correctes — les multiplier ici les compterait
+    // deux fois). 'rectangle' et 'volume' ne passent par aucune de ces branches
+    // et gardaient donc la valeur unitaire. PERIMETRE, lui, est toujours
+    // recalculé en 2 × (L + H) × qté par cette même fonction : c'est pourquoi le
+    // périmètre était juste alors que la surface était fausse, ce qui rendait
+    // l'anomalie difficile à repérer.
     if (mode === 'rectangle') {
-        calcSurface = widthVal * heightVal;
-        calcPerimeter = 2 * (widthVal + heightVal);
+        calcSurface = widthVal * heightVal * qtyVal;
+        calcPerimeter = 2 * (widthVal + heightVal) * qtyVal;
+        calcVolume = widthVal * heightVal * depthVal * qtyVal;
     } else if (mode === 'volume') {
-        calcSurface = widthVal * heightVal;
-        calcVolume = widthVal * heightVal * depthVal;
+        calcSurface = widthVal * heightVal * qtyVal;
+        calcVolume = widthVal * heightVal * depthVal * qtyVal;
     } else if (mode === 'surface') {
         calcSurface = surfaceDirectVal;
         calcPerimeter = 4 * Math.sqrt(surfaceDirectVal);
@@ -911,23 +926,38 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     // les mêmes valeurs que celles injectées dans evalVars pour les formules
     // (SURFACE/VOLUME/LONGUEUR), afin que la quantité affichée au client soit
     // la même que celle qui a servi au calcul du déboursé.
+    // 2026-08-26 — Ce métré doit être le TOTAL de la ligne, puisque totalHT l'est
+    // aussi : le devis client affiche `totalHT / metre.value` comme prix
+    // unitaire. Les modes 'surface', 'floor' et 'linear' exposaient ici la valeur
+    // POUR UN exemplaire alors que le coût couvrait les qtyVal exemplaires — le
+    // total facturé restait juste, mais la ligne client annonçait « 2,00 m² » à
+    // un prix unitaire triplé pour 3 exemplaires. On multiplie donc là où
+    // evaluateDynamicFormula le fait de son côté ; 'rectangle' et 'volume'
+    // portent déjà la quantité depuis le bloc calcSurface/calcVolume plus haut.
     let metreValue = calcSurface;
     let metreUnit = 'm²';
     let metreSummary = null;
+    const parExemplaire = qtyVal > 1 ? ` × ${qtyVal}` : '';
     if (mode === 'unit') {
         metreValue = qtyVal;
         metreUnit = 'u';
     } else if (mode === 'volume') {
         metreValue = calcVolume;
         metreUnit = 'm³';
-        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m × ${depthVal.toFixed(2)} m`;
+        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m × ${depthVal.toFixed(2)} m${parExemplaire}`;
     } else if (mode === 'linear') {
-        metreValue = lengthDirectVal;
+        metreValue = lengthDirectVal * qtyVal;
         metreUnit = 'ml';
+        metreSummary = qtyVal > 1 ? `${lengthDirectVal.toFixed(2)} ml${parExemplaire}` : null;
     } else if (mode === 'rectangle') {
-        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m`;
+        metreSummary = `${widthVal.toFixed(2)} m × ${heightVal.toFixed(2)} m${parExemplaire}`;
+    } else if (mode === 'surface') {
+        metreValue = surfaceDirectVal * qtyVal;
+        metreSummary = qtyVal > 1 ? `${surfaceDirectVal.toFixed(2)} m²${parExemplaire}` : null;
+    } else if (mode === 'floor') {
+        metreValue = widthVal * lengthDirectVal * qtyVal;
+        metreSummary = `${widthVal.toFixed(2)} m × ${lengthDirectVal.toFixed(2)} m${parExemplaire}`;
     }
-    // mode === 'surface' ou 'floor' : métré direct, pas de L × H à afficher.
 
     return {
         ...item,
