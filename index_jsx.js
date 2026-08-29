@@ -3544,19 +3544,46 @@ function WorkItemInspector({
 
                             {activeTab === 'costs' && (
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-neutral-100 p-3 rounded-xl">
-                                        <span className="text-xs font-bold text-neutral-700 uppercase">Déboursé Sec Consommé :</span>
-                                        <span className="font-semibold text-neutral-900 text-sm">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
+                                    {/* Deux montants, deux questions différentes — les confondre était
+                                        la principale faiblesse métier de cet écran. Le devis se chiffre
+                                        sur ce qu'il consomme ; la trésorerie se prépare sur ce qu'il faut
+                                        commander. L'écart est le stock qui restera après le chantier. */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div className="bg-neutral-100 p-3 rounded-xl">
+                                            <span className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Déboursé sec consommé</span>
+                                            <span className="font-bold text-neutral-900 text-sm">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
+                                            <span className="block text-[10px] text-neutral-500 mt-0.5">Imputé au devis (net + perte technique)</span>
+                                        </div>
+                                        <div className="bg-white border border-neutral-200 p-3 rounded-xl">
+                                            <span className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Besoin d'achat</span>
+                                            <span className="font-bold text-neutral-700 text-sm">{formatMoney(quoteData.totalDebourseAchat, currency)}</span>
+                                            <span className="block text-[10px] text-neutral-500 mt-0.5">
+                                                Conditionnements entiers à commander
+                                                {quoteData.totalDebourseAchat > quoteData.totalDebourseConsomme && (
+                                                    <span className="text-emerald-700 font-semibold">
+                                                        {' '}· dont {formatMoney(quoteData.totalDebourseAchat - quoteData.totalDebourseConsomme, currency)} de reliquat en stock
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <table className="w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
                                         <thead>
                                             <tr className="bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase">
+                                                {/* 2026-08-26 — « Quantité Nette » affichait en réalité le
+                                                    besoin BRUT (net + perte), et « Coût Total » le coût
+                                                    d'ACHAT : « quantité × coût unitaire » ne retombait donc
+                                                    jamais sur le total (0,30 × 17 123 = 5 137 en face de
+                                                    50 000). Les deux étapes sont maintenant des colonnes
+                                                    distinctes, et le coût affiché est celui réellement
+                                                    imputé au devis — la ligne se vérifie de tête. */}
                                                 <th className="p-2.5 text-left">Poste</th>
-                                                <th className="p-2.5 text-right">Quantité Nette</th>
-                                                <th className="p-2.5 text-right">Perte %</th>
-                                                <th className="p-2.5 text-right">Coût Unitaire</th>
-                                                <th className="p-2.5 text-right">Coût Total</th>
+                                                <th className="p-2.5 text-right">Besoin net</th>
+                                                <th className="p-2.5 text-right">Perte</th>
+                                                <th className="p-2.5 text-right">Besoin brut</th>
+                                                <th className="p-2.5 text-right">PU</th>
+                                                <th className="p-2.5 text-right">Coût consommé</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-neutral-100">
@@ -3576,7 +3603,7 @@ function WorkItemInspector({
                                                     if (packSize <= 0) return null;
                                                     const totalPurchased = d.packsNeeded * packSize;
                                                     const offcut = totalPurchased - d.billedQty;
-                                                    return { count: d.packsNeeded, unitLabel: mat.unitBuy, offcut: offcut > 0.01 ? offcut : 0 };
+                                                    return { count: d.packsNeeded, unitLabel: mat.unitBuy, offcut: offcut > 0.01 ? offcut : 0, cost: d.costPurchased };
                                                 })() : null;
                                                 // Gestion de stock, Phase 1 (2026-08-20) — informatif seulement, jamais
                                                 // bloquant : un devis peut toujours être créé/enregistré même si le
@@ -3591,11 +3618,19 @@ function WorkItemInspector({
                                                     <td className="p-2.5 font-bold text-neutral-800">
                                                         {d.label}
                                                         {packInfo && (
+                                                            // « Reliquat », plus « chute » : ce qui reste d'un
+                                                            // conditionnement entamé (2,62 m² de plexi, 199 modules)
+                                                            // retourne au stock et resservira. Ce n'est pas une
+                                                            // matière perdue, et ce n'est pas ce que paie ce devis —
+                                                            // d'où le rappel du coût d'achat, distinct du consommé.
                                                             <div className="font-normal text-[10px] text-neutral-500 mt-0.5">
                                                                 <i className="fa-solid fa-boxes-stacked mr-1 text-neutral-400"></i>
-                                                                {packInfo.count} × {packInfo.unitLabel}
+                                                                À acheter : {packInfo.count} × {packInfo.unitLabel}
+                                                                {packInfo.cost > 0 && <span> ({formatMoney(packInfo.cost, currency)})</span>}
                                                                 {packInfo.offcut > 0 && (
-                                                                    <span className="text-amber-600"> · chute ≈ {packInfo.offcut.toFixed(2)} {d.unit}</span>
+                                                                    <span className="text-emerald-700" title="Conditionnement entamé mais non consommé : retourne au stock, n'est pas imputé à ce devis.">
+                                                                        {' '}· reliquat {packInfo.offcut.toFixed(2)} {d.unit} → stock
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         )}
@@ -3606,9 +3641,19 @@ function WorkItemInspector({
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="p-2.5 text-right font-medium">{d.billedQty?.toFixed(2)} {d.unit}</td>
+                                                    <td className="p-2.5 text-right font-medium text-neutral-600">{d.netQty?.toFixed(2)} {d.unit}</td>
                                                     <td className="p-2.5 text-right">
-                                                        {d.type === 'material' ? (
+                                                        {d.type === 'material' && d.isCountable ? (
+                                                            // Perte % volontairement non applicable au dénombrable
+                                                            // (voir calc-engine.js) : afficher le champ modifiable
+                                                            // laisserait croire qu'il agit sur le calcul.
+                                                            <span
+                                                                className="text-neutral-300"
+                                                                title={d.wastePctSaisi > 0
+                                                                    ? `Ressource vendue à l'unité : le taux catalogue de ${d.wastePctSaisi}% n'est pas appliqué (on ne consomme pas une fraction d'unité). Prévoyez une quantité de sécurité dans le métré.`
+                                                                    : "Ressource vendue à l'unité : pas de perte en pourcentage."}
+                                                            >—</span>
+                                                        ) : d.type === 'material' ? (
                                                             <div className="flex items-center justify-end gap-1">
                                                                 <input
                                                                     type="number" min="0" max="100" step="0.1"
@@ -3645,8 +3690,9 @@ function WorkItemInspector({
                                                             </div>
                                                         ) : <span className="text-neutral-300">—</span>}
                                                     </td>
+                                                    <td className="p-2.5 text-right font-medium">{d.billedQty?.toFixed(2)} {d.unit}</td>
                                                     <td className="p-2.5 text-right font-medium">{formatMoney(d.unitCost, currency)}</td>
-                                                    <td className="p-2.5 text-right font-bold text-neutral-900">{formatMoney(d.totalCost, currency)}</td>
+                                                    <td className="p-2.5 text-right font-bold text-neutral-900" title="Besoin brut × PU — c'est ce que ce devis impute réellement.">{formatMoney(d.totalCost, currency)}</td>
                                                 </tr>
                                                 );
                                             })}
@@ -3678,18 +3724,48 @@ function WorkItemInspector({
                                             <p className="text-[10px] text-amber-800/75">Ce champ est réservé aux lignes libres. Les ouvrages du catalogue utilisent automatiquement leur coût.</p>
                                         </div>
                                     )}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {/* 2026-08-26 — Le moteur sait faire les deux depuis toujours
+                                        (marginType 'reel' | 'majoration'), mais l'éditeur hybride le
+                                        codait en dur sur 'reel' sous l'étiquette « Marge Réelle ».
+                                        Or 'reel' divise par (1 − t) : c'est un TAUX DE MARQUE. Un
+                                        utilisateur saisissant 30 % en pensant majorer son coût de 30 %
+                                        obtenait 136 350 au lieu de 124 079 — 12 271 FCFA d'écart sur un
+                                        petit ouvrage. Le choix est désormais explicite, avec la formule
+                                        affichée ; le défaut ne change pas, donc aucun devis existant
+                                        n'est modifié. */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className="app-label">Taux de Marge Réelle (%)</label>
+                                            <label className="app-label">Mode de marge</label>
+                                            <CustomSelect
+                                                value={calcForm.marginType || 'reel'}
+                                                onChange={(e) => handleParamChange('marginType', e.target.value)}
+                                                options={[
+                                                    { value: 'reel', label: 'Taux de marque (sur PV HT)' },
+                                                    { value: 'majoration', label: 'Majoration (sur le coût)' }
+                                                ]}
+                                                aria-label="Mode de calcul de la marge"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="app-label">
+                                                {(calcForm.marginType || 'reel') === 'reel' ? 'Taux de marque (%)' : 'Majoration (%)'}
+                                            </label>
                                             <input
                                                 type="number"
                                                 min="0"
-                                                max="99"
+                                                max={(calcForm.marginType || 'reel') === 'reel' ? 99 : 1000}
                                                 value={calcForm.margin !== undefined ? calcForm.margin : 30}
                                                 onChange={(e) => handleParamChange('margin', parseFloat(e.target.value) || 0)}
                                                 className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                             />
+                                            <p className="text-[10px] text-neutral-500 mt-1">
+                                                {(calcForm.marginType || 'reel') === 'reel'
+                                                    ? 'PV = coût de revient ÷ (1 − taux) — la marge représente ce % du prix de vente.'
+                                                    : 'PV = coût de revient × (1 + taux) — le coût est majoré de ce %.'}
+                                            </p>
                                         </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="app-label">Frais Généraux (%)</label>
                                             <input
@@ -8844,11 +8920,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             if (line.type === 'material' && line.baseQty > 0) {
                 const mat = materials.find(m => m.id === line.refId);
                 if (mat) {
-                    const billedQty = line.baseQty * (1 + ((parseFloat(mat.waste) || 0) / 100));
+                    const rawOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : undefined;
+                    const wastePct = rawOverride !== undefined && rawOverride !== null && rawOverride !== ''
+                        ? Math.max(0, parseFloat(rawOverride) || 0)
+                        : Math.max(0, parseFloat(mat.waste) || 0);
+                    const netQty = line.baseQty;
+                    const wasteQty = netQty * (wastePct / 100);
+                    const billedQty = netQty + wasteQty;
                     if (!materialConsolidation[mat.id]) {
-                        materialConsolidation[mat.id] = { mat, totalBilledQty: 0, primaryCostCategory: line.costCategory };
+                        materialConsolidation[mat.id] = {
+                            mat,
+                    totalNetQty: 0,
+                    totalWasteQty: 0,
+                    totalBilledQty: 0,
+                    totalConsumedCost: 0,
+                    primaryCostCategory: line.costCategory,
+                            wastePct,
+                            defaultWastePct: Math.max(0, parseFloat(mat.waste) || 0),
+                            isWasteOverridden: rawOverride !== undefined && rawOverride !== null && rawOverride !== ''
+                        };
                     }
-                    materialConsolidation[mat.id].totalBilledQty += billedQty;
+                    const entry = materialConsolidation[mat.id];
+                    entry.totalNetQty += netQty;
+                    entry.totalWasteQty += wasteQty;
+                    entry.totalBilledQty += billedQty;
                 }
             }
         });
@@ -8872,9 +8967,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 entry.purchaseQty = unitSize > 0 ? Math.ceil(entry.totalBilledQty / unitSize) : 0;
             }
             entry.totalPurchaseCost = entry.purchaseQty * mat.priceBuy;
+            entry.purchasedQty = entry.purchaseQty * unitSize;
+            entry.remainderQty = Math.max(0, entry.purchasedQty - entry.totalBilledQty);
+            entry.purchaseUnit = mat.unitBuy || mat.unitCalc || 'u';
+            entry.purchaseCost = entry.totalPurchaseCost;
         });
 
         const consumedByCategory = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
+        const consumedByCategoryReel = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
         const purchaseByCategory = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
         const materialConsumedByCat = {}; // { matId: { transport: 6000, installation: 4000 } }
 
@@ -8886,8 +8986,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             if (line.type === 'material') {
                 const mat = materials.find(m => m.id === line.refId);
                 if (mat) {
-                    const billedQty = line.baseQty * (1 + ((parseFloat(mat.waste)||0) / 100));
-                    const cost = billedQty * mat.priceCalc;
+                    const rawOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : undefined;
+                    const wastePct = rawOverride !== undefined && rawOverride !== null && rawOverride !== ''
+                        ? Math.max(0, parseFloat(rawOverride) || 0)
+                        : Math.max(0, parseFloat(mat.waste) || 0);
+                    const netQty = line.baseQty;
+                    const wasteQty = netQty * (wastePct / 100);
+                    const billedQty = netQty + wasteQty;
+                    const costConsumed = billedQty * (mat.priceCalc || 0);
+
+                    if (materialConsolidation[mat.id]) {
+                        materialConsolidation[mat.id].totalConsumedCost =
+                            (materialConsolidation[mat.id].totalConsumedCost || 0) + costConsumed;
+                    }
 
                     // P0.4 — Le déboursé facturé au client doit refléter ce qui est
                     // RÉELLEMENT acheté (conditionnement entier : pot, carton, barre…),
@@ -8897,19 +9008,46 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     // réelle, 'step' = pas commercial). On répartit ce coût d'achat
                     // au prorata de la part de cette ligne dans la consommation totale
                     // de la matière (utile si une même matière sert sur plusieurs lignes).
-                    const cons = materialConsolidation[mat.id] || { purchaseQty: 0, totalBilledQty: 0, totalPurchaseCost: 0 };
+                    const cons = materialConsolidation[mat.id] || {
+                        purchaseQty: 0,
+                        purchasedQty: 0,
+                        remainderQty: 0,
+                        totalBilledQty: 0,
+                        totalNetQty: 0,
+                        totalWasteQty: 0,
+                        totalConsumedCost: 0,
+                        totalPurchaseCost: 0
+                    };
                     const lineShare = cons.totalBilledQty > 0 ? (billedQty / cons.totalBilledQty) : 0;
                     const achatCost = (cons.totalPurchaseCost || 0) * lineShare;
 
                     consumedByCategory[cat] = (consumedByCategory[cat] || 0) + achatCost;
+                    consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + costConsumed;
 
                     if (!materialConsumedByCat[mat.id]) materialConsumedByCat[mat.id] = {};
-                    materialConsumedByCat[mat.id][cat] = (materialConsumedByCat[mat.id][cat] || 0) + cost;
+                    materialConsumedByCat[mat.id][cat] = (materialConsumedByCat[mat.id][cat] || 0) + costConsumed;
 
                     details.push({
                         id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
-                        baseQty: line.baseQty, waste: mat.waste, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: achatCost,
-                        purchaseQty: cons.purchaseQty, purchaseUnit: mat.unitBuy, evalError: line.evalError
+                        baseQty: netQty,
+                        netQty,
+                        waste: wastePct,
+                        wastePct,
+                        wasteQty,
+                        billedQty,
+                        grossQty: billedQty,
+                        unit: mat.unitCalc,
+                        unitCost: mat.priceCalc,
+                        totalCost: achatCost,
+                        costConsumed,
+                        costPurchased: achatCost,
+                        purchaseQty: cons.purchaseQty,
+                        purchaseUnit: mat.unitBuy,
+                        purchasedQty: cons.purchasedQty,
+                        remainderQty: cons.remainderQty,
+                        remainderUnit: mat.unitCalc,
+                        purchaseUnitBuy: mat.unitBuy,
+                        evalError: line.evalError
                     });
                 }
             } else if (line.type === 'labor') {
@@ -8918,11 +9056,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     const cost = line.baseQty * lab.rate;
 
                     consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
+                    consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + cost;
                     purchaseByCategory[cat] = (purchaseByCategory[cat] || 0) + cost;
 
                     details.push({
                         id: line.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
-                        baseQty: line.baseQty, waste: 0, billedQty: line.baseQty, unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost, evalError: line.evalError
+                        baseQty: line.baseQty,
+                        netQty: line.baseQty,
+                        waste: 0,
+                        wastePct: 0,
+                        wasteQty: 0,
+                        billedQty: line.baseQty,
+                        grossQty: line.baseQty,
+                        unit: lab.unit || 'u',
+                        unitCost: lab.rate,
+                        totalCost: cost,
+                        costConsumed: cost,
+                        costPurchased: cost,
+                        evalError: line.evalError
                     });
                 }
             }
@@ -8946,6 +9097,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         });
 
+        const totalDebourseConsommeReel = Object.values(consumedByCategoryReel).reduce((a, b) => a + b, 0);
         const totalDebourseConsomme = Object.values(consumedByCategory).reduce((a, b) => a + b, 0);
         const totalDebourseAchat = Object.values(purchaseByCategory).reduce((a, b) => a + b, 0);
 
@@ -9007,6 +9159,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             commercialItems,
             materialConsolidation,
             consumedByCategory,
+            consumedByCategoryReel,
             purchaseByCategory,
             totalMaterialConsumed: consumedByCategory.material, 
             totalMaterialPurchased: purchaseByCategory.material,
@@ -9015,6 +9168,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             totalTransport: consumedByCategory.transport,
             totalSubcontracting: consumedByCategory.subcontracting,
             totalDebourseConsomme,
+            totalDebourseConsommeReel,
+            totalDebourseConsommePhysique: totalDebourseConsommeReel,
             totalDebourseAchat,
             fraisGenerauxConsomme,
             fraisGenerauxAchat,
@@ -9973,14 +10128,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                             {showTechnicalDetails && (
                                 <div className="p-4 sm:p-6 space-y-6 border-t border-neutral-200 bg-neutral-50/30 animate-fade-in">
-                                    {/* DÉCOMPOSITION DU DÉBOURSÉ */}
+                                    {/* DÉCOMPOSITION DE LA CONSOMMATION */}
                                     <div className="p-0 overflow-hidden border border-neutral-200 rounded-2xl bg-white">
                                         <div className="px-5 sm:px-6 py-4 bg-neutral-100 border-b border-neutral-200 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <i className="fa-solid fa-calculator text-neutral-600"></i>
-                                                <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Détail des Postes de Coût (Consommation Chantier)</h3>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <i className="fa-solid fa-calculator text-neutral-600"></i>
+                                                    <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Détail de la consommation</h3>
+                                                </div>
+                                                <p className="mt-1 text-[11px] text-neutral-500">
+                                                    Le besoin brut inclut la perte technique. L'achat est détaillé séparément.
+                                                </p>
                                             </div>
-                                            <span className="text-xs font-mono font-bold text-neutral-500">Déboursé : {formatMoney(currentQuote.totalDebourseConsomme, companyInfo.currency)}</span>
+                                            <span className="shrink-0 text-xs font-mono font-bold text-neutral-500">Consommation réelle : {formatMoney(currentQuote.totalDebourseConsommeReel ?? currentQuote.totalDebourseConsomme, companyInfo.currency)}</span>
                                         </div>
                                         
                                         <div className="app-table-wrapper rounded-none border-0">
@@ -9989,9 +10149,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <tr className="bg-white">
                                                         <th className="app-th pl-6">Poste / Composant</th>
                                                         <th className="app-th">Catégorie</th>
-                                                        <th className="app-th text-right">Quantité Nette</th>
+                                                        <th className="app-th text-right">Besoin brut</th>
                                                         <th className="app-th text-right">Coût Unitaire</th>
-                                                        <th className="app-th text-right pr-6">Coût Total Consommé</th>
+                                                        <th className="app-th text-right pr-6">Coût consommé</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -10003,9 +10163,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                     {d.costCategory}
                                                                 </span>
                                                             </td>
-                                                            <td className="app-td text-right font-medium text-neutral-600">{d.billedQty.toFixed(2)} {d.unit}</td>
-                                                            <td className="app-td text-right font-medium text-neutral-600">{formatMoney(d.unitCost, companyInfo.currency)}</td>
-                                                            <td className="app-td pr-6 text-right font-bold text-neutral-900">{formatMoney(d.totalCost, companyInfo.currency)}</td>
+                                                            <td className="app-td text-right font-medium text-neutral-600">
+                                                                <div>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</div>
+                                                                <div className="mt-1 text-[10px] font-normal text-neutral-400">
+                                                                    Net {Number(d.netQty ?? d.baseQty ?? 0).toFixed(2)} · Perte {Number(d.wasteQty || 0).toFixed(2)} ({Number(d.wastePct ?? d.waste ?? 0).toFixed(1)}%)
+                                                                </div>
+                                                            </td>
+                                                            <td className="app-td text-right font-medium text-neutral-600">{formatMoney(d.unitCost || 0, companyInfo.currency)}</td>
+                                                            <td className="app-td pr-6 text-right font-bold text-neutral-900">
+                                                                <div>{formatMoney(d.costConsumed ?? d.totalCost ?? 0, companyInfo.currency)}</div>
+                                                                {d.type === 'material' && d.costPurchased != null && Math.round(Number(d.costPurchased) || 0) !== Math.round(Number(d.costConsumed ?? 0) || 0) && (
+                                                                    <div className="mt-1 text-[10px] font-normal text-neutral-400">Achat {formatMoney(d.costPurchased, companyInfo.currency)}</div>
+                                                                )}
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -10013,40 +10183,61 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     </div>
 
-                                    {/* LISTE D'ACHAT CONSOLIDÉE */}
+                                    {/* APPROVISIONNEMENT ET RELIQUATS */}
                                     {currentQuote.materialConsolidation && Object.keys(currentQuote.materialConsolidation).length > 0 && (
                                         <div className="p-0 overflow-hidden border border-neutral-200 rounded-2xl bg-white">
                                             <div className="px-5 sm:px-6 py-4 bg-neutral-100 border-b border-neutral-200 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <i className="fa-solid fa-cart-flatbed-suitcases text-neutral-600"></i>
-                                                    <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Approvisionnement Consolidé (Commandes Fournisseurs)</h3>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <i className="fa-solid fa-cart-flatbed-suitcases text-neutral-600"></i>
+                                                        <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Approvisionnement & reliquats</h3>
+                                                    </div>
+                                                    <p className="mt-1 text-[11px] text-neutral-500">
+                                                        Un reliquat réutilisable n'est pas une perte technique.
+                                                    </p>
                                                 </div>
-                                                <span className="text-[9px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-semibold uppercase">Indispensable Chantier</span>
+                                                <span className="shrink-0 text-[9px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-semibold uppercase">Achats nécessaires</span>
                                             </div>
                                             <div className="app-table-wrapper rounded-none border-0">
                                                 <table className="app-table">
                                                     <thead>
                                                         <tr className="bg-white">
-                                                            <th className="app-th pl-6">Matière Première</th>
-                                                            <th className="app-th text-right">Besoin Total (Net + Pertes)</th>
-                                                            <th className="app-th text-right">Conditionnement Requis</th>
-                                                            <th className="app-th text-right pr-6">Coût d'Achat Brut</th>
+                                                            <th className="app-th pl-6">Chaîne matière</th>
+                                                            <th className="app-th">Achat / reliquat</th>
+                                                            <th className="app-th text-right pr-6">Coûts</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {Object.keys(currentQuote.materialConsolidation).map(id => {
                                                             const item = currentQuote.materialConsolidation[id];
+                                                            const netQty = Number(item.totalNetQty || 0);
+                                                            const wasteQty = Number(item.totalWasteQty || 0);
+                                                            const grossQty = Number(item.totalBilledQty || 0);
+                                                            const purchasedQty = Number(item.purchasedQty || 0);
+                                                            const remainderQty = Number(item.remainderQty || 0);
+                                                            const consumedCost = Number(item.totalConsumedCost || 0);
+                                                            const purchaseCost = Number(item.totalPurchaseCost || 0);
+                                                            const wastePct = Number(item.wastePct || 0);
+                                                            const unitCalc = item.mat.unitCalc || '';
                                                             return (
                                                                 <tr key={id} className="hover:bg-neutral-50/50 transition-colors">
-                                                                    <td className="app-td pl-6 font-bold text-neutral-800">{item.mat.name}</td>
-                                                                    <td className="app-td text-right font-medium text-neutral-500">{item.totalBilledQty.toFixed(2)} {item.mat.unitCalc}</td>
-                                                                    <td className="app-td text-right">
-                                                                        <span className="inline-flex items-center bg-brand-50 text-brand-700 border border-brand-200 px-2.5 py-1 rounded-lg font-bold text-xs">
-                                                                            {item.purchaseQty} {item.mat.unitBuy} (de {item.mat.unitSize} {item.mat.unitCalc})
-                                                                        </span>
+                                                                    <td className="app-td pl-6">
+                                                                        <div className="font-bold text-neutral-800">{item.mat.name}</div>
+                                                                        <div className="mt-1 text-[10px] text-neutral-500">
+                                                                            Net {netQty.toFixed(2)} {unitCalc} · Perte {wasteQty.toFixed(2)} ({wastePct.toFixed(1)}%)
+                                                                        </div>
+                                                                        <div className="text-[10px] font-semibold text-neutral-600">Brut {grossQty.toFixed(2)} {unitCalc}</div>
                                                                     </td>
-                                                                    <td className="app-td pr-6 text-right font-bold text-neutral-900">
-                                                                        {formatMoney(item.totalPurchaseCost, companyInfo.currency)}
+                                                                    <td className="app-td">
+                                                                        <span className="inline-flex items-center bg-brand-50 text-brand-700 border border-brand-200 px-2.5 py-1 rounded-lg font-bold text-xs">
+                                                                            {item.purchaseQty || 0} {item.mat.unitBuy || unitCalc}
+                                                                        </span>
+                                                                        <div className="mt-1 text-[10px] text-neutral-500">Acheté {purchasedQty.toFixed(2)} {unitCalc}</div>
+                                                                        <div className="text-[10px] font-semibold text-amber-700">Reliquat {remainderQty.toFixed(2)} {unitCalc}</div>
+                                                                    </td>
+                                                                    <td className="app-td pr-6 text-right">
+                                                                        <div className="font-bold text-neutral-900">Consommé {formatMoney(consumedCost, companyInfo.currency)}</div>
+                                                                        <div className="mt-1 text-[10px] font-normal text-neutral-500">Achat {formatMoney(purchaseCost, companyInfo.currency)}</div>
                                                                     </td>
                                                                 </tr>
                                                             );

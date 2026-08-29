@@ -681,6 +681,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             quoteData: {
                 solutionName: item.name,
                 totalDebourseConsomme: debourse,
+                totalDebourseConsommeReel: debourse,
                 totalDebourseAchat: debourse,
                 fraisGenerauxConsomme: fraisGen,
                 fraisGenerauxAchat: fraisGen,
@@ -779,6 +780,9 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     const activeLines = evaluatedLines.filter(line => line.baseQty > 0);
     const details = [];
     const consumedByCategory = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
+    // Keep the historical purchase-based totals above for compatibility, while
+    // exposing the physical consumption totals separately for the new audit UI.
+    const consumedByCategoryReel = { material: 0, labor: 0, installation: 0, transport: 0, subcontracting: 0 };
     let totalPurchasedMaterialCost = 0;
 
     activeLines.forEach(line => {
@@ -793,31 +797,70 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 // support irrégulier n'ont pas le même taux de perte réel), sans
                 // toucher au taux catalogue qui reste la référence par défaut.
                 const wasteOverride = calcForm.wasteOverrides ? calcForm.wasteOverrides[mat.id] : undefined;
-                const wastePct = (wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== '')
+                const wastePctSaisi = (wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== '')
                     ? parseFloat(wasteOverride)
                     : (parseFloat(mat.waste) || 0);
+
+                // 2026-08-26 — Une perte en POURCENTAGE n'a pas de sens sur une
+                // ressource dénombrable : on ne consomme pas 1,05 module LED. Pire,
+                // combinée à l'arrondi au conditionnement juste en dessous, elle
+                // faisait systématiquement passer à l'unité supérieure — besoin 1 u
+                // → achat 2 u (+100 %), besoin 10 → 11. La perte reste appliquée aux
+                // ressources CONTINUES (m, m², m³, kg, L), où elle décrit une vraie
+                // chute de découpe. Le discret se protège par une quantité de
+                // sécurité explicite dans le métré, pas par un pourcentage.
+                // `count` est la catégorie déjà déclarée dans BTP_UNIT_CATEGORIES
+                // (u, unité, forfait, barre, plaque, rouleau, carton, sac, pot…).
+                const isCountable = getUnitCategory(mat.unitCalc) === 'count';
+                const wastePct = isCountable ? 0 : wastePctSaisi;
                 const billedQty = line.baseQty * (1 + (wastePct / 100));
                 const consumedCost = billedQty * mat.priceCalc;
+                const netQty = line.baseQty;
+                const wasteQty = Math.max(0, billedQty - netQty);
 
-                // P0.4 — Pack rounding : on ne peut pas acheter 97.2 L de peinture,
-                // on achète des pots entiers. Le déboursé facturé au client doit
-                // refléter purchasedCost (conditionnement réellement acheté), pas
-                // consumedCost (quantité nette théorique). mat.purchaseMode 'real'
-                // = pas de conditionnement fixe (ex: m² de vitrage) → les deux
-                // coïncident naturellement.
+                // P0.4 (2026-08-16) — Pack rounding : on ne peut pas acheter 97,2 L
+                // de peinture, on achète des pots entiers. Ce calcul reste la base
+                // du BESOIN D'ACHAT (décaissement chantier, liste de commande).
+                //
+                // ⚠️ 2026-08-26 — Ce qu'il IMPUTE au devis a changé. P0.4 faisait
+                // porter le conditionnement entier au déboursé : 0,30 m² de plexi
+                // utilisés facturaient la plaque complète à 50 000 FCFA, soit un
+                // facteur 12,6 sur cet exemple, et le prix restait identique de
+                // 0,25 à 1,44 m² (tout le plateau d'une plaque). Ce n'est juste que
+                // si le reliquat part à la benne. Or 2,62 m² de plexi ou 199 modules
+                // LED restants sont du STOCK RÉUTILISABLE, pas une perte : les
+                // imputer au premier chantier gonfle artificiellement son prix.
+                // Le devis impute désormais le CONSOMMÉ (net + perte technique) ;
+                // le conditionnement reste calculé et affiché à part.
+                // mat.purchaseMode 'real' = pas de conditionnement fixe (ex : m² de
+                // vitrage) → consommé et acheté coïncident naturellement.
                 const packUnitSize = mat.unitSize || 1;
                 const isRealMode = mat.purchaseMode === 'real';
                 const packsNeeded = isRealMode
                     ? (packUnitSize > 0 ? billedQty / packUnitSize : billedQty)
                     : Math.ceil(billedQty / packUnitSize);
                 const purchasedCost = packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc));
+                const purchasedQty = packsNeeded * packUnitSize;
+                const remainderQty = Math.max(0, purchasedQty - billedQty);
                 totalPurchasedMaterialCost += purchasedCost;
 
-                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + purchasedCost;
+                // Le devis impute le consommé (voir le bloc P0.4 ci-dessus).
+                consumedByCategory[cat] = (consumedByCategory[cat] || 0) + consumedCost;
+                consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + consumedCost;
                 details.push({
                     id: line.id, type: 'material', costCategory: cat, label: line.label, name: mat.name,
-                    baseQty: line.baseQty, billedQty, unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: purchasedCost,
-                    packsNeeded, packUnitBuy: mat.unitBuy, purchasedCost, consumedCost,
+                    baseQty: line.baseQty, netQty, billedQty, grossQty: billedQty, wasteQty,
+                    purchasedQty, remainderQty, remainderUnit: mat.unitCalc,
+                    // totalCost = ce qui est réellement imputé au devis, donc le
+                    // consommé : c'est la colonne dont « quantité × coût unitaire »
+                    // doit retomber juste. Le coût d'achat reste disponible à côté.
+                    unit: mat.unitCalc, unitCost: mat.priceCalc, totalCost: consumedCost,
+                    costConsumed: consumedCost, costPurchased: purchasedCost,
+                    packsNeeded, packUnitBuy: mat.unitBuy, packUnitSize, purchasedCost, consumedCost,
+                    // Perte saisie au catalogue vs perte réellement appliquée : elles
+                    // diffèrent sur une ressource dénombrable, et l'écran doit
+                    // pouvoir l'expliquer plutôt que de laisser croire à un bug.
+                    isCountable, wastePctSaisi,
                     matId: mat.id, wastePct, defaultWastePct: parseFloat(mat.waste) || 0, isWasteOverridden: wasteOverride !== undefined && wasteOverride !== null && wasteOverride !== ''
                 });
             }
@@ -826,15 +869,20 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             if (lab) {
                 const cost = line.baseQty * lab.rate;
                 consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
+                consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + cost;
                 details.push({
                     id: line.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
-                    baseQty: line.baseQty, billedQty: line.baseQty, unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost
+                    baseQty: line.baseQty, netQty: line.baseQty, billedQty: line.baseQty, grossQty: line.baseQty,
+                    wasteQty: 0, purchasedQty: line.baseQty, remainderQty: 0,
+                    unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost,
+                    costConsumed: cost, costPurchased: cost
                 });
             }
         }
     });
 
     const totalDebourseConsomme = Object.values(consumedByCategory).reduce((a, b) => a + b, 0);
+    const totalDebourseConsommeReel = Object.values(consumedByCategoryReel).reduce((a, b) => a + b, 0);
     const overheadRate = Math.min(50, Math.max(0, parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate || 5))));
     const fraisGenerauxConsomme = totalDebourseConsomme * (overheadRate / 100);
     const totalRevientConsomme = totalDebourseConsomme + fraisGenerauxConsomme;
@@ -893,6 +941,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         quoteData: {
             solutionName: solution.name,
             totalDebourseConsomme: Math.round(totalDebourseConsomme),
+            totalDebourseConsommeReel: Math.round(totalDebourseConsommeReel),
             totalDebourseAchat: Math.round(totalPurchasedMaterialCost + (consumedByCategory.labor || 0) + (consumedByCategory.installation || 0)),
             fraisGenerauxConsomme: Math.round(fraisGenerauxConsomme),
             totalRevientConsomme: Math.round(totalRevientConsomme),
@@ -901,7 +950,8 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             tvaConsomme: Math.round(tvaConsomme),
             totalTTCConsomme: Math.round(totalTTCConsomme),
             margeValeurConsomme: Math.round(margeValeurConsomme),
-            details
+            details,
+            consumedByCategoryReel
         }
     };
 }

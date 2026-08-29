@@ -11,6 +11,17 @@
 //       désormais basé sur purchasedCost (pots entiers réellement achetés),
 //       pas sur consumedCost (litre net). 97.20 L → 7 pots de 15 L → 315 000 FCFA.
 //
+//   ⚠️ RÉVISION 2026-08-26 — le volet « facturé » de (b) est SUPERSÉDÉ. Le devis
+//   impute désormais le CONSOMMÉ, pas le conditionnement entier : un reliquat
+//   (ici 7,80 L de peinture, ailleurs 199 modules LED) est du stock réutilisable,
+//   et le faire payer au premier chantier gonflait son prix — l'effet le plus
+//   visible était un prix identique de 0,25 à 1,44 m² sur une même plaque.
+//   Ce que (b) verrouille reste ENTIÈREMENT valable et vérifié ci-dessous : le
+//   calcul du besoin d'achat (97,20 L → 7 pots → 315 000 FCFA) est inchangé.
+//   Seule la colonne lue a changé — le test pointe explicitement le coût d'ACHAT
+//   (`costPurchased`), là où il lisait un index de colonne qui portait alors la
+//   même valeur. Aucune valeur de référence n'a été modifiée.
+//
 // Ce test reproduit le scénario dans l'UI réelle (catalogue → "Peinture Murale
 // Satinée BTP" → 450 m² en Surface Directe) et lit le déboursé effectivement
 // calculé par l'app, sans tolérance, pour verrouiller ce comportement contre
@@ -47,23 +58,23 @@ export async function run() {
 
         if (breakdown.found) {
             // Colonnes attendues : [Poste, Quantité Nette, Perte %, Coût Unitaire, Coût Total]
-            const peintureRow = breakdown.raw.find((row) => /Pot Peinture|Peinture Satinée/i.test(row[0] || ''));
+            const peintureRow = breakdown.rows.find((row) => /Pot Peinture|Peinture Satinée/i.test(row.poste || ''));
 
-            const litres = parseNum(peintureRow?.[1]);
+            const litres = peintureRow?.grossQty;
             ok(
                 `Consommation peinture = ${EXPECTED.consumptionL} L (tolérance ${TOLERANCE})`,
                 litres !== null && Math.abs(litres - EXPECTED.consumptionL) <= TOLERANCE,
                 `mesuré=${litres} L — ligne source: ${JSON.stringify(peintureRow)}`
             );
 
-            const wastePct = parseNum(peintureRow?.[2]);
+            const wastePct = peintureRow?.wastePct;
             ok(
                 `Taux de perte par défaut = ${EXPECTED.wastePct}% (éditable par ouvrage, non surchargé ici)`,
                 wastePct !== null && Math.abs(wastePct - EXPECTED.wastePct) <= TOLERANCE,
                 `mesuré=${wastePct}%`
             );
 
-            const materielFcfa = parseNum(peintureRow?.[4]);
+            const materielFcfa = peintureRow?.costPurchased;
             ok(
                 `Déboursé matériel peinture = ${EXPECTED.debourseMaterielFcfa} FCFA (tolérance ${TOLERANCE})`,
                 materielFcfa !== null && Math.abs(materielFcfa - EXPECTED.debourseMaterielFcfa) <= TOLERANCE,

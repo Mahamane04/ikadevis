@@ -36,9 +36,9 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const acmRow = breakdown.raw.find((row) => /Alucobond|ACM/i.test(row[0] || ''));
+            const acmRow = breakdown.rows.find((row) => /Alucobond|ACM/i.test(row.poste || ''));
 
-            const surfaceAchat = parseNum(acmRow?.[1]);
+            const surfaceAchat = acmRow?.grossQty;
             ok(
                 `Surface nette à acheter = ${EXPECTED.surfaceAchat} m² (180m² + 8% pertes, tolérance ${TOLERANCE})`,
                 surfaceAchat !== null && Math.abs(surfaceAchat - EXPECTED.surfaceAchat) <= TOLERANCE,
@@ -47,7 +47,7 @@ export async function run() {
 
             // Nombre de plaques = packsNeeded, non affiché directement en colonne mais
             // déductible : coût total / prix d'achat unitaire d'une plaque (65 000 FCFA).
-            const coutTotal = parseNum(acmRow?.[4]);
+            const coutTotal = acmRow?.costPurchased;
             const plaquesDeduites = coutTotal !== null ? Math.round(coutTotal / 65000) : null;
             ok(
                 `Plaques achetées = ${EXPECTED.plaques} (déduit du coût total / 65 000 FCFA)`,

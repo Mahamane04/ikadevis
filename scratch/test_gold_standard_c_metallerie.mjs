@@ -45,16 +45,16 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const barresRow = breakdown.raw.find((row) => /Tube carré|Débit barres/i.test(row[0] || ''));
+            const barresRow = breakdown.rows.find((row) => /Tube carré|Débit barres/i.test(row.poste || ''));
 
-            const longueur = parseNum(barresRow?.[1]);
+            const longueur = barresRow?.grossQty;
             ok(
                 `Longueur à débiter = ${EXPECTED.longueurBarres} m (31 poteaux × 1.2m + 90 segments × 1m, tolérance ${TOLERANCE})`,
                 longueur !== null && Math.abs(longueur - EXPECTED.longueurBarres) <= TOLERANCE,
                 `mesuré=${longueur} m — ligne source: ${JSON.stringify(barresRow)}`
             );
 
-            const materielFcfa = parseNum(barresRow?.[4]);
+            const materielFcfa = barresRow?.costPurchased;
             ok(
                 `Déboursé matériel = ${EXPECTED.debourseMaterielFcfa} FCFA (tolérance ${TOLERANCE})`,
                 materielFcfa !== null && Math.abs(materielFcfa - EXPECTED.debourseMaterielFcfa) <= TOLERANCE,

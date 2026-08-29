@@ -59,7 +59,23 @@
 import { pathToFileURL } from 'node:url';
 import { launchApp, enterGuestMode, loadOneClickTemplate, readFinancials } from './lib/harness.mjs';
 
-const EXPECTED = { debourseSec: 60497751, coeffK: 1.51, netHT: 91346626, totalTTC: 107789019 };
+// Recalibré une troisième fois le 2026-08-26 — audit métier de l'utilisateur.
+// Deux décisions de moteur déplacent la base de ce devis, de −271 723 FCFA
+// (−0,45 %) sur le déboursé :
+//   1. Le devis impute désormais le CONSOMMÉ, plus le conditionnement entier
+//      acheté : un reliquat (plaque entamée, modules LED en trop) est du stock
+//      réutilisable, pas une charge du premier chantier.
+//   2. La perte en % n'est plus appliquée aux ressources DÉNOMBRABLES : on ne
+//      consomme pas 1,05 module. Elle reste appliquée aux ressources continues.
+// L'écart est faible ici parce que la villa est surtout composée de matières
+// achetées « au réel » (m³ de béton, kg d'acier), où consommé et acheté
+// coïncident déjà — ce sont les lots à conditionnement fixe qui bougent.
+//
+// Les nouvelles valeurs sont MESURÉES, et leur cohérence interne est vérifiée :
+// netHT / debourseSec = 1,5100 exactement (= coeffK affiché, inchangé) et
+// totalTTC = netHT × 1,18 au franc près. Seule la base a bougé ; toute la
+// chaîne financière au-dessus est intacte.
+const EXPECTED = { debourseSec: 60226028, coeffK: 1.51, netHT: 90939042, totalTTC: 107308070 };
 const TOLERANCE = 0;
 
 export async function run() {

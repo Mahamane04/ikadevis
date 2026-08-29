@@ -43,18 +43,18 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const panneauRow = breakdown.raw.find((row) => /Panneaux mélaminé/i.test(row[0] || ''));
+            const panneauRow = breakdown.rows.find((row) => /Panneaux mélaminé/i.test(row.poste || ''));
 
             // La "Quantité Nette" affichée inclut déjà le +8% de perte (billedQty),
             // comme pour l'Étalon A (peinture). 28.5 × 1.08 = 30.78 m².
-            const surfaceBilled = parseNum(panneauRow?.[1]);
+            const surfaceBilled = panneauRow?.grossQty;
             ok(
                 `Surface nette à acheter = 30.78 m² (28.5 m² + 8% pertes, tolérance ${TOLERANCE})`,
                 surfaceBilled !== null && Math.abs(surfaceBilled - 30.78) <= TOLERANCE,
                 `mesuré=${surfaceBilled} m² — ligne source: ${JSON.stringify(panneauRow)}`
             );
 
-            const materielFcfa = parseNum(panneauRow?.[4]);
+            const materielFcfa = panneauRow?.costPurchased;
             ok(
                 `Déboursé matériel = ${EXPECTED.debourseMaterielFcfa} FCFA (tolérance ${TOLERANCE})`,
                 materielFcfa !== null && Math.abs(materielFcfa - EXPECTED.debourseMaterielFcfa) <= TOLERANCE,

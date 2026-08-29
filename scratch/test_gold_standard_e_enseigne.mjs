@@ -81,16 +81,16 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const ledRow = breakdown.raw.find((row) => /Modules LED/i.test(row[0] || ''));
-            const modules = parseNum(ledRow?.[1]);
+            const ledRow = breakdown.rows.find((row) => /Modules LED/i.test(row.poste || ''));
+            const modules = ledRow?.grossQty;
             ok(
                 `Modules LED = ${EXPECTED.modules} (tolérance ${TOLERANCE})`,
                 modules !== null && Math.abs(modules - EXPECTED.modules) <= TOLERANCE,
                 `mesuré=${modules} — ligne source: ${JSON.stringify(ledRow)} — densité catalogue actuelle 45/m² vs 25/m² implicite au tracker`
             );
 
-            const alimRow = breakdown.raw.find((row) => /Alimentation/i.test(row[0] || ''));
-            const alimentations = parseNum(alimRow?.[1]);
+            const alimRow = breakdown.rows.find((row) => /Alimentation/i.test(row.poste || ''));
+            const alimentations = alimRow?.grossQty;
             ok(
                 `Alimentations = ${EXPECTED.alimentations} (tolérance ${TOLERANCE})`,
                 alimentations !== null && Math.abs(alimentations - EXPECTED.alimentations) <= TOLERANCE,

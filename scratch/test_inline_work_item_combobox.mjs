@@ -1,6 +1,6 @@
 // Banc d'essai Phase 2 — ajout d'ouvrage directement depuis le tableau.
 import { pathToFileURL } from 'node:url';
-import { launchApp, enterGuestMode } from './lib/harness.mjs';
+import { launchApp, enterGuestMode, ensureLotDetailVisible } from './lib/harness.mjs';
 
 export async function run() {
     const results = [];
@@ -10,6 +10,11 @@ export async function run() {
     try {
         await page.setViewport({ width: 690, height: 844 });
         await enterGuestMode(page);
+        // 690px < lg: — depuis la refonte mobile du 2026-08-25, l'espace de
+        // chiffrage montre la liste des lots OU le détail. Le champ ciblé ici
+        // vit dans le détail : il faut l'ouvrir, sinon il existe sans être
+        // cliquable (« Node is either not clickable »).
+        await ensureLotDetailVisible(page);
 
         const search = 'input[aria-label="Rechercher un ouvrage à ajouter"]';
         await page.waitForSelector(search, { timeout: 3000 });

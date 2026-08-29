@@ -30,22 +30,22 @@ export async function run() {
         await openDecompositionTab(page);
 
         const before = await readFirstOuvrageBreakdown(page);
-        const rowBefore = before.raw?.find((r) => /Peinture Satinée/i.test(r[0] || ''));
-        ok('Taux catalogue par défaut = 8% avant toute surcharge', parseNum(rowBefore?.[2]) === 8, JSON.stringify(rowBefore));
-        ok('Coût avant surcharge = 315 000 FCFA (référence)', parseNum(rowBefore?.[4]) === 315000, JSON.stringify(rowBefore));
+        const rowBefore = before.rows?.find((r) => /Peinture Satinée/i.test(r.poste || ''));
+        ok('Taux catalogue par défaut = 8% avant toute surcharge', rowBefore?.wastePct === 8, JSON.stringify(rowBefore));
+        ok('Coût avant surcharge = 315 000 FCFA (référence)', rowBefore?.costPurchased === 315000, JSON.stringify(rowBefore));
 
         // Chantier avec un support très irrégulier : on monte le taux de perte à 15%.
         await setWasteOverride(page, 'Peinture Satinée', 15);
 
         const after = await readFirstOuvrageBreakdown(page);
-        const rowAfter = after.raw?.find((r) => /Peinture Satinée/i.test(r[0] || ''));
-        ok('Taux surchargé = 15% pris en compte', parseNum(rowAfter?.[2]) === 15, JSON.stringify(rowAfter));
+        const rowAfter = after.rows?.find((r) => /Peinture Satinée/i.test(r.poste || ''));
+        ok('Taux surchargé = 15% pris en compte', rowAfter?.wastePct === 15, JSON.stringify(rowAfter));
 
         // 450 m² × 15% de pertes → 103.5 L nets → 7 pots de 15L (105L, inchangé
         // car 97.2L et 103.5L arrondissent tous deux à 7 pots) → même coût que
         // le cas par défaut. On vérifie donc la quantité nette, plus discriminante
         // que le coût pour ce palier précis.
-        const litresAfter = parseNum(rowAfter?.[1]);
+        const litresAfter = rowAfter?.grossQty;
         ok(
             'Quantité nette recalculée avec le nouveau taux (450m² × 1.15 = 517.5... hors primaire, cf. formule)',
             litresAfter !== null && litresAfter > 97.2,
@@ -63,9 +63,9 @@ export async function run() {
         await new Promise((r) => setTimeout(r, 200));
 
         const afterReset = await readFirstOuvrageBreakdown(page);
-        const rowReset = afterReset.raw?.find((r) => /Peinture Satinée/i.test(r[0] || ''));
-        ok('Retour exact au taux catalogue (8%) après réinitialisation', parseNum(rowReset?.[2]) === 8, JSON.stringify(rowReset));
-        ok('Retour exact au coût catalogue (315 000 FCFA) après réinitialisation', parseNum(rowReset?.[4]) === 315000, JSON.stringify(rowReset));
+        const rowReset = afterReset.rows?.find((r) => /Peinture Satinée/i.test(r.poste || ''));
+        ok('Retour exact au taux catalogue (8%) après réinitialisation', rowReset?.wastePct === 8, JSON.stringify(rowReset));
+        ok('Retour exact au coût catalogue (315 000 FCFA) après réinitialisation', rowReset?.costPurchased === 315000, JSON.stringify(rowReset));
     } finally {
         await close();
     }

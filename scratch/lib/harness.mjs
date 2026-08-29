@@ -256,16 +256,73 @@ export async function readFirstOuvrageBreakdown(page) {
             return td.textContent.trim();
         };
 
-        const rows = [...table.querySelectorAll('tbody tr')].map((tr) =>
+        const raw = [...table.querySelectorAll('tbody tr')].map((tr) =>
             [...tr.querySelectorAll('td')].map(cellText)
         );
 
-        const debourseLabel = [...document.querySelectorAll('span')]
-            .find((s) => s.textContent.includes('Déboursé Sec Consommé'));
-        const debourseTotal = debourseLabel?.parentElement?.querySelector('span:last-child')?.textContent.trim();
+        // 2026-08-26 — Lecture par NOM d'en-tête, plus par index. Les étalons
+        // indexaient les cellules en dur : ajouter la colonne « Besoin brut »
+        // (pour distinguer enfin net et brut) les a tous fait lire la mauvaise
+        // valeur d'un coup, sans que rien ne signale que c'était la sonde, et
+        // non le moteur, qui avait bougé. Les champs nommés ci-dessous survivent
+        // à un réagencement de colonnes.
+        const headerNames = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
+        const col = (name) => headerNames.indexOf(name.toLowerCase());
+        const num = (s) => {
+            const n = parseFloat(String(s ?? '').replace(/[^\d.,-]/g, '').replace(/\s/g, ''));
+            return Number.isFinite(n) ? n : null;
+        };
+        const iNet = col('besoin net'), iWaste = col('perte'), iGross = col('besoin brut'),
+              iPU = col('pu'), iCost = col('coût consommé');
 
-        return { found: rows.length > 0, raw: rows, debourseTotal };
+        const rows = raw.map((cells) => {
+            const poste = cells[0] || '';
+            // Sous-ligne : « À acheter : 7 × Pot (15L) (315 000 FCFA) · reliquat 7.80 L → stock »
+            const packs = poste.match(/À acheter\s*:\s*([\d\s.,]+)\s*×/);
+            const buyCost = poste.match(/\(([\d\s.,]+)\s+[A-Z€$]+\)/);
+            const rest = poste.match(/reliquat\s+([\d.,]+)/);
+            return {
+                poste,
+                netQty: num(cells[iNet]),
+                wastePct: num(cells[iWaste]),
+                grossQty: num(cells[iGross]),
+                unitCost: num(cells[iPU]),
+                costConsumed: num(cells[iCost]),
+                packsNeeded: packs ? num(packs[1]) : null,
+                costPurchased: buyCost ? num(buyCost[1]) : null,
+                remainderQty: rest ? num(rest[1]) : null
+            };
+        });
+
+        const moneyUnder = (labelText) => {
+            const el = [...document.querySelectorAll('span')]
+                .find((s) => s.textContent.trim().toLowerCase() === labelText.toLowerCase());
+            return el?.parentElement?.querySelectorAll('span')?.[1]?.textContent.trim() ?? null;
+        };
+
+        return {
+            found: rows.length > 0,
+            raw,
+            rows,
+            debourseTotal: moneyUnder('Déboursé sec consommé'),
+            achatTotal: moneyUnder("Besoin d'achat")
+        };
     });
+}
+
+// Sous 1024px, l'espace de chiffrage affiche SOIT la liste des lots, SOIT le
+// détail du lot (refonte mobile du 2026-08-25). Les bancs d'essai qui règlent
+// un viewport étroit doivent donc ouvrir le lot avant de chercher le tableau
+// des ouvrages, sinon l'élément existe mais n'est pas cliquable.
+export async function ensureLotDetailVisible(page) {
+    await page.evaluate(() => {
+        const visible = (el) => el && el.getBoundingClientRect().width > 0;
+        if (visible(document.querySelector('input[aria-label="Rechercher un ouvrage à ajouter"]'))) return;
+        const lotCard = [...document.querySelectorAll('[role="button"]')]
+            .find((el) => /Lot\s*\d/i.test(el.textContent || ''));
+        if (lotCard) lotCard.click();
+    });
+    await new Promise((r) => setTimeout(r, 150));
 }
 
 // Charge un modèle 1-clic depuis l'Assistant Intelligent, onglet "2. Modèles

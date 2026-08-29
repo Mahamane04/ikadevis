@@ -36,16 +36,16 @@ export async function run() {
         ok('Décomposition du déboursé lisible dans l\'inspecteur', breakdown.found, JSON.stringify(breakdown.raw));
 
         if (breakdown.found) {
-            const carrelageRow = breakdown.raw.find((row) => /Carrelage/i.test(row[0] || ''));
+            const carrelageRow = breakdown.rows.find((row) => /Carrelage/i.test(row.poste || ''));
 
-            const surfaceAchat = parseNum(carrelageRow?.[1]);
+            const surfaceAchat = carrelageRow?.grossQty;
             ok(
                 `Surface nette à acheter = ${EXPECTED.surfaceAchat} m² (120m² + 10% pertes, tolérance ${TOLERANCE})`,
                 surfaceAchat !== null && Math.abs(surfaceAchat - EXPECTED.surfaceAchat) <= TOLERANCE,
                 `mesuré=${surfaceAchat} m² — ligne source: ${JSON.stringify(carrelageRow)}`
             );
 
-            const materielFcfa = parseNum(carrelageRow?.[4]);
+            const materielFcfa = carrelageRow?.costPurchased;
             ok(
                 `Déboursé matériel carrelage = ${EXPECTED.debourseMaterielFcfa} FCFA (tolérance ${TOLERANCE})`,
                 materielFcfa !== null && Math.abs(materielFcfa - EXPECTED.debourseMaterielFcfa) <= TOLERANCE,
