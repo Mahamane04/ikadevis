@@ -121,7 +121,24 @@ import { launchApp, enterGuestMode, loadOneClickTemplate, readFinancials } from 
 // déboursé (arrondis qui se compensaient partiellement avant, plus après) —
 // Coeff K inchangé à 1,507 (même signature que les recalibrages précédents :
 // une dérive d'arrondi cumulée, pas un changement de politique de calcul).
-const EXPECTED = { debourseSec: 82167562, coeffK: 1.507, netHT: 123851344, totalTTC: 146144586 };
+// Recalibré une SEPTIÈME fois le 2026-08-30 — fix F1 (audit "stress test"
+// du 2026-08-30, immeuble R+3 adversarial). La perte en % était forcée à 0
+// sur TOUTE ressource dénombrable (agglos, fixations…), pas seulement celles
+// où ça a du sens (modules LED, alimentations) — confirmé sur un scénario
+// maçonnerie 1 491,84 m² où une perte de casse de 7% saisie par l'utilisateur
+// était silencieusement ignorée (18 648 parpaings facturés au lieu de
+// 19 954 attendus). Corrigé : la perte s'applique désormais à toute matière,
+// dénombrable ou non ; seule différence pour le dénombrable, la quantité
+// facturée (nette + perte) est arrondie à l'entier supérieur plutôt que
+// laissée fractionnaire — voir js/calc-engine.js.
+// Sur cette villa, le lot Maçonnerie (agglos, waste catalogue 5%, jusqu'ici
+// ignoré) voit son déboursé matière augmenter en conséquence : +140 000 FCFA
+// de déboursé sec, qui remonte au Net HT et au TTC via le même Coeff K
+// INCHANGÉ à 1,507 (même signature que les recalibrages précédents : une
+// ligne de coût a varié, pas la politique de calcul). Cohérence vérifiée :
+// netHT / debourseSec = 1,507 ; totalTTC = netHT × 1,18 au franc près.
+// Valeurs mesurées via ce test lui-même après le correctif.
+const EXPECTED = { debourseSec: 82307562, coeffK: 1.507, netHT: 124061344, totalTTC: 146392386 };
 const TOLERANCE = 0;
 
 export async function run() {

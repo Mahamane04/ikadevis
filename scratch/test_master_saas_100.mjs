@@ -28,6 +28,8 @@ import * as financialChain from './test_financial_chain_consistency.mjs';
 import * as goldA from './test_gold_standard_a_peinture.mjs';
 import * as wasteOverride from './test_waste_override.mjs';
 import * as zeroNegativePhantom from './test_zero_negative_no_phantom_charge.mjs';
+import * as countableMaterialWaste from './test_countable_material_waste.mjs';
+import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
 import * as goldC from './test_gold_standard_c_metallerie.mjs';
 import * as goldD from './test_gold_standard_d_menuiserie.mjs';
@@ -48,6 +50,8 @@ const SUITES = [
     { name: 'Étalon A — Peinture Murale (tolérance zéro)', mod: goldA, expectedToFail: false },
     { name: 'Taux de perte ajustable par ouvrage', mod: wasteOverride, expectedToFail: false },
     { name: 'Fix P0-3/P1 — surface nulle/négative ne facture jamais un montant fantôme', mod: zeroNegativePhantom, expectedToFail: false },
+    { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
+    { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
     { name: 'Étalon C — Garde-Corps Métallerie, Plan de Débit 1D (tolérance zéro)', mod: goldC, expectedToFail: false },
     { name: 'Étalon D — Dressing Menuiserie, Calepinage 2D (tolérance zéro)', mod: goldD, expectedToFail: false },

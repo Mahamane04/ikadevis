@@ -3679,49 +3679,51 @@ function WorkItemInspector({
                                                     </td>
                                                     <td className="p-2.5 text-right font-medium text-neutral-600">{d.netQty?.toFixed(2)} {d.unit}</td>
                                                     <td className="p-2.5 text-right">
-                                                        {d.type === 'material' && d.isCountable ? (
-                                                            // Perte % volontairement non applicable au dénombrable
-                                                            // (voir calc-engine.js) : afficher le champ modifiable
-                                                            // laisserait croire qu'il agit sur le calcul.
-                                                            <span
-                                                                className="text-neutral-300"
-                                                                title={d.wastePctSaisi > 0
-                                                                    ? `Ressource vendue à l'unité : le taux catalogue de ${d.wastePctSaisi}% n'est pas appliqué (on ne consomme pas une fraction d'unité). Prévoyez une quantité de sécurité dans le métré.`
-                                                                    : "Ressource vendue à l'unité : pas de perte en pourcentage."}
-                                                            >—</span>
-                                                        ) : d.type === 'material' ? (
-                                                            <div className="flex items-center justify-end gap-1">
-                                                                <input
-                                                                    type="number" min="0" max="100" step="0.1"
-                                                                    aria-label={`Taux de perte pour ${d.label}`}
-                                                                    title={`Taux catalogue par défaut : ${d.defaultWastePct}%`}
-                                                                    className={`w-14 p-1 text-right text-xs font-bold border rounded-md ${d.isWasteOverridden ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-neutral-200 bg-white text-neutral-700'}`}
-                                                                    value={d.wastePct}
-                                                                    onChange={(e) => {
-                                                                        const raw = e.target.value;
-                                                                        const nextOverrides = { ...(calcForm.wasteOverrides || {}) };
-                                                                        if (raw === '' || parseFloat(raw) === d.defaultWastePct) {
-                                                                            delete nextOverrides[d.matId];
-                                                                        } else {
-                                                                            nextOverrides[d.matId] = raw;
-                                                                        }
-                                                                        handleParamChange('wasteOverrides', nextOverrides);
-                                                                    }}
-                                                                />
-                                                                {d.isWasteOverridden && (
-                                                                    <button
-                                                                        type="button"
-                                                                        title={`Revenir au taux catalogue (${d.defaultWastePct}%)`}
-                                                                        aria-label={`Revenir au taux de perte catalogue pour ${d.label}`}
-                                                                        className="btn-icon w-5 h-5 text-[10px]"
-                                                                        onClick={() => {
+                                                        {d.type === 'material' ? (
+                                                            <div className="flex flex-col items-end gap-0.5">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <input
+                                                                        type="number" min="0" max="100" step="0.1"
+                                                                        aria-label={`Taux de perte pour ${d.label}`}
+                                                                        title={`Taux catalogue par défaut : ${d.defaultWastePct}%`}
+                                                                        className={`w-14 p-1 text-right text-xs font-bold border rounded-md ${d.isWasteOverridden ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-neutral-200 bg-white text-neutral-700'}`}
+                                                                        value={d.wastePct}
+                                                                        onChange={(e) => {
+                                                                            const raw = e.target.value;
                                                                             const nextOverrides = { ...(calcForm.wasteOverrides || {}) };
-                                                                            delete nextOverrides[d.matId];
+                                                                            if (raw === '' || parseFloat(raw) === d.defaultWastePct) {
+                                                                                delete nextOverrides[d.matId];
+                                                                            } else {
+                                                                                nextOverrides[d.matId] = raw;
+                                                                            }
                                                                             handleParamChange('wasteOverrides', nextOverrides);
                                                                         }}
-                                                                    >
-                                                                        <i className="fa-solid fa-rotate-left"></i>
-                                                                    </button>
+                                                                    />
+                                                                    {d.isWasteOverridden && (
+                                                                        <button
+                                                                            type="button"
+                                                                            title={`Revenir au taux catalogue (${d.defaultWastePct}%)`}
+                                                                            aria-label={`Revenir au taux de perte catalogue pour ${d.label}`}
+                                                                            className="btn-icon w-5 h-5 text-[10px]"
+                                                                            onClick={() => {
+                                                                                const nextOverrides = { ...(calcForm.wasteOverrides || {}) };
+                                                                                delete nextOverrides[d.matId];
+                                                                                handleParamChange('wasteOverrides', nextOverrides);
+                                                                            }}
+                                                                        >
+                                                                            <i className="fa-solid fa-rotate-left"></i>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                {d.isCountable && (
+                                                                    // Fix F1 (2026-08-30) — la perte s'applique désormais aussi aux
+                                                                    // ressources dénombrables (agglos, fixations…) : seule différence,
+                                                                    // le résultat est arrondi à l'unité entière (on ne consomme pas
+                                                                    // une fraction d'unité). Le disait "—" auparavant, comme si la
+                                                                    // perte n'avait aucun effet — ce n'est plus le cas.
+                                                                    <span className="text-[9px] text-neutral-400" title="Ressource vendue à l'unité : la quantité facturée (nette + perte) est arrondie à l'entier supérieur.">
+                                                                        arrondi à l'unité
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         ) : <span className="text-neutral-300">—</span>}
@@ -9012,8 +9014,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         ? Math.max(0, parseFloat(rawOverride) || 0)
                         : Math.max(0, parseFloat(mat.waste) || 0);
                     const netQty = line.baseQty;
-                    const wasteQty = netQty * (wastePct / 100);
-                    const billedQty = netQty + wasteQty;
+                    // Fix F1 (2026-08-30) — arrondir à l'entier supérieur pour une
+                    // matière dénombrable (agglos, fixations…), pas annuler sa perte :
+                    // voir le même correctif dans js/calc-engine.js pour le détail.
+                    // Ce fichier doit rester en accord avec calc-engine.js — c'est un
+                    // second calcul indépendant du même devis, utilisé pour l'aperçu
+                    // avant ajout au lot.
+                    const isCountable = getUnitCategory(mat.unitCalc) === 'count';
+                    const rawBilledQty = netQty * (1 + (wastePct / 100));
+                    const billedQty = isCountable ? ceilClean(rawBilledQty) : rawBilledQty;
+                    const wasteQty = Math.max(0, billedQty - netQty);
                     if (!materialConsolidation[mat.id]) {
                         materialConsolidation[mat.id] = {
                             mat,
@@ -9047,11 +9057,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 entry.purchaseQty = unitSize > 0 ? (entry.totalBilledQty / unitSize) : entry.totalBilledQty;
             } else if (mode === 'step') {
                 // Mode Pas Commercial : arrondi au pas d'achat (ex: pas de 0.5m ou 0.1m³)
+                // Fix F2 (2026-08-30) — ceilClean() : voir js/calc-engine.js.
                 const rawUnits = unitSize > 0 ? (entry.totalBilledQty / unitSize) : entry.totalBilledQty;
-                entry.purchaseQty = Math.ceil(rawUnits / stepSize) * stepSize;
+                entry.purchaseQty = ceilClean(rawUnits / stepSize) * stepSize;
             } else {
                 // Mode Pack (Conditionnement entier par défaut)
-                entry.purchaseQty = unitSize > 0 ? Math.ceil(entry.totalBilledQty / unitSize) : 0;
+                // Fix F2 (2026-08-30) — ceilClean() : voir js/calc-engine.js.
+                entry.purchaseQty = unitSize > 0 ? ceilClean(entry.totalBilledQty / unitSize) : 0;
             }
             entry.totalPurchaseCost = entry.purchaseQty * mat.priceBuy;
             entry.purchasedQty = entry.purchaseQty * unitSize;
@@ -9078,8 +9090,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         ? Math.max(0, parseFloat(rawOverride) || 0)
                         : Math.max(0, parseFloat(mat.waste) || 0);
                     const netQty = line.baseQty;
-                    const wasteQty = netQty * (wastePct / 100);
-                    const billedQty = netQty + wasteQty;
+                    // Fix F1 (2026-08-30) — même correctif que la boucle de
+                    // materialConsolidation ci-dessus : arrondir à l'entier supérieur
+                    // pour une matière dénombrable, sans annuler sa perte.
+                    const isCountable = getUnitCategory(mat.unitCalc) === 'count';
+                    const rawBilledQty = netQty * (1 + (wastePct / 100));
+                    const billedQty = isCountable ? ceilClean(rawBilledQty) : rawBilledQty;
+                    const wasteQty = Math.max(0, billedQty - netQty);
                     const costConsumed = billedQty * (mat.priceCalc || 0);
 
                     if (materialConsolidation[mat.id]) {
@@ -9120,6 +9137,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         netQty,
                         waste: wastePct,
                         wastePct,
+                        isCountable,
                         wasteQty,
                         billedQty,
                         grossQty: billedQty,

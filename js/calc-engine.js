@@ -6,6 +6,26 @@
 // migrateur de schéma de recettes. Chargé en script classique AVANT
 // app.compiled.js (voir index.html) : tout est en portée globale, comme
 // dans index_jsx.js d'origine — pas de import/export ES module.
+// Fix F2 (2026-08-30) — un résidu de virgule flottante (720*1.10 vaut
+// 792.0000000000001 en IEEE-754, pas 792 pile) peut faire basculer un
+// Math.ceil() au-dessus d'un palier de conditionnement qui, mathématiquement,
+// tombait exactement dessus : 550 cartons devenaient 551 sans raison réelle.
+// On nettoie le bruit flottant (tout ce qui reste sous 1e-6, largement en
+// dessous de la précision d'une saisie ou d'un taux de perte réels) AVANT
+// d'arrondir, dans un sens comme dans l'autre — le même bruit peut aussi
+// pousser une valeur qui devrait être un entier pile en dessous (ex.
+// 5.999999999999999 au lieu de 6), ce qui ferait sous-compter d'une unité
+// via floor(). Un dépassement réel (551 véritables cartons nécessaires)
+// reste détecté normalement : la tolérance est bien plus fine que n'importe
+// quelle quantité de chantier significative.
+const FLOAT_NOISE_PRECISION = 6;
+function cleanFloatNoise(value) {
+    const factor = 10 ** FLOAT_NOISE_PRECISION;
+    return Math.round(value * factor) / factor;
+}
+function ceilClean(value) { return Math.ceil(cleanFloatNoise(value)); }
+function floorClean(value) { return Math.floor(cleanFloatNoise(value)); }
+
 const RESERVED_KEYWORDS = [
     'SURFACE', 'PERIMETRE', 'VOLUME', 'PROFONDEUR', 'EPAISSEUR', 'LONGUEUR', 'LINEAIRE', 'LARGEUR', 'HAUTEUR',
     'QTY', 'FACES', 'L', 'H', 'P', 'Q', 'F', 'RENDEMENT_MO', 'RENDEMENT_MATIERE',
@@ -447,8 +467,8 @@ class SafeMathEvaluator {
                     consume('RPAREN');
 
                     switch (id) {
-                        case 'CEIL': return Math.ceil(args[0] || 0);
-                        case 'FLOOR': return Math.floor(args[0] || 0);
+                        case 'CEIL': return ceilClean(args[0] || 0);
+                        case 'FLOOR': return floorClean(args[0] || 0);
                         case 'ROUND': {
                             const decimals = args[1] !== undefined ? args[1] : 0;
                             const factor = Math.pow(10, decimals);
@@ -833,19 +853,31 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                     ? parseFloat(wasteOverride)
                     : (parseFloat(mat.waste) || 0);
 
-                // 2026-08-26 — Une perte en POURCENTAGE n'a pas de sens sur une
-                // ressource dénombrable : on ne consomme pas 1,05 module LED. Pire,
-                // combinée à l'arrondi au conditionnement juste en dessous, elle
-                // faisait systématiquement passer à l'unité supérieure — besoin 1 u
-                // → achat 2 u (+100 %), besoin 10 → 11. La perte reste appliquée aux
-                // ressources CONTINUES (m, m², m³, kg, L), où elle décrit une vraie
-                // chute de découpe. Le discret se protège par une quantité de
-                // sécurité explicite dans le métré, pas par un pourcentage.
+                // Fix F1 (2026-08-30) — le 2026-08-26, la perte en pourcentage avait
+                // été forcée à 0 sur TOUTE ressource dénombrable (unitCalc de
+                // catégorie 'count'), pour éviter qu'1,05 module LED facturé bascule
+                // l'arrondi au conditionnement à l'unité supérieure (besoin 1 u →
+                // achat 2 u, +100 %). Correction trop large : elle interdisait aussi
+                // toute casse/perte de manutention sur un matériau dénombrable acheté
+                // en volume (parpaings, briques…), où c'est une réalité de chantier
+                // ordinaire — confirmée en audit du 2026-08-30, campagne "stress test"
+                // (1 491,84 m² d'agglos, perte 7 % saisie mais silencieusement
+                // ignorée : 18 648 unités facturées au lieu des 19 954 attendues).
+                //
+                // La perte s'applique donc désormais à TOUTE matière, dénombrable ou
+                // non. Ce qui doit rester vrai, et reste vrai : une ressource
+                // dénombrable ne peut pas se consommer par fraction d'unité. On
+                // arrondit donc la quantité facturée (nette + perte) à l'entier
+                // supérieur SPÉCIFIQUEMENT pour les matières dénombrables, plutôt que
+                // de supprimer la perte — 18 648 × 1,07 = 19 953,36 → 19 954, exactement
+                // l'arithmétique attendue. Un matériau au taux catalogue 0 % (modules
+                // LED, alimentations…) n'est pas affecté : ceil(net) = net.
                 // `count` est la catégorie déjà déclarée dans BTP_UNIT_CATEGORIES
                 // (u, unité, forfait, barre, plaque, rouleau, carton, sac, pot…).
                 const isCountable = getUnitCategory(mat.unitCalc) === 'count';
-                const wastePct = isCountable ? 0 : wastePctSaisi;
-                const billedQty = line.baseQty * (1 + (wastePct / 100));
+                const wastePct = wastePctSaisi;
+                const rawBilledQty = line.baseQty * (1 + (wastePct / 100));
+                const billedQty = isCountable ? ceilClean(rawBilledQty) : rawBilledQty;
                 // Fix B6 (2026-08-30) — arrondi au FCFA ICI, avant l'accumulation
                 // dans consumedByCategory, pas seulement à l'affichage. Sinon
                 // Math.round(a) + Math.round(b) peut différer de Math.round(a+b)
@@ -875,9 +907,15 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 // vitrage) → consommé et acheté coïncident naturellement.
                 const packUnitSize = mat.unitSize || 1;
                 const isRealMode = mat.purchaseMode === 'real';
+                // Fix F2 (2026-08-30) — ceilClean() plutôt que Math.ceil() brut : un
+                // résidu IEEE-754 (720×1,10 = 792,0000000000001, pas 792 pile) faisait
+                // ici commander un conditionnement entier de trop dès que le calcul
+                // tombait exactement sur un palier (792÷1,44 = 550,0000000000001 →
+                // arrondi à 551 cartons au lieu de 550). Voir cleanFloatNoise() en
+                // tête de fichier.
                 const packsNeeded = isRealMode
                     ? (packUnitSize > 0 ? billedQty / packUnitSize : billedQty)
-                    : Math.ceil(billedQty / packUnitSize);
+                    : ceilClean(billedQty / packUnitSize);
                 // Même correctif B6 que consumedCost ci-dessus (mode 'real' : packsNeeded
                 // est fractionnaire, donc purchasedCost aussi sans cet arrondi).
                 const purchasedCost = Math.round(packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc)));
