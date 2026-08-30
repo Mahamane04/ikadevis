@@ -4078,7 +4078,8 @@ function QuoteWorkspace({
     showToast,
     confirmAction,
     saveQuoteStatus = 'idle',
-    saveQuoteError = null
+    saveQuoteError = null,
+    initialDirty = false
 }) {
     const [activeLotIndex, setActiveLotIndex] = useState(0);
     // Sous lg:, la liste des lots (LotNavigator) et le détail du lot actif
@@ -4107,7 +4108,25 @@ function QuoteWorkspace({
     const [inspectorItemIndex, setInspectorItemIndex] = useState(null);
     const [deletedItemUndo, setDeletedItemUndo] = useState(null);
     const [autosaveTime, setAutosaveTime] = useState(null);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    // Fix UX-1 (2026-08-30) — hasUnsavedChanges est un état LOCAL à ce
+    // composant, réinitialisé à `false` chaque fois que QuoteWorkspace est
+    // démonté puis remonté (bascule vers un autre onglet de la barre latérale,
+    // puis retour sur « Créer un Devis »). hybridQuote, lui, vit plus haut
+    // (prop levée dans App) et survit à ce remontage — d'où un symptôme
+    // trompeur confirmé en direct : l'ouvrage ajouté restait bien présent,
+    // mais le bandeau passait silencieusement de « Modifications non
+    // enregistrées » à « Enregistré localement » sans qu'aucun enregistrement
+    // n'ait eu lieu. Pire, l'effet ci-dessous (onDirtyChange) exécute alors
+    // onDirtyChange(false) au premier rendu, écrasant devisNonEnregistre côté
+    // App — qui, jusque-là, avait pourtant correctement gardé `true` pendant
+    // toute la durée où ce composant était démonté. Le garde-fou de
+    // déconnexion (App, if (!devisNonEnregistre)) et la garde beforeunload
+    // ci-dessous perdaient donc silencieusement leur effet dès que
+    // l'utilisateur avait visité un seul autre onglet entre-temps.
+    // Initialiser depuis initialDirty (prop reflétant devisNonEnregistre,
+    // seule source qui survit au démontage) referme la boucle : un remontage
+    // reprend l'état réel plutôt que de repartir toujours de `false`.
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(() => !!initialDirty);
     const [isSaving, setIsSaving] = useState(false);
 
     // 2026-08-21 — Garde de fermeture d'onglet.
@@ -4119,7 +4138,8 @@ function QuoteWorkspace({
     //
     // La navigation INTERNE, elle, ne perd rien (l'état vit dans React) :
     // aucune garde n'est posée sur les changements de vue, ce serait de la
-    // friction inutile.
+    // friction inutile. Ce qui restait vrai pour hybridQuote (levé), mais pas
+    // pour ce hasUnsavedChanges local, corrigé ci-dessus (Fix UX-1).
     //
     // ⚠️ Les navigateurs n'autorisent PAS de fenêtre personnalisée ici. Seul
     // le dialogue natif « Quitter le site ? » s'affiche, et son texte n'est
@@ -4433,19 +4453,37 @@ function QuoteWorkspace({
         showToast("Ligne dupliquée");
     };
 
+    // Fix UX-1 (2026-08-30) — supprimait l'ouvrage en un clic, sans aucune
+    // confirmation (contrairement à handleDeleteLot ci-dessus, qui en
+    // demande une) : seul un toast "Ouvrage supprimé du lot" apparaissait,
+    // avec un lien Annuler qui disparaît après 6 secondes. Incohérent avec
+    // le lot (même geste, même caractère destructeur pour la ligne
+    // concernée), et facile à manquer si l'attention est ailleurs.
     const handleDeleteItem = (itemIdx) => {
-        pushState();
         const currentLot = hybridQuote.lots?.[activeLotIndex];
         if (!currentLot || !currentLot.items?.[itemIdx]) return;
         const deleted = currentLot.items[itemIdx];
-        const updatedLots = [...(hybridQuote.lots || [])];
-        updatedLots[activeLotIndex].items = currentLot.items.filter((_, idx) => idx !== itemIdx);
-        setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
-        
-        // Undo support
-        setDeletedItemUndo({ lotIndex: activeLotIndex, itemIndex: itemIdx, item: deleted });
-        showToast("Ouvrage supprimé du lot");
-        setTimeout(() => setDeletedItemUndo(null), 6000);
+
+        const supprimer = () => {
+            pushState();
+            const updatedLots = [...(hybridQuote.lots || [])];
+            updatedLots[activeLotIndex].items = currentLot.items.filter((_, idx) => idx !== itemIdx);
+            setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+
+            // Undo support
+            setDeletedItemUndo({ lotIndex: activeLotIndex, itemIndex: itemIdx, item: deleted });
+            showToast("Ouvrage supprimé du lot");
+            setTimeout(() => setDeletedItemUndo(null), 6000);
+        };
+
+        if (!confirmAction) { supprimer(); return; }
+        confirmAction({
+            title: 'Supprimer cet ouvrage ?',
+            message: `« ${deleted?.name || 'Cet ouvrage'} » sera retiré du lot.\n\nCette action reste annulable juste après (lien "Annuler"), ou par Cmd+Z (Ctrl+Z).`,
+            confirmLabel: 'Supprimer',
+            isDanger: true,
+            onConfirm: supprimer
+        });
     };
 
     const handleUndoDelete = () => {
@@ -9592,6 +9630,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return (
                 <QuoteWorkspace
                     onDirtyChange={setDevisNonEnregistre}
+                    initialDirty={devisNonEnregistre}
                     hybridQuote={hybridQuote}
                     setHybridQuote={setHybridQuote}
                     solutions={solutions}

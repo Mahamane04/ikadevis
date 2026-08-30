@@ -43,6 +43,7 @@ import * as inlineWorkItemCombobox from './test_inline_work_item_combobox.mjs';
 import * as inspectorNavigation from './test_inspector_navigation.mjs';
 import * as documentsOrganizationCurrency from './test_documents_organization_currency.mjs';
 import * as responsiveSmoke from './test_responsive_smoke.mjs';
+import * as unsavedChangesGuard from './test_unsaved_changes_guard.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -65,6 +66,7 @@ const SUITES = [
     { name: 'Phase 3 — Inspecteur latéral et navigation des ouvrages', mod: inspectorNavigation, expectedToFail: false },
     { name: 'Phases 4 à 8 — Documents, organisation et devise', mod: documentsOrganizationCurrency, expectedToFail: false },
     { name: 'Phase 9 — Fumée responsive', mod: responsiveSmoke, expectedToFail: false },
+    { name: 'Fix UX-1 — garde de modifications non enregistrées et confirmation de suppression', mod: unsavedChangesGuard, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;
