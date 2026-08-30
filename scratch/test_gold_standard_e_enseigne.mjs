@@ -11,13 +11,23 @@
 // Corrigé (commit "P0.6") : formule modules "SURFACE * 25", et le
 // coefficient de la formule d'alimentation mis en cohérence (25 × 1.2W =
 // 30W/m² → "ceil(SURFACE * 30 / 200)", au lieu de 54 qui supposait 45/m²).
+// Fix P0-2 (2026-08-30) — la recette "Faces Plexiglas" (id 29) divisait
+// l'aire totale par l'aire de plaque (3m²) sans jamais vérifier si la face
+// tient physiquement dans une plaque commerciale 1.22×2.44m. Calepinage en
+// grille ajouté, meilleure orientation retenue. Ce banc vérifie le cas
+// d'origine (non-régression, 6 plaques — coïncide avec l'ancien calcul
+// naïf ici, la face 6×1.2m tenant dans une seule bande de plaques) ET un
+// cas adversarial (7.2×1.5m, Projet 4 de la campagne de test du
+// 2026-08-30) où aucune plaque ne peut couvrir la largeur en une seule
+// pièce : l'ancien calcul (23.33÷3→8 plaques) ignorait que la face doit
+// être composée de plusieurs plaques mises côte à côte.
 import { pathToFileURL } from 'node:url';
 import {
     launchApp, enterGuestMode, addCatalogItemBySearch,
     openDecompositionTab, readFirstOuvrageBreakdown
 } from './lib/harness.mjs';
 
-const EXPECTED = { modules: 180, alimentations: 2 };
+const EXPECTED = { modules: 180, alimentations: 2, plaquesOrigine: 6, plaquesAdversarial: 12 };
 const TOLERANCE = 0;
 
 const parseNum = (s) => {
@@ -96,10 +106,43 @@ export async function run() {
                 alimentations !== null && Math.abs(alimentations - EXPECTED.alimentations) <= TOLERANCE,
                 `mesuré=${alimentations} — ligne source: ${JSON.stringify(alimRow)}`
             );
+
+            const plexiRow = breakdown.rows.find((row) => /Plexiglas/i.test(row.poste || ''));
+            ok(
+                `Plaques Plexiglas (cas d'origine 6×1.2m) = ${EXPECTED.plaquesOrigine} (calepinage 1.22×2.44m ×2 faces, tolérance ${TOLERANCE})`,
+                plexiRow?.packsNeeded === EXPECTED.plaquesOrigine,
+                `mesuré=${plexiRow?.packsNeeded} — ligne source: ${JSON.stringify(plexiRow)}`
+            );
         }
     } finally {
         await close();
     }
+
+    // --- Cas adversarial : 7.2×1.5m, aucune plaque ne couvre la largeur ---
+    {
+        const { page, close } = await launchApp();
+        try {
+            await enterGuestMode(page);
+            await addCatalogItemBySearch(page, 'Caisson Enseigne Lumineuse');
+            await setRectangleDimensions(page, 7.2, 1.5);
+            await openDecompositionTab(page);
+
+            const b2 = await readFirstOuvrageBreakdown(page);
+            ok('Cas adversarial (7.2×1.5m) — décomposition lisible', b2.found, JSON.stringify(b2.raw));
+
+            if (b2.found) {
+                const plexiRow2 = b2.rows.find((row) => /Plexiglas/i.test(row.poste || ''));
+                ok(
+                    `Plaques Plexiglas (cas adversarial 7.2×1.5m) = ${EXPECTED.plaquesAdversarial} — PAS 8 (ancien calcul surfacique 23.33÷3, tolérance ${TOLERANCE})`,
+                    plexiRow2?.packsNeeded === EXPECTED.plaquesAdversarial,
+                    `mesuré=${plexiRow2?.packsNeeded} — ligne source: ${JSON.stringify(plexiRow2)}`
+                );
+            }
+        } finally {
+            await close();
+        }
+    }
+
     return results;
 }
 

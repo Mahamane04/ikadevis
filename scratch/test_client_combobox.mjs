@@ -56,6 +56,36 @@ export async function run() {
         await new Promise(resolve => setTimeout(resolve, 250));
         const selectedCreated = await page.$eval(clientInput, input => input.value);
         ok('Le nouveau client est sélectionné automatiquement dans le devis', selectedCreated === 'Client créé depuis devis', selectedCreated);
+
+        // Fix P3 (2026-08-30) — cliquer ailleurs dans l'éditeur (pas Escape,
+        // ex. la barre de recherche d'ouvrage) pendant qu'un nom de client
+        // non confirmé venait d'être tapé faisait disparaître ce texte sans
+        // avertir. Le texte doit maintenant être conservé comme client en
+        // texte libre (pas de clientId) plutôt qu'écrasé silencieusement.
+        await page.click(clientInput);
+        await page.evaluate((nextValue) => {
+            const input = document.querySelector('input[aria-label="Client du devis"]');
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            nativeSetter.call(input, nextValue);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }, 'Nom tapé sans confirmation XYZ');
+        await new Promise(resolve => setTimeout(resolve, 150));
+        // mousedown synthétique plutôt que page.click() : le point cliquable
+        // de la barre de recherche d'ouvrage dépend de l'état du lot actif
+        // (peut être hors-écran/obscurci selon ce qui précède dans ce banc) —
+        // seul le déclenchement du mousedown "hors du combobox client"
+        // importe ici, pas la géométrie réelle du clic.
+        await page.evaluate(() => {
+            const target = document.querySelector('input[aria-label="Rechercher un ouvrage à ajouter"]') || document.body;
+            target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        });
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const preservedAfterOutsideClick = await page.$eval(clientInput, input => input.value);
+        ok(
+            'Un nom tapé sans confirmation survit à un clic ailleurs dans l\'éditeur (pas de perte silencieuse)',
+            preservedAfterOutsideClick === 'Nom tapé sans confirmation XYZ',
+            preservedAfterOutsideClick
+        );
     } finally {
         await close();
     }

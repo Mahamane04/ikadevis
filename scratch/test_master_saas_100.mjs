@@ -27,6 +27,7 @@ import * as smoke from './test_smoke.mjs';
 import * as financialChain from './test_financial_chain_consistency.mjs';
 import * as goldA from './test_gold_standard_a_peinture.mjs';
 import * as wasteOverride from './test_waste_override.mjs';
+import * as zeroNegativePhantom from './test_zero_negative_no_phantom_charge.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
 import * as goldC from './test_gold_standard_c_metallerie.mjs';
 import * as goldD from './test_gold_standard_d_menuiserie.mjs';
@@ -46,6 +47,7 @@ const SUITES = [
     { name: 'Cohérence chaîne financière', mod: financialChain, expectedToFail: false },
     { name: 'Étalon A — Peinture Murale (tolérance zéro)', mod: goldA, expectedToFail: false },
     { name: 'Taux de perte ajustable par ouvrage', mod: wasteOverride, expectedToFail: false },
+    { name: 'Fix P0-3/P1 — surface nulle/négative ne facture jamais un montant fantôme', mod: zeroNegativePhantom, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
     { name: 'Étalon C — Garde-Corps Métallerie, Plan de Débit 1D (tolérance zéro)', mod: goldC, expectedToFail: false },
     { name: 'Étalon D — Dressing Menuiserie, Calepinage 2D (tolérance zéro)', mod: goldD, expectedToFail: false },

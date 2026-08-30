@@ -91,7 +91,37 @@ import { launchApp, enterGuestMode, loadOneClickTemplate, readFinancials } from 
 // Le coefficient K passe de 1,510 à 1,507 : ce n'est pas un changement de
 // politique, seulement la nouvelle répartition entre lots à conditionnement
 // (arrondis d'achat) et lots au réel.
-const EXPECTED = { debourseSec: 80716652, coeffK: 1.507, netHT: 121674978, totalTTC: 143576474 };
+// Recalibré une CINQUIÈME fois le 2026-08-30 — fix P2 (campagne de test QA
+// externe du 2026-08-29/30, 10 projets réels). Le poste « Façonnage et pose
+// des aciers » (recette id 18) utilisait un coefficient fixe « * 60 »
+// totalement déconnecté du DOSAGE_ACIER réellement saisi par l'utilisateur
+// sur la ligne Armatures (id 16, juste au-dessus) — un écart de 30 % entre
+// quantité achetée et quantité facturée à la pose, repéré en confrontant les
+// deux postes d'un même ouvrage dans l'inspecteur. Les 3 lots béton armé de
+// cette villa utilisent DOSAGE_ACIER=80/90/75 (js/quote-templates.js:58,73,88)
+// — aucun des trois n'est 60 — donc TOUS sous-facturaient le façonnage.
+// Écart mesuré : +1 450 909 FCFA de déboursé sec, qui remonte au Net HT et au
+// TTC via le même Coeff K INCHANGÉ à 1,507 (confirmation que K reste une
+// propriété structurelle du barème, indépendante de quelle ligne a varié —
+// même signature qu'au recalibrage du 2026-08-18). Cohérence vérifiée :
+// netHT / debourseSec = 1,507 ; totalTTC = netHT × 1,18 au franc près.
+// Recalibré une SIXIÈME fois le 2026-08-30 — fix B6 (même campagne de test
+// que le recalibrage précédent). Le déboursé sec de chaque ligne (matériau
+// ET main-d'œuvre) s'arrondissait deux fois de façon incohérente : une fois
+// à l'affichage (formatMoney fait Math.round), une fois — séparément —
+// sur le total accumulé en flottant non arrondi puis arrondi une seule fois
+// à la toute fin. Math.round(a) + Math.round(b) peut différer de
+// Math.round(a+b) d'1 FCFA près d'un palier ,5 — repéré sur une ligne main-
+// d'œuvre peinture (47 797 affiché vs 47 798 dans le total, Projet 1 de la
+// campagne). Corrigé en arrondissant chaque ligne AVANT l'accumulation
+// (js/calc-engine.js, consumedCost/purchasedCost/cost), pas seulement à la
+// fin — le total est maintenant garanti égal à la somme exacte des lignes
+// affichées, par construction. Sur cette villa (11 lots, beaucoup de lignes
+// matériau + main-d'œuvre cumulées), l'écart net est de +1 FCFA sur le
+// déboursé (arrondis qui se compensaient partiellement avant, plus après) —
+// Coeff K inchangé à 1,507 (même signature que les recalibrages précédents :
+// une dérive d'arrondi cumulée, pas un changement de politique de calcul).
+const EXPECTED = { debourseSec: 82167562, coeffK: 1.507, netHT: 123851344, totalTTC: 146144586 };
 const TOLERANCE = 0;
 
 export async function run() {

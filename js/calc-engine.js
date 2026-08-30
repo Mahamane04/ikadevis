@@ -574,15 +574,19 @@ const evaluateDynamicFormula = (formulaStr, vars = {}, extraContext = {}) => {
     const q = Math.max(1, parseInt(vars.qty || vars.QTY || vars.Q) || 1);
     const f = Math.max(1, parseInt(vars.faces || vars.FACES || vars.F) || 1);
 
+    // Fix P0-3 (2026-08-30) — `directSurf > 0` rejetait un 0 explicitement
+    // saisi (une surface/volume nul est une valeur valide, pas une absence
+    // de saisie) et retombait sur w*h*q*f, potentiellement non nul. Seul
+    // `!isNaN(...)` doit décider si la valeur a été fournie.
     const directSurf = parseFloat(vars.SURFACE || vars.surface || vars.surfaceDirect);
-    let surfaceValue = !isNaN(directSurf) && directSurf > 0 ? directSurf : (w * h * q * f);
+    let surfaceValue = !isNaN(directSurf) ? directSurf : (w * h * q * f);
     if (takeoffMode === 'surface') surfaceValue = (parseFloat(vars.surfaceDirect) || directSurf || 0) * q;
     else if (takeoffMode === 'floor') surfaceValue = w * (parseFloat(vars.lengthDirect)||l||w) * q;
-    else if (takeoffMode === 'volume') surfaceValue = !isNaN(directSurf) && directSurf > 0 ? directSurf : (w * h * q * f);
+    else if (takeoffMode === 'volume') surfaceValue = !isNaN(directSurf) ? directSurf : (w * h * q * f);
     else if (takeoffMode === 'linear') surfaceValue = (parseFloat(vars.lengthDirect)||l||w) * q;
 
     const directVol = parseFloat(vars.VOLUME || vars.volume || vars.volumeDirect);
-    const volumeValue = !isNaN(directVol) && directVol > 0 ? directVol : ((takeoffMode === 'volume') ? (surfaceValue * (d || 1)) : (surfaceValue * (d || 1)));
+    const volumeValue = !isNaN(directVol) ? directVol : (surfaceValue * (d || 1));
 
     let perimetreValue = 2 * (w + h) * q;
     if (takeoffMode === 'floor') {
@@ -715,11 +719,24 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         customVarValues: {}
     };
 
-    const widthVal = Math.max(0.01, parseFloat(calcForm.width) || 0);
-    const heightVal = Math.max(0.01, parseFloat(calcForm.height) || 0);
-    const depthVal = Math.max(0.01, parseFloat(calcForm.depth) || 0.15);
-    const lengthDirectVal = Math.max(0.01, parseFloat(calcForm.lengthDirect) || widthVal);
-    const surfaceDirectVal = Math.max(0.01, parseFloat(calcForm.surfaceDirect) || (widthVal * heightVal));
+    // Fix P0-3 / P1 (2026-08-30) — l'ancien pattern `parseFloat(x) || fallback`
+    // traitait un 0 explicitement saisi comme "non renseigné" (0 est falsy en
+    // JS) et retombait sur une valeur par défaut résiduelle d'un autre mode
+    // de métré (ex. width=2/height=1 d'un essai en mode Rectangle), facturant
+    // un montant fantôme sur une ligne censée être vide. `numOrFallback` ne
+    // retombe sur le fallback QUE si le champ est réellement vide/absent —
+    // un 0 ou une valeur négative saisis sont respectés, puis clampés à 0 par
+    // Math.max (négatif => 0 facturé, jamais un montant positif résiduel).
+    const numOrFallback = (raw, fallback) => {
+        if (raw === '' || raw === null || raw === undefined) return fallback;
+        const n = parseFloat(raw);
+        return isNaN(n) ? fallback : n;
+    };
+    const widthVal = Math.max(0, numOrFallback(calcForm.width, 0));
+    const heightVal = Math.max(0, numOrFallback(calcForm.height, 0));
+    const depthVal = Math.max(0, numOrFallback(calcForm.depth, 0.15));
+    const lengthDirectVal = Math.max(0, numOrFallback(calcForm.lengthDirect, widthVal));
+    const surfaceDirectVal = Math.max(0, numOrFallback(calcForm.surfaceDirect, widthVal * heightVal));
     const qtyVal = Math.max(1, parseInt(calcForm.qty || item.qty) || 1);
     const facesVal = Math.max(1, parseInt(calcForm.faces) || 1);
     const marginVal = Math.min(95, Math.max(0, parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin || 30))));
@@ -829,7 +846,14 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 const isCountable = getUnitCategory(mat.unitCalc) === 'count';
                 const wastePct = isCountable ? 0 : wastePctSaisi;
                 const billedQty = line.baseQty * (1 + (wastePct / 100));
-                const consumedCost = billedQty * mat.priceCalc;
+                // Fix B6 (2026-08-30) — arrondi au FCFA ICI, avant l'accumulation
+                // dans consumedByCategory, pas seulement à l'affichage. Sinon
+                // Math.round(a) + Math.round(b) peut différer de Math.round(a+b)
+                // près d'un palier .5 (ex. 47 797,5 FCFA) : la ligne affichée et le
+                // déboursé total (qui n'arrondissait qu'une fois, à la fin) pouvaient
+                // diverger d'1 FCFA. Arrondir ici garantit que le total est toujours
+                // la somme exacte des lignes affichées — jamais l'inverse.
+                const consumedCost = Math.round(billedQty * mat.priceCalc);
                 const netQty = line.baseQty;
                 const wasteQty = Math.max(0, billedQty - netQty);
 
@@ -854,7 +878,9 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 const packsNeeded = isRealMode
                     ? (packUnitSize > 0 ? billedQty / packUnitSize : billedQty)
                     : Math.ceil(billedQty / packUnitSize);
-                const purchasedCost = packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc));
+                // Même correctif B6 que consumedCost ci-dessus (mode 'real' : packsNeeded
+                // est fractionnaire, donc purchasedCost aussi sans cet arrondi).
+                const purchasedCost = Math.round(packsNeeded * (mat.priceBuy || (packUnitSize * mat.priceCalc)));
                 const purchasedQty = packsNeeded * packUnitSize;
                 const remainderQty = Math.max(0, purchasedQty - billedQty);
                 totalPurchasedMaterialCost += purchasedCost;
@@ -882,7 +908,8 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
         } else if (line.type === 'labor') {
             const lab = labor.find(l => l.id === line.refId);
             if (lab) {
-                const cost = line.baseQty * lab.rate;
+                // Même correctif B6 que consumedCost (matériaux) ci-dessus.
+                const cost = Math.round(line.baseQty * lab.rate);
                 consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
                 consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + cost;
                 details.push({

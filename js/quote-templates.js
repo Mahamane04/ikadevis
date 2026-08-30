@@ -791,7 +791,12 @@ const ACM_FACADE_TEMPLATE_QUOTE = {
                     name: 'Fourniture, Ossature galva, Usinage Cassettes ACM & Pose Nacelle (180 m²)',
                     description: 'Ensemble complet incluant ossature primaire/secondaire 40x40, plaques Alucobond PVDF, usinage V-groove, fixations et pose',
                     qty: 1,
-                    calcForm: { solutionId: 2, takeoffMode: 'surface', surfaceDirect: 180, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
+                    // Fix P0-2 (2026-08-30) — takeoffMode 'surface' retiré des
+                    // allowedModes de la solution 2 (ACM) : le calepinage réel
+                    // (matériau refId 32, formule id 8) a besoin de largeur ET
+                    // hauteur séparément, une aire agrégée ne suffit pas.
+                    // 18×10m conserve les 180 m² de référence de ce modèle.
+                    calcForm: { solutionId: 2, takeoffMode: 'rectangle', width: 18, height: 10, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
                 }
             ]
         }

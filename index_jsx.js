@@ -448,10 +448,41 @@ function ClientCombobox({
 
     const restoreCommittedValue = () => setQuery(value || '');
 
+    // Fix P3 (2026-08-30) — cliquer AILLEURS dans l'éditeur (ex. la barre de
+    // recherche d'ouvrage, pour ajouter une ligne) pendant qu'un nom de
+    // client venait d'être tapé faisait disparaître ce texte sans avertir :
+    // `restoreCommittedValue()` écrasait inconditionnellement la saisie en
+    // cours dès qu'un mousedown sortait de `rootRef`, même avec une
+    // suggestion "Créer «X»" visible et non encore confirmée. Observé 3 fois
+    // pendant la campagne de test du 2026-08-29/30 (obligeant à retaper le
+    // nom à chaque fois). Ce ref garde les dernières valeurs pertinentes à
+    // jour sans réabonner le listener à chaque frappe (il reste monté une
+    // seule fois, comme avant).
+    const latestRef = useRef({ query, value, clients, onChange, onSelectClient });
+    latestRef.current = { query, value, clients, onChange, onSelectClient };
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (rootRef.current && !rootRef.current.contains(event.target)) {
-                restoreCommittedValue();
+                const { query: q, value: committedValue, clients: cs, onChange: change, onSelectClient: selectClientFn } = latestRef.current;
+                const trimmed = q.trim();
+                const committedTrimmed = (committedValue || '').trim();
+                const matched = cs.find((c) => normalizeSearchText(c.name) === normalizeSearchText(trimmed));
+                if (trimmed && trimmed !== committedTrimmed && matched) {
+                    // La saisie correspond exactement à un client déjà connu
+                    // (ex. créé lors d'une frappe précédente) : le sélectionner
+                    // pour de bon plutôt que de silencieusement l'ignorer.
+                    selectClientFn?.(matched);
+                } else if (trimmed && trimmed !== committedTrimmed) {
+                    // Saisie non confirmée mais non vide, sans correspondance
+                    // connue : la committer en texte libre (le composant reste
+                    // "compatible avec l'ancien modèle texte", voir le
+                    // commentaire en tête de fichier) plutôt que la faire
+                    // disparaître silencieusement.
+                    change?.({ clientName: trimmed, clientId: null });
+                } else {
+                    restoreCommittedValue();
+                }
                 setIsOpen(false);
             }
         };
@@ -3452,6 +3483,7 @@ function WorkItemInspector({
                                                 <label className="app-label">Largeur (m)</label>
                                                 <input
                                                     type="number"
+                                                    min="0"
                                                     step="any"
                                                     value={calcForm.width || 0}
                                                     onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
@@ -3465,6 +3497,7 @@ function WorkItemInspector({
                                                 <label className="app-label">Hauteur (m)</label>
                                                 <input
                                                     type="number"
+                                                    min="0"
                                                     step="any"
                                                     value={calcForm.height || 0}
                                                     onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
@@ -3478,6 +3511,7 @@ function WorkItemInspector({
                                                 <label className="app-label">Épaisseur / Profondeur (m)</label>
                                                 <input
                                                     type="number"
+                                                    min="0"
                                                     step="any"
                                                     value={calcForm.depth || 0.15}
                                                     onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)}
@@ -3491,6 +3525,7 @@ function WorkItemInspector({
                                                 <label className="app-label">Surface Directe (m²)</label>
                                                 <input
                                                     type="number"
+                                                    min="0"
                                                     step="any"
                                                     value={calcForm.surfaceDirect || 0}
                                                     onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)}
@@ -3508,6 +3543,7 @@ function WorkItemInspector({
                                                 <label className="app-label">Longueur (ml)</label>
                                                 <input
                                                     type="number"
+                                                    min="0"
                                                     step="any"
                                                     value={calcForm.lengthDirect || 0}
                                                     onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)}
@@ -7069,7 +7105,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // pourcentage de perte générique par-dessus une liste de débit précise
     // compterait la perte deux fois (une fois via l'arrondi au conditionnement
     // pack, une fois via le waste%).
-    { id: 31, name: 'Tube carré acier 25x25 (Débit précis, Barre 6m)', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: 9000, priceCalc: 1500, waste: 0, yieldRate: 0, purchaseMode: 'pack' }
+    { id: 31, name: 'Tube carré acier 25x25 (Débit précis, Barre 6m)', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: 9000, priceCalc: 1500, waste: 0, yieldRate: 0, purchaseMode: 'pack' },
+    // Fix P0-2 (2026-08-30) — même raisonnement que id 31 ci-dessus : la
+    // formule des solutions 2 (Habillage Façade ACM) et 8 (Caisson Enseigne)
+    // calcule désormais un calepinage 2D exact (plaque 1.22×2.44m, meilleure
+    // orientation) au lieu d'une simple division surfacique. Un waste%
+    // générique par-dessus compterait la perte de découpe deux fois. Prix et
+    // conditionnement identiques aux matériaux d'origine (id 4, id 16) —
+    // seul le waste change, pour ne pas affecter les autres ouvrages qui
+    // utilisent encore ces mêmes id 4/16 (ex. solution 9 "Lettres Reliefs
+    // Découpées", id 34, non concernée par ce correctif).
+    { id: 32, name: 'Plaque Alucobond 4mm PVDF Extérieur (Calepinage précis)', category: 'Support', unitBuy: 'Plaque (6m²)', unitSize: 6, unitCalc: 'm²', priceBuy: 65000, priceCalc: 10833.33, waste: 0, yieldRate: 0, purchaseMode: 'pack' },
+    { id: 33, name: 'Plaque Plexiglas Acrylique Diffusant 3mm (Calepinage précis)', category: 'Support', unitBuy: 'Plaque (3m²)', unitSize: 3, unitCalc: 'm²', priceBuy: 36000, priceCalc: 12000, waste: 0, yieldRate: 0, purchaseMode: 'pack' }
 ];
 
         const initialLabor = [
@@ -7103,11 +7150,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         allowedModes: ['rectangle'],
         customVars: []
     },
-    { 
-        id: 2, 
-        name: 'Habillage Façade en Panneaux Alucobond / ACM', 
+    {
+        id: 2,
+        name: 'Habillage Façade en Panneaux Alucobond / ACM',
         icon: 'fa-layer-group',
-        allowedModes: ['surface', 'rectangle'],
+        // Fix P0-2 (2026-08-30) — mode 'surface' retiré. Le calcul du nombre
+        // de plaques nécessite de connaître largeur ET hauteur de la façade
+        // pour vérifier si le calepinage tient dans une plaque commerciale ;
+        // une surface agrégée seule ne le permet pas (voir la recette id 8,
+        // ci-dessous, qui utilise maintenant LARGEUR/HAUTEUR).
+        allowedModes: ['rectangle'],
         customVars: []
     },
     { 
@@ -7272,7 +7324,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 7, solutionId: 1, type: 'labor', refId: 4, formula: '1', label: 'Installation sur site', costCategory: 'installation' },
 
     // Solution 2: Habillage Façade Alucobond / ACM
-    { id: 8, solutionId: 2, type: 'material', refId: 4, formula: 'SURFACE', label: 'Plaques Alucobond 4mm PVDF', costCategory: 'material' },
+    // Fix P0-2 (2026-08-30) — l'ancienne formule ('SURFACE') divisait l'aire
+    // totale par l'aire de plaque (6m²) sans jamais vérifier si la façade
+    // tient physiquement dans une plaque commerciale standard 1.22×2.44m
+    // (format Alucobond/ACM universel — 1.22×2.44=2.9768m², cohérent avec
+    // les "3m²"/"6m²" déjà utilisés comme arrondis d'1 ou 2 plaques dans ce
+    // catalogue). Dès qu'une façade dépasse 1.22m ou 2.44m dans une
+    // dimension (le cas courant), la division surfacique sous/sur-estime le
+    // nombre réel de plaques — confirmé sur le scénario enseigne 7.2×1.5m de
+    // la campagne de test du 2026-08-30 (Projet 4). Calepinage en grille,
+    // meilleure orientation retenue via min(), 2 plaques physiques par
+    // "Plaque (6m²)" facturée (refId 4, unitSize=6, purchaseMode 'pack').
+    // Nécessite LARGEUR/HAUTEUR individuelles → mode 'surface' retiré du
+    // catalogue (voir la déclaration de la solution 2, plus haut).
+    { id: 8, solutionId: 2, type: 'material', refId: 32, formula: 'ceil(min(ceil(LARGEUR/1.22)*ceil(HAUTEUR/2.44), ceil(LARGEUR/2.44)*ceil(HAUTEUR/1.22)) / 2) * 6', label: 'Plaques Alucobond 4mm PVDF', costCategory: 'material' },
     { id: 9, solutionId: 2, type: 'material', refId: 19, formula: 'SURFACE * 2.5', label: 'Ossature tubes 40x40 galvanisés', costCategory: 'material' },
     { id: 10, solutionId: 2, type: 'material', refId: 20, formula: 'SURFACE * 2', label: 'Fixations chimiques & Equerres', costCategory: 'material' },
     { id: 11, solutionId: 2, type: 'labor', refId: 12, formula: 'SURFACE', label: 'Rainurage V, pliage et pose cassettes', costCategory: 'labor' },
@@ -7286,7 +7351,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 15, solutionId: 4, type: 'material', refId: 6, formula: 'VOLUME > 0 ? VOLUME : (SURFACE * 0.20)', label: 'Béton B25 dosé 350 kg/m³', costCategory: 'material' },
     { id: 16, solutionId: 4, type: 'material', refId: 7, formula: '(VOLUME > 0 ? VOLUME : (SURFACE * 0.20)) * DOSAGE_ACIER / 0.88', label: 'Armatures aciers HA FeE500', costCategory: 'material' },
     { id: 17, solutionId: 4, type: 'labor', refId: 7, formula: 'VOLUME > 0 ? VOLUME : (SURFACE * 0.20)', label: 'Coulage et vibration béton', costCategory: 'labor' },
-    { id: 18, solutionId: 4, type: 'labor', refId: 8, formula: '(VOLUME > 0 ? VOLUME : (SURFACE * 0.20)) * 60', label: 'Façonnage et pose des aciers', costCategory: 'labor' },
+    // Fix P2 (2026-08-30) — formule alignée sur la même longueur que la ligne
+    // Armatures (id 16) : l'ancien coefficient fixe "* 60" ignorait le
+    // DOSAGE_ACIER saisi par l'utilisateur, créant un écart pouvant
+    // atteindre 30% entre quantité achetée et quantité facturée à la pose.
+    { id: 18, solutionId: 4, type: 'labor', refId: 8, formula: '(VOLUME > 0 ? VOLUME : (SURFACE * 0.20)) * DOSAGE_ACIER / 0.88', label: 'Façonnage et pose des aciers', costCategory: 'labor' },
 
     // Solution 5: Maçonnerie Agglos
     { id: 19, solutionId: 5, type: 'material', refId: 8, formula: 'SURFACE * 12.5', label: 'Agglos creux de 15 (12.5 u/m²)', costCategory: 'material' },
@@ -7305,7 +7374,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     // Solution 8: Caisson Enseigne Lumineuse LED
     { id: 28, solutionId: 8, type: 'material', refId: 12, formula: 'PERIMETRE', label: 'Profilé Aluminium caisson étanche', costCategory: 'material' },
-    { id: 29, solutionId: 8, type: 'material', refId: 16, formula: 'SURFACE * 2', label: 'Faces Plexiglas diffusant blanc 3mm', costCategory: 'material' },
+    // Fix P0-2 (2026-08-30) — même correctif que l'ACM (id 8 ci-dessus) :
+    // plaque Plexiglas standard 1.22×2.44m (≈3m², cohérent avec l'unitSize
+    // du catalogue), calepinage en grille au lieu de la division surfacique.
+    // Le ×2 final (déjà présent dans la formule d'origine) reste littéral,
+    // pas dérivé de FACES — "Double Face" est une caractéristique fixe de cet
+    // ouvrage, pas un paramètre.
+    { id: 29, solutionId: 8, type: 'material', refId: 33, formula: 'min(ceil(LARGEUR/1.22)*ceil(HAUTEUR/2.44), ceil(LARGEUR/2.44)*ceil(HAUTEUR/1.22)) * 2 * 3', label: 'Faces Plexiglas diffusant blanc 3mm', costCategory: 'material' },
     // P0.6 — Densité corrigée de 45 à 25 u/m² (2026-08-16) : 45/m² facturait
     // près du double du matériel réellement posé sur toute enseigne, quelle
     // que soit sa taille (confirmé sur l'Étalon E : 330 modules calculés vs
@@ -7361,12 +7436,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 60, solutionId: 16, type: 'labor', refId: 18, formula: 'QTY', label: 'Raccordements plomberie et pose sanitaires', costCategory: 'labor' },
 
     // Solution 17: Garde-Corps Métallerie (Plan de Débit 1D) — P0.7 2026-08-16
-    // Poteaux tous les ESPACEMENT m (hauteur HAUTEUR_POTEAU) + NB_LISSES lisses
-    // horizontales par intervalle, débités dans les barres 6m du Tube carré
-    // 25x25 (refId 1, déjà purchaseMode 'pack') : l'arrondi au conditionnement
-    // acheté (P0.4) donne directement le nombre de barres, sans re-coder de
-    // bin-packing dédié — le calcul coïncide avec optimize1DLinearCuts() ici.
-    { id: 61, solutionId: 17, type: 'material', refId: 31, formula: '(floor(LONGUEUR / ESPACEMENT) + 1) * HAUTEUR_POTEAU + floor(LONGUEUR / ESPACEMENT) * NB_LISSES * ESPACEMENT', label: 'Débit barres Tube carré 25x25 (poteaux + lisses)', costCategory: 'material' },
+    // Fix P0-1 (2026-08-30) — l'ancienne formule additionnait poteaux et
+    // lisses en UN SEUL mètre linéaire avant d'appliquer un ceil(total/6)
+    // générique. Ça ne coïncide avec le vrai bin-packing que par hasard,
+    // quand la longueur de poteau divise exactement 6m (ex. 1.2m → 5
+    // pièces/barre sans chute, cas de l'Étalon C ci-dessous). Dès que la
+    // longueur de poteau ne divise pas 6m exactement (1.10m, cas réel du
+    // scénario métallerie testé le 2026-08-30 : 21 poteaux, 1.10m chacun,
+    // espacement 1.5m), le total pondéré ceil((21*1.10+90)/6)=19 sous-commande
+    // d'une barre entière par rapport au vrai besoin de 20 (5 barres poteaux
+    // + 15 barres lisses, calepinées séparément — 21 pièces de 1.10m ne
+    // tiennent qu'à 5/barre, 4 barres ne suffisent que pour 20 pièces).
+    // Correctif : deux lignes de recette distinctes, chacune avec sa propre
+    // formule fermée de calepinage (poteaux = pièces discrètes indivisibles,
+    // lisses = coupe continue où la simple division est déjà exacte), toutes
+    // deux débitées dans le même matériau refId 31 (barre 6m, purchaseMode
+    // 'pack') : l'arrondi au conditionnement acheté (P0.4) fait le reste.
+    { id: 61, solutionId: 17, type: 'material', refId: 31, formula: 'ceil((floor(LONGUEUR / ESPACEMENT) + 1) / floor(6 / HAUTEUR_POTEAU)) * 6', label: 'Débit barres — poteaux (calepinage par pièce)', costCategory: 'material' },
+    { id: 66, solutionId: 17, type: 'material', refId: 31, formula: 'floor(LONGUEUR / ESPACEMENT) * NB_LISSES * ESPACEMENT', label: 'Débit barres — lisses horizontales (coupe continue)', costCategory: 'material' },
     { id: 62, solutionId: 17, type: 'labor', refId: 3, formula: 'LONGUEUR', label: 'Découpe et usinage des profilés', costCategory: 'labor' },
     { id: 63, solutionId: 17, type: 'labor', refId: 4, formula: '1', label: 'Soudure, assemblage et pose sur site', costCategory: 'installation' },
 

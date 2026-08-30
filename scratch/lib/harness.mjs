@@ -227,6 +227,25 @@ export async function setFirstOuvrageRectangle(page, widthM, heightM) {
     if (!setW || !setH) throw new Error('Champs largeur/hauteur introuvables dans l\'inspecteur avancé.');
 }
 
+// Règle un champ de variable personnalisée (customVars, ex. "Espacement des
+// poteaux (m)", "Hauteur des poteaux (m)") dans l'inspecteur avancé déjà
+// ouvert par un appel précédent à setFirstOuvrage*. Ne rouvre pas l'inspecteur
+// lui-même — enchaîner après setFirstOuvrageLinearLength/Rectangle.
+export async function setFirstOuvrageCustomVar(page, labelText, val) {
+    const set = await page.evaluate((labelText, val) => {
+        const label = [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === labelText);
+        const input = label?.parentElement?.querySelector('input[type="number"]');
+        if (!input) return false;
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeSetter.call(input, String(val));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }, labelText, val);
+    if (!set) throw new Error(`Champ "${labelText}" introuvable dans l'inspecteur avancé.`);
+    await new Promise((r) => setTimeout(r, 200));
+}
+
 export async function openDecompositionTab(page) {
     const clicked = await page.evaluate(() => {
         const btn = [...document.querySelectorAll('button')]
