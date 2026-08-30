@@ -12785,6 +12785,77 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
+    // Fix "Nouveau composant" (2026-08-30) — signalé par un utilisateur du
+    // SaaS : impossible de régler un ratio ("100 Modules LED pour 1 m²
+    // d'ouvrage") depuis le sélecteur "Mode de calcul" — celui-ci n'écrit que
+    // la variable brute (SURFACE, VOLUME…) dans la formule, coefficient 1
+    // imposé. Le moteur sait déjà lire "SURFACE * 100" (le catalogue en
+    // contient des dizaines, ex. "SURFACE * 25" pour les modules LED d'une
+    // enseigne) — la limite était uniquement dans ce sélecteur simplifié,
+    // volontairement privé d'un champ de formule libre pour ne jamais
+    // demander à l'utilisateur d'écrire une formule (voir
+    // getDefaultRecipeFormula ci-dessous). Ces deux fonctions permettent de
+    // composer/décomposer "MODE * N" sans réintroduire un champ de formule
+    // libre : seul un ratio numérique est exposé, sur les mêmes 6 modes
+    // déjà proposés.
+    const RATIO_COMPOSABLE_BASES = ['SURFACE', 'PERIMETRE', 'VOLUME', 'LONGUEUR', 'QTY', '1', 'SURFACE / RENDEMENT_MO'];
+    const parseRecipeFormulaRatio = (formula) => {
+        const raw = String(formula ?? '').trim();
+        if (!raw) return { baseFormula: 'QTY', ratio: 1, composable: true };
+        // Un forfait avec un ratio se réduit à un nombre brut ("100" plutôt
+        // que l'écriture équivalente mais moins lisible "1 * 100").
+        if (/^\d+(\.\d+)?$/.test(raw)) {
+            return { baseFormula: '1', ratio: parseFloat(raw), composable: true };
+        }
+        for (const base of RATIO_COMPOSABLE_BASES) {
+            if (base === '1') continue; // couvert par le cas du nombre brut ci-dessus
+            const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (new RegExp(`^${escaped}$`).test(raw)) return { baseFormula: base, ratio: 1, composable: true };
+            const m = raw.match(new RegExp(`^\\(?${escaped}\\)?\\s*\\*\\s*(\\d+(?:\\.\\d+)?)$`));
+            if (m) return { baseFormula: base, ratio: parseFloat(m[1]), composable: true };
+        }
+        // Formule spécifique (calepinage, ternaire…) déjà réglée à la main :
+        // on ne tente pas de la décomposer, pour ne jamais l'altérer.
+        return { baseFormula: raw, ratio: 1, composable: false };
+    };
+    const composeRecipeFormula = (baseFormula, ratio) => {
+        const r = parseFloat(ratio);
+        if (!Number.isFinite(r) || r <= 0 || r === 1) return baseFormula;
+        if (baseFormula === '1') return String(r);
+        const needsParens = /[+\-/]/.test(baseFormula);
+        return needsParens ? `(${baseFormula}) * ${r}` : `${baseFormula} * ${r}`;
+    };
+    const RATIO_UNIT_LABELS = {
+        SURFACE: 'm² de l’ouvrage',
+        PERIMETRE: 'ml de périmètre',
+        VOLUME: 'm³ de l’ouvrage',
+        LONGUEUR: 'ml de l’ouvrage',
+        QTY: 'exemplaire de l’ouvrage',
+        'SURFACE / RENDEMENT_MO': 'm² de l’ouvrage (ajusté au rendement)'
+    };
+    const getRecipeRatioPreviewText = (baseFormula, ratio, resourceName) => {
+        const r = parseFloat(ratio);
+        const qty = Number.isFinite(r) && r > 0 ? r : 1;
+        const name = resourceName || 'cette ressource';
+        if (baseFormula === '1') {
+            return `→ ${qty} ${name} au total, quel que soit le métré de l’ouvrage.`;
+        }
+        const unitLabel = RATIO_UNIT_LABELS[baseFormula] || 'unité de l’ouvrage';
+        return `→ ${qty} ${name} pour 1 ${unitLabel}.`;
+    };
+    // Ouvre la fenêtre "Modifier le composant" en décomposant sa formule
+    // enregistrée en { mode, ratio } quand c'est possible, pour que le champ
+    // "Quantité nécessaire par unité" reflète le ratio déjà en place plutôt
+    // que de toujours repartir de 1 — sinon un ratio existant ne pourrait
+    // jamais être ajusté depuis cette fenêtre, seulement créé une fois.
+    const openRecipeEditModal = (r) => {
+        const parsed = parseRecipeFormulaRatio(r.formula);
+        setRecipeForm(parsed.composable
+            ? { ...r, formula: parsed.baseFormula, formulaRatio: parsed.ratio, formulaComposable: true }
+            : { ...r, formulaRatio: 1, formulaComposable: false });
+        setIsRecipeModalOpen(true);
+    };
+
     const getRecipeFormulaLabel = (formula) => {
         const labels = {
             SURFACE: 'Surface de l’ouvrage',
@@ -12884,7 +12955,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return;
         }
         updateRecipes([...recipes, newRecipe]);
-        setInlineRecipeDraft(newRecipe);
+        // formulaRatio/formulaComposable pilotent uniquement le champ "Quantité
+        // nécessaire par unité" du panneau d'édition inline — jamais persistés
+        // dans `recipes` (voir le bouton Enregistrer plus bas, qui les retire).
+        setInlineRecipeDraft({ ...newRecipe, formulaRatio: 1, formulaComposable: true });
         setInlineRecipeAdvancedOpen(false);
         setCatalogResourceSearch('');
         setIsCatalogResourceSearchOpen(false);
@@ -13138,12 +13212,42 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <label className="app-label">Mode de calcul</label>
                                         <CustomSelect
                                             value={inlineRecipeDraft.formula}
-                                            onChange={e => setInlineRecipeDraft({ ...inlineRecipeDraft, formula: e.target.value })}
+                                            onChange={e => {
+                                                const nextBase = e.target.value;
+                                                const isKnownBase = RATIO_COMPOSABLE_BASES.includes(nextBase);
+                                                setInlineRecipeDraft({
+                                                    ...inlineRecipeDraft,
+                                                    formula: nextBase,
+                                                    formulaRatio: isKnownBase ? (inlineRecipeDraft.formulaRatio || 1) : 1,
+                                                    formulaComposable: isKnownBase
+                                                });
+                                            }}
                                             options={getApplicableRecipeFormulaOptions(inlineRecipeDraft)}
                                             aria-label="Mode de calcul du composant ajouté"
                                         />
                                     </div>
                                 </div>
+                                {inlineRecipeDraft.formulaComposable && (
+                                    <div className="mt-2">
+                                        <label className="app-label">Quantité nécessaire par unité</label>
+                                        <input
+                                            type="number" min="0.0001" step="any"
+                                            className="app-input text-xs font-bold py-1.5 w-32"
+                                            value={inlineRecipeDraft.formulaRatio ?? 1}
+                                            onChange={e => setInlineRecipeDraft({ ...inlineRecipeDraft, formulaRatio: e.target.value })}
+                                            aria-label="Quantité nécessaire par unité de métré"
+                                        />
+                                        <p className="text-[10px] text-neutral-500 mt-1">
+                                            {getRecipeRatioPreviewText(
+                                                inlineRecipeDraft.formula,
+                                                inlineRecipeDraft.formulaRatio,
+                                                (inlineRecipeDraft.type === 'material'
+                                                    ? materials.find(m => m.id === inlineRecipeDraft.refId)?.name
+                                                    : labor.find(l => l.id === inlineRecipeDraft.refId)?.name) || inlineRecipeDraft.label
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
                                 {inlineRecipeAdvancedOpen && (
                                     <div className="mt-2 pt-2 border-t border-brand-200/70 grid grid-cols-1 md:grid-cols-2 gap-2">
                                         <div>
@@ -13159,13 +13263,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="flex justify-end gap-2 mt-2">
                                     <button type="button" onClick={() => { setInlineRecipeDraft(null); setInlineRecipeAdvancedOpen(false); }} className="btn-secondary py-1 px-2.5 text-[11px]">Fermer</button>
                                     <button type="button" onClick={() => {
-                                        const widenedModes = ensureSolutionModesForFormula(selectedSolutionForEdit, inlineRecipeDraft.formula);
+                                        const composedFormula = inlineRecipeDraft.formulaComposable
+                                            ? composeRecipeFormula(inlineRecipeDraft.formula, inlineRecipeDraft.formulaRatio)
+                                            : inlineRecipeDraft.formula;
+                                        const widenedModes = ensureSolutionModesForFormula(selectedSolutionForEdit, composedFormula);
                                         if (widenedModes !== selectedSolutionForEdit.allowedModes) {
                                             const nextSolutions = solutions.map(s => s.id === selectedSolutionForEdit.id ? { ...s, allowedModes: widenedModes } : s);
                                             updateSolutions(nextSolutions);
                                             setSelectedSolutionForEdit({ ...selectedSolutionForEdit, allowedModes: widenedModes });
                                         }
-                                        updateRecipes(recipes.map(item => item.id === inlineRecipeDraft.id ? inlineRecipeDraft : item));
+                                        // formulaRatio/formulaComposable sont propres à l'édition inline —
+                                        // jamais écrits dans `recipes` (voir la note à leur création plus haut).
+                                        const { formulaRatio, formulaComposable, ...cleanRecipe } = inlineRecipeDraft;
+                                        cleanRecipe.formula = composedFormula;
+                                        updateRecipes(recipes.map(item => item.id === cleanRecipe.id ? cleanRecipe : item));
                                         setInlineRecipeDraft(null);
                                         setInlineRecipeAdvancedOpen(false);
                                         showToast('Composant mis à jour');
@@ -13193,7 +13304,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <button
                                             type="button"
                                             disabled={isReadOnlyDueToDowngrade}
-                                            onClick={() => { setRecipeForm({ ...r }); setIsRecipeModalOpen(true); }}
+                                            onClick={() => openRecipeEditModal(r)}
                                             className="flex-1 min-w-0 flex items-center justify-between gap-3 py-3 pl-4 pr-1 text-left"
                                             aria-label={`Modifier le composant ${r.label}`}
                                         >
@@ -13261,7 +13372,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 </td>
                                                 <td className="p-4 pr-6 text-right">
                                                     <div className="flex justify-end gap-1">
-                                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setRecipeForm({ ...r }); setIsRecipeModalOpen(true); }} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-500 hover:text-brand-600'}`} title="Éditer le composant" aria-label={`Éditer ${r.label}`}><i className="fa-solid fa-pen"></i></button>
+                                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => openRecipeEditModal(r)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-500 hover:text-brand-600'}`} title="Éditer le composant" aria-label={`Éditer ${r.label}`}><i className="fa-solid fa-pen"></i></button>
                                                         <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Retirer" aria-label={`Retirer ${r.label}`}><i className="fa-solid fa-trash"></i></button>
                                                     </div>
                                                 </td>
@@ -15494,8 +15605,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <form id="recipeForm" onSubmit={(e) => { 
                                 e.preventDefault(); 
                                 if (isReadOnlyDueToDowngrade) return;
-                                if(!recipeForm.refId) return; 
-                                const newRec = {...recipeForm, refId: parseInt(recipeForm.refId)};
+                                if(!recipeForm.refId) return;
+                                const composedFormula = recipeForm.formulaComposable
+                                    ? composeRecipeFormula(recipeForm.formula, recipeForm.formulaRatio)
+                                    : recipeForm.formula;
+                                // formulaRatio/formulaComposable sont propres à ce formulaire —
+                                // jamais écrits dans `recipes` (voir openRecipeEditModal, qui les
+                                // reconstruit à chaque ouverture depuis la formule enregistrée).
+                                const { formulaRatio, formulaComposable, ...cleanForm } = recipeForm;
+                                const newRec = {...cleanForm, refId: parseInt(recipeForm.refId), formula: composedFormula};
                                 // B2 — Uniquement pour la main-d'œuvre : le tarif choisi
                                 // (journalier ou direct) doit rester cohérent avec la
                                 // formule, sinon le montant facturé ne veut rien dire.
@@ -15541,7 +15659,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 type,
                                                 costCategory: type === 'material' ? 'material' : 'labor',
                                                 refId,
-                                                formula: getDefaultRecipeFormula({ ...recipeForm, type, refId })
+                                                formula: getDefaultRecipeFormula({ ...recipeForm, type, refId }),
+                                                formulaRatio: 1,
+                                                formulaComposable: true
                                             });
                                         }}
                                         options={RECIPE_RESOURCE_NATURE_OPTIONS}
@@ -15710,6 +15830,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         ...recipeForm,
                                                         refId,
                                                         formula: getDefaultRecipeFormula({ ...recipeForm, refId }),
+                                                        formulaRatio: 1,
+                                                        formulaComposable: true,
                                                         label: recipeForm.label?.trim() ? recipeForm.label : created.name
                                                     });
                                                     setQuickResourceDraft(null);
@@ -15730,7 +15852,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             setRecipeForm({
                                                 ...recipeForm,
                                                 refId,
-                                                formula: getDefaultRecipeFormula({ ...recipeForm, refId })
+                                                formula: getDefaultRecipeFormula({ ...recipeForm, refId }),
+                                                formulaRatio: 1,
+                                                formulaComposable: true
                                             });
                                         }}
                                         options={recipeForm.type === 'material'
@@ -15746,7 +15870,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <CustomSelect
                                         disabled={isReadOnlyDueToDowngrade}
                                         value={recipeForm.formula}
-                                        onChange={e => setRecipeForm({ ...recipeForm, formula: e.target.value })}
+                                        onChange={e => {
+                                            const nextBase = e.target.value;
+                                            const isKnownBase = RATIO_COMPOSABLE_BASES.includes(nextBase);
+                                            setRecipeForm({
+                                                ...recipeForm,
+                                                formula: nextBase,
+                                                formulaRatio: isKnownBase ? (recipeForm.formulaRatio || 1) : 1,
+                                                formulaComposable: isKnownBase
+                                            });
+                                        }}
                                         options={getApplicableRecipeFormulaOptions(recipeForm)}
                                         aria-label="Mode de calcul du composant"
                                     />
@@ -15754,6 +15887,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         Le montant est calculé automatiquement selon le métré de l’ouvrage et la ressource choisie.
                                     </p>
                                 </div>
+                                {recipeForm.formulaComposable && (
+                                    <div>
+                                        <label className="app-label">Quantité nécessaire par unité</label>
+                                        <input
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            type="number" min="0.0001" step="any"
+                                            className="app-input font-bold"
+                                            value={recipeForm.formulaRatio ?? 1}
+                                            onChange={e => setRecipeForm({ ...recipeForm, formulaRatio: e.target.value })}
+                                            aria-label="Quantité nécessaire par unité de métré"
+                                        />
+                                        <p className="text-[11px] font-medium text-neutral-500 mt-1.5">
+                                            {getRecipeRatioPreviewText(
+                                                recipeForm.formula,
+                                                recipeForm.formulaRatio,
+                                                (recipeForm.type === 'material'
+                                                    ? materials.find(m => String(m.id) === String(recipeForm.refId))?.name
+                                                    : labor.find(l => String(l.id) === String(recipeForm.refId))?.name) || recipeForm.label
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
                                 <div><label className="app-label">Intitulé affiché sur le devis</label><input disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={recipeForm.label} onChange={e => setRecipeForm({...recipeForm, label: e.target.value})} placeholder="Ex: Fer du cadre" /></div>
                             </form>
                         </div>
