@@ -1227,6 +1227,12 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
 
     return {
         id: hybridQuote.id || Date.now(),
+        // Fix "doublon à chaque Enregistrer" (2026-08-30) — serverId distingue
+        // un devis jamais encore persisté (null) d'un devis déjà sauvegardé au
+        // moins une fois côté serveur (UUID retourné par create_quote_v7). Lu
+        // par le handler onSaveQuote (App) pour choisir create_quote_v7 vs
+        // update_quote_v1 plutôt que de toujours insérer une ligne neuve.
+        serverId: hybridQuote.serverId || null,
         number: quoteNumber,
         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         clientId: hybridQuote.clientId || null,
@@ -1248,7 +1254,20 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
 function adaptSavedQuoteToHybrid(savedQuote, solutions, materials, labor, recipes) {
     if (!savedQuote) return null;
     if (savedQuote.hybridQuoteSnapshot) {
-        return calculateHybridQuote(savedQuote.hybridQuoteSnapshot, solutions, materials, labor, recipes);
+        // Fix "doublon à chaque Enregistrer" (2026-08-30) — l'instantané a été
+        // pris AVANT que le serveur n'attribue son id/numéro définitifs (voir
+        // adaptHybridToSavedQuote : hybridQuoteSnapshot capture hybridQuote tel
+        // qu'il était au moment de CET envoi, pas après la réponse du serveur).
+        // Rouvrir "Modifier" sans ce correctif referait donc repartir d'une
+        // identité pré-serveur — retour du même bug de doublon dès le prochain
+        // Enregistrer. La fiche `savedQuote` elle-même (mise à jour après coup
+        // par onSaveQuote) reste la seule source fiable pour id/serverId/number.
+        return {
+            ...calculateHybridQuote(savedQuote.hybridQuoteSnapshot, solutions, materials, labor, recipes),
+            id: savedQuote.id,
+            serverId: savedQuote.serverId || null,
+            number: savedQuote.number
+        };
     }
     
     // If it's an existing multi-lot quote from V5.9

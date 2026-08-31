@@ -45,6 +45,7 @@ import * as documentsOrganizationCurrency from './test_documents_organization_cu
 import * as responsiveSmoke from './test_responsive_smoke.mjs';
 import * as unsavedChangesGuard from './test_unsaved_changes_guard.mjs';
 import * as recipeRatioField from './test_recipe_ratio_field.mjs';
+import * as saveQuoteNoDuplicate from './test_save_quote_no_duplicate.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -69,6 +70,7 @@ const SUITES = [
     { name: 'Phase 9 — Fumée responsive', mod: responsiveSmoke, expectedToFail: false },
     { name: 'Fix UX-1 — garde de modifications non enregistrées et confirmation de suppression', mod: unsavedChangesGuard, expectedToFail: false },
     { name: 'Fix "Nouveau composant" — ratio/quantité par unité dans le sélecteur Mode de calcul', mod: recipeRatioField, expectedToFail: false },
+    { name: 'Fix "doublon à chaque Enregistrer" — mise à jour en place, pas de nouvelle fiche (mode Local)', mod: saveQuoteNoDuplicate, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

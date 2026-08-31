@@ -1800,6 +1800,7 @@ function QuoteHeader({
     onRequestProjectCreate,
     saveQuoteStatus = "idle",
     saveQuoteError = null,
+    alreadySaved = false,
     onSaveQuote,
     onPreviewQuote,
     onOpenWizard,
@@ -1962,7 +1963,10 @@ function QuoteHeader({
                         className="btn-primary text-xs py-1.5 px-3.5 font-semibold flex items-center gap-1.5"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
-                        <span>Enregistrer</span>
+                        {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
+                            reflète l'action réelle : un devis déjà sauvegardé une
+                            première fois se MET À JOUR, il ne se recrée pas. */}
+                        <span>{alreadySaved ? 'Mettre à jour' : 'Enregistrer'}</span>
                     </button>
                     </div>
 
@@ -3907,7 +3911,8 @@ function QuoteTotalsBar({
     onChangeVatRate,
     vatRates = [18],
     isReadOnlyDueToDowngrade,
-    currency = 'FCFA'
+    currency = 'FCFA',
+    alreadySaved = false
 }) {
     const totalHT = quote.totalNetHT || 0;
     const totalDebourse = quote.totalDebourse || 0;
@@ -4040,7 +4045,10 @@ function QuoteTotalsBar({
                         className="flex-1 btn-primary text-xs py-2.5 px-3 font-semibold flex items-center justify-center gap-2 shadow-sm"
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
-                        <span>Enregistrer</span>
+                        {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
+                            reflète l'action réelle : un devis déjà sauvegardé une
+                            première fois se MET À JOUR, il ne se recrée pas. */}
+                        <span>{alreadySaved ? 'Mettre à jour' : 'Enregistrer'}</span>
                     </button>
                 </div>
             </div>
@@ -4219,6 +4227,15 @@ function QuoteWorkspace({
     const calculatedQuote = useMemo(() => {
         return calculateHybridQuote(hybridQuote, solutions, materials, labor, recipes);
     }, [hybridQuote, solutions, materials, labor, recipes]);
+
+    // Fix "doublon à chaque Enregistrer" (2026-08-30) — définition UNIQUE de
+    // "ce devis a déjà été sauvegardé au moins une fois", réutilisée à la
+    // fois par le libellé du bouton (QuoteHeader) et par la confirmation
+    // avant écrasement (handleSaveQuoteAction) : les deux doivent toujours
+    // s'accorder, sinon le bouton promettrait une chose et l'action en
+    // ferait une autre. serverId couvre le mode Cloud ; le repli par id dans
+    // savedQuotes couvre le mode Local/Invité (pas de serverId là-bas).
+    const quoteAlreadySaved = Boolean(calculatedQuote.serverId) || savedQuotes.some(q => q.id === calculatedQuote.id);
 
     const activeLot = calculatedQuote.lots?.[activeLotIndex] || calculatedQuote.lots?.[0] || { id: 'lot_1', code: '01', name: 'Lot 01', items: [] };
 
@@ -4518,10 +4535,28 @@ function QuoteWorkspace({
                 return;
             }
         }
-        const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
-        onSaveQuote(savedQ);
-        setHasUnsavedChanges(false);
-        setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        const doSave = () => {
+            const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
+            onSaveQuote(savedQ);
+            setHasUnsavedChanges(false);
+            setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        };
+
+        // Fix "doublon à chaque Enregistrer" (2026-08-30) — demandé par
+        // l'utilisateur : confirmer avant d'écraser un devis DÉJÀ enregistré,
+        // pas avant un tout premier enregistrement (ce serait de la friction
+        // sur le geste le plus fréquent pendant la saisie, sans rien protéger
+        // puisqu'il n'y a encore rien à écraser).
+        if (quoteAlreadySaved && confirmAction) {
+            confirmAction({
+                title: 'Mettre à jour ce devis ?',
+                message: `Les modifications vont remplacer la version déjà enregistrée de ${calculatedQuote.number || 'ce devis'}.`,
+                confirmLabel: 'Mettre à jour',
+                onConfirm: doSave
+            });
+            return;
+        }
+        doSave();
     };
 
     const handlePreviewQuoteAction = () => {
@@ -4563,6 +4598,11 @@ function QuoteWorkspace({
         const nextNum = generateNextQuoteNumber(savedQuotes);
         setHybridQuote({
             id: Date.now(),
+            // Fix "doublon à chaque Enregistrer" (2026-08-30) — "Nouveau devis"
+            // doit repartir sans identité serveur, sinon le prochain
+            // "Enregistrer" mettrait à jour l'ANCIEN devis au lieu d'en créer
+            // un nouveau.
+            serverId: null,
             number: nextNum,
             clientId: null,
             clientName: '',
@@ -4609,6 +4649,7 @@ function QuoteWorkspace({
                 onUpdateQuote={(patch) => { pushState(); handleUpdateQuote(patch); }}
                 onRequestClientCreate={onRequestClientCreate}
                 onRequestProjectCreate={onRequestProjectCreate}
+                alreadySaved={quoteAlreadySaved}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onOpenWizard={() => setIsWizardOpen(true)}
@@ -4629,6 +4670,13 @@ function QuoteWorkspace({
                     setHybridQuote({
                         ...template,
                         id: current.id,
+                        // Fix "doublon à chaque Enregistrer" (2026-08-30) — ce
+                        // handler garde l'identité du devis en cours (id/numéro/
+                        // client) en changeant seulement ses lots ; sans reporter
+                        // serverId aussi, un devis déjà sauvegardé perdrait son
+                        // identité serveur et le prochain "Enregistrer" le
+                        // dupliquerait au lieu de le mettre à jour.
+                        serverId: current.serverId,
                         number: current.number,
                         clientId: current.clientId,
                         clientName: current.clientName,
@@ -4771,6 +4819,7 @@ function QuoteWorkspace({
                 quote={calculatedQuote}
                 saveQuoteStatus={saveQuoteStatus}
                 saveQuoteError={saveQuoteError}
+                alreadySaved={quoteAlreadySaved}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onChangeVatRate={(taux) => { pushState(); handleUpdateQuote({ vatRate: taux }); }}
@@ -6423,6 +6472,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [hybridQuote, setHybridQuote] = useState(() => {
         return {
             id: Date.now(),
+            // null tant que ce devis n'a jamais été sauvegardé côté serveur —
+            // voir adaptHybridToSavedQuote (js/calc-engine.js) et onSaveQuote
+            // ci-dessous, qui s'en servent pour choisir create vs update.
+            serverId: null,
             number: `DEV-${new Date().getFullYear()}-001`,
             clientId: null,
             clientName: '',
@@ -9687,11 +9740,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                         // Mode Local / Invité
                         if (!supabaseClient || !sbUser || sbUser.id === 'guest') {
+                            // Fix "doublon à chaque Enregistrer" (2026-08-30) — le
+                            // dédoublonnage par id ci-dessous était déjà correct
+                            // (un ré-Enregistrer du même devis remplace sa fiche,
+                            // n'en ajoute pas une seconde), mais le compteur
+                            // "prochain numéro" avançait quand même à CHAQUE
+                            // sauvegarde, y compris une simple mise à jour —
+                            // gonflant la numérotation sans qu'aucun nouveau
+                            // devis n'existe réellement.
+                            const isNewLocalQuote = !savedQuotes.some(q => q.id === savedQ.id);
                             const updatedQuotes = [savedQ, ...savedQuotes.filter(q => q.id !== savedQ.id)];
                             updateSavedQuotes(updatedQuotes);
-                            updateNextQuoteSeq(nextQuoteSeq + 1);
+                            if (isNewLocalQuote) updateNextQuoteSeq(nextQuoteSeq + 1);
                             setSaveQuoteStatus('saved');
-                            showToast(`✓ Devis ${savedQ.number} enregistré en local`, "success");
+                            showToast(isNewLocalQuote
+                                ? `✓ Devis ${savedQ.number} enregistré en local`
+                                : `✓ Devis ${savedQ.number} mis à jour en local`, "success");
                             setTimeout(() => setSaveQuoteStatus('idle'), 3000);
                             return;
                         }
@@ -9708,18 +9772,73 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 cost_category: d.costCategory || 'material'
                             }));
 
-                            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_quote_v7', {
-                                p_org_id: activeOrganizationId,
-                                p_client_name: savedQ.clientName || 'Client Particulier',
-                                p_project_ref: savedQ.projectRef || 'Chantier BTP',
-                                p_company_snapshot: companyInfo,
-                                p_calc_form_snapshot: calcForm,
-                                p_lines: linesForV6,
-                                p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
-                            });
+                            // Fix "doublon à chaque Enregistrer" (2026-08-30) —
+                            // create_quote_v7 est une fonction UNIQUEMENT INSERT
+                            // (aucune fonction de mise à jour n'existait) : chaque
+                            // appel créait une nouvelle ligne + un nouveau numéro,
+                            // qu'il s'agisse d'un premier enregistrement ou de la
+                            // dixième relecture du même devis. savedQ.serverId
+                            // (rempli après le tout premier succès, voir plus bas)
+                            // distingue les deux cas : présent → update_quote_v1
+                            // (aucun numéro consommé) ; absent → create_quote_v7
+                            // comme avant, pour un devis réellement nouveau.
+                            const isUpdate = Boolean(savedQ.serverId);
+                            const rpcName = isUpdate ? 'update_quote_v1' : 'create_quote_v7';
+                            const rpcParams = isUpdate
+                                ? {
+                                    p_quote_id: savedQ.serverId,
+                                    p_org_id: activeOrganizationId,
+                                    p_client_name: savedQ.clientName || 'Client Particulier',
+                                    p_project_ref: savedQ.projectRef || 'Chantier BTP',
+                                    p_company_snapshot: companyInfo,
+                                    p_calc_form_snapshot: calcForm,
+                                    p_lines: linesForV6,
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                }
+                                : {
+                                    p_org_id: activeOrganizationId,
+                                    p_client_name: savedQ.clientName || 'Client Particulier',
+                                    p_project_ref: savedQ.projectRef || 'Chantier BTP',
+                                    p_company_snapshot: companyInfo,
+                                    p_calc_form_snapshot: calcForm,
+                                    p_lines: linesForV6,
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                };
+                            let { data: rpcRes, error: rpcErr } = await supabaseClient.rpc(rpcName, rpcParams);
+
+                            // Repli de compatibilité (2026-08-31) — update_quote_v1 est
+                            // livrée par une migration SQL distincte
+                            // (migrations_update_quote_2026-08-30.sql), appliquée à la
+                            // main sur le dashboard. Tant qu'une base ne l'a pas reçue,
+                            // l'appel échoue en PGRST202 ("function not found"). Sans ce
+                            // repli, un utilisateur cloud ne pourrait plus DU TOUT
+                            // enregistrer un devis existant — une panne franche, pire que
+                            // le doublon que ce correctif élimine. On retombe donc sur
+                            // create_quote_v7 : comportement d'avant le correctif (un
+                            // nouveau numéro est consommé), mais l'enregistrement passe.
+                            // Ce repli devient inerte dès que la migration est appliquée,
+                            // et pourra être retiré une fois toutes les bases à jour.
+                            const fonctionAbsente = rpcErr && (
+                                rpcErr.code === 'PGRST202' ||
+                                /could not find the function|does not exist/i.test(rpcErr.message || '')
+                            );
+                            let repliSurCreation = false;
+                            if (isUpdate && fonctionAbsente) {
+                                console.warn('[Bloc 1] update_quote_v1 absente de cette base — repli sur create_quote_v7 (migration SQL non appliquée).');
+                                repliSurCreation = true;
+                                ({ data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_quote_v7', {
+                                    p_org_id: activeOrganizationId,
+                                    p_client_name: savedQ.clientName || 'Client Particulier',
+                                    p_project_ref: savedQ.projectRef || 'Chantier BTP',
+                                    p_company_snapshot: companyInfo,
+                                    p_calc_form_snapshot: calcForm,
+                                    p_lines: linesForV6,
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                }));
+                            }
 
                             if (rpcErr) {
-                                console.error('[Bloc 1] create_quote_v7 Server Error:', rpcErr);
+                                console.error(`[Bloc 1] ${rpcName} Server Error:`, rpcErr);
                                 setSaveQuoteStatus('error');
                                 setSaveQuoteError(rpcErr.message || 'Erreur serveur lors de la persistance.');
                                 showToast(`✕ Échec de l'enregistrement serveur : ${rpcErr.message}`, "error");
@@ -9738,10 +9857,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             };
                             const updatedQuotes = [persistedQuote, ...savedQuotes.filter(q => q.id !== savedQ.id && q.serverId !== serverQuote?.quote_id)];
                             updateSavedQuotes(updatedQuotes);
-                            updateNextQuoteSeq(nextQuoteSeq + 1);
+                            // Une mise à jour ne consomme aucun numéro — SAUF si le repli
+                            // ci-dessus a dû recréer le devis, auquel cas la séquence a
+                            // bien avancé côté serveur et l'affichage doit suivre.
+                            const aVraimentMisAJour = isUpdate && !repliSurCreation;
+                            if (!aVraimentMisAJour) updateNextQuoteSeq(nextQuoteSeq + 1);
                             setSaveQuoteStatus('saved');
-                            showToast(`✓ Devis ${persistedQuote.number} enregistré sur le serveur !`, "success");
+                            showToast(aVraimentMisAJour
+                                ? `✓ Devis ${persistedQuote.number} mis à jour sur le serveur !`
+                                : `✓ Devis ${persistedQuote.number} enregistré sur le serveur !`, "success");
                             setTimeout(() => setSaveQuoteStatus('idle'), 3500);
+
+                            // Fix "doublon à chaque Enregistrer" (2026-08-30) — sans
+                            // ceci, hybridQuote (l'état activement édité) ne sait
+                            // jamais qu'il a déjà été sauvegardé : le clic suivant
+                            // sur "Enregistrer" repartirait de serverId=null et
+                            // rappellerait create_quote_v7, recréant le même bug.
+                            // Comparaison par savedQ.id (pas par closure sur
+                            // hybridQuote) : si l'utilisateur a changé de devis
+                            // pendant que cette sauvegarde réseau était en vol, on
+                            // ne synchronise pas la mauvaise fiche.
+                            setHybridQuote(prev => (prev.id === savedQ.id
+                                ? { ...prev, id: persistedQuote.id, serverId: persistedQuote.serverId, number: persistedQuote.number }
+                                : prev));
                         } catch (err) {
                             console.error('[Bloc 1] Save Network Exception:', err);
                             setSaveQuoteStatus('error');
@@ -11851,6 +11989,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     const newVersionQuote = {
                                         ...JSON.parse(JSON.stringify(viewingSavedQuote)),
                                         id: newId,
+                                        // Fix "doublon à chaque Enregistrer" (2026-08-30) — sans ce
+                                        // reset, la nouvelle version hérite du serverId de l'ORIGINAL :
+                                        // la première fois qu'on l'enregistre, update_quote_v1 écraserait
+                                        // silencieusement le devis d'origine au lieu de créer une ligne
+                                        // séparée pour cette nouvelle version.
+                                        serverId: null,
                                         number: newVersionNum,
                                         versionNumber: nextVersion,
                                         parentQuoteId: viewingSavedQuote.id,
@@ -11886,6 +12030,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         const duplicated = {
                                             ...JSON.parse(JSON.stringify(viewingSavedQuote)),
                                             id: newId,
+                                            // Fix "doublon à chaque Enregistrer" (2026-08-30) — sinon la
+                                            // copie hérite du serverId de l'original et un futur
+                                            // "Enregistrer" sur la copie écraserait l'original côté serveur.
+                                            serverId: null,
                                             number: nextNum,
                                             clientName: `${viewingSavedQuote.clientName} (Copie)`,
                                             date: new Date().toLocaleDateString('fr-FR')
@@ -12571,6 +12719,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 const newVersionQuote = {
                                     ...JSON.parse(JSON.stringify(sq)),
                                     id: newId,
+                                    // Fix "doublon à chaque Enregistrer" (2026-08-30) — voir la même
+                                    // note sur l'autre bouton de révision (fiche détail).
+                                    serverId: null,
                                     number: newVersionNum,
                                     versionNumber: nextVersion,
                                     parentQuoteId: sq.id,
@@ -12610,6 +12761,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     const duplicated = {
                                         ...JSON.parse(JSON.stringify(sq)),
                                         id: newId,
+                                        // Fix "doublon à chaque Enregistrer" (2026-08-30) — voir la même
+                                        // note sur l'autre bouton Dupliquer (fiche détail).
+                                        serverId: null,
                                         number: nextNum,
                                         clientName: `${sq.clientName} (Copie)`,
                                         date: new Date().toLocaleDateString('fr-FR')
