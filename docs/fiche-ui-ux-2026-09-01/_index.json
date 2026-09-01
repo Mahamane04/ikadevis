@@ -1,0 +1,70 @@
+[
+  {
+    "nom": "00-connexion",
+    "libelle": "Écran de connexion"
+  },
+  {
+    "nom": "02-inspecteur-metre",
+    "libelle": "Inspecteur ouvrage — 1. Métré & Dimensions"
+  },
+  {
+    "nom": "03-inspecteur-decomposition",
+    "libelle": "Inspecteur — 2. Décomposition Déboursé"
+  },
+  {
+    "nom": "04-inspecteur-prix-marge",
+    "libelle": "Inspecteur — 3. Prix & Marge"
+  },
+  {
+    "nom": "05-inspecteur-presentation",
+    "libelle": "Inspecteur — 4. Présentation Client"
+  },
+  {
+    "nom": "01-creer-devis",
+    "libelle": "Créer un Devis — vue liste des ouvrages"
+  },
+  {
+    "nom": "06-apercu-document",
+    "libelle": "Aperçu Client & PDF (document A4)"
+  },
+  {
+    "nom": "07-projet",
+    "libelle": "Chantier"
+  },
+  {
+    "nom": "08-client",
+    "libelle": "Client"
+  },
+  {
+    "nom": "09-devis",
+    "libelle": "Mes devis"
+  },
+  {
+    "nom": "10-facture",
+    "libelle": "Facture"
+  },
+  {
+    "nom": "11-catalogue-technique",
+    "libelle": "Catalogue technique"
+  },
+  {
+    "nom": "13-parametres-compte",
+    "libelle": "Paramètres du Compte — Entreprise"
+  },
+  {
+    "nom": "14-parametres-documents",
+    "libelle": "Paramètres — Documents & PDF"
+  },
+  {
+    "nom": "15-parametres-diagnostic",
+    "libelle": "Paramètres — Diagnostic Système"
+  },
+  {
+    "nom": "16-mobile-parametres",
+    "libelle": "Vue mobile 390×844 — Paramètres"
+  },
+  {
+    "nom": "17-mobile-devis",
+    "libelle": "Vue mobile 390×844 — Créer un Devis"
+  }
+]

@@ -2545,3 +2545,184 @@ défilement 356 px, dernier champ dégagé de **202 px** au-dessus de la barre.
 **Trois colonnes défilantes, trois fois le même oubli.** C'est ce qui justifie
 la classe partagée plutôt qu'un quatrième `pb-*` à la main : le prochain
 panneau défilant n'aura qu'à la porter.
+
+---
+
+## 🔍 40. Campagne de remédiation UX/UI (2026-08-31 → 09-01)
+
+Audit externe complet mené en Mode Démo, puis remédiation en sept lots.
+**38 constats relevés, 38 réglés, plus 2 P0 découverts en cours de route** —
+soit 40 corrections. Branche `fix/audit-ux-2026-08`.
+
+Suite de tests : **21 → 31 suites, 155 → 226 vérifications** (10 bancs ajoutés).
+Les 7 étalons métier restent conformes à tolérance zéro sur toute la campagne.
+
+### 40.1 Les cinq défauts les plus coûteux
+
+| # | Constat | Cause réelle |
+| :-- | :--- | :--- |
+| P0 | « Aperçu Client & PDF » **inerte au-dessus de 1024 px** | Deux causes empilées : `lg:hidden` sur la modale (mobile-only, et qui doit le rester), **et** `activeQuote` qui ne cherchait que dans `savedQuotes` — un devis en cours d'édition n'y figure pas. |
+| P0 | L'assistant annonçait **46 M FCFA** puis livrait **146 M** (×3,2) | Ni le barème ni le gabarit n'étaient faux. `defaultSurface` valait 150 m² pour un gabarit dimensionné ~440 m². Corrigé → le devis tombe **dans** la fourchette annoncée (6,3 % du milieu). Même erreur sur la façade ACM (120 pour 180 m²). |
+| P0 | Un **rafraîchissement détruisait le devis en cours** | Rien n'écrivait le devis sur le disque avant « Enregistrer », alors que le Mode Démo est déjà local. Brouillon automatique ajouté (anti-rebond 800 ms), piloté par le **contenu** du devis, jamais par `devisNonEnregistre` — l'indicateur qui avait déjà lâché. |
+| P0 | *(découvert)* **Facturation fantôme** : un ouvrage à 0 m² facturé 37 500 F | Le sélecteur « Mode de Métré » de l'inspecteur avancé ne filtrait pas par `allowedModes`, contrairement au Mode Simple et à l'écran d'ajout. Atteignable en trois clics. |
+| P0 | *(découvert)* **Reconstruction infidèle** : 14 750 000 F → 40 268 F | `adaptSavedQuoteToHybrid` ne sait rouvrir un devis que s'il porte un `hybridQuoteSnapshot` ou s'il est `isMultiLot`. Le devis de démonstration n'avait ni l'un ni l'autre — et « Modifier » suffisait à le ruiner. Instantané fidèle ajouté au jeu de démo, **plus** une garde de fidélité à l'atterrissage. |
+
+### 40.2 Trois tests qui passaient pour de mauvaises raisons
+
+Le fait marquant de la campagne. Corriger un défaut a **révélé** que le banc
+censé le couvrir était vert par accident :
+
+- `test_zero_negative_no_phantom_charge` — `addCatalogItemBySearch` attendait
+  300 ms puis cliquait le **premier** bouton « Ajouter » du document. Sous la
+  charge de la suite complète, la frappe perdait la course contre le debounce
+  du filtre : le banc ajoutait le premier ouvrage du catalogue **non filtré**,
+  pas celui qu'il visait. Rouge dans la suite, vert en isolation.
+- `test_project_combobox` — son scénario cliquait le champ client puis cherchait
+  un autre client **sans vider la saisie** : la liste restait filtrée sur le
+  client déjà sélectionné, le clic ne trouvait rien, le client ne changeait
+  jamais. L'assertion passait parce que le champ Projet était vidé **par le
+  bug** que la campagne a corrigé.
+- Le banc mobile utilisait `innerText` comme proxy de « visible » ; en headless
+  il renvoyait `''` sur un élément `position: fixed` dont le DOM était pourtant
+  correct. Remplacé par une lecture du style calculé — plus précise.
+
+**Conséquence à retenir :** un banc vert ne prouve rien s'il n'a jamais été vu
+rouge pour la bonne raison. Le harnais est désormais déterministe (il attend que
+la liste soit réellement filtrée avant de cliquer la ligne correspondante).
+
+### 40.3 Deux fermetures périmées, même famille
+
+Le champ **Client** perdait sa valeur, le champ **Projet** perdait toute saisie
+libre. Même cause : `value` lu dans la fermeture du **premier rendu**, le
+listener `mousedown` étant posé par un `useEffect` à dépendances `[]`. Mesuré au
+moment du bug : `ref = « Test Delta »`, `prop = « »`.
+
+Le correctif P3 du 2026-08-30 avait créé `latestRef` exactement pour cela, mais
+avait laissé `restoreCommittedValue` en dehors — et n'avait jamais été porté sur
+le champ Projet, qui n'avait donc **aucune** conservation de texte libre.
+
+### 40.4 Ce qui reste à faire
+
+1. **Les liens légaux sont des espaces réservés.** La case CGU ajoutée à
+   l'inscription pointe vers `/conditions` et `/confidentialite`, qui n'existent
+   pas. À remplacer avant toute mise en ligne.
+2. **Le devis de démonstration est un forfait d'une ligne** : à l'ouverture il
+   affiche « Ligne libre · coût d'achat à définir », déboursé 0, K=1, marge 0 %.
+   On voit un vrai devis et un vrai total, mais **pas la chaîne de calcul se
+   remplir** — qui est pourtant le meilleur argument du produit. Le semer avec
+   un ouvrage réel du catalogue rendrait l'atterrissage nettement plus
+   démonstratif. Choix de contenu, pas technique.
+3. **Aucun prix dans la bibliothèque d'ouvrages.** Écarté volontairement : un
+   prix indicatif dépend du métré, et en afficher un approximatif remettrait le
+   genre de chiffre faux que cette campagne a passé son temps à retirer. La
+   composition réelle est affichée à la place. Si un prix est voulu, il faut
+   d'abord définir le métré de référence.
+4. **Le jeton de cache** est à `?v=20260901fix26`, hors convention du dépôt
+   (`?v=AAAAMMJJ`). À ajuster au déploiement.
+
+### 40.5 Piège rencontré deux fois
+
+Purger le service worker **ne suffit pas** : le navigateur garde
+`app.compiled.js?v=…` en cache HTTP tant que le jeton ne change pas. Deux
+correctifs ont paru sans effet pendant plusieurs itérations pour cette seule
+raison. C'est le piège déjà documenté en tête de `index.html` — bumper le jeton
+fait partie de la boucle de vérification, pas seulement du déploiement.
+
+---
+
+## 🔁 41. Reprise de la remédiation UX/UI — vérification en direct (2026-09-01)
+
+La campagne § 40 se déclarait close : « 38 constats, 38 réglés ». Reprise
+demandée par l'utilisateur avec une consigne simple — **régler chaque bug à
+100 % avant de passer au suivant**. Les 38 constats ont donc été **rejoués un
+par un dans le navigateur**, à 1280×720 et 375×812, sur un `localStorage` vierge.
+
+**Résultat : 22 constats étaient effectivement clos, 16 ne l'étaient pas.**
+La plupart des seize ne sont pas des correctifs oubliés mais des correctifs
+**appliqués sans être regardés** : le mécanisme était en place, son effet à
+l'écran ne l'était pas.
+
+Suite de tests : **31 → 32 suites, 226 → 247 vérifications**. Étalons métier
+inchangés, conformes à tolérance zéro.
+
+### 41.1 Le motif qui revient : « posé » n'est pas « vérifié »
+
+| Constat | Ce qui avait été fait | Ce qu'on voyait vraiment |
+| :-- | :--- | :--- |
+| **P0-1** Aperçu inerte | Le panneau s'ouvre enfin sur desktop | Le document n'avait **86 px de haut pour 1 311 px** de contenu, et défilait horizontalement (675 px dans 440). L'en-tête, la bande d'actions et un pied « Fermer » redondant mangeaient 497 des 584 px. |
+| **P1-2** Catalogue hors champ | Groupe replié + dégradé de défilement | Le dégradé **ne recouvrait rien** : replié compris, « Catalogue technique » tombait *entièrement* sous la ligne. Un fondu sur du vide n'indique rien. |
+| **P3-4** Icônes muettes | Libellés ajoutés | Rendus **dans un bouton de 36 px fixe** : « Partag », « Sig », « Imprim ». Pire que pas de libellé. |
+| **P2-14** Liste sans montant | Montant et statut ajoutés | Cinq colonnes dans 438 px : en-tête « MONTANT TTC » tronqué, pastille de statut débordant la table de 7 px. |
+| **P2-4** Connexion qui déborde | Le fond sombre couvre toute la hauteur | La page **débordait toujours de 68 px** à 720 px de fenêtre. |
+| **P1-1** Erreurs en vert | Le toast lit `toast.type` | La seconde moitié — surligner et focaliser le champ fautif — n'existait que sur l'ANCIEN formulaire d'enregistrement, pas sur le chemin réellement emprunté par l'éditeur. |
+| **P1-8** Identité fiscale inventée | Filigrane « DÉMONSTRATION » | NIF, RCCM et téléphone restaient **préremplis** avec des valeurs crédibles et fausses. Un filigrane ne protège pas d'un numéro fiscal inventé : il suffit de l'ignorer. |
+| **P1-9** Contrastes | slate-400 → slate-500 | Mesuré sur BLANC (4,76:1). Sur les panneaux teintés de l'application (#f1f5f9), slate-500 retombe à **4,34:1**, sous le seuil. |
+| **P2-13** Notifications gênantes | *(rien)* | La notification n'avait pas bougé : toujours en bas à droite, par-dessus les totaux de ligne et les actions de ligne. |
+| **P3-10** Raccourcis non documentés | `title` ajouté aux boutons Annuler/Rétablir | **Deux attributs `title` en double** : l'ancien gagnait, la variante Cmd n'était jamais affichée. Deux avertissements esbuild à chaque build. |
+
+### 41.2 Corrections apportées
+
+- **P0-1** — pied « Fermer » réservé à la modale mobile (l'en-tête a sa croix),
+  bande d'actions repliable, filigrane clippé par `overflow: hidden` sur le
+  document (sa boîte **tournée** de -24° mesurait 910 px et gonflait la zone
+  défilable). Document : **86 → 239 px**, plus aucun défilement horizontal.
+- **P1-2** — la navigation **tient réellement** à 720 px (467 px de contenu
+  pour 467 px de zone) ; déplier le catalogue amène ses entrées dans le champ
+  sans chasser « Tableau de bord ». Même correctif porté au tiroir mobile,
+  qui n'en avait aucun.
+- **P2-7** — le pied de l'inspecteur coûtait 185 px sur un panneau de 475 :
+  réservé au mobile, où il est le seul chemin de retour.
+- **P1-1** — le champ Client passe en rouge, prend le focus, s'annonce
+  `aria-invalid`, et **retombe dès la première frappe**.
+- **P1-8** — NIF, RCCM et téléphone partent **vides** ; rappel « À compléter
+  avant votre premier vrai devis » dans les Paramètres. Corollaire assumé :
+  la garde d'identité légale masquait aussi « Imprimer » et « Télécharger le
+  PDF », ce qui privait la démo du livrable — or ces deux actions produisent un
+  fichier POUR l'utilisateur. Seules « Partager » et « Signer » restent derrière
+  la garde.
+- **P1-9** — `neutral.500` passe de `#64748b` à `#5f6d80` : 4,81:1 sur le fond
+  le plus sombre de la palette. **0 défaut de contraste sur les 8 écrans.**
+- **P2-13** — notification remontée en haut, centrée : au-dessus il n'y a que le
+  titre de l'écran. Le mobile garde son ancrage bas.
+- **P2-1 / P3-7** — un seul vocabulaire : navigation, titre de page et titre de
+  colonne disent le même mot, au pluriel pour les collections
+  (Chantiers · Clients · Mes devis · Factures). Plus aucune « affaire ».
+- **P1-5** — le message nomme désormais l'alternative que l'audit réclamait
+  (« Avancé → Prix & Marge »), sans imposer de modale par frappe.
+- **P1-7, seconde moitié** — le devis d'exemple était un **forfait d'une ligne**
+  (déboursé 0, K=1, marge 0 %, astérisque). Il porte désormais deux ouvrages
+  réellement chiffrés — maçonnerie 120 m² et béton armé 43,2 m³ — et
+  l'atterrissage montre enfin la chaîne complète : déboursé 9 143 708 F,
+  K = 1,5, marge 30 %, TTC 16 184 363 F, sans astérisque.
+  > ⚠️ Ces six totaux sont **relevés sur le moteur**, pas choisis. La garde de
+  > fidélité les compare au recalcul. Changer le métré impose de les relever
+  > à nouveau.
+
+### 41.3 Bancs ajoutés ou durcis
+
+- `test_error_feedback.mjs` *(nouveau, 11 vérifications)* — l'erreur se voit
+  **et** montre où corriger.
+- `test_demo_landing.mjs` — six vérifications ajoutées : l'exemple doit montrer
+  un déboursé réel, un K > 1, une marge > 0, aucune ligne libre, aucun
+  astérisque, et au moins deux ouvrages calculés au métré.
+- `test_documents_organization_currency.mjs` — le banc « Les actions restent
+  disponibles » testait la **présence dans le DOM**. Depuis que la bande
+  d'actions se replie, un bouton `display:none` reste présent : il serait resté
+  vert avec des actions inatteignables. Il vérifie maintenant l'état réel
+  (repliées puis cliquables), la hauteur du document et l'absence de
+  débordement horizontal.
+
+### 41.4 Ce qui reste ouvert, en connaissance de cause
+
+1. **Les liens légaux sont des espaces réservés** (`/conditions`,
+   `/confidentialite`) — inchangé, à traiter avant mise en ligne.
+2. **Aucun prix dans la bibliothèque d'ouvrages** — écarté volontairement en
+   § 40.3, décision inchangée : un prix indicatif sans métré de référence
+   remettrait le genre de chiffre faux que ces deux campagnes ont retiré.
+3. **P1-5 ne demande pas de confirmation *avant*** le passage en ligne libre,
+   contrairement à la lettre de l'audit. Choix assumé et documenté dans le code :
+   la conversion se déclenche à la première frappe, une modale par frappe
+   rendrait toute saisie manuelle pénible. L'utilisateur est averti, l'action
+   est intégralement réversible par Cmd+Z, et l'alternative est nommée.
+4. **Le parcours connecté reste non éprouvé** — inchangé, voir § 3 de la fiche
+   de reprise : il faut un vrai mot de passe.

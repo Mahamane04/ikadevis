@@ -1,8 +1,8 @@
 # ikadevis — fiche de reprise
 
-Point de situation au **2026-08-26**, pour reprendre dans une nouvelle
+Point de situation au **2026-09-01 (soir)**, pour reprendre dans une nouvelle
 conversation. Le détail complet est dans `PROJECT_MASTER_TRACKER.md` (§ 32 à
-**38**) ; ce document ne garde que ce qu'il faut pour repartir sans relire.
+**41**) ; ce document ne garde que ce qu'il faut pour repartir sans relire.
 
 > Le chantier « calcul guidé des composants » est **résolu** — voir
 > `REPRISE_CALCUL_COMPOSANTS_2026-08-24.md` (§ 11) dans ce même dossier pour
@@ -12,8 +12,16 @@ conversation. Le détail complet est dans `PROJECT_MASTER_TRACKER.md` (§ 32 à
 
 ## 1. À faire en premier, dès la reprise
 
-**Rien n'est en attente** : arbre propre, tout déployé (voir § 2). Commencer
-par vérifier que c'est toujours vrai, l'état ci-dessous vieillit vite :
+**⚠️ Du travail est en attente de relecture** : la campagne de remédiation
+UX/UI (§ 40) **et sa reprise de vérification (§ 41)** sont **non commitées** sur
+la branche `fix/audit-ux-2026-08`. Rien n'est déployé. Commencer par regarder
+l'arbre :
+
+> § 41 (2026-09-01) : les 38 constats de l'audit ont été **rejoués un par un
+> dans le navigateur**. 22 étaient effectivement clos, **16 ne l'étaient pas** —
+> pour l'essentiel des correctifs posés mais jamais regardés à l'écran (le
+> mécanisme en place, son effet absent). Tous corrigés et vérifiés ; suite
+> passée à **247 vérifications, 32 suites**.
 
 ```bash
 git status -sb && git log --oneline -5
@@ -39,14 +47,15 @@ npm run deploy:build && npx wrangler deploy && node scripts/generate-config.mjs 
 
 ## 2. Où en est le produit
 
-| | État au 26 août |
+| | État au 1er septembre |
 |---|---|
-| **En ligne** | https://ikadevis.officemicro89.workers.dev — jeton `v=20260826lots3` (déployé le 26 août, version `e022ba7e`) |
-| **Branche de travail** | `codex/v2-uiux` (poussée), **≠ `main`** — `main` est resté à `0ee0d2b` |
-| **Dépôt** | arbre propre |
+| **En ligne** | https://ikadevis.officemicro89.workers.dev — jeton `v=20260826lots3` (déployé le 26 août, version `e022ba7e`) — **en retard sur le code** |
+| **Branche de travail** | `fix/audit-ux-2026-08`, partie de `codex/v2-uiux` — **non poussée, non commitée** |
+| **Dépôt** | ⚠️ **arbre sale** : ~1 500 lignes de remédiation UX/UI en attente de relecture (§ 40 du tracker). Découpage en commits par lot recommandé plutôt qu'un bloc unique. |
+| **Jeton de cache local** | `?v=20260901l` — remis dans la convention `?v=AAAAMMJJx` le 2026-09-01 |
 | **Migrations production** | ✅ appliquées le 2026-08-21 (contrôle 6 · 1 · 3 · 1) |
 | **Domaines `ikadevis.com` / `app.ikadevis.com`** | ❌ ne résolvent pas — à brancher dans Cloudflare |
-| **Tests** | ❌ **s'interrompt** en Phase 2 (rejoué le 26 août) — `test_inline_work_item_combobox.mjs` clique un champ que la campagne mobile a masqué sous `lg:`. Échec **antérieur** aux modifications en cours, vérifié sur `HEAD` ; il empêche les phases suivantes de tourner. Voir § 38.4 du tracker |
+| **Tests** | ✅ **247/247 au vert, 0 régression, 32 suites** (stable sur 3 passages consécutifs, 1er septembre). Les 7 étalons métier restent conformes à tolérance zéro. 10 bancs ajoutés par la campagne § 40, 1 suite et 21 vérifications par la reprise § 41 ; le harnais est désormais déterministe (il attend que la liste soit filtrée avant de cliquer). |
 
 > `codex/v2-uiux` porte ~20 commits d'avance sur `main` sans divergence : la
 > refonte UI des devis, la facturation, l'import CSV, le calcul mixte et toute
@@ -92,10 +101,23 @@ que le rendu et les interactions **en ligne**.
 Restent aussi ouverts, sans urgence :
 
 - Hygiène SQL : `REVOKE EXECUTE ON FUNCTION public.protect_issued_invoice(), public.protect_issued_invoice_lines() FROM anon, authenticated;`
-- Fiche UI/UX (`fiche-ui-ux-ikadevis.zip`) : à regénérer après le PWA.
-- Colonne « Désignation Ouvrage » à 184 px — élargir davantage impose de rétrécir
-  les colonnes chiffrées, arbitrage non tranché.
-- `npm test` s'interrompt en Phase 2 depuis la campagne mobile (§ 38.4 du tracker) : le test à réparer en premier, il masque tout ce qui vient après.
+- Fiche UI/UX : **captures regénérées le 2026-09-01** dans
+  `docs/fiche-ui-ux-2026-09-01/` (17 écrans + `README.md` listant les écarts
+  avec le jeu précédent). L'**assemblage du livrable** — mise en page,
+  annotations, export du `.zip` de référence Adobe XD — reste manuel.
+- Colonne « Désignation Ouvrage » : le cas critique est réglé (elle tombait à
+  127 px, et son champ à 0 px, dès l'ouverture du panneau de détail — le tableau
+  a désormais une largeur plancher et défile dans son conteneur). L'arbitrage de
+  confort — l'élargir encore en rétrécissant les colonnes chiffrées — reste
+  ouvert.
+- **Liens légaux en espaces réservés** : la case CGU ajoutée à l'inscription
+  pointe vers `/conditions` et `/confidentialite`, qui n'existent pas. À
+  remplacer avant toute mise en ligne.
+- ~~**Devis de démonstration** : forfait d'une seule ligne~~ — **fait le
+  2026-09-01** (§ 41.2) : deux ouvrages réellement chiffrés, l'atterrissage
+  montre la chaîne complète. Les six totaux du jeu de démo sont **relevés sur le
+  moteur**, jamais choisis à la main : changer le métré impose de les relever à
+  nouveau, sinon la garde de fidélité de `test_demo_landing` rougit — à raison.
 
 ---
 
@@ -221,9 +243,9 @@ panneau et déclenche un zoom parasite.
 
 ```bash
 npm start                      # serveur local sur :8099
-npm test                       # 40 vérifications + 7 étalons métier
+npm test                       # 226 vérifications, 31 suites + 7 étalons métier
 npm run build                  # tailwind + esbuild + génération de sw.js
-node scratch/capturer_ecrans.mjs <dossier>   # 18 captures pour la fiche UI/UX
+node scratch/capturer_ecrans.mjs <dossier>   # 17 captures pour la fiche UI/UX
 ```
 
 Après toute modification : bumper le jeton `?v=` dans `index.html`, rebuilder,
