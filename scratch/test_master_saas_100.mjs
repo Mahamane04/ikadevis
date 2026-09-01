@@ -28,6 +28,14 @@ import * as financialChain from './test_financial_chain_consistency.mjs';
 import * as goldA from './test_gold_standard_a_peinture.mjs';
 import * as wasteOverride from './test_waste_override.mjs';
 import * as zeroNegativePhantom from './test_zero_negative_no_phantom_charge.mjs';
+import * as takeoffModeAllowlist from './test_takeoff_mode_allowlist.mjs';
+import * as desktopQuotePreview from './test_desktop_quote_preview.mjs';
+import * as clientProjectPersistence from './test_client_project_persistence.mjs';
+import * as quoteTableMatchesDocument from './test_quote_table_matches_document.mjs';
+import * as demoLanding from './test_demo_landing.mjs';
+import * as mobileTotalsAndNav from './test_mobile_totals_and_nav.mjs';
+import * as quickEstimateMatchesQuote from './test_quick_estimate_matches_quote.mjs';
+import * as draftAutosave from './test_draft_autosave.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -46,6 +54,7 @@ import * as responsiveSmoke from './test_responsive_smoke.mjs';
 import * as unsavedChangesGuard from './test_unsaved_changes_guard.mjs';
 import * as recipeRatioField from './test_recipe_ratio_field.mjs';
 import * as saveQuoteNoDuplicate from './test_save_quote_no_duplicate.mjs';
+import * as errorFeedback from './test_error_feedback.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -53,6 +62,14 @@ const SUITES = [
     { name: 'Étalon A — Peinture Murale (tolérance zéro)', mod: goldA, expectedToFail: false },
     { name: 'Taux de perte ajustable par ouvrage', mod: wasteOverride, expectedToFail: false },
     { name: 'Fix P0-3/P1 — surface nulle/négative ne facture jamais un montant fantôme', mod: zeroNegativePhantom, expectedToFail: false },
+    { name: 'Audit UX — modes de métré restreints à ceux que la recette sait calculer', mod: takeoffModeAllowlist, expectedToFail: false },
+    { name: 'Audit UX — « Aperçu Client & PDF » ouvre bien un document en desktop', mod: desktopQuotePreview, expectedToFail: false },
+    { name: 'Audit UX — client et chantier survivent à l\'enregistrement et aux clics ailleurs', mod: clientProjectPersistence, expectedToFail: false },
+    { name: 'Audit UX — le tableau de l\'éditeur dit la même chose que le document client', mod: quoteTableMatchesDocument, expectedToFail: false },
+    { name: 'Audit UX — la démo ouvre un devis d\'exemple fidèle, une seule fois', mod: demoLanding, expectedToFail: false },
+    { name: 'Audit UX — barre des totaux repliable et vocabulaire de navigation unique (mobile)', mod: mobileTotalsAndNav, expectedToFail: false },
+    { name: 'Audit UX — l\'estimation rapide et le devis détaillé s\'accordent', mod: quickEstimateMatchesQuote, expectedToFail: false },
+    { name: 'Audit UX — le devis en cours survit à un rechargement (brouillon automatique)', mod: draftAutosave, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
@@ -71,6 +88,7 @@ const SUITES = [
     { name: 'Fix UX-1 — garde de modifications non enregistrées et confirmation de suppression', mod: unsavedChangesGuard, expectedToFail: false },
     { name: 'Fix "Nouveau composant" — ratio/quantité par unité dans le sélecteur Mode de calcul', mod: recipeRatioField, expectedToFail: false },
     { name: 'Fix "doublon à chaque Enregistrer" — mise à jour en place, pas de nouvelle fiche (mode Local)', mod: saveQuoteNoDuplicate, expectedToFail: false },
+    { name: 'Audit UX P1-1 — une erreur se voit ET montre où corriger', mod: errorFeedback, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

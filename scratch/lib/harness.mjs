@@ -20,10 +20,25 @@ export async function launchApp() {
     };
 }
 
-export async function enterGuestMode(page) {
+// `demo: true` laisse l'atterrissage sur le devis d'exemple se produire, comme
+// pour un vrai premier lancement. Par défaut on le neutralise : la quasi-totalité
+// des bancs veut partir d'un devis VIERGE et prédictible, et un exemple préchargé
+// leur ferait mesurer autre chose que ce qu'ils annoncent. L'atterrissage lui-même
+// est couvert par son propre banc (test_demo_landing.mjs).
+export async function enterGuestMode(page, { demo = false } = {}) {
+    if (!demo) {
+        await page.evaluate(() => {
+            try { localStorage.setItem('costcalc:guest:demoQuoteOpened', 'true'); } catch (e) {}
+        });
+    }
     const clicked = await page.evaluate(() => {
+        // Le bouton s'appelait « Continuer en Mode Démo / Hors-ligne (Invité) » —
+        // trois noms pour une seule chose. Renommé « Essayer sans compte » le
+        // 2026-09-01 ; l'ancien libellé reste accepté pour ne pas rendre ce
+        // harnais dépendant d'un mot.
         const btn = [...document.querySelectorAll('button')]
-            .find((b) => b.textContent.includes('Mode Démo') && b.textContent.includes('Invité'));
+            .find((b) => /Essayer sans compte/.test(b.textContent || '')
+                || (b.textContent.includes('Mode Démo') && b.textContent.includes('Invité')));
         if (!btn) return false;
         btn.click();
         return true;
@@ -104,15 +119,49 @@ export async function addCatalogItemBySearch(page, searchTerm) {
     });
     await page.waitForSelector('input[placeholder*="Rechercher un ouvrage"]', { timeout: 5000 });
     await page.type('input[placeholder*="Rechercher un ouvrage"]', searchTerm, { delay: 20 });
-    await new Promise((r) => setTimeout(r, 300)); // debounce du filtre
-    const added = await page.evaluate(() => {
-        const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Ajouter');
+
+    // Fiabilisation (2026-08-31) — ce helper attendait 300 ms puis cliquait le
+    // PREMIER bouton « Ajouter » du document. Sous la charge de la suite
+    // complète, la frappe perdait la course contre le debounce du filtre : la
+    // liste était encore non filtrée et le helper ajoutait le premier ouvrage
+    // du catalogue au lieu de celui demandé. Conséquences observées le
+    // 2026-08-31 : test_zero_negative_no_phantom_charge échouait dans la suite
+    // et passait en isolation — rouge pour la mauvaise raison, sur un ouvrage
+    // qu'il ne visait pas. On attend maintenant que la liste soit RÉELLEMENT
+    // filtrée, puis on clique le « Ajouter » de la ligne qui correspond.
+    const cible = searchTerm.toLowerCase();
+    await page.waitForFunction((terme) => {
+        const lignes = [...document.querySelectorAll('button')]
+            .filter((b) => b.textContent.trim() === 'Ajouter')
+            .map((b) => (b.closest('div')?.parentElement?.textContent || '').toLowerCase());
+        return lignes.length > 0 && lignes.some((t) => t.includes(terme));
+    }, { timeout: 5000 }, cible);
+
+    const added = await page.evaluate((terme) => {
+        const btn = [...document.querySelectorAll('button')]
+            .filter((b) => b.textContent.trim() === 'Ajouter')
+            .find((b) => (b.closest('div')?.parentElement?.textContent || '').toLowerCase().includes(terme));
         if (!btn) return false;
         btn.click();
         return true;
+    }, cible);
+    if (!added) throw new Error(`Aucun résultat "Ajouter" correspondant à "${searchTerm}".`);
+    await new Promise((r) => setTimeout(r, 250));
+
+    // Depuis le 2026-09-01, la bibliothèque ne se referme plus d'elle-même après
+    // un ajout (elle permet d'en enchaîner plusieurs, voir § 40 du tracker). Le
+    // contrat de ce helper reste « ajouter UN ouvrage et rendre la main sur
+    // l'écran du lot » : on referme donc explicitement. Sans cela, tout ce qui
+    // suit s'exécute derrière une modale — les captures de la fiche UI/UX
+    // l'ont montré les premières, avec cinq écrans photographiés à travers
+    // la bibliothèque restée ouverte.
+    await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')].find((b) =>
+            /^Terminer/.test((b.textContent || '').trim())
+            || (b.getAttribute('aria-label') || '') === 'Fermer le sélecteur');
+        if (btn) btn.click();
     });
-    if (!added) throw new Error(`Aucun résultat "Ajouter" trouvé pour la recherche "${searchTerm}".`);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300));
 }
 
 // Ouvre l'inspecteur du 1er ouvrage du devis, passe en mode Avancé, force le

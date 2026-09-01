@@ -1,0 +1,211 @@
+
+> test
+> node scratch/test_master_saas_100.mjs
+
+
+▶ Fumée
+  ✅ Titre de la page correct — titre="ikadevis — Calculateur de Devis BTP"
+  ✅ Écran de connexion affiché
+  ✅ Mode Démo/Invité ouvre l'éditeur de devis
+  ✅ Aucune erreur console au chargement
+
+▶ Cohérence chaîne financière
+  ✅ Déboursé sec > 0 après ajout d'un ouvrage — {"debourseSec":57743,"coeffK":1.5,"totalNetHt":86615,"marge":25984,"margePct":30,"tva":15591,"totalTtc":102206,"raw":{"debourseSecRaw":"57 743 FCFA","coeffKRaw":"K=1.5","totalNetHtRaw":"86 615 FCFA","margeRaw":"+25 984 FCFA (30%)","tvaRaw":"+15 591 FCFA","totalTtcRaw":"102 206 FCFA"}}
+  ✅ Coefficient K lisible et ≥ 1 — K=1.5
+  ✅ Total Net HT ≈ Déboursé Sec × Coeff K — NetHT=86615 vs DS×K=86614.5
+  ✅ Total TTC ≈ Total Net HT × 1.18 (TVA 18%) — TTC=102206 vs NetHT×1.18=102205.7
+  ✅ Montant TVA affiché ≈ TTC − NetHT — TVA affichée=15591 vs calculée=15591
+  ✅ Marge réelle ≈ taux affiché × Total Net HT — Marge affichée=25984 vs 30%×NetHT=25984.5
+
+▶ Étalon A — Peinture Murale (tolérance zéro)
+  ✅ Décomposition du déboursé lisible dans l'inspecteur — [["Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","90.00 L","8","97.20 L","3 000 FCFA","291 600 FCFA"],["Peintre d'application","11.25 j","—","11.25 j","15 000 FCFA","168 750 FCFA"]]
+  ✅ Consommation peinture = 97.2 L (tolérance 0) — mesuré=97.2 L — ligne source: {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","netQty":90,"wastePct":8,"grossQty":97.2,"unitCost":3000,"costConsumed":291600,"packsNeeded":7,"costPurchased":315000,"remainderQty":7.8}
+  ✅ Taux de perte par défaut = 8% (éditable par ouvrage, non surchargé ici) — mesuré=8%
+  ✅ Déboursé matériel peinture = 315000 FCFA (tolérance 0) — mesuré=315000 FCFA (attendu: arrondi à 7 pots de 15L)
+
+▶ Taux de perte ajustable par ouvrage
+  ✅ Taux catalogue par défaut = 8% avant toute surcharge — {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","netQty":90,"wastePct":8,"grossQty":97.2,"unitCost":3000,"costConsumed":291600,"packsNeeded":7,"costPurchased":315000,"remainderQty":7.8}
+  ✅ Coût avant surcharge = 315 000 FCFA (référence) — {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","netQty":90,"wastePct":8,"grossQty":97.2,"unitCost":3000,"costConsumed":291600,"packsNeeded":7,"costPurchased":315000,"remainderQty":7.8}
+  ✅ Taux surchargé = 15% pris en compte — {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 1.50 L → stock","netQty":90,"wastePct":15,"grossQty":103.5,"unitCost":3000,"costConsumed":310500,"packsNeeded":7,"costPurchased":315000,"remainderQty":1.5}
+  ✅ Quantité nette recalculée avec le nouveau taux (450m² × 1.15 = 517.5... hors primaire, cf. formule) — mesuré=103.5 L (doit être > 97.2 L, la valeur à 8%)
+  ✅ Bouton de réinitialisation au taux catalogue présent et cliqué
+  ✅ Retour exact au taux catalogue (8%) après réinitialisation — {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","netQty":90,"wastePct":8,"grossQty":97.2,"unitCost":3000,"costConsumed":291600,"packsNeeded":7,"costPurchased":315000,"remainderQty":7.8}
+  ✅ Retour exact au coût catalogue (315 000 FCFA) après réinitialisation — {"poste":"Pot Peinture Satinée LessivableÀ acheter : 7 × Pot 15L (315 000 FCFA) · reliquat 7.80 L → stock","netQty":90,"wastePct":8,"grossQty":97.2,"unitCost":3000,"costConsumed":291600,"packsNeeded":7,"costPurchased":315000,"remainderQty":7.8}
+
+▶ Fix P0-3/P1 — surface nulle/négative ne facture jamais un montant fantôme
+  ❌ Surface = 0 → Total Net HT = 0 FCFA (pas de montant fantôme, tolérance 0) — mesuré=22500 FCFA — {"debourseSecRaw":"15 000 FCFA","coeffKRaw":"K=1.5","totalNetHtRaw":"22 500 FCFA","margeRaw":"+6 750 FCFA (30%)","tvaRaw":"+4 050 FCFA","totalTtcRaw":"26 550 FCFA"}
+  ❌ Surface = 0 → Déboursé Sec = 0 FCFA (tolérance 0) — mesuré=15000 FCFA
+  ❌ Surface = -15 → Total Net HT = 0 FCFA (jamais un montant positif résiduel, tolérance 0) — mesuré=22500 FCFA — {"debourseSecRaw":"15 000 FCFA","coeffKRaw":"K=1.5","totalNetHtRaw":"22 500 FCFA","margeRaw":"+6 750 FCFA (30%)","tvaRaw":"+4 050 FCFA","totalTtcRaw":"26 550 FCFA"}
+
+▶ Fix F1 — perte applicable aux matières dénombrables, arrondie à l'unité
+  ✅ Métré net reste 18 648 u (avant perte — inchangé, ce n'est pas ce champ qui corrige le bug) — mesuré=18648 u
+  ✅ Quantité facturée (nette + perte 7%, arrondie à l'unité) = 19 954 unités (tolérance 0) — mesuré=19954 u (attendu : ceil(18648 × 1,07) = 19 954)
+  ✅ La perte saisie (7%) est bien celle appliquée, pas 0% forcé — mesuré=7%
+  ✅ Coût matière cohérent avec la quantité arrondie (19 954 × 350 FCFA) — mesuré=6983900 FCFA
+  ✅ Modules LED (perte catalogue 0%) restent à 450 u, sans arrondi fantôme — mesuré=450 u, perte=0%
+
+▶ Fix F2 — arrondi conditionnement insensible au bruit flottant
+  ✅ 720 m², perte 10% → 792 m² brut (tolérance 0, malgré le bruit flottant) — mesuré=792.0000000000001 m²
+  ✅ 792 m² ÷ 1,44 m²/carton = 550 cartons EXACTEMENT, pas 551 — mesuré=550 cartons
+  ✅ 721 m² (dépassement réel, pas du bruit) déclenche toujours le conditionnement supplémentaire — mesuré=551 cartons (attendu 551)
+
+▶ Étalon B — Carrelage Sol (tolérance zéro)
+  ✅ Décomposition du déboursé lisible dans l'inspecteur — [["Carrelage Grès Cérame 60x60À acheter : 92 × Carton (1.44m²) (1 196 000 FCFA) · reliquat 0.48 m² → stock","120.00 m²","10","132.00 m²","9 028 FCFA","1 191 667 FCFA"],["Colle C2TE et joint (5 kg/m²)À acheter : 26 × Sac (25kg) (143 000 FCFA) · reliquat 20.00 kg → stock","600.00 kg","5","630.00 kg","220 FCFA","138 600 FCFA"],["Poseur carreleur qualifié","10.00 j","—","10.00 j","13 000 FCFA","130 000 FCFA"]]
+  ✅ Surface nette à acheter = 132 m² (120m² + 10% pertes, tolérance 0) — mesuré=132 m² — ligne source: {"poste":"Carrelage Grès Cérame 60x60À acheter : 92 × Carton (1.44m²) (1 196 000 FCFA) · reliquat 0.48 m² → stock","netQty":120,"wastePct":10,"grossQty":132,"unitCost":9028,"costConsumed":1191667,"packsNeeded":92,"costPurchased":1196000,"remainderQty":0.48}
+  ✅ Déboursé matériel carrelage = 1196000 FCFA (tolérance 0) — mesuré=1196000 FCFA (attendu: arrondi à 92 cartons de 1.44m²)
+
+▶ Étalon C — Garde-Corps Métallerie, Plan de Débit 1D (tolérance zéro)
+  ✅ Cas 1 (1.2m/défaut) — décomposition lisible — [["Débit barres — poteaux (calepinage par pièce)À acheter : 7 × Barre (6m) (63 000 FCFA)","42.00 m","0","42.00 m","1 500 FCFA","63 000 FCFA"],["Débit barres — lisses horizontales (coupe continue)À acheter : 15 × Barre (6m) (135 000 FCFA)","90.00 m","0","90.00 m","1 500 FCFA","135 000 FCFA"],["Découpe et usinage des profilés","30.00 m","—","30.00 m","500 FCFA","15 000 FCFA"],["Soudure, assemblage et pose sur site","1.00 forfait","—","1.00 forfait","15 000 FCFA","15 000 FCFA"]]
+  ✅ Cas 1 — deux lignes de débit distinctes (poteaux + lisses) — ["Débit barres — poteaux (calepinage par pièce)À acheter : 7 × Barre (6m) (63 000 FCFA)","Débit barres — lisses horizontales (coupe continue)À acheter : 15 × Barre (6m) (135 000 FCFA)"]
+  ✅ Cas 1 — total barres = 22 (7 poteaux + 15 lisses, tolérance 0) — mesuré=22 — lignes: [{"poste":"Débit barres — poteaux (calepinage par pièce)À acheter : 7 × Barre (6m) (63 000 FCFA)","packsNeeded":7},{"poste":"Débit barres — lisses horizontales (coupe continue)À acheter : 15 × Barre (6m) (135 000 FCFA)","packsNeeded":15}]
+  ✅ Cas 1 — déboursé matériel total = 198000 FCFA (tolérance 0) — mesuré=198000 FCFA
+  ✅ Cas 2 (1.10m adversarial) — décomposition lisible — [["Débit barres — poteaux (calepinage par pièce)À acheter : 5 × Barre (6m) (45 000 FCFA)","30.00 m","0","30.00 m","1 500 FCFA","45 000 FCFA"],["Débit barres — lisses horizontales (coupe continue)À acheter : 15 × Barre (6m) (135 000 FCFA)","90.00 m","0","90.00 m","1 500 FCFA","135 000 FCFA"],["Découpe et usinage des profilés","30.00 m","—","30.00 m","500 FCFA","15 000 FCFA"],["Soudure, assemblage et pose sur site","1.00 forfait","—","1.00 forfait","15 000 FCFA","15 000 FCFA"]]
+  ✅ Cas 2 — total barres = 20 (5 poteaux calepinés + 15 lisses, PAS 19 — régression du bug P0-1, tolérance 0) — mesuré=20 — lignes: [{"poste":"Débit barres — poteaux (calepinage par pièce)À acheter : 5 × Barre (6m) (45 000 FCFA)","packsNeeded":5},{"poste":"Débit barres — lisses horizontales (coupe continue)À acheter : 15 × Barre (6m) (135 000 FCFA)","packsNeeded":15}]
+  ✅ Cas 2 — déboursé matériel total = 180000 FCFA (tolérance 0) — mesuré=180000 FCFA
+
+▶ Étalon D — Dressing Menuiserie, Calepinage 2D (tolérance zéro)
+  ✅ Décomposition du déboursé lisible dans l'inspecteur — [["Panneaux mélaminé (côtés + fond + tablettes)À acheter : 6 × Plaque (6m²) (270 000 FCFA) · reliquat 5.22 m² → stock","28.50 m²","8","30.78 m²","7 500 FCFA","230 850 FCFA"],["Fabrication atelier et pose du caisson","28.50 m²","—","28.50 m²","6 000 FCFA","171 000 FCFA"]]
+  ✅ Surface nette à acheter = 30.78 m² (28.5 m² + 8% pertes, tolérance 0) — mesuré=30.78 m² — ligne source: {"poste":"Panneaux mélaminé (côtés + fond + tablettes)À acheter : 6 × Plaque (6m²) (270 000 FCFA) · reliquat 5.22 m² → stock","netQty":28.5,"wastePct":8,"grossQty":30.78,"unitCost":7500,"costConsumed":230850,"packsNeeded":6,"costPurchased":270000,"remainderQty":5.22}
+  ✅ Déboursé matériel = 270000 FCFA (tolérance 0) — mesuré=270000 FCFA (attendu: arrondi à 6 plaques de 6m²)
+
+▶ Étalon E — Enseigne Lumineuse LED (tolérance zéro)
+  ✅ Décomposition du déboursé lisible dans l'inspecteur — [["Profilé Aluminium caisson étancheÀ acheter : 3 × Barre (6m) (54 000 FCFA) · reliquat 2.45 m → stock","14.40 m","8","15.55 m","3 000 FCFA","46 656 FCFA"],["Faces Plexiglas diffusant blanc 3mmÀ acheter : 6 × Plaque (3m²) (216 000 FCFA)","18.00 m²","0","18.00 m²","12 000 FCFA","216 000 FCFA"],["Modules LED IP67 1.2W (25 u/m²)","180.00 u","0","180.00 u","650 FCFA","117 000 FCFA"],["Alimentation MeanWell 200W","2.00 u","0","2.00 u","24 000 FCFA","48 000 FCFA"],["Câblage LED et assemblage caisson","1.00 u","—","1.00 u","25 000 FCFA","25 000 FCFA"],["Fixation et raccordement secteur","1.00 forfait","—","1.00 forfait","15 000 FCFA","15 000 FCFA"]]
+  ✅ Modules LED = 180 (tolérance 0) — mesuré=180 — ligne source: {"poste":"Modules LED IP67 1.2W (25 u/m²)","netQty":180,"wastePct":0,"grossQty":180,"unitCost":650,"costConsumed":117000,"packsNeeded":null,"costPurchased":null,"remainderQty":null} — densité catalogue actuelle 45/m² vs 25/m² implicite au tracker
+  ✅ Alimentations = 2 (tolérance 0) — mesuré=2 — ligne source: {"poste":"Alimentation MeanWell 200W","netQty":2,"wastePct":0,"grossQty":2,"unitCost":24000,"costConsumed":48000,"packsNeeded":null,"costPurchased":null,"remainderQty":null}
+  ✅ Plaques Plexiglas (cas d'origine 6×1.2m) = 6 (calepinage 1.22×2.44m ×2 faces, tolérance 0) — mesuré=6 — ligne source: {"poste":"Faces Plexiglas diffusant blanc 3mmÀ acheter : 6 × Plaque (3m²) (216 000 FCFA)","netQty":18,"wastePct":0,"grossQty":18,"unitCost":12000,"costConsumed":216000,"packsNeeded":6,"costPurchased":216000,"remainderQty":null}
+  ✅ Cas adversarial (7.2×1.5m) — décomposition lisible — [["Profilé Aluminium caisson étancheÀ acheter : 4 × Barre (6m) (72 000 FCFA) · reliquat 5.21 m → stock","17.40 m","8","18.79 m","3 000 FCFA","56 376 FCFA"],["Faces Plexiglas diffusant blanc 3mmÀ acheter : 12 × Plaque (3m²) (432 000 FCFA)","36.00 m²","0","36.00 m²","12 000 FCFA","432 000 FCFA"],["Modules LED IP67 1.2W (25 u/m²)","270.00 u","0","270.00 u","650 FCFA","175 500 FCFA"],["Alimentation MeanWell 200W","2.00 u","0","2.00 u","24 000 FCFA","48 000 FCFA"],["Câblage LED et assemblage caisson","1.00 u","—","1.00 u","25 000 FCFA","25 000 FCFA"],["Fixation et raccordement secteur","1.00 forfait","—","1.00 forfait","15 000 FCFA","15 000 FCFA"]]
+  ✅ Plaques Plexiglas (cas adversarial 7.2×1.5m) = 12 — PAS 8 (ancien calcul surfacique 23.33÷3, tolérance 0) — mesuré=12 — ligne source: {"poste":"Faces Plexiglas diffusant blanc 3mmÀ acheter : 12 × Plaque (3m²) (432 000 FCFA)","netQty":36,"wastePct":0,"grossQty":36,"unitCost":12000,"costConsumed":432000,"packsNeeded":12,"costPurchased":432000,"remainderQty":null}
+
+▶ Étalon F — Façade Panneaux ACM (tolérance zéro)
+  ✅ Décomposition du déboursé lisible dans l'inspecteur — [["Plaques Alucobond 4mm PVDFÀ acheter : 36 × Plaque (6m²) (2 340 000 FCFA)","216.00 m²","0","216.00 m²","10 833 FCFA","2 339 999 FCFA"],["Ossature tubes 40x40 galvanisésÀ acheter : 81 × Barre (6m) (1 215 000 FCFA)","450.00 m","8","486.00 m","2 500 FCFA","1 215 000 FCFA"],["Fixations chimiques & Equerres","360.00 u","5","378.00 u","1 500 FCFA","567 000 FCFA"],["Rainurage V, pliage et pose cassettes","180.00 m²","—","180.00 m²","8 500 FCFA","1 530 000 FCFA"],["Repli et contrôle qualité façade","1.00 forfait","—","1.00 forfait","15 000 FCFA","15 000 FCFA"]]
+  ✅ Plaques achetées = 36 (18×10m, calepinage 1.22×2.44m, orientation tournée retenue, tolérance 0) — mesuré=36 — ligne source: {"poste":"Plaques Alucobond 4mm PVDFÀ acheter : 36 × Plaque (6m²) (2 340 000 FCFA)","netQty":216,"wastePct":0,"grossQty":216,"unitCost":10833,"costConsumed":2339999,"packsNeeded":36,"costPurchased":2340000,"remainderQty":null}
+  ✅ Déboursé matériel ACM = 2340000 FCFA (36 × 65 000 FCFA/plaque, tolérance 0) — mesuré=2340000 FCFA
+  ✅ Aucun reliquat (waste:0 dédié, calepinage déjà exact — pas de double perte) — perte mesurée=0%
+
+▶ Étalon G — Villa R+1, 11 lots (tolérance zéro)
+  ✅ Déboursé Sec = 82 307 562 FCFA (tolérance 0) — mesuré=82307562 FCFA
+  ✅ Coefficient K = 1.507 — mesuré=K1.507
+  ✅ Total Net HT = 124 061 344 FCFA (tolérance 0) — mesuré=124061344 FCFA
+  ✅ Total TTC = 146 392 386 FCFA (tolérance 0) — mesuré=146392386 FCFA
+
+▶ Propagation de la quantité à tous les métrés
+  ✅ rectangle · SURFACE × quantité 3 = 6 m² — mesuré=6 m² (métré unitaire × 3 attendu)
+  ✅ rectangle · le métré présenté au client couvre les 3 exemplaires — métré=6 m²
+  ✅ rectangle · PERIMETRE × quantité 3 = 18 m — mesuré=18 m (métré unitaire × 3 attendu)
+  ✅ rectangle · le métré présenté au client couvre les 3 exemplaires — métré=6 m²
+  ✅ volume · VOLUME × quantité 3 = 3 m³ — mesuré=3 m³ (métré unitaire × 3 attendu)
+  ✅ volume · le métré présenté au client couvre les 3 exemplaires — métré=3 m³
+  ✅ surface · SURFACE × quantité 3 = 6 m² — mesuré=6 m² (métré unitaire × 3 attendu)
+  ✅ surface · le métré présenté au client couvre les 3 exemplaires — métré=6 m²
+  ✅ floor · SURFACE × quantité 3 = 6 m² — mesuré=6 m² (métré unitaire × 3 attendu)
+  ✅ floor · le métré présenté au client couvre les 3 exemplaires — métré=6 m²
+  ✅ linear · LONGUEUR × quantité 3 = 6 m — mesuré=6 m (métré unitaire × 3 attendu)
+  ✅ linear · le métré présenté au client couvre les 3 exemplaires — métré=6 ml
+  ✅ unit · QTY × quantité 3 = 3 u — mesuré=3 u (métré unitaire × 3 attendu)
+  ✅ unit · le métré présenté au client couvre les 3 exemplaires — métré=3 u
+  ✅ Quantité 1 : la surface reste le métré unitaire (pas de double comptage) — mesuré=2 m²
+  ✅ La surface croît proportionnellement à la quantité — qty 5 → 10 m² (attendu 10)
+
+▶ Phase 1 — ClientCombobox et création contextuelle
+  ✅ Une recherche client annulée ne devient pas une sélection
+  ✅ Un client existant peut être sélectionné depuis le devis — Société Immobilière NBB
+  ✅ Le menu propose la création du client recherché
+  ✅ La création rapide reprend le texte recherché — Client créé depuis devis
+  ✅ Le nouveau client est sélectionné automatiquement dans le devis — Client créé depuis devis
+  ✅ Un nom tapé sans confirmation survit à un clic ailleurs dans l'éditeur (pas de perte silencieuse) — Nom tapé sans confirmation XYZ
+
+▶ Phase 1 bis — ProjetCombobox et création contextuelle
+  ✅ Le texte du champ client démarre après son icône — padding=40px, icône=23.6px
+  ✅ Un projet existant du client est sélectionnable depuis le devis — Construction Siège NBB
+  ✅ Une recherche projet annulée restaure le projet sélectionné — Construction Siège NBB
+  ✅ Changer de client efface le projet précédent
+  ✅ Le champ projet propose la création contextuelle
+  ✅ La création de projet reprend le texte recherché — Extension siège NBB
+  ✅ Le nouveau projet est sélectionné automatiquement dans le devis — Extension siège NBB
+
+▶ Phase 2 — Ajout d’ouvrage depuis le tableau
+  ✅ Le catalogue affiche trois ouvrages au plus avec défilement interne
+  ✅ Un ouvrage existant est ajoutable depuis la ligne de recherche du tableau
+  ✅ Le tableau devient une carte lisible sur tablette étroite
+  ✅ Le prix calculé indique sa dépendance au métrage
+  ✅ Un ouvrage absent peut être créé et ajouté depuis la même ligne
+
+▶ Phase 3 — Inspecteur latéral et navigation des ouvrages
+  ✅ Le tableau conserve les deux ouvrages visibles avant inspection — lignes=2
+  ✅ Le tableau reste visible à côté de l’inspecteur sur desktop
+  ✅ L’inspecteur propose la navigation entre les ouvrages
+  ✅ Le passage à l’ouvrage suivant se fait sans fermer l’inspecteur
+
+▶ Phases 4 à 8 — Documents, organisation et devise
+  ✅ La liste des devis expose une recherche dédiée
+  ✅ La liste des devis expose un filtre de statut
+  ✅ La liste des devis expose un tri
+  ✅ La liste des devis utilise une table Société/Projet/Devis/Date
+  ✅ Les lignes de devis sont dépourvues d’icônes et d’actions
+  ✅ Un clic sur une cellule ouvre le détail à droite
+  ✅ La table et le détail sont visibles côte à côte sur desktop
+  ✅ Les actions restent disponibles dans le détail
+  ✅ La recherche des devis retrouve un client
+  ✅ Le filtre de statut affiche un état vide explicite
+  ✅ La liste des factures expose une recherche dédiée
+  ✅ La liste des factures expose un filtre de statut
+  ✅ La recherche des factures distingue un résultat absent
+  ✅ Le sélecteur d’organisation propose la création
+  ✅ La création d’organisation suit un parcours en étapes — Étape 1 sur 6
+  ✅ La création d’organisation propose FCFA, EUR et USD — FCFA, EUR, USD
+  ✅ La devise de l’organisation est modifiable depuis ses paramètres
+  ✅ Les paramètres conservent les devises prises en charge
+  ✅ Les paramètres proposent une section Facturation & envoi
+  ✅ La section commerciale expose les coordonnées bancaires
+  ✅ La section commerciale expose les modèles de messages
+  ✅ Le formatter monétaire suit la devise organisationnelle
+
+▶ Phase 9 — Fumée responsive
+  ✅ Aucun débordement horizontal à 1440px — document=1440, body=1440
+  ✅ La sidebar desktop est disponible à 1440px
+  ✅ Aucun débordement horizontal à 1280px — document=1280, body=1280
+  ✅ La sidebar desktop est disponible à 1280px
+  ✅ Aucun débordement horizontal à 1024px — document=1024, body=1024
+  ✅ La sidebar desktop est disponible à 1024px
+  ✅ Aucun débordement horizontal à 768px — document=768, body=768
+  ✅ Le rail tablette est disponible à 768px
+  ✅ Aucun débordement horizontal à 390px — document=390, body=390
+  ✅ Le menu mobile est disponible à 390px
+  ✅ Aucune erreur console pendant le parcours responsive
+
+▶ Fix UX-1 — garde de modifications non enregistrées et confirmation de suppression
+  ✅ Le bandeau signale des modifications non enregistrées après ajout d'un ouvrage
+  ✅ Le bandeau "Modifications non enregistrées" survit à un aller-retour par la barre latérale — allé sur Client=true, retour=true, toujours signalé non enregistré=true
+  ✅ Le bandeau ne prétend plus "Enregistré localement" sans enregistrement réel
+  ✅ L'ouvrage ajouté est toujours présent après l'aller-retour
+  ✅ Supprimer un ouvrage affiche une confirmation avant de le retirer (comme un lot) — bouton cliqué=true, dialogue affiché=true
+  ✅ La confirmation supprime effectivement l'ouvrage
+
+▶ Fix "Nouveau composant" — ratio/quantité par unité dans le sélecteur Mode de calcul
+  ✅ Navigation vers "Catégorie Ouvrage" réussie
+  ✅ Ouvrage "Caisson Enseigne" sélectionné
+  ✅ Modale d'édition ouverte pour "Modules LED"
+  ✅ Le champ "Quantité nécessaire par unité" est présent dans la modale — {"modalPresent":true,"bodyIncludesLabel":false,"ratioInputFound":true}
+  ✅ Le ratio est pré-rempli à 25 (décomposé depuis "SURFACE * 25") — mesuré=25
+  ✅ L'aperçu annonce "25 ... pour 1 m² de l'ouvrage" — → 25 Modules LED étanches IP67 1.2W Grand Angle pour 1 m² de l’ouvrage.
+  ✅ Le ratio modifié (30) se recompose et se persiste en "SURFACE * 30" — {"formula":"SURFACE * 30","hasRatioField":false,"hasComposableField":false}
+  ✅ Les champs transitoires (formulaRatio/formulaComposable) ne fuitent pas dans la donnée persistée
+  ✅ Modale d'édition ouverte pour "Faces Plexiglas" (formule complexe)
+  ✅ Le champ ratio reste masqué pour une formule complexe (calepinage), pas de fausse décomposition — {"ratioFieldPresent":false,"specificModeShown":true}
+  ✅ La formule complexe de "Faces Plexiglas" n'a pas été altérée — min(ceil(LARGEUR/1.22)*ceil(HAUTEUR/2.44), ceil(LARGEUR/2.44)*ceil(HAUTEUR/1.22)) * 2 * 3
+
+▶ Fix "doublon à chaque Enregistrer" — mise à jour en place, pas de nouvelle fiche (mode Local)
+  ✅ Le premier enregistrement ne demande PAS de confirmation
+  ✅ Exactement un nouveau devis apparaît après le premier enregistrement (préfixé en tête de liste) — avant=1, après=2
+  ✅ Le bouton affiche "Mettre à jour" après un premier enregistrement réussi
+  ✅ Ré-enregistrer un devis déjà sauvegardé demande confirmation
+  ✅ Toujours le même nombre de devis après la mise à jour — pas de doublon supplémentaire — avant=2, après=2
+  ✅ Le numéro du devis n'a pas changé après la mise à jour (pas de nouvelle numérotation) — avant=DEV-2026-002, après=DEV-2026-002
+  ✅ L'identité (id) du devis reste la même après la mise à jour — avant=1788208297238, après=1788208297238
+  ✅ Le contenu mis à jour est bien celui du devis modifié (TVA 10%) — vatRate=10
+
+────────────────────────────────────────────────────────────
+Vérifications individuelles : 152/155 au vert
+Suites en régression inattendue : 1/23
+Étalons métier : A,B,C,D,E,F,G conformes (7/7 construits)
+────────────────────────────────────────────────────────────

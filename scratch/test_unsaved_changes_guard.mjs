@@ -61,9 +61,9 @@ export async function run() {
         // Bascule vers un autre onglet de la barre latérale (démonte
         // QuoteWorkspace), puis retour — c'est exactement le geste qui
         // faisait disparaître le bandeau avant le correctif.
-        const wentToClient = await clickVisibleButton(page, 'Client', true);
+        const wentToClient = await clickVisibleButton(page, 'Clients', true);
         await wait(250);
-        const cameBack = await clickVisibleButton(page, 'Créer un Devis', true);
+        const cameBack = await clickVisibleButton(page, 'Chiffrage', true);
         await wait(250);
 
         const stillDirty = await page.evaluate(() => document.body.innerText.includes('Modifications non enregistrées'));

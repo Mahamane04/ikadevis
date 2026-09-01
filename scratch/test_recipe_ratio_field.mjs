@@ -48,13 +48,13 @@ export async function run() {
         await wait(150);
         const openedCategoryOuvrage = await page.evaluate(() => {
             const items = [...document.querySelectorAll('button')];
-            const btn = items.find((b) => b.textContent.trim() === 'Catégorie Ouvrage');
+            const btn = items.find((b) => b.textContent.trim() === 'Catalogue');
             if (!btn) return false;
             btn.click();
             return true;
         });
         await wait(200);
-        ok('Navigation vers "Catégorie Ouvrage" réussie', openedCategoryOuvrage);
+        ok('Navigation vers "Catalogue" réussie', openedCategoryOuvrage);
 
         // Sélectionner l'ouvrage "Caisson Enseigne Lumineuse LED".
         const searchInput = await page.$('input[placeholder*="Rechercher un ouvrage"]');

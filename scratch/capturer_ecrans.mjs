@@ -132,7 +132,15 @@ async function fermerModale(page) {
         if (parAria) return clic(parAria);
         const parCroix = [...document.querySelectorAll('button')]
             .filter(x => ['✕', '×', 'X'].includes(x.textContent.trim()));
-        return clic(parCroix[parCroix.length - 1]);
+        if (parCroix.length) return clic(parCroix[parCroix.length - 1]);
+        // Quatrième voie — l'écran Paramètres n'est pas une modale : il se
+        // quitte par « ← Retour à l'application », qui ne porte ni le mot
+        // « Fermer », ni d'aria-label de fermeture, ni de croix. Sans ce repli,
+        // la série restait bloquée dans les Paramètres et la capture mobile
+        // suivante photographiait cet écran au lieu du sien.
+        const parRetour = [...document.querySelectorAll('button')]
+            .find(x => /Retour à l'application|Retour à l’application/.test(x.textContent || ''));
+        return clic(parRetour);
     });
     await pause(700);
     return ok;
@@ -145,10 +153,10 @@ await etape('aperçu document', async () => {
 });
 
 for (const [menu, nom, lib] of [
-    ['Projet', '07-projet', 'Projet'],
-    ['Client', '08-client', 'Client'],
-    ['Devis', '09-devis', 'Devis'],
-    ['Facture', '10-facture', 'Facture'],
+    ['Chantiers', '07-projet', 'Chantiers'],
+    ['Clients', '08-client', 'Clients'],
+    ['Mes devis', '09-devis', 'Mes devis'],
+    ['Factures', '10-facture', 'Factures'],
     ['Catalogue technique', '11-catalogue-technique', 'Catalogue technique'],
     ['Paramètres du Compte', '13-parametres-compte', 'Paramètres du Compte — Entreprise'],
 ]) {
@@ -177,7 +185,7 @@ await etape('vues mobiles', async () => {
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
     await pause(1400);
     await capturer(page, '16-mobile-parametres', 'Vue mobile 390×844 — Paramètres');
-    await clicTexte(page, 'Créer un Devis', true);
+    await clicTexte(page, 'Chiffrage', true);
     await pause(800);
     await capturer(page, '17-mobile-devis', 'Vue mobile 390×844 — Créer un Devis');
 });

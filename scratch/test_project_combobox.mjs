@@ -52,10 +52,30 @@ export async function run() {
         const restoredProject = await page.$eval(projectInput, input => input.value);
         ok('Une recherche projet annulée restaure le projet sélectionné', restoredProject === 'Construction Siège NBB', restoredProject);
 
+        // Correction (2026-09-01) — ce bloc cliquait le champ client puis
+        // cherchait « Résidence Les Almadies » dans la liste SANS vider la
+        // saisie : la liste reste filtrée sur le client déjà sélectionné et ne
+        // propose donc que lui. Le clic ne trouvait rien, le client ne changeait
+        // pas... et l'assertion passait quand même, parce que le champ Projet
+        // était vidé par un BUG : sa restauration au clic extérieur était
+        // inconditionnelle et pointait sur la valeur du montage (vide). En
+        // corrigeant ce bug (le nom de chantier tapé n'était jamais conservé),
+        // ce test est devenu rouge — révélant qu'il n'avait jamais vérifié ce
+        // qu'il annonçait. On vide donc le champ avant de chercher l'autre
+        // client, pour que le scénario fasse réellement ce qu'il décrit.
         await page.click(clientInput);
+        await page.evaluate(() => {
+            const input = document.querySelector('input[aria-label="Client du devis"]');
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            setter.call(input, '');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await wait(120);
+        await page.type(clientInput, 'Almadies', { delay: 10 });
+        await wait(250);
         await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
             .find(node => node.textContent.includes('Résidence Les Almadies'))?.click());
-        await wait();
+        await wait(400);
         const projectClearedOnClientChange = await page.$eval(projectInput, input => input.value);
         ok('Changer de client efface le projet précédent', projectClearedOnClientChange === '', projectClearedOnClientChange);
 

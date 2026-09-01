@@ -34,8 +34,8 @@ export async function run() {
         await page.setViewport({ width: 1280, height: 900 });
         await enterGuestMode(page);
 
-        await clickVisibleButton(page, 'Devis', true);
-        await page.waitForFunction(() => document.body.innerText.includes('Mes Devis'));
+        await clickVisibleButton(page, 'Mes devis', true);
+        await page.waitForFunction(() => document.body.innerText.includes('Mes devis'));
         ok('La liste des devis expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les devis"]') !== null);
         ok('La liste des devis expose un filtre de statut', await page.$('select[aria-label="Filtrer les devis par statut"]') !== null);
         ok('La liste des devis expose un tri', await page.$('select[aria-label="Trier les devis"]') !== null);
@@ -60,11 +60,46 @@ export async function run() {
             return listRect.width > 0 && detailRect.width > 260 && detailRect.left >= listRect.right - 2;
         });
         ok('La table et le détail sont visibles côte à côte sur desktop', desktopSplitVisible);
-        const detailActions = await page.$('button[aria-label="Modifier le devis DEV-2026-001"]') !== null
-            && await page.$('button[aria-label="Créer une révision de DEV-2026-001"]') !== null
-            && await page.$('button[aria-label="Dupliquer le devis DEV-2026-001"]') !== null
-            && await page.$('button[aria-label="Supprimer le devis DEV-2026-001"]') !== null;
-        ok('Les actions restent disponibles dans le détail', detailActions);
+        // Audit UX (2026-09-01) — ce banc testait la PRÉSENCE dans le DOM. Depuis
+        // que la bande d'actions se replie pour rendre sa hauteur au document, un
+        // bouton `display:none` reste présent : le banc serait resté vert avec des
+        // actions devenues inatteignables. Il vérifie donc maintenant l'état réel —
+        // repliées à l'ouverture, effectivement visibles après le clic — et que le
+        // document, la raison d'être de l'écran, a une hauteur exploitable.
+        const LIBELLES_ACTIONS = [
+            'Modifier le devis DEV-2026-001',
+            'Créer une révision de DEV-2026-001',
+            'Dupliquer le devis DEV-2026-001',
+            'Supprimer le devis DEV-2026-001'
+        ];
+        const mesureActions = () => page.evaluate((libelles) => {
+            const carte = document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-detail-card');
+            const visibles = libelles.filter(l => {
+                const b = carte?.querySelector(`button[aria-label="${l}"]`);
+                if (!b) return false;
+                const r = b.getBoundingClientRect();
+                return r.width > 0 && r.height > 0;
+            }).length;
+            const doc = carte?.querySelector('.saved-quote-document-scroll');
+            return {
+                presentes: libelles.every(l => carte?.querySelector(`button[aria-label="${l}"]`) !== null),
+                visibles,
+                hauteurDocument: doc ? doc.clientHeight : 0,
+                debordeHorizontalement: doc ? doc.scrollWidth > doc.clientWidth + 1 : false
+            };
+        }, LIBELLES_ACTIONS);
+
+        const avantDepli = await mesureActions();
+        ok('Les actions du devis sont présentes dans le détail', avantDepli.presentes);
+        ok('Les actions sont repliées à l’ouverture, au profit du document', avantDepli.visibles === 0);
+        ok(`Le document occupe une hauteur exploitable (≥ 180 px) — mesuré=${avantDepli.hauteurDocument}`, avantDepli.hauteurDocument >= 180);
+        ok('L’aperçu ne déborde pas horizontalement', !avantDepli.debordeHorizontalement);
+        await page.evaluate(() => document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-action-label')?.click());
+        await wait(220);
+        const apresDepli = await mesureActions();
+        ok(`Déplier « Actions du devis » rend les quatre actions cliquables — visibles=${apresDepli.visibles}/4`, apresDepli.visibles === 4);
+        await page.evaluate(() => document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-action-label')?.click());
+        await wait(220);
 
         await page.type('input[aria-label="Rechercher dans les devis"]', 'NBB');
         await wait(180);
@@ -77,8 +112,8 @@ export async function run() {
         await wait(120);
         ok('Le filtre de statut affiche un état vide explicite', (await page.evaluate(() => document.body.innerText)).includes('Aucun devis enregistré'));
 
-        await clickVisibleButton(page, 'Facture', true);
-        await page.waitForFunction(() => document.body.innerText.includes('Mes Factures'));
+        await clickVisibleButton(page, 'Factures', true);
+        await page.waitForFunction(() => document.body.innerText.includes('Factures'));
         ok('La liste des factures expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les factures"]') !== null);
         ok('La liste des factures expose un filtre de statut', await page.$('select[aria-label="Filtrer les factures par statut"]') !== null);
         await page.type('input[aria-label="Rechercher dans les factures"]', 'FACTURE-ABSENTE');
@@ -116,7 +151,7 @@ export async function run() {
         // permet à ce banc de rester compatible avec une ancienne build locale.
         const leftSettingsPage = await clickVisibleButton(page, 'Retour à l’application');
         if (!leftSettingsPage) await page.click('button[aria-label="Fermer la boîte de dialogue"]');
-        await clickVisibleButton(page, 'Créer un Devis');
+        await clickVisibleButton(page, 'Chiffrage');
         await page.waitForFunction(() => document.body.innerText.includes('LOTS DU DEVIS'));
         ok('Le formatter monétaire suit la devise organisationnelle', (await page.evaluate(() => document.body.innerText)).includes('€'));
     } finally {

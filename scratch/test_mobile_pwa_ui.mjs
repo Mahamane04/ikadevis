@@ -77,7 +77,7 @@ export async function run() {
 
         const openedQuotes = await clickVisibleButton(page, 'Mes devis', true);
         ok('La liste des devis reste accessible sur smartphone', openedQuotes);
-        await page.waitForFunction(() => document.body.innerText.includes('Mes Devis'));
+        await page.waitForFunction(() => document.body.innerText.includes('Mes devis'));
         const row = await page.$('tbody tr[role="button"]');
         if (row) await row.click();
         await wait(250);

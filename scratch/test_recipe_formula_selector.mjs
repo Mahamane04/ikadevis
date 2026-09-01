@@ -24,7 +24,7 @@ export async function run() {
         await page.setViewport({ width: 1280, height: 900 });
         await enterGuestMode(page);
         await clickButton(page, 'Catalogue technique');
-        await clickButton(page, 'Catégorie Ouvrage');
+        await clickButton(page, 'Catalogue');
         await page.waitForSelector('button[aria-label="Nature de la ressource à ajouter"]', { timeout: 5000 });
 
         await page.type('input[aria-label="Rechercher une ressource dans le catalogue"]', 'Tube carré', { delay: 12 });

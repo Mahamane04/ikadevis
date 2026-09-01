@@ -23,7 +23,7 @@ export async function run() {
         await enterGuestMode(page);
 
         await clickButton(page, 'Catalogue technique');
-        const openedResources = await clickButton(page, 'Ressource');
+        const openedResources = await clickButton(page, 'Ressources');
         ok('La page Ressource est accessible pour préparer l’import', openedResources);
         await page.waitForSelector('button[aria-label="Importer un fichier CSV"]', { timeout: 4000 });
         await page.click('button[aria-label="Importer un fichier CSV"]');

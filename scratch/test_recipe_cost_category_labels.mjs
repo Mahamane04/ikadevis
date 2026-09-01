@@ -24,7 +24,7 @@ export async function run() {
         await page.setViewport({ width: 1280, height: 900 });
         await enterGuestMode(page);
         await clickButton(page, 'Catalogue technique', 'Entrée Catalogue technique introuvable.');
-        await clickButton(page, 'Catégorie Ouvrage', 'Entrée Catégorie Ouvrage introuvable.');
+        await clickButton(page, 'Catalogue', 'Entrée Catalogue introuvable.');
         await page.waitForSelector('button[aria-label="Nature de la ressource à ajouter"]', { timeout: 5000 });
 
         const quickNature = await page.$eval('button[aria-label="Nature de la ressource à ajouter"]', node => node.textContent.trim());
