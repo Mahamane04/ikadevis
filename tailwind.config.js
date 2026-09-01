@@ -22,7 +22,14 @@ module.exports = {
                 },
                 neutral: {
                     50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0',
-                    300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b',
+                    // Audit UX P1-9 (2026-08-31, affiné le 2026-09-01) — le gris
+                    // secondaire était passé de slate-400 à slate-500 (#64748b),
+                    // mesuré à 4,76:1 sur BLANC. Mais l'application pose ses textes
+                    // secondaires sur des panneaux teintés (#f8fafc, #f1f5f9) :
+                    // sur neutral-100, #64748b retombe à 4,34:1, sous le seuil AA.
+                    // #5f6d80 tient 4,81:1 sur le fond le plus sombre de la palette
+                    // et 5,27:1 sur blanc, pour un écart visuel imperceptible.
+                    300: '#cbd5e1', 400: '#94a3b8', 500: '#5f6d80',
                     600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a',
                 }
             },

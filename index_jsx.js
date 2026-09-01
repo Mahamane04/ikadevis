@@ -17,6 +17,203 @@ const sb = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL && 
     : null;
 
 // ═══════════════════════════════════════════════════════════════
+// MODES DE MÉTRÉ — LIBELLÉS UTILISATEUR
+// ═══════════════════════════════════════════════════════════════
+// Audit UX (2026-08-31) — les identifiants internes des modes fuyaient tels
+// quels dans l'interface : « surface · floor » sous chaque ouvrage du
+// sélecteur, « Modes: rectangle » en pastille dans la bibliothèque. Des mots
+// anglais, dans un produit entièrement français, pour désigner des concepts
+// que le client ne connaît pas sous ce nom.
+//
+// Des libellés français existaient déjà, mais dupliqués DANS les composants
+// (sélecteur de mode de l'inspecteur, modale d'édition d'ouvrage) donc hors
+// de portée des deux sites d'affichage ci-dessus. Cette table est au niveau
+// module pour servir tout le monde ; les listes déroulantes gardent leurs
+// libellés longs (« Sol / Plafond (Largeur x Longueur) »), ceux-ci sont la
+// forme courte destinée aux sous-titres et aux pastilles.
+const LIBELLES_MODE = {
+    rectangle: 'Rectangle',
+    surface: 'Surface',
+    floor: 'Sol / plafond',
+    volume: 'Volume',
+    linear: 'Linéaire',
+    unit: 'À l’unité'
+};
+const libelleModes = (modes, secours = 'Ouvrage métier') => {
+    const liste = (modes || []).map(m => LIBELLES_MODE[m] || m).filter(Boolean);
+    return liste.length ? liste.join(' · ') : secours;
+};
+
+// Forme longue, pour les listes déroulantes de choix du mode de métré.
+const LIBELLES_MODE_LONGS = {
+    rectangle: 'Rectangle (Largeur × Hauteur)',
+    surface: 'Surface Directe (m²)',
+    volume: 'Volume Béton (m³)',
+    linear: 'Mètre Linéaire (ml)',
+    floor: 'Sol / Plafond (m²)',
+    unit: 'Unité / Forfait (u)'
+};
+const TOUS_LES_MODES = ['rectangle', 'surface', 'volume', 'linear', 'floor', 'unit'];
+
+// ═══════════════════════════════════════════════════════════════
+// LIBELLÉS DE NAVIGATION — SOURCE UNIQUE
+// ═══════════════════════════════════════════════════════════════
+// Audit UX (2026-08-31) — la même destination portait deux noms selon le
+// chemin emprunté :
+//
+//   barre d'onglets   Calcul · Mes devis · Catalogue · Ressources
+//   tiroir / sidebar  Créer un Devis · Devis · Catégorie Ouvrage · Ressource
+//
+// Quatre couples différents pour quatre écrans. Sur téléphone les deux
+// surfaces cohabitent, à quelques centimètres l'une de l'autre : l'utilisateur
+// pouvait raisonnablement croire qu'il s'agissait d'écrans distincts.
+//
+// Les libellés vivent désormais ici, et les trois surfaces (sidebar desktop,
+// rail replié, tiroir mobile, barre d'onglets) les lisent. Changer un mot se
+// fait à un seul endroit.
+//
+// Choix des termes : « Chiffrage » plutôt que « Créer un Devis » — l'écran sert
+// autant à modifier un devis existant qu'à en créer un, et c'est le mot du
+// métier ; « Mes devis » plutôt que « Devis », qui ne se distinguait pas du
+// précédent ; « Catalogue » plutôt que « Catégorie Ouvrage », qui n'est pas du
+// français ; « Ressources » au pluriel, comme son contenu.
+// Audit UX (2026-08-31) — `defaultSurface` est la quantité pour laquelle le
+// GABARIT correspondant a été dimensionné : c'est la référence contre
+// laquelle la saisie de l'utilisateur est mise à l'échelle (ratio =
+// saisie / defaultSurface). Une valeur qui ne correspond pas au gabarit
+// fait diverger l'estimation au m² et le devis détaillé — d'autant plus
+// que l'écart est MAXIMAL à la valeur par défaut, c'est-à-dire exactement
+// ce que voit le premier utilisateur.
+//
+// Constaté : l'assistant annonçait 46 M FCFA TTC pour une villa, puis
+// générait un devis de 146 M — un facteur 3,2. Ce n'était ni le barème ni
+// le gabarit qui était faux, mais ce chiffre-ci.
+//
+// R1_TEMPLATE_QUOTE se décrit lui-même comme une « villa duplex de
+// standing » et porte des métrés sans ambiguïté : terrassement 25 × 20 m,
+// plancher RDC 14 × 20 = 280 m², plancher R+1 16 × 20 = 320 m²,
+// 640 m² de maçonnerie, 440 m² de carrelage, 1 300 m² de peinture.
+// C'est une villa de ~440 m² de surface finie, pas de 150.
+//   124 061 344 HT / 440 m² = 281 958 FCFA/m²
+//   table ratesPerM2 villa_house / standard = 260 000 FCFA/m²  → +8 %,
+//   soit à l'intérieur de la fourchette ±12 % que l'estimation affiche déjà.
+// Les deux barèmes étaient donc d'accord depuis le début ; seule cette
+// référence les faisait diverger.
+//
+// Même erreur sur la façade ACM : son gabarit annonce « 180 m² » dans ses
+// propres libellés (échafaudage 180 m², cassettes 180 m²), la référence
+// disait 120.
+//
+// Contrôle : `renovation_paint` valait déjà 350, et son gabarit porte bien
+// surfaceDirect: 350 — la convention était donc bonne, seules deux valeurs
+// ne la respectaient pas.
+const CATEGORIES_ESTIMATION = [
+    { id: 'villa_house', label: 'Construction Villa / Maison', icon: 'fa-house', unit: 'm²', defaultSurface: 440, desc: 'Gros œuvre, second œuvre et finitions' },
+    { id: 'event_stand', label: 'Événementiel & Stands', icon: 'fa-tent', unit: 'm²', defaultSurface: 36, desc: 'Podium, backdrops, bâches, mobilier, régie' },
+    { id: 'acm_facade', label: 'Habillage Façade Alucobond / ACM', icon: 'fa-building', unit: 'm²', defaultSurface: 180, desc: 'Panneaux composites, ossature, calepinage' },
+    { id: 'signage_branding', label: 'Enseigne & Branding Magasin', icon: 'fa-shop', unit: 'ml', defaultSurface: 6, desc: 'Caissons lumineux LED, totems, adhésifs' },
+    { id: 'renovation_paint', label: 'Peinture & Ravalement', icon: 'fa-paint-roller', unit: 'm²', defaultSurface: 350, desc: 'Préparation, peinture satinée et finitions' }
+];
+
+// Statuts d'un devis — libellé et pastille. Partagés par le tableau de bord et
+// la liste des devis, qui affichaient jusqu'ici deux vocabulaires (la liste
+// n'affichait aucun statut du tout).
+const STATUTS_DEVIS = {
+    draft: ['Brouillon', 'bg-neutral-100 text-neutral-600'],
+    review: ['À vérifier', 'bg-amber-50 text-amber-700'],
+    to_verify: ['À vérifier', 'bg-amber-50 text-amber-700'],
+    ready: ['Prêt', 'bg-blue-50 text-blue-700'],
+    sent: ['Envoyé', 'bg-violet-50 text-violet-700'],
+    approved: ['Approuvé', 'bg-emerald-50 text-emerald-700'],
+    accepted: ['Accepté', 'bg-emerald-50 text-emerald-700']
+};
+const statutDevis = (s) => STATUTS_DEVIS[s] || ['À suivre', 'bg-neutral-100 text-neutral-600'];
+
+// Audit UX P3-7 (2026-09-01) — « Client » au singulier pour une liste,
+// « Factures » au pluriel : les intitulés de collections passent tous au
+// pluriel, et les titres de colonne de chaque écran s'alignent sur eux.
+const LIBELLES_NAV = {
+    dashboard: 'Tableau de bord',
+    projects: 'Chantiers',
+    clients: 'Clients',
+    calculator: 'Chiffrage',
+    savedQuotes: 'Mes devis',
+    invoices: 'Factures',
+    recipes: 'Catalogue',
+    materials: 'Ressources',
+    platformAdmin: 'Administration'
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LIGNE DE DEVIS : QUANTITÉ ET PRIX UNITAIRE RÉELLEMENT FACTURÉS
+// ═══════════════════════════════════════════════════════════════
+// Audit UX (2026-08-31) — le tableau de l'éditeur et le document client
+// racontaient deux choses différentes pour la MÊME ligne :
+//
+//   tableau   QTÉ 1 │ UNITÉ m² │ P.U. 259 425 │ TOTAL 259 425
+//             (sous-titre : « 25 m² »)
+//   document  25.00 m² │ 10 377 FCFA │ 259 425 FCFA
+//
+// La colonne QTÉ portait le multiplicateur d'ouvrages, la colonne UNITÉ
+// portait l'unité de MÉTRÉ. Côte à côte, elles composaient la phrase « un
+// mètre carré de maçonnerie à 259 425 FCFA » — et un professionnel du BTP en
+// conclut que le logiciel se trompe, au moment précis où il calcule juste.
+// C'est l'écran qu'on relit avant d'envoyer.
+//
+// Le correctif B1 du 2026-08-18 avait déjà résolu exactement ce problème pour
+// le PDF (voir allCommercialItems dans js/calc-engine.js) ; l'éditeur n'avait
+// jamais suivi. Ce helper reprend la règle du moteur mot pour mot afin que les
+// deux ne puissent plus diverger : même source, même arithmétique.
+//
+// Invariant garanti : quantiteFacturee × prixUnitaireFacture === totalHT.
+const ligneFacturee = (item) => {
+    const totalHT = item.totalHT || 0;
+    // Une ligne libre n'a pas de métré : sa quantité et son unité saisies sont
+    // déjà ce que l'utilisateur veut facturer, on n'y touche pas.
+    const quantite = (item.metre && item.metre.value > 0) ? item.metre.value : (item.qty || 1);
+    const unite = (item.metre && item.metre.unit) || item.unit || 'u';
+    const prixUnitaire = quantite > 0 ? totalHT / quantite : (item.unitPriceHT || 0);
+    // `derive` distingue une quantité issue du métré (donc pilotée par
+    // l'inspecteur, pas saisissable ici) d'une quantité saisie à la main.
+    const derive = Boolean(item.metre && item.metre.value > 0);
+    return { quantite, unite, prixUnitaire, totalHT, derive };
+};
+
+// Affichage compact d'une quantité : 25 et non 25.00, mais 2.5 conservé.
+const formatQuantite = (q) => {
+    const n = Number(q) || 0;
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+};
+
+// Modes réellement proposables pour un ouvrage donné.
+//
+// Audit UX (2026-08-31) — P0 de facturation fantôme. Le sélecteur « Mode de
+// Métré » de l'inspecteur AVANCÉ proposait les six modes en dur, sans filtrer
+// par `allowedModes`, alors que le Mode Simple et l'écran d'ajout, eux,
+// filtraient déjà. Conséquence reproduite en trois clics sur un ouvrage réel
+// (« Panneau avec cadre métallique », allowedModes: ['rectangle']) : choisir
+// « Surface Directe (m²) » puis saisir 0 donnait une ligne affichant « 0 m² »
+// facturée 37 500 FCFA HT (44 250 FCFA TTC). La recette continuait de calculer
+// sur LARGEUR/HAUTEUR, qui gardent la valeur du mode rectangle, pendant que la
+// SURFACE affichée valait bien 0.
+//
+// Le commentaire de la solution id 2 documente déjà pourquoi 'surface' a été
+// RETIRÉ de ses modes autorisés (le calepinage exige largeur ET hauteur) : la
+// restriction existait, seule l'interface ne la respectait pas.
+//
+// Le mode déjà enregistré sur l'ouvrage est conservé dans la liste même s'il
+// n'est plus autorisé : le retirer ferait basculer silencieusement un devis
+// existant sur un autre mode, donc sur d'autres montants.
+const modesProposables = (solution, modeCourant) => {
+    const autorises = (solution && Array.isArray(solution.allowedModes) && solution.allowedModes.length)
+        ? solution.allowedModes
+        : TOUS_LES_MODES;
+    const liste = TOUS_LES_MODES.filter(m => autorises.includes(m));
+    if (modeCourant && !liste.includes(modeCourant)) liste.push(modeCourant);
+    return liste;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // V5.3 — localStorage HELPER (cache offline + migration legacy)
 // ═══════════════════════════════════════════════════════════════
 // P0.1 V5.7 — Cache local isolé par user_id + Outbox persistant & détection guest V5.1
@@ -144,6 +341,27 @@ const RECIPE_COST_CATEGORY_OPTIONS = [
 // ═══════════════════════════════════════════════════════════════
 // V5.2 — ECRAN D'AUTHENTIFICATION
 // ═══════════════════════════════════════════════════════════════
+
+// Audit UX (2026-08-31) — setError(err.message) affichait le message brut de
+// Supabase, en anglais, dans un produit entièrement français : un mot de passe
+// erroné donnait « Invalid login credentials », sans dire quoi faire ensuite.
+// Traduction des cas réellement rencontrés ; tout message inconnu retombe sur
+// une formulation générique plutôt que sur l'anglais d'origine.
+const messageErreurAuth = (err, secours = 'Une erreur est survenue.') => {
+    const brut = (err && err.message) ? String(err.message) : '';
+    const t = brut.toLowerCase();
+    if (t.includes('invalid login credentials')) return "Email ou mot de passe incorrect. Vérifiez votre saisie, ou utilisez « Mot de passe oublié ? ».";
+    if (t.includes('email not confirmed')) return "Votre compte n'est pas encore confirmé. Ouvrez le lien reçu par email, puis reconnectez-vous.";
+    if (t.includes('user already registered') || t.includes('already been registered')) return "Un compte existe déjà avec cet email. Connectez-vous plutôt que de créer un compte.";
+    if (t.includes('rate limit') || t.includes('too many requests')) return "Trop de tentatives. Patientez quelques minutes avant de réessayer.";
+    if (t.includes('password should be')) return "Mot de passe trop court : 8 caractères minimum.";
+    if (t.includes('failed to fetch') || t.includes('networkerror') || t.includes('load failed')) return "Connexion au serveur impossible. Vérifiez votre réseau, ou continuez en Mode Démo.";
+    // Tout le reste passe tel quel : ce sont les messages que l'application
+    // lève elle-même (déjà en français). Traduire au jugé les messages
+    // inconnus de Supabase masquerait la vraie cause au support.
+    return brut || secours;
+};
+
 function AuthScreen({ onAuthSuccess }) {
     const [mode, setMode] = useState('login');
     const [email, setEmail] = useState('');
@@ -154,6 +372,7 @@ function AuthScreen({ onAuthSuccess }) {
     const [info, setInfo] = useState(null);
 
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [cguAcceptees, setCguAcceptees] = useState(false);
 
     const handleGoogleAuth = async () => {
         setError(null); setInfo(null); setGoogleLoading(true);
@@ -168,7 +387,7 @@ function AuthScreen({ onAuthSuccess }) {
             // puis revient sur redirectTo avec la session dans l'URL — déjà géré
             // par sb.auth.getSession()/onAuthStateChange au chargement (L9494/9508).
         } catch (err) {
-            setError(err.message || 'Connexion Google impossible.');
+            setError(messageErreurAuth(err, 'Connexion Google impossible.'));
             setGoogleLoading(false);
         }
     };
@@ -200,28 +419,44 @@ function AuthScreen({ onAuthSuccess }) {
                 setMode('login');
             }
         } catch(err) {
-            setError(err.message || 'Une erreur est survenue.');
+            setError(messageErreurAuth(err));
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-neutral-900 to-brand-950 flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%)'}}>
+        // Audit UX (2026-08-31) — `min-h-screen` bornait le dégradé à 100vh alors
+        // que le contenu mesure ~787 px : dès 720 px de fenêtre la page glissait,
+        // découvrant le fond clair du <body> en haut et poussant le logo hors de
+        // l'écran au premier clic. `min-height: 100%` + le dégradé posé aussi sur
+        // le body couvrent toute la hauteur réelle, quelle qu'elle soit.
+        <div className="auth-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
-                <div className="text-center mb-10">
+                <div className="auth-logo text-center mb-10">
                     {/* 2026-08-21 — Cet écran n'affichait pas le logo : une icône
                         décorative (triangle + cercle dans un carré rouge) et le nom
                         en texte, sans rapport avec la marque réelle. Remplacé par
                         LogoSVG, qui porte déjà le mot-symbole — d'où la suppression
                         du <h1>. En blanc, le fond étant sombre. */}
                     <LogoSVG className="h-12 w-auto inline-block text-brand-400" />
-                    <p className="text-neutral-400 font-semibold text-sm mt-4 tracking-widest uppercase">BTP · ERP Calcul de Devis</p>
+                    {/* Audit UX (2026-08-31) — la page d'accueil du produit était un mur
+                        d'authentification : rien n'y disait ce que fait ikadevis, et
+                        « ERP » range mentalement le produit du côté « logiciel de
+                        comptable » pour un artisan. On dit ce qu'on fait, pour qui,
+                        et en combien de temps. */}
+                    <p className="text-white font-bold text-lg mt-5 leading-snug">
+                        Chiffrez un devis BTP au métré,<br className="hidden sm:block" /> et sortez le PDF client.
+                    </p>
+                    <p className="text-neutral-300 text-sm mt-2 leading-relaxed">
+                        Matières, main-d'œuvre, pertes et marge calculées pour vous —
+                        du déboursé sec au total TTC.
+                    </p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+                <div className="auth-card bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
                     <h2 className="text-white font-semibold text-xl mb-1">
                         {mode === 'login' ? 'Connexion' : mode === 'signup' ? 'Créer un compte' : 'Réinitialiser le mot de passe'}
                     </h2>
@@ -250,15 +485,40 @@ function AuthScreen({ onAuthSuccess }) {
                         {mode !== 'reset' && (
                             <div>
                                 <label className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Mot de passe</label>
-                                <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}
+                                {/* Audit UX (2026-08-31) — minLength s'appliquait AUSSI à la
+                                    connexion : un compte créé avant cette règle ne pouvait
+                                    littéralement pas soumettre le formulaire, le navigateur
+                                    bloquant l'envoi avant tout appel réseau. La contrainte
+                                    n'a de sens qu'à la création du mot de passe. */}
+                                <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
                                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
                                     placeholder={mode === 'signup' ? 'Minimum 8 caractères' : '••••••••'} />
                             </div>
                         )}
+                        {mode === 'signup' && (
+                            /* Audit UX (2026-08-31) — la création de compte ne
+                               demandait aucune acceptation et n'exposait aucun lien
+                               légal. Case décochée par défaut, obligatoire : un
+                               consentement pré-coché n'en est pas un.
+                               ⚠️ Les URL ci-dessous sont des espaces réservés : à
+                               remplacer par vos pages réelles avant mise en ligne. */
+                            <label className="flex items-start gap-2.5 text-neutral-400 text-xs leading-snug cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    required
+                                    checked={cguAcceptees}
+                                    onChange={e => setCguAcceptees(e.target.checked)}
+                                    className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500/40"
+                                />
+                                <span>
+                                    J’accepte les <a href="/conditions" target="_blank" rel="noopener noreferrer" className="text-brand-400 underline">conditions d’utilisation</a> et la <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-brand-400 underline">politique de confidentialité</a>.
+                                </span>
+                            </label>
+                        )}
                         <button type="submit" disabled={loading}
                             className="w-full py-3.5 rounded-xl font-bold text-white text-sm tracking-wide transition-all active:scale-95 disabled:opacity-50"
                             style={{background: loading ? '#666' : 'linear-gradient(135deg, #3b5bdb, #1e3a8a)', boxShadow: '0 4px 20px rgba(37,99,235,0.4)'}}>
-                            {loading ? <span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement…</span>
+                            {loading ? <span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Connexion en cours…</span>
                                 : mode === 'login' ? 'Se connecter →'
                                 : mode === 'signup' ? 'Créer mon compte →'
                                 : 'Envoyer le lien →'}
@@ -267,9 +527,9 @@ function AuthScreen({ onAuthSuccess }) {
 
                     {mode !== 'reset' && (
                         <>
-                            <div className="flex items-center gap-3 my-5">
+                            <div className="auth-sep flex items-center gap-3 my-5">
                                 <div className="flex-1 h-px bg-white/10"></div>
-                                <span className="text-neutral-500 text-[11px] font-bold uppercase tracking-wider">ou</span>
+                                <span className="text-neutral-400 text-[11px] font-bold uppercase tracking-wider">ou</span>
                                 <div className="flex-1 h-px bg-white/10"></div>
                             </div>
                             <button
@@ -288,25 +548,45 @@ function AuthScreen({ onAuthSuccess }) {
                     )}
 
                     <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 text-center">
+                        {/* Audit UX (2026-08-31) — ce bouton était le plus sombre, le plus
+                            petit et le plus bas de l'écran, alors qu'il est le seul chemin
+                            utile à un visiteur sans compte. Il portait aussi trois noms
+                            pour une seule chose. Remonté en action pleine et nommé par ce
+                            qu'il fait, avec ce qu'il coûte : rien. */}
                         <button
                             type="button"
                             onClick={() => onAuthSuccess({ user: { id: 'guest', email: 'invite@local.app' } })}
-                            className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-white/10 hover:bg-white/20 transition-all border border-white/20 flex items-center justify-center gap-2"
+                            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-neutral-900 bg-white hover:bg-neutral-100 transition-all flex items-center justify-center gap-2.5 active:scale-95"
                         >
-                            <i className="fa-solid fa-user-check text-emerald-400"></i>
-                            Continuer en Mode Démo / Hors-ligne (Invité)
+                            <i className="fa-solid fa-play text-emerald-600"></i>
+                            Essayer sans compte
                         </button>
+                        <p className="text-neutral-300 text-[11px] leading-relaxed -mt-1">
+                            Un devis d'exemple s'ouvre déjà chiffré. Rien n'est envoyé, rien n'est publié.
+                        </p>
                         {mode === 'login' && (<>
-                            <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-400 hover:text-white text-sm font-semibold transition-colors">Pas encore de compte ? <span className="text-brand-400">Créer un compte</span></button>
-                            <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-500 hover:text-neutral-300 text-xs font-medium transition-colors">Mot de passe oublié ?</button>
+                            {/* Ce que l'on gagne à créer un compte — rien ne le disait,
+                                nulle part dans le parcours démo. */}
+                            <p className="text-neutral-300 text-[11px] leading-relaxed">
+                                <span className="font-semibold text-neutral-200">Avec un compte :</span> vos devis sur tous
+                                vos appareils, vos factures numérotées avec valeur légale, votre logo sur les PDF.
+                            </p>
+                            <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-300 hover:text-white text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-300 underline underline-offset-2">Créer un compte</span></button>
+                            <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-400 hover:text-white text-xs font-medium transition-colors py-2 px-2 -mx-2 rounded-lg">Mot de passe oublié ?</button>
                         </>)}
                         {mode !== 'login' && (
-                            <button onClick={()=>{setMode('login');setError(null);}} className="text-neutral-400 hover:text-white text-sm font-semibold transition-colors">← Retour à la connexion</button>
+                            <button onClick={()=>{setMode('login');setError(null);}} className="text-neutral-400 hover:text-white text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">← Retour à la connexion</button>
                         )}
                     </div>
                 </div>
 
-                <p className="text-center text-neutral-500 text-xs font-medium mt-6">🔒 Sécurisé par Supabase Auth &amp; RLS · Mode Démo Local disponible</p>
+                {/* Audit UX (2026-08-31) — « Sécurisé par Supabase Auth & RLS » : un signal
+                    de confiance écrit pour un développeur. Le client visé — un entrepreneur
+                    BTP — ne connaît ni Supabase ni la RLS, et ce texte échouait au contraste
+                    (3,39:1). Remplacé par ce qui le rassure vraiment, et lisible. */}
+                <p className="auth-footnote text-center text-neutral-300 text-xs font-medium mt-6">
+                    Vos devis restent les vôtres · Aucune carte bancaire pour essayer
+                </p>
             </div>
         </div>
     );
@@ -374,9 +654,9 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false, [
                 aria-label={ariaLabel}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                className={`w-full text-left px-4 py-3 border rounded-xl text-sm font-semibold transition-all focus:outline-none flex justify-between items-center ${disabled ? 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed' : isOpen ? 'border-brand-500 bg-white ring-4 ring-brand-500/10 text-brand-700' : 'bg-neutral-50 border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-white'}`}>
+                className={`w-full text-left px-4 py-3 border rounded-xl text-sm font-semibold transition-all focus:outline-none flex justify-between items-center ${disabled ? 'bg-neutral-100 text-neutral-500 border-neutral-200 cursor-not-allowed' : isOpen ? 'border-brand-500 bg-white ring-4 ring-brand-500/10 text-brand-700' : 'bg-neutral-50 border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-white'}`}>
                 <span className="truncate">{selectedOption ? selectedOption.label : 'Sélectionner...'}</span>
-                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-500' : 'text-neutral-400'}`}></i>
+                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-500' : 'text-neutral-500'}`}></i>
             </button>
             {isOpen && !disabled && (
                 // picker-popover : sur téléphone (< 480px) ce panneau devient une
@@ -424,13 +704,40 @@ function ClientCombobox({
     onChange,
     onSelectClient,
     onRequestCreate,
-    disabled = false
+    disabled = false,
+    // Audit UX (2026-09-01) — l'audit demandait, en plus du message d'erreur,
+    // d'agir sur le CHAMP fautif : bordure rouge, focus, mention « requis ».
+    // C'était fait sur l'ancien formulaire d'enregistrement (`clientNameError`)
+    // mais pas sur ce champ-ci, celui que l'éditeur utilise réellement :
+    // l'utilisateur recevait un message rouge sans savoir où corriger.
+    enErreur = false
 }) {
     const [query, setQuery] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const rootRef = useRef(null);
     const mobileSearchRef = useRef(null);
+    const inputRef = useRef(null);
+
+    // Le focus est posé quand le drapeau PASSE à vrai, pas à chaque rendu :
+    // sinon le champ le reprendrait pendant que l'utilisateur corrige ailleurs.
+    const erreurPrecedente = useRef(false);
+    // `erreurAffichee` retombe dès la première frappe : le parent, lui, ne voit
+    // le nom qu'au moment où il est validé (sélection ou sortie du champ), donc
+    // s'en remettre à lui laisserait la bordure rouge pendant toute la saisie —
+    // le champ continuerait à crier une faute que l'utilisateur est en train de
+    // corriger. Le parent reste la source de vérité pour la RE-signaler au
+    // prochain enregistrement.
+    const [erreurAffichee, setErreurAffichee] = useState(false);
+    useEffect(() => {
+        if (enErreur && !erreurPrecedente.current && inputRef.current) {
+            setErreurAffichee(true);
+            inputRef.current.focus();
+            inputRef.current.select?.();
+        }
+        if (!enErreur) setErreurAffichee(false);
+        erreurPrecedente.current = enErreur;
+    }, [enErreur]);
 
     useEffect(() => {
         setQuery(value || '');
@@ -446,7 +753,25 @@ function ClientCombobox({
         return () => window.clearTimeout(timer);
     }, [isOpen]);
 
-    const restoreCommittedValue = () => setQuery(value || '');
+    // Audit UX (2026-08-31) — le nom du client disparaissait de son champ dès
+    // le premier clic ailleurs dans l'éditeur APRÈS avoir été confirmé, alors
+    // que l'état du devis, lui, le conservait parfaitement (vérifié : devis
+    // enregistré et brouillon portaient bien « SARL Diarra Construction »
+    // pendant que le champ affichait du vide). L'utilisateur voyait son client
+    // s'effacer juste après l'avoir saisi : soit il le retapait, soit il
+    // doutait du reste.
+    //
+    // Cause : `value` était lu dans la fermeture du PREMIER rendu. Le listener
+    // mousedown est posé par un useEffect à dépendances [] — il ne voit donc
+    // jamais que la version de restoreCommittedValue créée au montage, quand
+    // le devis n'avait pas encore de client (value = ''). Chaque restauration
+    // réécrivait donc cette chaîne vide d'origine.
+    //
+    // Le fix P3 du 30/08 avait introduit `latestRef` précisément pour tenir
+    // ces valeurs à jour dans le listener, mais restoreCommittedValue était
+    // resté en dehors. On le fait lire le ref : la restauration rend la valeur
+    // réellement committée, pas celle d'il y a dix minutes.
+    const restoreCommittedValue = () => setQuery((latestRef.current?.value ?? value) || '');
 
     // Fix P3 (2026-08-30) — cliquer AILLEURS dans l'éditeur (ex. la barre de
     // recherche d'ouvrage, pour ajouter une ligne) pendant qu'un nom de
@@ -547,25 +872,32 @@ function ClientCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-user absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-user absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
+                    ref={inputRef}
                     type="text"
                     value={query}
                     disabled={disabled}
-                    onFocus={() => setIsOpen(true)}
+                    // Audit UX (2026-08-31) — `onFocus` ouvrait la liste : en
+                    // navigation clavier, chaque passage sur ce champ déployait un
+                    // panneau qui recouvrait le titre du lot et une partie du
+                    // tableau. Le clic et la frappe suffisent à exprimer
+                    // l'intention d'ouvrir ; traverser le champ ne l'exprime pas.
                     onClick={() => setIsOpen(true)}
                     onChange={(event) => {
                         const nextQuery = event.target.value;
                         setQuery(nextQuery);
                         setIsOpen(true);
+                        setErreurAffichee(false);
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Client"
                     // Puce compacte sous sm: (rounded-full, plus étroite, placeholder
                     // court) au lieu de la barre de recherche pleine largeur — même
                     // input, mêmes onChange/onFocus, seule l'habillage change.
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    aria-label="Client du devis"
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${erreurAffichee ? 'border-red-500 ring-2 ring-red-500/25 bg-red-50/40' : isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    aria-label={erreurAffichee ? 'Client du devis — requis' : 'Client du devis'}
+                    aria-invalid={erreurAffichee || undefined}
                     aria-autocomplete="list"
                     aria-controls="quote-client-listbox"
                     aria-expanded={isOpen}
@@ -576,7 +908,7 @@ function ClientCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ clientName: '', clientId: null }); setIsOpen(true); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
                         aria-label="Effacer le client"
                     >
                         <i className="fa-solid fa-xmark text-[10px]"></i>
@@ -634,7 +966,7 @@ function ClientCombobox({
                             aria-label="Rechercher un client"
                         />
                     </div>
-                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                         {normalizedQuery ? 'Résultats clients' : 'Clients récents'}
                     </div>
                     <div className="picker-results max-h-56 overflow-y-auto custom-scroll p-1.5">
@@ -653,7 +985,7 @@ function ClientCombobox({
                                 </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block text-xs font-bold truncate">{client.name}</span>
-                                    <span className="block text-[10px] text-neutral-400 truncate">{client.contactPerson || client.phone || client.email || 'Fiche client'}</span>
+                                    <span className="block text-[10px] text-neutral-500 truncate">{client.contactPerson || client.phone || client.email || 'Fiche client'}</span>
                                 </span>
                                 {String(clientId) === String(client.id) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
                             </button>
@@ -707,18 +1039,57 @@ function ProjectCombobox({
     const rootRef = useRef(null);
     const mobileSearchRef = useRef(null);
 
-    useEffect(() => setQuery(value || ''), [value]);
+    // Distingue « l'utilisateur vient de taper ici » de « ce texte est resté
+    // affiché ». Sans cette distinction, committer la saisie au clic extérieur
+    // re-committerait aussi un libellé simplement hérité d'une sélection
+    // précédente — et rendrait impossible l'effacement du chantier quand on
+    // change de client (le parent remet projectRef à '', on le réécrirait
+    // aussitôt). Remis à false dès que le parent impose une valeur.
+    const saisieUtilisateurProjet = useRef(false);
+    useEffect(() => { saisieUtilisateurProjet.current = false; setQuery(value || ''); }, [value]);
     // Focus du champ de la page plein écran sur téléphone — voir ClientCombobox.
     useEffect(() => {
         if (!isOpen || typeof window === 'undefined' || !window.matchMedia('(max-width: 480px)').matches) return;
         const timer = window.setTimeout(() => mobileSearchRef.current?.focus({ preventScroll: true }), 30);
         return () => window.clearTimeout(timer);
     }, [isOpen]);
-    const restoreCommittedProject = () => setQuery(value || '');
+    // Audit UX (2026-08-31) — le champ Projet perdait TOUJOURS ce qu'on y
+    // tapait. Deux défauts cumulés, tous deux absents du champ Client :
+    //
+    //   1. La restauration est ici INCONDITIONNELLE : tout clic ailleurs
+    //      réécrivait le champ, sans jamais committer la saisie. Le correctif
+    //      P3 du 2026-08-30, qui avait ajouté au champ Client la conservation
+    //      du texte libre non confirmé, n'a jamais été porté ici — un nom de
+    //      chantier tapé puis non choisi dans la liste disparaissait en
+    //      silence, et n'atteignait ni le devis ni le PDF.
+    //   2. `value` était lu dans la fermeture du premier rendu (useEffect à
+    //      dépendances []), donc la restauration rendait la valeur du montage.
+    //
+    // Ce ref, rafraîchi à chaque rendu, corrige (2) ; les branches ci-dessous
+    // alignent (1) sur le comportement du champ Client.
+    const dernieresValeursProjet = useRef({ query, value, projects, onChange, onSelectProject, clientId, clientName });
+    dernieresValeursProjet.current = { query, value, projects, onChange, onSelectProject, clientId, clientName };
+    const restoreCommittedProject = () => setQuery(dernieresValeursProjet.current.value || '');
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (rootRef.current && !rootRef.current.contains(event.target)) {
-                restoreCommittedProject();
+                const { query: q, value: committedValue, projects: ps, onChange: change, onSelectProject: selectProjectFn,
+                        clientId: cid, clientName: cname } = dernieresValeursProjet.current;
+                const trimmed = q.trim();
+                const committedTrimmed = (committedValue || '').trim();
+                // On ne rapproche que des affaires du client courant : deux
+                // chantiers peuvent porter le même nom chez deux clients.
+                const candidats = ps.filter(pr => !cid || pr.clientId === cid || (cname && pr.clientName === cname));
+                const matched = candidats.find(pr => normalizeSearchText(pr.name) === normalizeSearchText(trimmed));
+                const aTape = saisieUtilisateurProjet.current;
+                if (aTape && trimmed && trimmed !== committedTrimmed && matched) {
+                    selectProjectFn?.(matched);
+                } else if (aTape && trimmed && trimmed !== committedTrimmed) {
+                    change?.({ projectRef: trimmed, projectId: null });
+                } else {
+                    setQuery(committedValue || '');
+                }
+                saisieUtilisateurProjet.current = false;
                 setIsOpen(false);
             }
         };
@@ -784,15 +1155,20 @@ function ProjectCombobox({
     return (
         <div ref={rootRef} className="relative flex-1 min-w-0">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-helmet-safety absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[11px] pointer-events-none" aria-hidden="true"></i>
+                <i className="fa-solid fa-helmet-safety absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-[11px] pointer-events-none" aria-hidden="true"></i>
                 <input
                     type="text"
                     value={query}
                     disabled={disabled}
-                    onFocus={() => setIsOpen(true)}
+                    // Audit UX (2026-08-31) — `onFocus` ouvrait la liste : en
+                    // navigation clavier, chaque passage sur ce champ déployait un
+                    // panneau qui recouvrait le titre du lot et une partie du
+                    // tableau. Le clic et la frappe suffisent à exprimer
+                    // l'intention d'ouvrir ; traverser le champ ne l'exprime pas.
                     onClick={() => setIsOpen(true)}
                     onChange={(event) => {
                         const nextQuery = event.target.value;
+                        saisieUtilisateurProjet.current = true;
                         setQuery(nextQuery);
                         setIsOpen(true);
                     }}
@@ -810,7 +1186,7 @@ function ProjectCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ projectRef: '', projectId: null }); setIsOpen(true); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
                         aria-label="Effacer le projet"
                     >
                         <i className="fa-solid fa-xmark text-[10px]"></i>
@@ -841,7 +1217,7 @@ function ProjectCombobox({
                         </button>
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold text-neutral-900 truncate">Choisir un projet</p>
-                            <p className="text-[11px] text-neutral-500 truncate">Recherchez une affaire ou créez-en une</p>
+                            <p className="text-[11px] text-neutral-500 truncate">Recherchez un chantier ou créez-en un</p>
                         </div>
                         {query && (
                             <button
@@ -860,13 +1236,13 @@ function ProjectCombobox({
                             ref={mobileSearchRef}
                             type="text"
                             value={query}
-                            onChange={(event) => { setQuery(event.target.value); setIsOpen(true); }}
+                            onChange={(event) => { saisieUtilisateurProjet.current = true; setQuery(event.target.value); setIsOpen(true); }}
                             onKeyDown={handleKeyDown}
                             placeholder="Rechercher un projet…"
                             aria-label="Rechercher un projet"
                         />
                     </div>
-                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                         {normalizedQuery ? 'Projets correspondants' : (clientId ? 'Projets de ce client' : 'Projets récents')}
                     </div>
                     <div className="picker-results max-h-56 overflow-y-auto custom-scroll p-1.5">
@@ -885,7 +1261,7 @@ function ProjectCombobox({
                                 </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block text-xs font-bold truncate">{project.name}</span>
-                                    <span className="block text-[10px] text-neutral-400 truncate">{[project.code, project.clientName, project.city].filter(Boolean).join(' · ') || 'Affaire'}</span>
+                                    <span className="block text-[10px] text-neutral-500 truncate">{[project.code, project.clientName, project.city].filter(Boolean).join(' · ') || 'Chantier'}</span>
                                 </span>
                                 {String(projectId) === String(project.id) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
                             </button>
@@ -1005,7 +1381,7 @@ function SolutionCombobox({
     return (
         <div ref={rootRef} className="relative w-full">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
-                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                 <input
                     type="text"
                     value={query}
@@ -1021,7 +1397,7 @@ function SolutionCombobox({
                     aria-haspopup="listbox"
                     role="combobox"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-neutral-400 pointer-events-none">↵</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-neutral-500 pointer-events-none">↵</span>
             </div>
 
             {isOpen && (
@@ -1062,7 +1438,7 @@ function SolutionCombobox({
                             aria-label="Rechercher un ouvrage dans le catalogue"
                         />
                     </div>
-                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                         {normalizedQuery ? 'Ouvrages correspondants' : 'Ouvrages récents et favoris'}
                     </div>
                     <div data-testid="quote-solution-scroll" className="picker-results max-h-[9.5rem] overflow-y-auto custom-scroll p-1.5">
@@ -1081,7 +1457,7 @@ function SolutionCombobox({
                                 </span>
                                 <span className="min-w-0 flex-1">
                                     <span className="block text-xs font-bold truncate">{solution.name}</span>
-                                    <span className="block text-[10px] text-neutral-400 truncate">{solution.reference || solution.code || `${(solution.allowedModes || []).join(' · ') || 'Ouvrage métier'}`}</span>
+                                    <span className="block text-[10px] text-neutral-600 truncate">{solution.reference || solution.code || libelleModes(solution.allowedModes)}</span>
                                 </span>
                                 <i className="fa-solid fa-arrow-right text-[10px] text-neutral-300"></i>
                             </button>
@@ -1141,7 +1517,7 @@ class ErrorBoundary extends React.Component {
                         </div>
                         <div>
                             <h2 className="text-xl font-semibold text-white">Récupération Sécurisée d'Affichage</h2>
-                            <p className="text-xs text-neutral-400 mt-1">Vos données de devis et catalogue restent sauvegardées.</p>
+                            <p className="text-xs text-neutral-500 mt-1">Vos données de devis et catalogue restent sauvegardées.</p>
                         </div>
                         <p className="text-xs text-red-300 font-mono bg-neutral-950/80 p-3 rounded-xl text-left overflow-auto max-h-32 border border-neutral-800">
                             {this.state.error?.message || "Erreur interceptée"}
@@ -1177,7 +1553,12 @@ function NewQuoteWizardModal({
     
     // Quick Estimate State
     const [estimateCategory, setEstimateCategory] = useState('villa_house');
-    const [estimateSurface, setEstimateSurface] = useState(150);
+    // La valeur de départ DOIT être la référence du gabarit, sinon l'écran
+    // s'ouvre déjà sur une estimation qui ne correspond pas au devis qu'il
+    // générera — c'était le cas : 150 affiché, gabarit dimensionné pour 440.
+    const [estimateSurface, setEstimateSurface] = useState(
+        () => (CATEGORIES_ESTIMATION.find(c => c.id === 'villa_house') || {}).defaultSurface || 1
+    );
     const [estimateQuality, setEstimateQuality] = useState('standard');
     const [estimateCity, setEstimateCity] = useState('Bamako');
 
@@ -1190,13 +1571,6 @@ function NewQuoteWizardModal({
         city: estimateCity
     });
 
-    const categoryOptions = [
-        { id: 'villa_house', label: 'Construction Villa / Maison', icon: 'fa-house', unit: 'm²', defaultSurface: 150, desc: 'Bros œuvre, second œuvre et finitions' },
-        { id: 'event_stand', label: 'Événementiel & Stands', icon: 'fa-tent', unit: 'm²', defaultSurface: 36, desc: 'Podium, backdrops, bâches, mobilier, régie' },
-        { id: 'acm_facade', label: 'Habillage Façade Alucobond / ACM', icon: 'fa-building', unit: 'm²', defaultSurface: 120, desc: 'Panneaux composites, ossature, calepinage' },
-        { id: 'signage_branding', label: 'Enseigne & Branding Magasin', icon: 'fa-shop', unit: 'ml', defaultSurface: 6, desc: 'Caissons lumineux LED, totems, adhésifs' },
-        { id: 'renovation_paint', label: 'Peinture & Ravalement', icon: 'fa-paint-roller', unit: 'm²', defaultSurface: 350, desc: 'Préparation, peinture satinée et finitions' }
-    ];
 
     const templatesList = [
         {
@@ -1308,7 +1682,7 @@ function NewQuoteWizardModal({
         else if (estimateCategory === 'acm_facade') selectedTemplate = ACM_FACADE_TEMPLATE_QUOTE;
         else if (estimateCategory === 'signage_branding') selectedTemplate = SIGNAGE_BRANDING_TEMPLATE_QUOTE;
 
-        const baseline = categoryOptions.find(c => c.id === estimateCategory)?.defaultSurface || 1;
+        const baseline = CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.defaultSurface || 1;
         const saisi = parseFloat(estimateSurface) || baseline;
         const ratio = baseline > 0 ? (saisi / baseline) : 1;
 
@@ -1316,9 +1690,17 @@ function NewQuoteWizardModal({
         const customQuote = {
             ...base,
             id: Date.now(),
-            number: `DEV-${currentYear}-EST-${Math.floor(100 + Math.random() * 900)}`,
-            clientName: 'Client Estimation Rapide',
-            projectRef: `Projet ${categoryOptions.find(c => c.id === estimateCategory)?.label} (${estimateSurface} ${quickResult.unit})`,
+            // Audit UX (2026-08-31) — le numéro portait un suffixe aléatoire
+            // « -EST-856 » sans rapport avec la numérotation des autres devis
+            // (DEV-2026-001…), et le client était nommé « Client Estimation
+            // Rapide » : un libellé technique qui finit sur le PDF si
+            // l'utilisateur ne le remplace pas. Le devis reste vierge de ces
+            // deux champs — l'enregistrement exige déjà un nom de client, ce qui
+            // force à le renseigner avant toute sortie papier, et le numéro
+            // définitif est attribué à ce moment-là.
+            number: '',
+            clientName: '',
+            projectRef: `Projet ${CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.label} (${estimateSurface} ${quickResult.unit})`,
             status: 'draft',
             lots: (base.lots || []).map(lot => ({
                 ...lot,
@@ -1332,7 +1714,19 @@ function NewQuoteWizardModal({
             }))
         };
 
-        onGenerateFromQuickEstimate(customQuote);
+        // Filet de sécurité : l'estimation au m² et le gabarit sont deux sources
+        // distinctes. Elles s'accordent aujourd'hui (le devis généré tombe dans
+        // la fourchette annoncée), mais rien n'empêche un futur ajustement de
+        // gabarit ou de barème de les faire diverger à nouveau — c'est
+        // exactement ce qui s'était produit, en silence, jusqu'à un facteur 3,2.
+        // On mesure donc l'accord à chaque génération et on le dit quand il
+        // rompt, plutôt que de laisser l'utilisateur découvrir l'écart devant
+        // son client.
+        onGenerateFromQuickEstimate(customQuote, {
+            minHT: quickResult.minHT,
+            maxHT: quickResult.maxHT,
+            libelle: `${CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.label} — ${estimateSurface} ${quickResult.unit}`
+        });
         onClose();
     };
 
@@ -1411,7 +1805,7 @@ function NewQuoteWizardModal({
                                     Étape 1 : Que souhaitez-vous faire chiffrer ?
                                 </label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                                    {categoryOptions.map(cat => (
+                                    {CATEGORIES_ESTIMATION.map(cat => (
                                         <div
                                             key={cat.id}
                                             onClick={() => {
@@ -1444,7 +1838,7 @@ function NewQuoteWizardModal({
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
                                 <div>
                                     <label className="app-label text-[11px] font-bold">
-                                        Surface / Quantité estimée ({categoryOptions.find(c => c.id === estimateCategory)?.unit || 'm²'})
+                                        Surface / Quantité estimée ({CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.unit || 'm²'})
                                     </label>
                                     <input
                                         type="number"
@@ -1493,7 +1887,7 @@ function NewQuoteWizardModal({
                                             Estimation Indicative Instantanée
                                         </span>
                                         <h3 className="text-sm font-semibold text-white">
-                                            {categoryOptions.find(c => c.id === estimateCategory)?.label} — {estimateSurface} {quickResult.unit}
+                                            {CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.label} — {estimateSurface} {quickResult.unit}
                                         </h3>
                                     </div>
                                     <span className="px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 text-xs font-mono font-bold self-start sm:self-auto">
@@ -1503,7 +1897,7 @@ function NewQuoteWizardModal({
 
                                 <div className="flex flex-wrap items-baseline justify-between gap-4 pt-1">
                                     <div>
-                                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">Fourchette Estimative Net HT</span>
+                                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">Fourchette Estimative Net HT</span>
                                         <span className="text-base sm:text-xl font-bold text-neutral-200">
                                             {formatMoney(quickResult.minHT, currency)} <span className="text-neutral-500 text-xs">à</span> {formatMoney(quickResult.maxHT, currency)}
                                         </span>
@@ -1524,7 +1918,7 @@ function NewQuoteWizardModal({
                                     quand le chantier double). L'écart est normal et
                                     s'accroît avec la taille — mieux vaut le dire ici que
                                     de le laisser découvrir après coup. */}
-                                <p className="text-[11px] text-neutral-400 leading-snug pt-1">
+                                <p className="text-[11px] text-neutral-500 leading-snug pt-1">
                                     <i className="fa-solid fa-circle-info mr-1"></i>
                                     Estimation indicative au {quickResult.unit} — le devis détaillé sera chiffré poste par poste
                                     et différera de ce montant (forfaits de pose et conditionnements d'achat ne suivent pas
@@ -1535,7 +1929,7 @@ function NewQuoteWizardModal({
                                     <button
                                         type="button"
                                         onClick={handleApplyQuickEstimate}
-                                        className="btn-primary py-2.5 px-5 text-xs font-bold shadow-md flex items-center gap-2"
+                                        className="bg-white text-neutral-900 hover:bg-neutral-100 py-2.5 px-5 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-colors"
                                     >
                                         <i className="fa-solid fa-arrow-right"></i>
                                         <span>Transformer en Devis Détaillé &amp; Chiffrer</span>
@@ -1664,7 +2058,7 @@ function AcmCalepinageVisualizer({
             {/* Formulaire dimensions Calepinage */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div>
-                    <label className="text-[10px] text-neutral-400 block">Façade Largeur (m)</label>
+                    <label className="text-[10px] text-neutral-500 block">Façade Largeur (m)</label>
                     <input
                         type="number"
                         step="any"
@@ -1674,7 +2068,7 @@ function AcmCalepinageVisualizer({
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] text-neutral-400 block">Façade Hauteur (m)</label>
+                    <label className="text-[10px] text-neutral-500 block">Façade Hauteur (m)</label>
                     <input
                         type="number"
                         step="any"
@@ -1684,7 +2078,7 @@ function AcmCalepinageVisualizer({
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] text-neutral-400 block">Format Plaque $L_p$ (m)</label>
+                    <label className="text-[10px] text-neutral-500 block">Format Plaque $L_p$ (m)</label>
                     <input
                         type="number"
                         step="any"
@@ -1694,7 +2088,7 @@ function AcmCalepinageVisualizer({
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] text-neutral-400 block">Format Plaque $H_p$ (m)</label>
+                    <label className="text-[10px] text-neutral-500 block">Format Plaque $H_p$ (m)</label>
                     <input
                         type="number"
                         step="any"
@@ -1747,15 +2141,15 @@ function AcmCalepinageVisualizer({
             {/* Métriques Calculées */}
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
-                    <span className="text-[10px] text-neutral-400 block">Plaques Brutes</span>
+                    <span className="text-[10px] text-neutral-500 block">Plaques Brutes</span>
                     <span className="font-semibold text-white text-sm">{nesting.totalRawPanels} plaques</span>
                 </div>
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
-                    <span className="text-[10px] text-neutral-400 block">Tubes Ossature</span>
+                    <span className="text-[10px] text-neutral-500 block">Tubes Ossature</span>
                     <span className="font-semibold text-brand-400 text-sm">{nesting.totalLinearTubes} ml ({nesting.tubesBarCount} b.)</span>
                 </div>
                 <div className="p-2 rounded-lg bg-neutral-800/60 border border-neutral-700/60">
-                    <span className="text-[10px] text-neutral-400 block">Surface Utile</span>
+                    <span className="text-[10px] text-neutral-500 block">Surface Utile</span>
                     <span className="font-semibold text-emerald-400 text-sm">{nesting.totalSurface} m²</span>
                 </div>
             </div>
@@ -1793,6 +2187,7 @@ function formatBriefDate(value) {
 
 function QuoteHeader({
     quote,
+    clientManquant = false,
     clients = [],
     projects = [],
     onUpdateQuote,
@@ -1888,8 +2283,8 @@ function QuoteHeader({
                             className={`w-7 h-7 rounded flex items-center justify-center text-xs transition-all ${
                                 canUndo ? 'text-neutral-700 hover:bg-white shadow-xs' : 'text-neutral-300 cursor-not-allowed'
                             }`}
-                            title="Annuler la dernière action (Ctrl+Z)"
-                            aria-label="Annuler la modification"
+                            aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)"
+                            title="Annuler — Cmd+Z (Ctrl+Z)"
                         >
                             <i className="fa-solid fa-rotate-left"></i>
                         </button>
@@ -1900,8 +2295,8 @@ function QuoteHeader({
                             className={`w-7 h-7 rounded flex items-center justify-center text-xs transition-all ${
                                 canRedo ? 'text-neutral-700 hover:bg-white shadow-xs' : 'text-neutral-300 cursor-not-allowed'
                             }`}
-                            title="Rétablir (Ctrl+Y)"
-                            aria-label="Rétablir la modification"
+                            aria-label="Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)"
+                            title="Rétablir — Cmd+Maj+Z (Ctrl+Y)"
                         >
                             <i className="fa-solid fa-rotate-right"></i>
                         </button>
@@ -1995,7 +2390,7 @@ function QuoteHeader({
                                     onClick={() => { window.print(); setIsMenuOpen(false); }}
                                     className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
                                 >
-                                    <i className="fa-solid fa-print text-neutral-400"></i> Imprimer / Exporter PDF
+                                    <i className="fa-solid fa-print text-neutral-500"></i> Imprimer / Exporter PDF
                                 </button>
                                 <div className="border-t border-neutral-100 my-1"></div>
                                 <button
@@ -2003,7 +2398,7 @@ function QuoteHeader({
                                     onClick={() => { onToggleHybridEditor(); setIsMenuOpen(false); }}
                                     className="w-full text-left px-3 py-2 text-neutral-500 hover:bg-neutral-50 flex items-center gap-2 text-[11px]"
                                 >
-                                    <i className="fa-solid fa-clock-rotate-left text-neutral-400"></i> Basculer en Mode Classique V5
+                                    <i className="fa-solid fa-clock-rotate-left text-neutral-500"></i> Revenir à l’ancien calculateur (ouvrage unique)
                                 </button>
                             </div>
                         )}
@@ -2022,6 +2417,7 @@ function QuoteHeader({
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0 sm:min-w-[280px]">
                         <ClientCombobox
                             value={quote.clientName || ''}
+                            enErreur={clientManquant}
                             clientId={quote.clientId || null}
                             clients={clients}
                             onChange={onUpdateQuote}
@@ -2084,12 +2480,12 @@ function QuoteHeader({
                                 <span>Sauvegarde…</span>
                             </span>
                         ) : hasUnsavedChanges ? (
-                            <span className="text-amber-600 flex items-center gap-1 font-bold">
+                            <span className="text-amber-700 flex items-center gap-1 font-bold">
                                 <i className="fa-solid fa-circle-dot text-amber-500 text-[9px]"></i>
                                 <span>Modifications non enregistrées</span>
                             </span>
                         ) : (
-                            <span className="text-emerald-600 flex items-center gap-1 font-bold">
+                            <span className="text-emerald-700 flex items-center gap-1 font-bold">
                                 <i className="fa-solid fa-cloud-check text-emerald-500"></i>
                                 <span>{autosaveTime ? `Enregistré à ${autosaveTime}` : 'Enregistré localement'}</span>
                             </span>
@@ -2198,7 +2594,7 @@ function LotNavigator({
                 </div>
                 {lots.length > 4 && (
                     <div className="relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px]"></i>
+                        <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]"></i>
                         <input
                             type="text"
                             value={searchQuery}
@@ -2264,7 +2660,7 @@ function LotNavigator({
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); onMoveLot(originalIndex, -1); }}
-                                            className="px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]"
+                                            className="px-0.5 text-neutral-500 hover:text-neutral-700 text-[10px]"
                                             title="Monter le lot"
                                             aria-label="Monter le lot"
                                         >
@@ -2275,7 +2671,7 @@ function LotNavigator({
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); onMoveLot(originalIndex, 1); }}
-                                            className="px-0.5 text-neutral-400 hover:text-neutral-700 text-[10px]"
+                                            className="px-0.5 text-neutral-500 hover:text-neutral-700 text-[10px]"
                                             title="Descendre le lot"
                                             aria-label="Descendre le lot"
                                         >
@@ -2290,14 +2686,14 @@ function LotNavigator({
                                     {formatMoney(subtotal, currency)}
                                 </span>
                                 {lot.lotMarginPct !== undefined && (
-                                    <span className="text-neutral-400 font-medium shrink-0">&bull; {lot.lotMarginPct}%</span>
+                                    <span className="text-neutral-500 font-medium shrink-0">&bull; {lot.lotMarginPct}%</span>
                                 )}
                                 <span className="text-neutral-500 font-medium truncate">
                                     &bull; {itemsCount} {itemsCount > 1 ? 'ouvrages' : 'ouvrage'}
                                     {lot.isComplete ? (
-                                        <span className="text-emerald-600 font-bold ml-1.5"><i className="fa-solid fa-circle-check"></i></span>
+                                        <span className="text-emerald-700 font-bold ml-1.5"><i className="fa-solid fa-circle-check"></i></span>
                                     ) : itemsCount > 0 ? (
-                                        <span className="text-amber-600 font-bold ml-1.5" title="À vérifier"><i className="fa-solid fa-circle-exclamation"></i></span>
+                                        <span className="text-amber-700 font-bold ml-1.5" title="À vérifier"><i className="fa-solid fa-circle-exclamation"></i></span>
                                     ) : null}
                                 </span>
                             </div>
@@ -2306,7 +2702,7 @@ function LotNavigator({
                 })}
 
                 {filteredLots.length === 0 && (
-                    <div className="p-4 text-center text-xs text-neutral-400">
+                    <div className="p-4 text-center text-xs text-neutral-500">
                         Aucun lot trouvé
                     </div>
                 )}
@@ -2389,7 +2785,7 @@ function ActiveLotHeader({
                                 autoFocus
                                 className="border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-semibold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
                             />
-                            <button onClick={handleSaveTitle} className="p-1 text-emerald-600 font-bold text-xs">
+                            <button onClick={handleSaveTitle} className="p-1 text-emerald-700 font-bold text-xs">
                                 <i className="fa-solid fa-check"></i>
                             </button>
                         </div>
@@ -2398,7 +2794,7 @@ function ActiveLotHeader({
                             <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
                                 {lot.name || `Lot ${lotIndex + 1}`}
                             </h2>
-                            <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors"></i>
+                            <i className="fa-solid fa-pencil text-xs text-neutral-500 group-hover:text-brand-500 transition-colors"></i>
                         </div>
                     )}
 
@@ -2408,10 +2804,10 @@ function ActiveLotHeader({
                         </span>
                         {lot.lotMarginPct !== undefined && (
                             <span className="text-neutral-500 font-medium">
-                                &bull; Marge : <span className="font-bold text-emerald-600">{lot.lotMarginPct}%</span>
+                                &bull; Marge : <span className="font-bold text-emerald-700">{lot.lotMarginPct}%</span>
                             </span>
                         )}
-                        <span className="text-neutral-400 font-medium">
+                        <span className="text-neutral-500 font-medium">
                             &bull; {lot.items?.length || 0} ouvrage(s)
                         </span>
                     </div>
@@ -2434,7 +2830,7 @@ function ActiveLotHeader({
                     <button
                         type="button"
                         onClick={onDeleteLot}
-                        className="p-2 rounded-xl border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all text-xs"
+                        className="p-2 rounded-xl border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 transition-all text-xs"
                         title="Supprimer ce lot"
                         aria-label="Supprimer ce lot"
                     >
@@ -2469,7 +2865,7 @@ function WorkItemTable({
                 <button
                     type="button"
                     onClick={onOpenPicker}
-                    className="sm:hidden flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 py-8 text-neutral-400 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/30 transition-colors"
+                    className="sm:hidden flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-neutral-200 rounded-2xl bg-white m-4 py-8 text-neutral-500 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/30 transition-colors"
                 >
                     <i className="fa-solid fa-file-circle-plus text-xl"></i>
                     <span className="text-sm font-semibold">Ajouter un ouvrage…</span>
@@ -2527,6 +2923,7 @@ function WorkItemTable({
                     const unitPrice = item.unitPriceHT || 0;
                     const total = item.totalHT || 0;
                     const margin = lineMarginInfo(item, currency);
+                    const facture = ligneFacturee(item);
                     return (
                         <div key={item.id || idx} className="border border-neutral-200 rounded-2xl bg-white shadow-xs p-3.5 space-y-3">
                             <div className="flex items-start gap-2.5">
@@ -2552,14 +2949,14 @@ function WorkItemTable({
                                         aria-label={`Description pour ${item.name}`}
                                     />
                                     {item.calcForm && (
-                                        <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
+                                        <span className="inline-block text-[10px] font-mono text-neutral-500 pl-2">
                                             {formatItemMetre(item.calcForm)}
                                         </span>
                                     )}
                                     {item.isCustom && (
                                         <div className="flex flex-wrap items-center gap-1.5 pl-2 pt-1 text-[10px]">
                                             <span className="font-bold uppercase tracking-wide text-amber-700">Ligne libre</span>
-                                            <span className="text-neutral-300">•</span>
+                                            <span className="text-neutral-500" aria-hidden="true">•</span>
                                             <span className={item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}>
                                                 {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
                                             </span>
@@ -2572,50 +2969,65 @@ function WorkItemTable({
 
                             <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-neutral-100">
                                 <div>
-                                    <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">Quantité</label>
+                                    <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Quantité</label>
                                     <div className="flex items-center gap-1.5">
-                                        <input
-                                            type="number" min="1" step="any"
-                                            value={item.qty || 1}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 1;
-                                                onUpdateItem(idx, { qty: val, calcForm: { ...(item.calcForm || {}), qty: val } });
-                                            }}
-                                            className="w-full text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
-                                            aria-label={`Quantité pour ${item.name}`}
-                                        />
+                                        {facture.derive ? (
+                                            <span className="w-full text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 border-dashed rounded-lg bg-neutral-50" title="Quantité issue du métré — modifiable dans les détails techniques">
+                                                {formatQuantite(facture.quantite)}
+                                            </span>
+                                        ) : (
+                                            <input
+                                                type="number" min="0" step="any"
+                                                value={item.qty || 1}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 1;
+                                                    onUpdateItem(idx, { qty: val, calcForm: { ...(item.calcForm || {}), qty: val } });
+                                                }}
+                                                className="w-full text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                                aria-label={`Quantité pour ${item.name}`}
+                                            />
+                                        )}
                                         {item.isCustom ? (
                                             <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="px-1.5 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
                                                 {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
                                             </select>
-                                        ) : <span className="px-2 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] shrink-0">{item.unit || 'u'}</span>}
+                                        ) : <span className="px-2 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] shrink-0">{facture.unite}</span>}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
+                                    <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
                                     <input
                                         type="number" min="0" step="any"
-                                        value={item.unitPriceHT || 0}
+                                        value={Math.round(facture.prixUnitaire)}
                                         onChange={(e) => {
                                             const val = parseFloat(e.target.value) || 0;
-                                            onUpdateItem(idx, { unitPriceHT: val, totalHT: val * (item.qty || 1), isCustom: true });
+                                            // Reporter la quantité et l'unité facturées : sans elles, la
+                                            // ligne repartait à « 1 forfait » et un prix saisi AU M² devenait
+                                            // silencieusement un prix TOTAL (12 000 au lieu de 120 000).
+                                            onUpdateItem(idx, {
+                                                unitPriceHT: val,
+                                                qty: facture.quantite,
+                                                unit: facture.unite,
+                                                totalHT: val * facture.quantite,
+                                                isCustom: true
+                                            });
                                         }}
                                         className="w-full text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                         aria-label={`Prix unitaire pour ${item.name}`}
-                                        title={item.calcForm ? 'Prix recalculé selon le métrage et la quantité de l’ouvrage' : 'Prix unitaire modifiable'}
+                                        title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                     />
-                                    {item.calcForm && <span className="block text-[10px] text-neutral-400 mt-1">Calculé selon le métrage</span>}
+                                    {item.calcForm && !item.isCustom && <span className="block text-[10px] text-neutral-500 mt-1">Calculé selon le métrage</span>}
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
                                 <div>
-                                    <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Total Net HT</span>
+                                    <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">Total Net HT</span>
                                     <span className="font-bold text-neutral-900 text-base">{formatMoney(total, currency)}</span>
                                     {margin && (
                                         <span
                                             title={margin.tooltip}
-                                            className={`block text-[11px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-600'}`}
+                                            className={`block text-[11px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
                                         >
                                             {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
                                             {margin.label}
@@ -2629,7 +3041,7 @@ function WorkItemTable({
                                     <button type="button" onClick={() => onDuplicateItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-sm transition-all" title="Dupliquer cette ligne" aria-label={`Dupliquer ${item.name}`}>
                                         <i className="fa-solid fa-copy"></i>
                                     </button>
-                                    <button type="button" onClick={() => onDeleteItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 text-sm transition-all" title="Supprimer cette ligne" aria-label={`Supprimer ${item.name}`}>
+                                    <button type="button" onClick={() => onDeleteItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-sm transition-all" title="Supprimer cette ligne" aria-label={`Supprimer ${item.name}`}>
                                         <i className="fa-solid fa-trash-can"></i>
                                     </button>
                                 </div>
@@ -2639,8 +3051,17 @@ function WorkItemTable({
                 })}
             </div>
 
-            <div data-testid="quote-items-desktop" className="hidden md:block overflow-hidden border border-neutral-200 rounded-2xl bg-white shadow-xs">
-                <table className="w-full table-fixed text-left text-xs border-collapse">
+            {/* Audit UX (2026-08-31) — ouvrir le panneau de détail rétrécissait ce
+                tableau au point de le rendre inutilisable : mesuré à 1440 px, la
+                colonne « Désignation » passait de 467 à 127 px et son champ de
+                saisie tombait à 0 px de large — l'ouvrage n'avait plus de nom à
+                l'écran. `table-fixed` répartissait la place restante sans jamais
+                refuser de descendre.
+                Le tableau a désormais une largeur plancher et défile dans son
+                propre conteneur : la page, elle, ne défile toujours pas
+                latéralement. */}
+            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
+                <table className="w-full min-w-[640px] table-fixed text-left text-xs border-collapse">
                     <colgroup>
                         <col />
                         <col style={{ width: '64px' }} />
@@ -2664,6 +3085,7 @@ function WorkItemTable({
                             const unitPrice = item.unitPriceHT || 0;
                             const total = item.totalHT || 0;
                             const margin = lineMarginInfo(item, currency);
+                            const facture = ligneFacturee(item);
 
                             return (
                                 <tr key={item.id || idx} className="hover:bg-neutral-50/60 transition-colors group">
@@ -2696,14 +3118,14 @@ function WorkItemTable({
                                                     aria-label={`Description pour ${item.name}`}
                                                 />
                                                 {item.calcForm && (
-                                                    <span className="inline-block text-[10px] font-mono text-neutral-400 pl-2">
+                                                    <span className="inline-block text-[10px] font-mono text-neutral-500 pl-2">
                                                         {formatItemMetre(item.calcForm)}
                                                     </span>
                                                 )}
                                                 {item.isCustom && (
                                                     <div className="flex flex-wrap items-center gap-1.5 pl-2 pt-1 text-[10px]">
                                                         <span className="font-bold uppercase tracking-wide text-amber-700">Ligne libre</span>
-                                                        <span className="text-neutral-300">•</span>
+                                                        <span className="text-neutral-500" aria-hidden="true">•</span>
                                                         <span className={item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}>
                                                             {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
                                                         </span>
@@ -2716,9 +3138,17 @@ function WorkItemTable({
                                     </td>
 
                                     <td className="py-3 px-1 text-center">
+                                        {facture.derive ? (
+                                            <span
+                                                className="inline-block w-14 min-w-0 text-center py-1.5 px-1 font-bold text-neutral-900 border border-dashed border-neutral-200 rounded-lg bg-neutral-50"
+                                                title="Quantité issue du métré — modifiable dans les détails techniques"
+                                            >
+                                                {formatQuantite(facture.quantite)}
+                                            </span>
+                                        ) : (
                                         <input
                                             type="number"
-                                            min="1"
+                                            min="0"
                                             step="any"
                                             value={item.qty || 1}
                                             onChange={(e) => {
@@ -2731,6 +3161,7 @@ function WorkItemTable({
                                             className="w-14 min-w-0 text-center py-1.5 px-1 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                             aria-label={`Quantité pour ${item.name}`}
                                         />
+                                        )}
                                     </td>
 
                                     <td className="py-3 px-0 text-center text-neutral-600 font-medium">
@@ -2738,7 +3169,7 @@ function WorkItemTable({
                                             <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="w-14 max-w-full min-w-0 px-1 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[10px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
                                                 {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
                                             </select>
-                                        ) : <span className="px-1 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px]">{item.unit || 'u'}</span>}
+                                        ) : <span className="px-1 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px]">{facture.unite}</span>}
                                     </td>
 
                                     <td className="py-3 px-1 text-right">
@@ -2746,20 +3177,24 @@ function WorkItemTable({
                                             type="number"
                                             min="0"
                                             step="any"
-                                            value={item.unitPriceHT || 0}
+                                            value={Math.round(facture.prixUnitaire)}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
+                                                // Voir la carte mobile : on reporte quantité et unité pour
+                                                // qu'un prix saisi au m² reste un prix au m².
                                                 onUpdateItem(idx, {
                                                     unitPriceHT: val,
-                                                    totalHT: val * (item.qty || 1),
+                                                    qty: facture.quantite,
+                                                    unit: facture.unite,
+                                                    totalHT: val * facture.quantite,
                                                     isCustom: true
                                                 });
                                             }}
                                             className="w-20 min-w-0 text-right py-1.5 px-1 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                             aria-label={`Prix unitaire pour ${item.name}`}
-                                            title={item.calcForm ? 'Prix recalculé selon le métrage et la quantité de l’ouvrage' : 'Prix unitaire modifiable'}
+                                            title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                         />
-                                        {item.calcForm && <span className="block text-[10px] text-neutral-400 mt-1">Calculé selon le métrage</span>}
+                                        {item.calcForm && !item.isCustom && <span className="block text-[10px] text-neutral-500 mt-1">Calculé selon le métrage</span>}
                                     </td>
 
                                     <td className="py-3 px-2 text-right font-bold text-neutral-900 text-sm">
@@ -2767,7 +3202,7 @@ function WorkItemTable({
                                         {margin && (
                                             <span
                                                 title={margin.tooltip}
-                                                className={`block mt-0.5 text-[10px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-600'}`}
+                                                className={`block mt-0.5 text-[10px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
                                             >
                                                 {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
                                                 {margin.label}
@@ -2800,7 +3235,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteItem(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-400 hover:text-red-600 text-[10px] transition-all flex-shrink-0"
+                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[10px] transition-all flex-shrink-0"
                                                 title="Supprimer cette ligne"
                                                 aria-label={`Supprimer ${item.name}`}
                                             >
@@ -2856,6 +3291,7 @@ function WorkItemPicker({
     isOpen,
     onClose,
     solutions,
+    recipes = [],
     onSelectSolution,
     onSelectBulkSolutions,
     onCreateCustomSolution
@@ -2864,12 +3300,16 @@ function WorkItemPicker({
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [bulkSelections, setBulkSelections] = useState({});
+    // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
+    // visuel et au libellé du bouton de sortie. Remis à zéro à chaque ouverture.
+    const [nbAjoutes, setNbAjoutes] = useState(0);
     const searchInputRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
             setSearchQuery('');
             setSelectedCategory('all');
+            setNbAjoutes(0);
             setTimeout(() => searchInputRef.current?.focus(), 100);
         }
     }, [isOpen]);
@@ -2904,6 +3344,8 @@ function WorkItemPicker({
         return true;
     });
 
+    // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
+    // visuel et au libellé du bouton de fermeture.
     const handleToggleBulk = (solId) => {
         setBulkSelections(prev => ({
             ...prev,
@@ -2949,21 +3391,36 @@ function WorkItemPicker({
                             <i className="fa-solid fa-list-check mr-1.5"></i>
                             {isBulkMode ? 'Mode Multiple Actif' : 'Ajout Multiple'}
                         </button>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-500"
-                            aria-label="Fermer le sélecteur"
-                        >
-                            <i className="fa-solid fa-xmark text-sm"></i>
-                        </button>
+                        {/* La fenêtre ne se referme plus à chaque ajout : ce bouton
+                            devient donc le point de sortie, et il rappelle ce qui a
+                            été ajouté pour qu'on ne quitte jamais en doutant. */}
+                        {nbAjoutes > 0 ? (
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="btn-primary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5"
+                                aria-label={`Terminer — ${nbAjoutes} ouvrage${nbAjoutes > 1 ? 's' : ''} ajouté${nbAjoutes > 1 ? 's' : ''} au lot`}
+                            >
+                                <i className="fa-solid fa-check"></i>
+                                Terminer ({nbAjoutes})
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-500"
+                                aria-label="Fermer le sélecteur"
+                            >
+                                <i className="fa-solid fa-xmark text-sm"></i>
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Champ de Recherche */}
                 <div className="p-4 border-b border-neutral-100 space-y-3">
                     <div className="relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+                        <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-sm"></i>
                         <input
                             ref={searchInputRef}
                             type="text"
@@ -2975,7 +3432,7 @@ function WorkItemPicker({
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-600 text-xs"
                             >
                                 <i className="fa-solid fa-circle-xmark"></i>
                             </button>
@@ -3029,11 +3486,22 @@ function WorkItemPicker({
                                         </h4>
                                         <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
                                             <span className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
-                                                Modes: {(sol.allowedModes || ['rectangle']).join(', ')}
+                                                {libelleModes(sol.allowedModes || ['rectangle'], 'Rectangle')}
                                             </span>
-                                            <span className="text-emerald-600 font-bold">
-                                                <i className="fa-solid fa-circle-check mr-1"></i>Prêt à chiffrer
-                                            </span>
+                                            {(() => {
+                                                const compo = (recipes || []).filter(r => r.solutionId === sol.id);
+                                                const nbMat = compo.filter(r => r.type !== 'labor').length;
+                                                const nbMo = compo.filter(r => r.type === 'labor').length;
+                                                if (!compo.length) {
+                                                    return <span className="text-amber-700 font-bold"><i className="fa-solid fa-triangle-exclamation mr-1"></i>Sans composant</span>;
+                                                }
+                                                return (
+                                                    <span className="text-emerald-700 font-bold">
+                                                        <i className="fa-solid fa-circle-check mr-1"></i>
+                                                        {nbMat} fourniture{nbMat > 1 ? 's' : ''}{nbMo > 0 ? ` · ${nbMo} main-d’œuvre` : ''}
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -3057,8 +3525,13 @@ function WorkItemPicker({
                                         <button
                                             type="button"
                                             onClick={() => {
+                                                // Audit UX (2026-08-31) — la fenêtre se refermait à
+                                                // chaque ajout : composer un lot de cinq ouvrages
+                                                // demandait cinq allers-retours, à moins d'avoir
+                                                // repéré le bouton « Ajout Multiple ». On reste
+                                                // ouvert ; « Terminer » ferme quand on a fini.
                                                 onSelectSolution(sol);
-                                                onClose();
+                                                setNbAjoutes(n => n + 1);
                                             }}
                                             className="btn-primary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5"
                                         >
@@ -3073,11 +3546,11 @@ function WorkItemPicker({
 
                     {filteredSolutions.length === 0 && (
                         <div className="p-8 text-center space-y-3">
-                            <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto text-xl">
+                            <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-500 flex items-center justify-center mx-auto text-xl">
                                 <i className="fa-solid fa-magnifying-glass"></i>
                             </div>
                             <p className="text-xs font-bold text-neutral-700">Aucun ouvrage ne correspond à « {searchQuery} »</p>
-                            <p className="text-[11px] text-neutral-400">Vous pouvez créer cet ouvrage immédiatement pour l'ajouter à votre catalogue.</p>
+                            <p className="text-[11px] text-neutral-500">Vous pouvez créer cet ouvrage immédiatement pour l'ajouter à votre catalogue.</p>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -3158,6 +3631,15 @@ function WorkItemInspector({
     const isManualLine = Boolean(item.isCustom && !item.calcForm);
     const activeMode = isManualLine ? 'unit' : (calcForm.takeoffMode || solution?.allowedModes?.[0] || 'rectangle');
 
+    // Champs de métré dont la valeur saisie est négative, nommés comme à l'écran.
+    const LIBELLES_DIMENSIONS = {
+        width: 'Largeur', height: 'Hauteur', depth: 'Épaisseur / Profondeur',
+        surfaceDirect: 'Surface directe', lengthDirect: 'Longueur', volumeDirect: 'Volume'
+    };
+    const dimensionsNegatives = Object.keys(LIBELLES_DIMENSIONS)
+        .filter(cle => (parseFloat(calcForm[cle]) || 0) < 0)
+        .map(cle => LIBELLES_DIMENSIONS[cle]);
+
     const handleParamChange = (field, val) => {
         const updatedCalcForm = {
             ...calcForm,
@@ -3236,7 +3718,7 @@ function WorkItemInspector({
                                 >
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i>
                                 </button>
-                                <span className="text-[10px] font-bold text-neutral-400 min-w-[34px] text-center">{itemIndex + 1}/{itemCount}</span>
+                                <span className="text-[10px] font-bold text-neutral-500 min-w-[34px] text-center">{itemIndex + 1}/{itemCount}</span>
                                 <button
                                     type="button"
                                     onClick={() => onNavigate?.(Math.min(itemCount - 1, itemIndex + 1))}
@@ -3324,6 +3806,26 @@ function WorkItemInspector({
                                 </p>
                             )}
 
+                            {/* Audit UX (2026-08-31), P1-6 — une dimension négative était
+                                acceptée en silence : le total tombait à 0 FCFA sans que rien
+                                n'explique pourquoi, et le devis restait parfaitement
+                                enregistrable avec une ligne « -5 m² » à 0 franc.
+                                `min="0"` (posé sur tous ces champs) marque bien la saisie
+                                comme invalide pour le navigateur, mais React lit la valeur
+                                quand même : l'attribut seul ne dit donc rien à
+                                l'utilisateur. Ce bandeau nomme les champs fautifs et
+                                explique le total nul. Le calcul, lui, reste inchangé —
+                                le moteur ramène déjà ces cas à 0. */}
+                            {dimensionsNegatives.length > 0 && (
+                                <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2.5 mt-2">
+                                    <i className="fa-solid fa-circle-exclamation text-red-600 mt-0.5 shrink-0" aria-hidden="true"></i>
+                                    <p className="text-[11px] font-semibold text-red-700 leading-snug">
+                                        {dimensionsNegatives.length > 1 ? 'Ces valeurs doivent être positives' : 'Cette valeur doit être positive'} :{' '}
+                                        {dimensionsNegatives.join(', ')}. Tant qu'elle{dimensionsNegatives.length > 1 ? 's restent négatives' : ' reste négative'}, l'ouvrage est chiffré à 0 FCFA.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* M5 — Un seul jeu de champs, celui du mode RÉELLEMENT actif
                                 pour cet ouvrage. Avant, Largeur/Hauteur restaient affichés
                                 même en mode 'surface' ou 'unit' — des champs fantômes qui
@@ -3334,7 +3836,7 @@ function WorkItemInspector({
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
                                         <input
-                                            type="number"
+                                            type="number" min="0"
                                             step="any"
                                             value={calcForm.width || 0}
                                             onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
@@ -3344,7 +3846,7 @@ function WorkItemInspector({
                                     <div className="min-w-0">
                                         <label className="app-label">Hauteur (m)</label>
                                         <input
-                                            type="number"
+                                            type="number" min="0"
                                             step="any"
                                             value={calcForm.height || 0}
                                             onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
@@ -3357,44 +3859,44 @@ function WorkItemInspector({
                                 <div className="grid grid-cols-3 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Hauteur (m)</label>
-                                        <input type="number" step="any" value={calcForm.height || 0} onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.height || 0} onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Profondeur (m)</label>
-                                        <input type="number" step="any" value={calcForm.depth || 0} onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.depth || 0} onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
                             {activeMode === 'surface' && (
                                 <div className="pt-2">
                                     <label className="app-label">Surface directe (m²)</label>
-                                    <input type="number" step="any" value={calcForm.surfaceDirect || 0} onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input type="number" min="0" step="any" value={calcForm.surfaceDirect || 0} onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'linear' && (
                                 <div className="pt-2">
                                     <label className="app-label">Longueur directe (ml)</label>
-                                    <input type="number" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input type="number" min="0" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'floor' && (
                                 <div className="grid grid-cols-2 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Longueur (m)</label>
-                                        <input type="number" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
                             {activeMode === 'unit' && (
-                                <p className="text-[11px] text-neutral-400 pt-2">Facturé à l'unité — la quantité ci-dessus suffit, aucune dimension à saisir.</p>
+                                <p className="text-[11px] text-neutral-500 pt-2">Facturé à l'unité — la quantité ci-dessus suffit, aucune dimension à saisir.</p>
                             )}
                         </div>
 
@@ -3459,12 +3961,9 @@ function WorkItemInspector({
                                                 onChange={(e) => handleParamChange('takeoffMode', e.target.value)}
                                                 className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold"
                                             >
-                                                <option value="rectangle">Rectangle (Largeur × Hauteur)</option>
-                                                <option value="surface">Surface Directe (m²)</option>
-                                                <option value="volume">Volume Béton (m³)</option>
-                                                <option value="linear">Mètre Linéaire (ml)</option>
-                                                <option value="floor">Sol / Plafond (m²)</option>
-                                                <option value="unit">Unité / Forfait (u)</option>
+                                                {modesProposables(solution, calcForm.takeoffMode).map(m => (
+                                                    <option key={m} value={m}>{LIBELLES_MODE_LONGS[m] || m}</option>
+                                                ))}
                                             </select>
                                         </div>
 
@@ -3664,7 +4163,7 @@ function WorkItemInspector({
                                                             // matière perdue, et ce n'est pas ce que paie ce devis —
                                                             // d'où le rappel du coût d'achat, distinct du consommé.
                                                             <div className="font-normal text-[10px] text-neutral-500 mt-0.5">
-                                                                <i className="fa-solid fa-boxes-stacked mr-1 text-neutral-400"></i>
+                                                                <i className="fa-solid fa-boxes-stacked mr-1 text-neutral-500"></i>
                                                                 À acheter : {packInfo.count} × {packInfo.unitLabel}
                                                                 {packInfo.cost > 0 && <span> ({formatMoney(packInfo.cost, currency)})</span>}
                                                                 {packInfo.offcut > 0 && (
@@ -3725,7 +4224,7 @@ function WorkItemInspector({
                                                                     // le résultat est arrondi à l'unité entière (on ne consomme pas
                                                                     // une fraction d'unité). Le disait "—" auparavant, comme si la
                                                                     // perte n'avait aucun effet — ce n'est plus le cas.
-                                                                    <span className="text-[9px] text-neutral-400" title="Ressource vendue à l'unité : la quantité facturée (nette + perte) est arrondie à l'entier supérieur.">
+                                                                    <span className="text-[9px] text-neutral-500" title="Ressource vendue à l'unité : la quantité facturée (nette + perte) est arrondie à l'entier supérieur.">
                                                                         arrondi à l'unité
                                                                     </span>
                                                                 )}
@@ -3740,7 +4239,7 @@ function WorkItemInspector({
                                             })}
                                         </tbody>
                                     </table>
-                                    <p className="text-[11px] text-neutral-400 px-1">
+                                    <p className="text-[11px] text-neutral-500 px-1">
                                         Le taux de perte est repris du catalogue par défaut. Le modifier ici l'ajuste
                                         uniquement pour cet ouvrage sur ce devis — le taux catalogue (utilisé par tous
                                         les autres devis) n'est pas affecté.
@@ -3890,8 +4389,17 @@ function WorkItemInspector({
                     </div>
                 )}
 
-                {/* Footer */}
-                <div className="p-4 mb-28 border-t border-neutral-200 bg-neutral-50 flex justify-end shrink-0">
+                {/* Footer — Audit UX (2026-09-01), reprise du constat P2-7.
+                    Ce pied coûtait 185 px (73 de bloc + 112 px de `mb-28`, la
+                    réserve pour la barre de totaux) sur un panneau qui n'en fait
+                    que 475 à 1280×720 : il ne restait que 224 px pour le
+                    formulaire, si bien que « Surface directe » tombait sous la
+                    ligne de défilement et paraissait recouvert par le bouton noir.
+                    Or à partir de lg: la liste et le détail sont côte à côte et
+                    l'en-tête du panneau porte déjà sa flèche de retour — ce
+                    bouton n'y ajoute rien. Réservé au mobile, où il est le seul
+                    chemin de retour. */}
+                <div className="lg:hidden p-4 mb-28 border-t border-neutral-200 bg-neutral-50 flex justify-end shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
@@ -3929,41 +4437,63 @@ function QuoteTotalsBar({
     // une rentabilité qui n'a pas été vérifiée.
     const hasIncompleteCustomLines = (quote.lots || []).some(lot => (lot.items || []).some(it => it.isCustom && !it.costUnit));
 
+    // Audit UX (2026-08-31) — sur un téléphone de 812 px, cette barre occupait
+    // 192 px de haut pour 227 px de contenu : elle défilait donc À L'INTÉRIEUR
+    // d'elle-même, et coupait en plein milieu son propre avertissement
+    // (« * Hors lignes libres sans coût d'achat renseigné — complétez les »).
+    // Avec l'en-tête figé au-dessus et la barre d'onglets en dessous, il ne
+    // restait presque rien pour travailler.
+    //
+    // Repliée par défaut sous 640 px, elle ne montre que ce qu'on regarde tout
+    // le temps — le TTC — et les deux actions. Le détail (déboursé, K, net HT,
+    // marge, TVA) reste à un appui. Sur desktop la place ne manque pas : rien
+    // ne change, le repli n'existe pas là-bas.
+    const [totauxDeplies, setTotauxDeplies] = useState(false);
+
     return (
         // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
         // passait donc SOUS la sidebar de navigation et sous la barre d'onglets
         // mobile. `.quote-totals-bar` (index.html) la cale à droite de la
         // sidebar (72px en tablette, --sidebar-width en desktop) et au-dessus
         // de la barre d'onglets sur mobile.
-        <div className="quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating">
+        <div className={`quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating ${totauxDeplies ? 'quote-totals-deplie' : 'quote-totals-replie'}`}>
             <div className="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
                 {/* Métriques Financières BTP */}
                 <div className="quote-mobile-metrics flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
-                    <div>
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1">
+                    <div className="quote-metrique-secondaire">
+                        <span className="text-[10px] text-neutral-500 block uppercase font-bold flex items-center gap-1">
                             Déboursé Sec
-                            {hasIncompleteCustomLines && <span className="text-amber-600 font-bold" title="Une ou plusieurs lignes libres n'ont pas de coût d'achat renseigné — ce montant ne les inclut pas"><i className="fa-solid fa-triangle-exclamation"></i></span>}
+                            {hasIncompleteCustomLines && <span className="text-amber-700 font-bold" title="Une ou plusieurs lignes libres n'ont pas de coût d'achat renseigné — ce montant ne les inclut pas"><i className="fa-solid fa-triangle-exclamation"></i></span>}
                         </span>
-                        <span className="font-mono font-bold text-neutral-700 text-sm">{formatMoney(totalDebourse, currency)}{hasIncompleteCustomLines && <sup className="text-amber-600">*</sup>}</span>
+                        <span className="font-mono font-bold text-neutral-700 text-sm">{formatMoney(totalDebourse, currency)}{hasIncompleteCustomLines && <sup className="text-amber-700">*</sup>}</span>
                     </div>
 
-                    <div className="pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">Coeff K</span>
+                    <div className="quote-metrique-secondaire pl-3 border-l border-neutral-200">
+                        {/* Audit UX (2026-08-31) — « K=1,5 » s'affichait sans que rien
+                            n'en dise le sens : c'est pourtant le concept le plus rentable
+                            à expliquer du produit, et celui qu'un utilisateur novice ne
+                            peut pas deviner. L'explication tient en une phrase et un
+                            exemple chiffré, au survol comme au clavier. */}
+                        <span
+                            className="text-[10px] text-neutral-500 block uppercase font-bold cursor-help"
+                            title={`Coefficient de vente : ce par quoi le déboursé sec est multiplié pour obtenir le prix client. Il regroupe frais généraux et marge.\n\nIci : ${formatMoney(totalDebourse, currency)} × ${kFactor} = ${formatMoney(totalHT, currency)} HT.`}
+                            tabIndex={0}
+                        >Coeff K</span>
                         <span className="font-mono font-bold text-indigo-600 text-sm bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">K={kFactor}{hasIncompleteCustomLines && <sup>*</sup>}</span>
                     </div>
 
-                    <div className="pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">Total Net HT</span>
+                    <div className="quote-metrique-secondaire pl-3 border-l border-neutral-200">
+                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">Total Net HT</span>
                         <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(totalHT, currency)}</span>
                     </div>
 
                     <div className="hidden sm:block pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold flex items-center gap-1">
+                        <span className="text-[10px] text-neutral-500 block uppercase font-bold flex items-center gap-1">
                             Marge Réelle
-                            {isLowProfit && <span className="text-amber-600 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
-                            {hasIncompleteCustomLines && <sup className="text-amber-600">*</sup>}
+                            {isLowProfit && <span className="text-amber-700 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
+                            {hasIncompleteCustomLines && <sup className="text-amber-700">*</sup>}
                         </span>
-                        <span className={`font-bold text-sm sm:text-base ${isLowProfit ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        <span className={`font-bold text-sm sm:text-base ${isLowProfit ? 'text-amber-700' : 'text-emerald-700'}`}>
                             +{formatMoney(marginVal, currency)} ({marginPct}%)
                         </span>
                     </div>
@@ -3976,7 +4506,7 @@ function QuoteTotalsBar({
                         maintenant là où il s'affiche, parmi les taux réglés dans
                         Paramètres → Documents & PDF. */}
                     <div className="hidden md:block pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">TVA</span>
+                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">TVA</span>
                         {onChangeVatRate && !isReadOnlyDueToDowngrade ? (
                             <div className="flex items-baseline gap-1.5">
                                 <select
@@ -3999,9 +4529,21 @@ function QuoteTotalsBar({
                         )}
                     </div>
 
-                    <div className="pl-3 border-l-2 border-neutral-900">
-                        <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
-                        <span className="font-bold text-neutral-900 text-base sm:text-xl">{formatMoney(totalTTC, currency)}</span>
+                    <div className="pl-3 border-l-2 border-neutral-900 flex items-center gap-2">
+                        <div>
+                            <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
+                            <span className="font-bold text-neutral-900 text-base sm:text-xl">{formatMoney(totalTTC, currency)}</span>
+                        </div>
+                        {/* Ne s'affiche que sous 640 px : ailleurs tout est déjà visible. */}
+                        <button
+                            type="button"
+                            onClick={() => setTotauxDeplies(v => !v)}
+                            className="quote-totals-bascule sm:hidden shrink-0 w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
+                            aria-expanded={totauxDeplies}
+                            aria-label={totauxDeplies ? 'Masquer le détail du chiffrage' : 'Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)'}
+                        >
+                            <i className={`fa-solid fa-chevron-${totauxDeplies ? 'down' : 'up'} text-xs`}></i>
+                        </button>
                     </div>
                 </div>
 
@@ -4053,7 +4595,7 @@ function QuoteTotalsBar({
                 </div>
             </div>
             {hasIncompleteCustomLines && (
-                <div className="max-w-[1700px] mx-auto mt-1.5 text-[11px] text-amber-700 font-semibold flex items-center gap-1.5">
+                <div className="quote-metrique-secondaire max-w-[1700px] mx-auto mt-1.5 text-[11px] text-amber-700 font-semibold flex items-start gap-1.5">
                     <i className="fa-solid fa-circle-info"></i>
                     * Hors lignes libres sans coût d'achat renseigné — complétez-les pour une marge fiable.
                 </div>
@@ -4100,6 +4642,10 @@ function QuoteWorkspace({
     const [mobileShowLotList, setMobileShowLotList] = useState(true);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
+    // Audit UX (2026-09-01) — signale au champ Client qu'il est en faute après
+    // une tentative d'enregistrement sans client. Levé dès que le nom est
+    // renseigné, pour que la bordure rouge ne survive pas à la correction.
+    const [clientManquant, setClientManquant] = useState(false);
     // 2026-08-20 — Taux de TVA proposés dans le devis, réglés par l'utilisateur
     // (Paramètres → Documents & PDF). Le taux effectivement porté par le devis
     // est toujours ajouté à la liste, même s'il a été retiré des réglages
@@ -4183,7 +4729,7 @@ function QuoteWorkspace({
         setHistoryPast(prev => prev.slice(0, prev.length - 1));
         setHistoryFuture(prev => [JSON.parse(JSON.stringify(hybridQuote)), ...prev]);
         setHybridQuote(previous);
-        showToast("Action annulée (Undo)");
+        showToast("Modification annulée");
     };
 
     const handleRedo = () => {
@@ -4224,6 +4770,12 @@ function QuoteWorkspace({
     }, [historyPast, historyFuture, hybridQuote]);
 
     // Recalcul live du devis
+    // Lever le drapeau dès que le client est renseigné : la bordure rouge ne
+    // doit pas survivre à la correction que l'utilisateur vient de faire.
+    useEffect(() => {
+        if (clientManquant && hybridQuote?.clientName?.trim()) setClientManquant(false);
+    }, [clientManquant, hybridQuote?.clientName]);
+
     const calculatedQuote = useMemo(() => {
         return calculateHybridQuote(hybridQuote, solutions, materials, labor, recipes);
     }, [hybridQuote, solutions, materials, labor, recipes]);
@@ -4447,11 +4999,32 @@ function QuoteWorkspace({
         const updatedLots = [...(hybridQuote.lots || [])];
         const currentLot = updatedLots[activeLotIndex];
         if (!currentLot || !currentLot.items?.[itemIdx]) return;
-        currentLot.items[itemIdx] = {
-            ...currentLot.items[itemIdx],
-            ...patch
-        };
+        const avant = currentLot.items[itemIdx];
+
+        // Audit UX (2026-08-31) — fixer le prix à la main détache la ligne de
+        // son métré : le déboursé retombe à 0, le coefficient K à 1, la marge
+        // n'est plus calculée, et toute la décomposition matières/main-d'œuvre
+        // est écartée. Le produit le signalait APRÈS coup (badge « Ligne
+        // libre », note de bas de barre) mais rien ne prévenait au moment du
+        // geste — l'utilisateur croyait ajuster un prix, il jetait son étude.
+        //
+        // Pas de fenêtre de confirmation ici, volontairement : la conversion se
+        // déclenche à la PREMIÈRE frappe dans un champ numérique, et une modale
+        // par frappe rendrait toute saisie manuelle pénible. Un avertissement
+        // non bloquant rappelant l'annulation dit la même chose sans casser le
+        // geste — d'autant que la ligne reste désormais lisible (quantité et
+        // unité reportées) et que Cmd+Z restaure intégralement le métré.
+        const devientLigneLibre = patch.isCustom === true && !avant.isCustom && Boolean(avant.calcForm);
+        currentLot.items[itemIdx] = { ...avant, ...patch };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+        if (devientLigneLibre && showToast) {
+            // Audit UX P1-5 (complété le 2026-09-01) — l'audit demandait aussi de
+            // « proposer l'alternative que l'utilisateur cherchait sans doute :
+            // Ajuster la marge de cette ligne ». Elle existe (inspecteur → Avancé →
+            // « 3. Prix & Marge ») mais rien ne l'indiquait au moment où l'on renonce
+            // à son métré faute de la connaître.
+            showToast('Prix fixé à la main : cette ligne est détachée de son métré, sa marge n’est plus calculée. Cmd+Z pour revenir, ou Détails → Avancé → « Prix & Marge » pour ajuster la marge sans perdre le métré.', 'warning');
+        }
     };
 
     const handleDuplicateItem = (itemIdx) => {
@@ -4496,7 +5069,7 @@ function QuoteWorkspace({
         if (!confirmAction) { supprimer(); return; }
         confirmAction({
             title: 'Supprimer cet ouvrage ?',
-            message: `« ${deleted?.name || 'Cet ouvrage'} » sera retiré du lot.\n\nCette action reste annulable juste après (lien "Annuler"), ou par Cmd+Z (Ctrl+Z).`,
+            message: `« ${deleted?.name || 'Cet ouvrage'} » sera retiré du lot.\n\nVous pourrez revenir en arrière juste après, par Cmd+Z (Ctrl+Z) ou le lien de rétablissement.`,
             confirmLabel: 'Supprimer',
             isDanger: true,
             onConfirm: supprimer
@@ -4523,9 +5096,14 @@ function QuoteWorkspace({
     // maintenant remis à zéro ici, donc quel que soit le bouton appelant.
     const handleSaveQuoteAction = () => {
         if (!calculatedQuote.clientName?.trim()) {
-            showToast("Veuillez indiquer le nom du client avant d'enregistrer.", "error");
+            // Audit UX (2026-09-01) — le message seul ne dit pas OÙ corriger.
+            // Le champ Client passe en rouge et prend le focus, comme le fait
+            // déjà l'ancien formulaire d'enregistrement (`clientNameError`).
+            setClientManquant(true);
+            showToast("Nom du client manquant — indiquez-le en haut du devis pour enregistrer.", "error");
             return;
         }
+        setClientManquant(false);
         if (calculatedQuote.activityType === 'event') {
             const incompleteEventLines = (calculatedQuote.lots || []).flatMap(lot => (lot.items || [])
                 .filter(item => item.isCustom && !(Number(item.unitPriceHT) > 0))
@@ -4646,6 +5224,7 @@ function QuoteWorkspace({
                 quote={calculatedQuote}
                 clients={clients}
                 projects={projects}
+                clientManquant={clientManquant}
                 onUpdateQuote={(patch) => { pushState(); handleUpdateQuote(patch); }}
                 onRequestClientCreate={onRequestClientCreate}
                 onRequestProjectCreate={onRequestProjectCreate}
@@ -4700,11 +5279,23 @@ function QuoteWorkspace({
                     setActiveLotIndex(0);
                     showToast(`Modèle « ${tpl.projectRef || tpl.number} » chargé !`, "success");
                 })}
-                onGenerateFromQuickEstimate={(estQ) => guardUnsavedQuote(() => {
+                onGenerateFromQuickEstimate={(estQ, fourchette) => guardUnsavedQuote(() => {
                     pushState();
                     setHybridQuote(estQ);
                     setActiveLotIndex(0);
-                    showToast("Devis généré depuis l'estimation rapide !", "success");
+                    // Le devis est recalculé au rendu suivant : on compare donc
+                    // la fourchette annoncée au chiffrage réel du gabarit.
+                    const reel = calculateHybridQuote(estQ, solutions, materials, labor, recipes);
+                    const netHT = reel?.totalNetHT || 0;
+                    if (fourchette && netHT > 0 && (netHT < fourchette.minHT || netHT > fourchette.maxHT)) {
+                        const ecart = Math.round(((netHT - (fourchette.minHT + fourchette.maxHT) / 2) / ((fourchette.minHT + fourchette.maxHT) / 2)) * 100);
+                        showToast(
+                            `Le chiffrage détaillé (${formatMoney(netHT, companyInfo.currency)} HT) sort de la fourchette estimée — ${ecart > 0 ? '+' : ''}${ecart} %. Vérifiez les métrés avant de l'envoyer.`,
+                            'warning'
+                        );
+                    } else {
+                        showToast("Devis généré depuis l'estimation rapide !", "success");
+                    }
                 })}
                 onInitBlankQuote={() => guardUnsavedQuote(() => {
                     pushState();
@@ -4799,6 +5390,7 @@ function QuoteWorkspace({
                 isOpen={isPickerOpen}
                 onClose={() => setIsPickerOpen(false)}
                 solutions={solutions}
+                recipes={recipes}
                 onSelectSolution={handleSelectSolutionForLot}
                 onSelectBulkSolutions={handleSelectBulkSolutions}
                 onCreateCustomSolution={(name) => {
@@ -4963,15 +5555,15 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
                 {/* Logs Table */}
                 <div>
                     {isLoading ? (
-                        <div className="p-12 text-center text-neutral-400">
+                        <div className="p-12 text-center text-neutral-500">
                             <i className="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i>
                             <p className="text-xs font-bold">Chargement du journal d'audit sécurisé...</p>
                         </div>
                     ) : filteredLogs.length === 0 ? (
-                        <div className="p-12 text-center text-neutral-400 bg-white rounded-2xl border border-neutral-200">
+                        <div className="p-12 text-center text-neutral-500 bg-white rounded-2xl border border-neutral-200">
                             <i className="fa-solid fa-file-shield text-3xl mb-2 text-neutral-300"></i>
                             <p className="text-sm font-bold text-neutral-700">Aucun événement de sécurité enregistré</p>
-                            <p className="text-xs text-neutral-400 mt-1">Toutes les créations de devis, suppressions et modifications de prix apparaîtront ici.</p>
+                            <p className="text-xs text-neutral-500 mt-1">Toutes les créations de devis, suppressions et modifications de prix apparaîtront ici.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-2xs">
@@ -5087,7 +5679,7 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
                             <h3 className="font-bold text-neutral-900 text-lg sm:text-xl">Créer une organisation</h3>
                             <p className="text-xs text-neutral-500 mt-1">Préparez l’espace de travail de votre équipe.</p>
                         </div>
-                        <button onClick={onClose} className="btn-icon w-9 h-9 text-neutral-400 hover:text-neutral-700" aria-label="Fermer la création d'organisation">
+                        <button onClick={onClose} className="btn-icon w-9 h-9 text-neutral-500 hover:text-neutral-700" aria-label="Fermer la création d'organisation">
                             <i className="fa-solid fa-xmark text-lg"></i>
                         </button>
                     </div>
@@ -5124,7 +5716,7 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
                                     >
                                         {CURRENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                     </select>
-                                    <p className="text-[11px] text-neutral-400 mt-1.5">Une organisation utilise une seule devise à la fois. Aucune conversion automatique n'est appliquée.</p>
+                                    <p className="text-[11px] text-neutral-500 mt-1.5">Une organisation utilise une seule devise à la fois. Aucune conversion automatique n'est appliquée.</p>
                                 </div>
                             </div>
 
@@ -5199,18 +5791,18 @@ function OrganizationSwitcher({
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             {roleBadge(activeOrgRole || 'owner')}
-                            <span className="text-[10px] text-neutral-400 font-mono">{activeOrg.currency || 'FCFA'}</span>
+                            <span className="text-[10px] text-neutral-500 font-mono">{activeOrg.currency || 'FCFA'}</span>
                         </div>
                     </div>
                 </div>
-                <i className={`fa-solid fa-chevron-down text-xs text-neutral-400 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+                <i className={`fa-solid fa-chevron-down text-xs text-neutral-500 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
             </button>
 
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
                     <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
-                        <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                        <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
                             Mes Entreprises ({userOrganizations.length})
                         </div>
                         <div className="max-h-48 overflow-y-auto custom-scroll space-y-0.5">
@@ -5228,7 +5820,7 @@ function OrganizationSwitcher({
                                 >
                                     <div className="min-w-0 flex-1 truncate pr-2">
                                         <span className="truncate block">{org.name}</span>
-                                        <span className="text-[10px] text-neutral-400 font-normal">{org.currency}</span>
+                                        <span className="text-[10px] text-neutral-500 font-normal">{org.currency}</span>
                                     </div>
                                     {org.id === activeOrgId && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
                                 </button>
@@ -5337,7 +5929,7 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up">
                 <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base">
                             <i className="fa-solid fa-signature"></i>
                         </div>
                         <div>
@@ -5345,7 +5937,7 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                             <p className="text-[11px] text-neutral-500 font-mono">{quote.number} &bull; {quote.clientName}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
+                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-500 hover:text-neutral-700" aria-label="Fermer">
                         <i className="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
@@ -5392,7 +5984,7 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                     </div>
 
                     <div className="p-3 bg-neutral-100 rounded-xl text-[11px] text-neutral-500 flex items-start gap-2">
-                        <i className="fa-solid fa-shield-halved text-emerald-600 mt-0.5 text-xs"></i>
+                        <i className="fa-solid fa-shield-halved text-emerald-700 mt-0.5 text-xs"></i>
                         <span>En validant, vous certifiez l'exactitude des informations et acceptez les conditions contractuelles du devis.</span>
                     </div>
 
@@ -5458,7 +6050,7 @@ Cordialement.`;
                             <p className="text-[11px] text-neutral-500 font-mono">{quote.number}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer">
+                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-500 hover:text-neutral-700" aria-label="Fermer">
                         <i className="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
@@ -5493,7 +6085,7 @@ Cordialement.`;
                                 onClick={handleShareWhatsApp}
                                 className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-2xs"
                             >
-                                <i className="fa-brands fa-whatsapp text-lg text-emerald-600"></i>
+                                <i className="fa-brands fa-whatsapp text-lg text-emerald-700"></i>
                                 <span>WhatsApp</span>
                             </button>
                             <button
@@ -5797,7 +6389,7 @@ function MaterialCsvModal({
                 {/* Modal Header */}
                 <div className="p-5 sm:p-6 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                        <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg font-bold">
                             <i className="fa-solid fa-file-csv"></i>
                         </div>
                         <div>
@@ -5805,7 +6397,7 @@ function MaterialCsvModal({
                             <p className="text-xs text-neutral-500">Contrôle strict des prix, conditionnements et cohérence des unités</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700" aria-label="Fermer la boîte de dialogue">
+                    <button onClick={onClose} className="btn-icon w-8 h-8 text-neutral-500 hover:text-neutral-700" aria-label="Fermer la boîte de dialogue">
                         <i className="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
@@ -5814,14 +6406,14 @@ function MaterialCsvModal({
                 <div className="p-6 overflow-y-auto custom-scroll space-y-5 bg-neutral-50/50 flex-1">
                     {/* Upload Box */}
                     <div className="p-6 border-2 border-dashed border-neutral-300 rounded-2xl bg-white text-center space-y-3">
-                        <i className="fa-solid fa-cloud-arrow-up text-3xl text-neutral-400"></i>
+                        <i className="fa-solid fa-cloud-arrow-up text-3xl text-neutral-500"></i>
                         <div>
                             <label className="btn-primary text-xs py-2 px-4 font-bold cursor-pointer inline-flex items-center gap-2">
                                 <i className="fa-solid fa-folder-open"></i>
                                 <span>{csvFileName ? 'Choisir un autre fichier CSV' : 'Choisir un fichier CSV'}</span>
                                 <input type="file" accept=".csv,text/csv" onChange={handleFileUpload} className="hidden" />
                             </label>
-                            <p className="text-[11px] text-neutral-400 mt-2">
+                            <p className="text-[11px] text-neutral-500 mt-2">
                                 {csvFileName
                                     ? `Fichier chargé : ${csvFileName} · ${csvRecords.length} ligne(s) détectée(s)`
                                     : 'Le fichier peut utiliser des virgules, points-virgules ou tabulations.'}
@@ -5857,7 +6449,7 @@ function MaterialCsvModal({
                                         <div key={field.key} className={`rounded-xl border p-3 ${field.required && !selectedColumnId ? 'border-amber-300 bg-amber-50/40' : 'border-neutral-200 bg-neutral-50/40'}`}>
                                             <label htmlFor={`csv-map-${field.key}`} className="flex items-center justify-between gap-2 text-xs font-bold text-neutral-800">
                                                 <span>{field.label}</span>
-                                                <span className={`text-[10px] uppercase tracking-wide ${field.required ? 'text-red-600' : 'text-neutral-400'}`}>{field.required ? 'Requis' : 'Optionnel'}</span>
+                                                <span className={`text-[10px] uppercase tracking-wide ${field.required ? 'text-red-600' : 'text-neutral-500'}`}>{field.required ? 'Requis' : 'Optionnel'}</span>
                                             </label>
                                             <select
                                                 id={`csv-map-${field.key}`}
@@ -5967,7 +6559,7 @@ function MaterialCsvModal({
                                             <tr key={idx} className={r.isValid ? "hover:bg-neutral-50" : "bg-red-50/50"}>
                                                 <td className="p-2 pl-3 font-bold">
                                                     {r.isValid ? (
-                                                        <span className="text-emerald-600 font-bold">✅ Valide</span>
+                                                        <span className="text-emerald-700 font-bold">✅ Valide</span>
                                                     ) : (
                                                         <span className="text-red-600 font-bold text-[10px]" title={r.rowErrors.join(', ')}>❌ Erreur</span>
                                                     )}
@@ -5987,7 +6579,7 @@ function MaterialCsvModal({
 
                 {/* Modal Footer */}
                 <div className="p-5 border-t border-neutral-100 bg-white flex justify-between items-center shrink-0">
-                    <span className="text-xs text-neutral-400">
+                    <span className="text-xs text-neutral-500">
                         {!csvFileName
                             ? 'Chargez un fichier pour continuer'
                             : !mappingReady
@@ -6110,7 +6702,7 @@ function SystemDiagnosticPanel({ isOnline, sbUser, solutionsCount, materialsCoun
                 {checks.map((c, i) => (
                     <div key={i} className="bg-white p-3.5 rounded-2xl border border-neutral-200/80 flex items-center justify-between gap-3 shadow-2xs">
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0 ${c.status === 'OK' ? 'bg-emerald-50 text-emerald-600' : c.status === 'PROBLÈME' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0 ${c.status === 'OK' ? 'bg-emerald-50 text-emerald-700' : c.status === 'PROBLÈME' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
                                 <i className={`fa-solid ${c.icon}`}></i>
                             </div>
                             <div className="min-w-0">
@@ -6417,7 +7009,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [activeOrganizationRole, setActiveOrganizationRole] = useState(() => (sbUser && sbUser.id !== 'guest') ? null : 'owner');
     const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
 
-    // P0.13 (2026-08-17) — "+ Nouvelle Affaire"/"+ Nouveau Client" inséraient
+    // P0.13 (2026-08-17) — "+ Nouveau Chantier"/"+ Nouveau Client" inséraient
     // directement des données factices (nom générique, NIF-000000, client au
     // hasard) sans jamais demander les vraies informations. Remplacé par un
     // vrai formulaire de création, cohérent avec le reste de l'app (Nouvel
@@ -6432,7 +7024,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // modifier les infos du client"). null = mode création.
     const [editingClientId, setEditingClientId] = useState(null);
     // P1 (2026-08-19) — d'où vient l'ouverture de "Nouveau Client" ? 'project'
-    // = ouvert depuis "Nouvelle Affaire" (bouton "+" à côté du sélecteur
+    // = ouvert depuis "Nouveau Chantier" (bouton "+" à côté du sélecteur
     // client) : à la création, on rattache le client tout juste créé au
     // formulaire d'affaire en cours au lieu de laisser l'utilisateur revenir
     // le chercher manuellement dans la liste.
@@ -6504,6 +7096,83 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const isInitialMount = useRef(true);
     const hasUserMutatedRef = useRef(false);
 
+    // ═══════════════════════════════════════════════════════════════
+    // BROUILLON AUTOMATIQUE DU DEVIS EN COURS
+    // ═══════════════════════════════════════════════════════════════
+    // Audit UX (2026-08-31) — P0. Rien n'écrivait le devis en cours sur le
+    // disque tant qu'on n'avait pas cliqué « Enregistrer », alors même que le
+    // Mode Démo est déjà intégralement local. Reproduit : un devis de 11 lots
+    // à 146 392 386 FCFA, généré par l'assistant, effacé par un simple
+    // rechargement de page — retour à l'écran de connexion, aucune trace, rien
+    // à récupérer.
+    //
+    // Un garde beforeunload existe bien (voir QuoteWorkspace) et déclenche le
+    // dialogue natif « Quitter le site ? », mais il ne couvre QUE la fermeture
+    // volontaire : ni un onglet tué par le système, ni un téléphone qui recycle
+    // la mémoire, ni un utilisateur qui confirme le dialogue trop vite. Et le
+    // commentaire de ce garde documente qu'il a déjà été neutralisé une fois
+    // par un remontage de composant.
+    //
+    // ⚠️ Le déclencheur est le CONTENU du devis, jamais l'indicateur
+    // `devisNonEnregistre` : cet indicateur est précisément celui qui avait
+    // déjà lâché, le brouillon hériterait du même défaut et le filet céderait
+    // le jour où on en a besoin.
+    const CLE_BROUILLON = 'draftQuote';
+    const [brouillonPropose, setBrouillonPropose] = useState(null);
+    // Incrémenté à chaque reprise de brouillon pour forcer le remontage de
+    // QuoteWorkspace : il tient son propre `hasUnsavedChanges`, initialisé
+    // depuis `initialDirty` AU MONTAGE puis mis à jour uniquement par ses
+    // propres éditions (pushState). Un setHybridQuote venu du parent ne le
+    // marque donc jamais sale — un devis restauré s'annonçait « Enregistré
+    // localement » alors qu'il n'avait jamais été enregistré, exactement le
+    // mensonge d'indicateur que documente le commentaire du garde
+    // beforeunload. Remonter le composant referme l'écart à la source.
+    const [seqRestauration, setSeqRestauration] = useState(0);
+    const brouillonExamineRef = useRef(false);
+
+    // Un devis « vide » (aucun ouvrage, aucun client) ne vaut pas la peine
+    // d'être proposé à la reprise : le restaurer ne rendrait rien à personne
+    // et transformerait chaque démarrage en question inutile.
+    const devisVautLaPeine = useCallback((q) => {
+        if (!q) return false;
+        const nbOuvrages = (q.lots || []).reduce((n, lot) => n + ((lot.items || []).length), 0);
+        return nbOuvrages > 0 || Boolean((q.clientName || '').trim());
+    }, []);
+
+    // Lecture au montage, une seule fois par session : si un brouillon traîne,
+    // c'est que l'application s'est arrêtée sans enregistrer.
+    useEffect(() => {
+        if (brouillonExamineRef.current) return;
+        brouillonExamineRef.current = true;
+        const brouillon = LS.get(CLE_BROUILLON, currentUserId);
+        if (brouillon && devisVautLaPeine(brouillon.quote)) setBrouillonPropose(brouillon);
+    }, [currentUserId, devisVautLaPeine]);
+
+    // Écriture anti-rebond : 800 ms après la dernière frappe, pas à chaque
+    // caractère saisi dans une désignation.
+    useEffect(() => {
+        if (!devisVautLaPeine(hybridQuote)) return;
+        const minuteur = setTimeout(() => {
+            LS.set(CLE_BROUILLON, { quote: hybridQuote, at: Date.now() }, currentUserId);
+        }, 800);
+        return () => clearTimeout(minuteur);
+    }, [hybridQuote, currentUserId, devisVautLaPeine]);
+
+    const oublierBrouillon = useCallback(() => {
+        try { localStorage.removeItem(LS.getKey(CLE_BROUILLON, currentUserId)); } catch (e) {}
+        setBrouillonPropose(null);
+    }, [currentUserId]);
+
+    const reprendreBrouillon = useCallback(() => {
+        if (!brouillonPropose || !brouillonPropose.quote) return;
+        setHybridQuote(brouillonPropose.quote);
+        setDevisNonEnregistre(true);
+        setSeqRestauration(n => n + 1);
+        setActiveView('calculator');
+        setBrouillonPropose(null);
+        showToast('Devis non enregistré restauré.', 'success');
+    }, [brouillonPropose]);
+
     // BLOC 2/10 : GESTION ACTIVE DU CYCLE DE VIE DES SESSIONS AUTH SUPABASE
     useEffect(() => {
         if (!supabaseClient || !supabaseClient.auth) return;
@@ -6553,6 +7222,70 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [activeView, setActiveView] = useState('calculator');
     const [isTechnicalCatalogOpen, setIsTechnicalCatalogOpen] = useState(false);
     const [toast, setToast] = useState(null);
+
+    // Audit UX (2026-08-31) — sur un écran de 720 px, la zone de défilement de
+    // la barre latérale mesurait 447 px pour 588 px de contenu : 141 px de
+    // navigation invisibles, SANS le moindre indice. L'utilisateur voyait un
+    // titre « CONFIGURATION » suivi de rien, et tout le catalogue technique
+    // (ouvrages, matières, main-d'œuvre — le cœur du moteur de prix) était
+    // introuvable. Replier le groupe par défaut ne suffit pas : même replié,
+    // son bouton dépasse encore. Deux affordances complémentaires :
+    //   · un dégradé en bas tant qu'il reste du contenu sous la ligne ;
+    //   · l'élément actif ramené dans le champ après chaque navigation,
+    //     sinon on perd aussi l'indicateur « vous êtes ici ».
+    const sidebarNavRef = useRef(null);
+    // Audit UX (2026-09-01) — le tiroir mobile porte la MÊME navigation et
+    // rencontrait le même défaut : à 375×812, déplier « Catalogue technique »
+    // fait naître « Ressources » sous la ligne de flottaison, coupé par le bloc
+    // de pied. Le correctif ne visait que la barre latérale desktop.
+    const drawerNavRef = useRef(null);
+    const [sidebarADuContenuSousLaLigne, setSidebarADuContenuSousLaLigne] = useState(false);
+
+    const majDefilementSidebar = useCallback(() => {
+        const el = sidebarNavRef.current;
+        if (!el) return;
+        const reste = el.scrollHeight - el.clientHeight - el.scrollTop;
+        setSidebarADuContenuSousLaLigne(reste > 4);
+    }, []);
+
+    useEffect(() => {
+        majDefilementSidebar();
+        const el = sidebarNavRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', majDefilementSidebar);
+            return () => window.removeEventListener('resize', majDefilementSidebar);
+        }
+        const ro = new ResizeObserver(majDefilementSidebar);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [majDefilementSidebar, isTechnicalCatalogOpen]); // isPlatformAdmin est déclaré plus bas (TDZ) ; le ResizeObserver couvre déjà son apparition.
+
+    useEffect(() => {
+        const el = sidebarNavRef.current;
+        if (!el) return;
+        const actif = el.querySelector('[aria-current="page"]');
+        if (actif) actif.scrollIntoView({ block: 'nearest' });
+        majDefilementSidebar();
+    }, [activeView, isTechnicalCatalogOpen, majDefilementSidebar]);
+
+    // Audit UX (2026-09-01) — déplier le groupe révèle deux entrées qui, sur un
+    // écran court, naissent sous la ligne de flottaison : l'utilisateur clique
+    // et ne voit rien apparaître. On amène les entrées révélées dans le champ.
+    // Conditionné à l'ouverture : au repli, rien à montrer.
+    useEffect(() => {
+        if (!isTechnicalCatalogOpen) return;
+        for (const ref of [sidebarNavRef, drawerNavRef]) {
+            const el = ref.current;
+            if (!el) continue;
+            const enfants = el.querySelector('.sidebar-catalog-children');
+            if (enfants) enfants.scrollIntoView({ block: 'nearest' });
+        }
+        majDefilementSidebar();
+        // `isMobileDrawerOpen` n'est PAS en dépendance : il est déclaré plus bas
+        // (zone morte temporelle, même piège que `isPlatformAdmin` ci-dessus).
+        // Inutile ici : le tiroir se monte avant que l'utilisateur ne puisse
+        // cliquer le dépliage, donc son ref est déjà posé quand l'effet part.
+    }, [isTechnicalCatalogOpen, majDefilementSidebar]);
 
     useEffect(() => {
         if (activeView === 'recipes' || activeView === 'materials') {
@@ -6856,11 +7589,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const demoCompany = {
         name: 'IKADEVIS BTP',
         tagline: 'BTP - Fabrications - Aménagement - Signalétique',
-        phone: '+225 07 00 00 00',
+        // Audit UX P1-8 (2026-08-31, complété le 2026-09-01) — le filigrane
+        // « DÉMONSTRATION » avait été posé, mais le NIF, le RCCM et le téléphone
+        // restaient PRÉREMPLIS avec des valeurs crédibles et fausses
+        // (2600123A · CI-ABJ-2026-B-12345 · +225 07 00 00 00), qui s'imprimaient
+        // telles quelles sur le PDF téléchargeable. Un filigrane ne protège pas
+        // d'un numéro fiscal inventé : il suffit de l'ignorer.
+        // Ces trois champs partent donc VIDES. Leurs `placeholder` sont déjà
+        // écrits dans le formulaire, et `REQUIRED_LEGAL_FIELDS` les tient pour
+        // obligatoires — le devis se consulte et se télécharge, mais l'app dit
+        // clairement qu'il n'est pas envoyable tant que l'identité n'est pas
+        // celle de l'utilisateur. Le nom, l'email et l'adresse restent renseignés :
+        // sans eux le document de démonstration n'aurait plus d'en-tête à montrer.
+        phone: '',
         email: 'contact@ikadevis.com',
         address: "Abidjan, Côte d'Ivoire",
-        nif: '2600123A',
-        rccm: 'CI-ABJ-2026-B-12345',
+        nif: '',
+        rccm: '',
         currency: 'FCFA',
         paymentSchedule: [
             { label: 'Acompte à la signature et démarrage des travaux', pct: 40 },
@@ -7003,11 +7748,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     useEffect(() => {
         const handleOnline = () => {
             setIsOnline(true);
-            showToast("✓ Connexion rétablie : synchronisation automatique active !", "success");
+            showToast("Connexion rétablie : synchronisation automatique active !", "success");
         };
         const handleOffline = () => {
             setIsOnline(false);
-            showToast("⚠️ Connexion perdue : bascule en Mode Chantier (Hors-Ligne)", "warning");
+            showToast("Connexion perdue : bascule en Mode Chantier (Hors-Ligne)", "warning");
         };
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
@@ -7017,6 +7762,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
     }, []);
     const [isCommercialMode, setIsCommercialMode] = useState(true);
+    // Audit UX (2026-09-01) — la bande « Actions du devis » occupait 117 px en
+    // permanence (cinq boutons sur deux rangs) dans un panneau de 584 px, au
+    // détriment du document lui-même. Elle se replie donc par défaut : on
+    // regarde un devis bien plus souvent qu'on ne le duplique.
+    const [actionsDevisDepliees, setActionsDevisDepliees] = useState(false);
     // 2026-08-20 — Niveau de détail du devis CLIENT (§ 27.1, second axe).
     // null = suivre le défaut réglé dans Paramètres → Documents & PDF ; une
     // valeur explicite = choix ponctuel pour le devis affiché, sans toucher au
@@ -7098,53 +7848,79 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         ];
 
-        const initialSavedQuotes = [
-            {
-                id: 101,
-                number: `DEV-${new Date().getFullYear()}-001`,
-                versionNumber: 1,
-                clientName: 'Société Immobilière NBB',
-                projectRef: 'Construction Siège NBB',
-                date: new Date().toLocaleDateString('fr-FR'),
-                status: 'approved',
-                vatRate: 18,
-                quoteData: {
-                    netHTConsomme: 12500000,
-                    tvaConsomme: 2250000,
-                    totalTTCConsomme: 14750000,
-                    totalDebourseConsomme: 8500000,
-                    fraisGenerauxConsomme: 600000,
-                    margeValeurConsomme: 3400000,
-                    margePctConsommeReelle: 27.2,
-                    lots: [
-                        {
-                            id: 'lot-1',
-                            lotName: 'Lot 03 — Gros Œuvre & Béton Armé',
-                            quoteData: {
-                                netHTConsomme: 12500000,
-                                totalTTCConsomme: 14750000,
-                                totalDebourseConsomme: 8500000
-                            }
-                        }
-                    ],
-                    commercialItems: [
-                        {
-                            name: 'Lot 03 — Gros Œuvre & Béton Armé B25',
-                            billedQty: 1,
-                            unit: 'forfait',
-                            sellingUnitHT: 12500000,
-                            sellingTotalHT: 12500000
-                        }
-                    ]
+        // Audit UX (2026-09-01) — le devis de démonstration était un FORFAIT
+        // d'une seule ligne à 12 500 000 FCFA. Il montrait un vrai document et
+        // un vrai total, mais pas ce qui fait le produit : à l'ouverture, la
+        // ligne s'affichait « Ligne libre · coût d'achat à définir », déboursé
+        // 0, K=1, marge 0 %. La démo n'exerçait donc jamais le moteur — ni le
+        // métré, ni la décomposition matières/main-d'œuvre, ni le coefficient K.
+        //
+        // Il porte maintenant trois lots bâtis sur de vrais ouvrages du
+        // catalogue (fondations, maçonnerie, peinture), avec leurs métrés. Les
+        // totaux du devis enregistré ne sont plus écrits à la main : ils sont
+        // calculés par le moteur au moment du semis (voir le useState de
+        // savedQuotes plus bas), ce qui garantit qu'ils ne peuvent pas dériver
+        // du chiffrage réel — et fait passer la garde de fidélité de
+        // l'atterrissage sans exception.
+        const demoQuoteSnapshot = {
+            id: 101,
+            serverId: null,
+            number: `DEV-${new Date().getFullYear()}-001`,
+            clientId: null,
+            clientName: 'Société Immobilière NBB',
+            projectId: null,
+            projectRef: 'Construction Siège NBB',
+            status: 'approved',
+            activityType: 'btp',
+            vatRate: 18,
+            overheadRate: 5,
+            margin: 30,
+            marginType: 'reel',
+            discountRate: 0,
+            notes: '',
+            lots: [
+                {
+                    id: 'lot-1', code: '01', name: 'Lot 01 — Terrassement & Fondations',
+                    // Deux ouvrages dans le lot d'arrivée, volontairement : c'est le
+                    // premier écran que voit un visiteur, et un devis d'une seule
+                    // ligne montre mal ce que fait le produit.
+                    items: [{
+                        id: 'demo-0', solutionId: 10,
+                        name: 'Fouilles en pleine masse et décapage',
+                        description: 'Terrassement mécanique, évacuation des terres',
+                        qty: 1,
+                        calcForm: { solutionId: 10, takeoffMode: 'volume', width: 14, height: 20, depth: 0.60, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
+                    }, {
+                        id: 'demo-1', solutionId: 4,
+                        name: 'Semelles filantes et poteaux en béton armé B25',
+                        description: 'Béton dosé à 350 kg/m³, ferraillage compris',
+                        qty: 1,
+                        calcForm: { solutionId: 4, takeoffMode: 'volume', width: 12, height: 18, depth: 0.20, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { DOSAGE_ACIER: 80 } }
+                    }]
                 },
-                companyInfoSnapshot: {
-                    name: 'MicroOffice BTP Ingénierie',
-                    currency: 'FCFA',
-                    paymentTerms: '40% acompte, 30% avancement, 20% finitions, 10% solde',
-                    quoteValidity: '30 jours'
+                {
+                    id: 'lot-2', code: '02', name: 'Lot 02 — Maçonnerie & Cloisonnements',
+                    items: [{
+                        id: 'demo-2', solutionId: 5,
+                        name: 'Murs extérieurs en agglos de 15 et cloisons',
+                        description: 'Montage au mortier, joints pleins',
+                        qty: 1,
+                        calcForm: { solutionId: 5, takeoffMode: 'surface', surfaceDirect: 260, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {} }
+                    }]
+                },
+                {
+                    id: 'lot-3', code: '03', name: 'Lot 03 — Peinture & Finitions',
+                    items: [{
+                        id: 'demo-3', solutionId: 3,
+                        name: 'Peinture satinée intérieure, deux couches',
+                        description: 'Préparation, sous-couche et finition satinée lessivable',
+                        qty: 1,
+                        calcForm: { solutionId: 3, takeoffMode: 'surface', surfaceDirect: 420, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: { COUCHES: 2 } }
+                    }]
                 }
-            }
-        ];
+            ]
+        };
+
 
 
 
@@ -7714,7 +8490,35 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // NB : loadLocalData applique déjà sa valeur par défaut quand rien
         // n'est stocké, on lit donc directement LS pour distinguer
         // « rien de stocké » de « stocké et vide ».
-        return donneesInitiales(LS.get('savedQuotes', sbUser?.id), initialSavedQuotes);
+        // Le devis de démonstration est chiffré ICI, par le moteur lui-même :
+        // ses totaux enregistrés sont donc, par construction, ceux qu'il
+        // recalculera à la réouverture. Écrire ces montants à la main, comme
+        // avant, les laissait dériver du catalogue sans que rien ne le signale.
+        const devisDemo = (() => {
+            try {
+                const calcule = calculateHybridQuote(demoQuoteSnapshot, initialSolutions, initialMaterials, initialLabor, initialRecipes);
+                const adapte = adaptHybridToSavedQuote(calcule, demoCompany);
+                return [{
+                    ...adapte,
+                    id: 101,
+                    number: demoQuoteSnapshot.number,
+                    versionNumber: 1,
+                    status: 'approved',
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    hybridQuoteSnapshot: demoQuoteSnapshot,
+                    companyInfoSnapshot: {
+                        name: demoCompany.name,
+                        currency: 'FCFA',
+                        paymentTerms: '40% acompte, 30% avancement, 20% finitions, 10% solde',
+                        quoteValidity: '30 jours'
+                    }
+                }];
+            } catch (err) {
+                console.warn('[ikadevis] devis de démonstration non chiffré :', err && err.message);
+                return [];
+            }
+        })();
+        return donneesInitiales(LS.get('savedQuotes', sbUser?.id), devisDemo);
     });
 
     // P0.11 (2026-08-17) — Bug trouvé en testant 3 devis à la suite : le devis
@@ -8341,6 +9145,83 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setTimeout(() => setToast(null), 3500);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
+
+    // ═══════════════════════════════════════════════════════════════
+    // ATTERRISSAGE DE LA DÉMO SUR UN DEVIS RÉEL
+    // ═══════════════════════════════════════════════════════════════
+    // Audit UX (2026-08-31) — l'écran d'arrivée est fixé à 'calculator' :
+    // l'utilisateur entre en Mode Démo et tombe sur un devis VIDE. Pendant ce
+    // temps, la base locale de démonstration contient 2 clients, 2 chantiers,
+    // un devis approuvé, 33 matières, 20 postes de main-d'œuvre et une
+    // bibliothèque d'ouvrages complète — que personne ne voit jamais.
+    //
+    // Le moment de bascule du produit existe pourtant, et il est fort : voir la
+    // chaîne complète se remplir (déboursé sec → coefficient K → net HT → TVA →
+    // TTC) sur un vrai devis BTP. Aujourd'hui il fallait le trouver seul, dans
+    // un état vide proposant trois chemins de poids visuel identique.
+    //
+    // On ouvre donc le devis de démonstration, déjà chiffré, dès l'entrée :
+    // temps jusqu'à la valeur = zéro clic au lieu de quatre. Une seule fois par
+    // navigateur (marqueur ci-dessous) pour ne pas réécraser le travail d'un
+    // habitué, et jamais s'il y a un brouillon à reprendre — celui-ci prime,
+    // c'est le travail réel de l'utilisateur.
+    const CLE_DEMO_VUE = 'demoQuoteOpened';
+    const [devisExemplecharge, setDevisExempleCharge] = useState(false);
+    const atterrissageExamineRef = useRef(false);
+
+    useEffect(() => {
+        if (atterrissageExamineRef.current) return;
+        if (!estModeDemo) return;
+        // Le brouillon prime : s'il y en a un, la bannière de reprise s'affiche
+        // et on ne touche à rien.
+        if (brouillonPropose) { atterrissageExamineRef.current = true; return; }
+        // Attendre que le catalogue et les devis soient chargés.
+        if (!savedQuotes.length || !solutions.length) return;
+        if (LS.get(CLE_DEMO_VUE, currentUserId)) { atterrissageExamineRef.current = true; return; }
+
+        const exemple = savedQuotes[savedQuotes.length - 1];
+        if (!exemple) { atterrissageExamineRef.current = true; return; }
+        atterrissageExamineRef.current = true;
+        try {
+            const hq = adaptSavedQuoteToHybrid(exemple, solutions, materials, labor, recipes);
+
+            // ⚠️ Garde de fidélité. adaptSavedQuoteToHybrid ne sait reconstruire
+            // un devis QUE s'il porte un `hybridQuoteSnapshot` (les devis
+            // enregistrés par l'application actuelle) ou s'il est `isMultiLot`.
+            // Un devis hérité sans instantané — c'est le cas du devis de
+            // démonstration semé en base — retombe sur la branche « ouvrage
+            // unique » : un seul poste générique « Ouvrage Principal » au
+            // calcForm vide. Mesuré ici : 14 750 000 FCFA TTC enregistrés
+            // deviennent 40 268 FCFA à la réouverture, soit un facteur 366.
+            //
+            // Faire atterrir l'utilisateur sur cette version dégradée serait
+            // pire que sur un devis vide : elle a l'air d'un vrai devis, elle
+            // porte le même numéro, et un « Mettre à jour » écraserait
+            // l'original par cette ruine. On vérifie donc que la reconstruction
+            // tient avant de la montrer ; sinon on ouvre le devis d'exemple en
+            // LECTURE, dans sa vue document, qui lit la fiche enregistrée
+            // telle quelle et reste donc exacte.
+            const attendu = exemple.quoteData?.totalTTCConsomme || 0;
+            const obtenu = hq?.totalTTC || 0;
+            const fidele = attendu <= 0 || (Math.abs(obtenu - attendu) / attendu) < 0.02;
+
+            if (fidele) {
+                setHybridQuote(hq);
+                setUseHybridEditor(true);
+                setActiveView('calculator');
+                setDevisExempleCharge(true);
+            } else {
+                console.warn(`[ikadevis] reconstruction infidèle du devis ${exemple.number} (${attendu} → ${obtenu} FCFA TTC) — ouverture en lecture seule.`);
+                setViewingSavedQuote(exemple);
+                setActiveView('savedQuotes');
+            }
+            LS.set(CLE_DEMO_VUE, true, currentUserId);
+        } catch (err) {
+            // Un échec d'adaptation ne doit jamais empêcher d'entrer dans
+            // l'application : on retombe sur le devis vide d'origine.
+            console.warn('[ikadevis] devis de démonstration non chargé :', err && err.message);
+        }
+    }, [estModeDemo, brouillonPropose, savedQuotes, solutions, materials, labor, recipes, currentUserId]);
 
     const isIosDevice = typeof navigator !== 'undefined'
         && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
@@ -9678,10 +10559,93 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     };
 
+    // Bandeau de reprise du brouillon. Jamais de restauration silencieuse :
+    // l'utilisateur doit reconnaître son travail avant qu'on écrase l'écran
+    // sous ses yeux — et il doit pouvoir refuser sans perdre le brouillon par
+    // accident (« Ignorer » l'oublie explicitement, c'est son choix).
+    const renderBandeauBrouillon = () => {
+        if (!brouillonPropose) return null;
+        const q = brouillonPropose.quote || {};
+        const nbOuvrages = (q.lots || []).reduce((n, lot) => n + ((lot.items || []).length), 0);
+        const quand = brouillonPropose.at ? new Date(brouillonPropose.at) : null;
+        const horodatage = quand
+            ? `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+            : 'récemment';
+        return (
+            <div role="status" className="mb-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                <i className="fa-solid fa-clock-rotate-left text-amber-700 shrink-0" aria-hidden="true"></i>
+                <p className="flex-1 text-xs font-semibold text-neutral-800 leading-snug">
+                    Un devis non enregistré du {horodatage} a été retrouvé
+                    {nbOuvrages > 0 && <> — {nbOuvrages} ouvrage{nbOuvrages > 1 ? 's' : ''}</>}
+                    {q.clientName ? <>, client « {q.clientName} »</> : null}.
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={oublierBrouillon} className="btn-secondary text-xs py-1.5 px-3 font-bold">Ignorer</button>
+                    <button type="button" onClick={reprendreBrouillon} className="btn-primary text-xs py-1.5 px-3 font-bold">Reprendre ce devis</button>
+                </div>
+            </div>
+        );
+    };
+
+    // Bandeau du devis d'exemple. Il dit trois choses en une ligne : ce que
+    // l'utilisateur regarde n'est pas à lui, il peut y toucher sans crainte, et
+    // voici comment commencer le sien.
+    const renderBandeauExemple = () => {
+        if (!devisExemplecharge) return null;
+        return (
+            <div role="status" className="mb-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+                <i className="fa-solid fa-lightbulb text-brand-700 shrink-0" aria-hidden="true"></i>
+                <p className="flex-1 text-xs font-semibold text-neutral-800 leading-snug">
+                    Vous explorez un <strong>devis d’exemple</strong> déjà chiffré. Modifiez-le librement pour voir les prix se recalculer — rien n’est envoyé à personne.
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setDevisExempleCharge(false)}
+                        className="btn-secondary text-xs py-1.5 px-3 font-bold"
+                    >
+                        Continuer sur cet exemple
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            // handleReset vit dans QuoteWorkspace, hors de portée d'ici :
+                            // on repart d'un devis vierge depuis App, avec le prochain
+                            // numéro libre et sans identité serveur (sinon le prochain
+                            // « Enregistrer » écraserait le devis d'exemple).
+                            setDevisExempleCharge(false);
+                            setSeqRestauration(n => n + 1);
+                            setHybridQuote({
+                                id: Date.now(),
+                                serverId: null,
+                                number: generateNextQuoteNumber(savedQuotes),
+                                clientId: null, clientName: '',
+                                projectId: null, projectRef: '',
+                                status: 'draft', activityType: 'btp',
+                                vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
+                                discountRate: 0, notes: '',
+                                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation & Gros Œuvre', items: [] }]
+                            });
+                            setDevisNonEnregistre(false);
+                            showToast('Nouveau devis vierge — l’exemple reste disponible dans « Devis ».');
+                        }}
+                        className="btn-primary text-xs py-1.5 px-3 font-bold"
+                    >
+                        Créer mon devis
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     const renderCalculator = () => {
         if (useHybridEditor) {
             return (
+                <>
+                {renderBandeauExemple()}
+                {renderBandeauBrouillon()}
                 <QuoteWorkspace
+                    key={`ws-${seqRestauration}`}
                     onDirtyChange={setDevisNonEnregistre}
                     initialDirty={devisNonEnregistre}
                     hybridQuote={hybridQuote}
@@ -9752,10 +10716,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             const updatedQuotes = [savedQ, ...savedQuotes.filter(q => q.id !== savedQ.id)];
                             updateSavedQuotes(updatedQuotes);
                             if (isNewLocalQuote) updateNextQuoteSeq(nextQuoteSeq + 1);
+                            // Le devis est en sécurité : le brouillon de secours n'a plus
+                            // de raison d'être, et le laisser ferait proposer une reprise
+                            // au prochain démarrage alors qu'il n'y a rien à reprendre.
+                            oublierBrouillon();
                             setSaveQuoteStatus('saved');
                             showToast(isNewLocalQuote
-                                ? `✓ Devis ${savedQ.number} enregistré en local`
-                                : `✓ Devis ${savedQ.number} mis à jour en local`, "success");
+                                ? `Devis ${savedQ.number} enregistré en local`
+                                : `Devis ${savedQ.number} mis à jour en local`, "success");
                             setTimeout(() => setSaveQuoteStatus('idle'), 3000);
                             return;
                         }
@@ -9841,7 +10809,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 console.error(`[Bloc 1] ${rpcName} Server Error:`, rpcErr);
                                 setSaveQuoteStatus('error');
                                 setSaveQuoteError(rpcErr.message || 'Erreur serveur lors de la persistance.');
-                                showToast(`✕ Échec de l'enregistrement serveur : ${rpcErr.message}`, "error");
+                                showToast(`Échec de l'enregistrement serveur : ${rpcErr.message}`, "error");
                                 return;
                             }
 
@@ -9862,6 +10830,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             // bien avancé côté serveur et l'affichage doit suivre.
                             const aVraimentMisAJour = isUpdate && !repliSurCreation;
                             if (!aVraimentMisAJour) updateNextQuoteSeq(nextQuoteSeq + 1);
+                            // Le devis est en sécurité : le brouillon de secours n'a plus
+                            // de raison d'être, et le laisser ferait proposer une reprise
+                            // au prochain démarrage alors qu'il n'y a rien à reprendre.
+                            oublierBrouillon();
                             setSaveQuoteStatus('saved');
                             showToast(aVraimentMisAJour
                                 ? `✓ Devis ${persistedQuote.number} mis à jour sur le serveur !`
@@ -9884,11 +10856,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             console.error('[Bloc 1] Save Network Exception:', err);
                             setSaveQuoteStatus('error');
                             setSaveQuoteError(err.message || 'Connexion réseau impossible.');
-                            showToast(`✕ Erreur réseau lors de l'enregistrement`, "error");
+                            showToast(`Erreur réseau lors de l'enregistrement`, "error");
                         }
                     }}
                     onPreviewQuote={(savedQ) => {
+                        // Audit UX (2026-08-31) — P0 : « Aperçu Client & PDF » ne
+                        // produisait RIEN au-dessus de 1024 px. Seul setViewingSavedQuote
+                        // était appelé ; or ce seul état ne monte, en desktop, que le
+                        // panneau de la vue 'savedQuotes' (la modale est mobile-only).
+                        // Tous les autres appelants font déjà les deux appels — celui-ci
+                        // les avait perdus.
                         setViewingSavedQuote(savedQ);
+                        setActiveView('savedQuotes');
                     }}
                     useHybridEditor={useHybridEditor}
                     onToggleHybridEditor={toggleHybridEditor}
@@ -9900,6 +10879,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     savedQuotes={savedQuotes}
                     showToast={showToast}
                 />
+                </>
             );
         }
         const activeSolution = solutions.find(s => s.id === calcForm.solutionId) || solutions[0];
@@ -10044,7 +11024,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div>
                                         <span className="text-[10px] font-semibold text-brand-400 uppercase tracking-wider">Poste #{idx + 1}</span>
                                         <h4 className="font-semibold text-sm text-white">{lot.lotName}</h4>
-                                        <p className="text-xs text-neutral-400 mt-0.5 font-medium">
+                                        <p className="text-xs text-neutral-500 mt-0.5 font-medium">
                                             {formatLotDimensions(lot)}
                                         </p>
                                     </div>
@@ -10053,7 +11033,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </button>
                                 </div>
                                 <div className="border-t border-neutral-700/60 pt-2 flex justify-between items-center text-xs">
-                                    <span className="text-neutral-400 font-medium">Net HT :</span>
+                                    <span className="text-neutral-500 font-medium">Net HT :</span>
                                     <span className="font-semibold text-brand-300">{formatMoney(lot.quoteData.netHTConsomme, companyInfo.currency)}</span>
                                 </div>
                             </div>
@@ -10081,7 +11061,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </span>
                             </div>
                         </div>
-                        <p className="text-[11px] text-neutral-400 italic">
+                        <p className="text-[11px] text-neutral-500 italic">
                             Chaque lot sera ventilé individuellement dans le devis client imprimé.
                         </p>
                     </div>
@@ -10338,16 +11318,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Déboursé Sec</span>
+                                    <span className="text-neutral-500 block text-[10px] uppercase font-bold">Déboursé Sec</span>
                                     <span className="font-semibold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalDebourseConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Prix de Revient</span>
+                                    <span className="text-neutral-500 block text-[10px] uppercase font-bold">Prix de Revient</span>
                                     <span className="font-semibold text-neutral-800 text-lg sm:text-xl">{formatMoney(currentQuote.totalRevientConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
-                                    <span className="text-neutral-400 block text-[10px] uppercase font-bold">Marge Nette ({currentQuote.margePctConsommeReelle.toFixed(1)}%)</span>
-                                    <span className="font-semibold text-emerald-600 text-lg sm:text-xl">{formatMoney(currentQuote.margeValeurConsomme, companyInfo.currency)}</span>
+                                    <span className="text-neutral-500 block text-[10px] uppercase font-bold">Marge Nette ({currentQuote.margePctConsommeReelle.toFixed(1)}%)</span>
+                                    <span className="font-semibold text-emerald-700 text-lg sm:text-xl">{formatMoney(currentQuote.margeValeurConsomme, companyInfo.currency)}</span>
                                 </div>
                                 <div className="p-4 rounded-2xl bg-brand-50 border border-brand-200">
                                     <span className="text-brand-700 block text-[10px] uppercase font-bold">Net Client HT</span>
@@ -10401,10 +11381,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[11px] text-neutral-400 font-medium hidden sm:inline">
+                                    <span className="text-[11px] text-neutral-500 font-medium hidden sm:inline">
                                         {showTechnicalDetails ? 'Masquer' : 'Voir le détail des formules et matières'}
                                     </span>
-                                    <i className={`fa-solid fa-chevron-down text-xs text-neutral-400 transition-transform duration-200 ${showTechnicalDetails ? 'rotate-180 text-brand-500' : ''}`}></i>
+                                    <i className={`fa-solid fa-chevron-down text-xs text-neutral-500 transition-transform duration-200 ${showTechnicalDetails ? 'rotate-180 text-brand-500' : ''}`}></i>
                                 </div>
                             </button>
 
@@ -10447,7 +11427,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                             </td>
                                                             <td className="app-td text-right font-medium text-neutral-600">
                                                                 <div>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</div>
-                                                                <div className="mt-1 text-[10px] font-normal text-neutral-400">
+                                                                <div className="mt-1 text-[10px] font-normal text-neutral-500">
                                                                     Net {Number(d.netQty ?? d.baseQty ?? 0).toFixed(2)} · Perte {Number(d.wasteQty || 0).toFixed(2)} ({Number(d.wastePct ?? d.waste ?? 0).toFixed(1)}%)
                                                                 </div>
                                                             </td>
@@ -10455,7 +11435,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                             <td className="app-td pr-6 text-right font-bold text-neutral-900">
                                                                 <div>{formatMoney(d.costConsumed ?? d.totalCost ?? 0, companyInfo.currency)}</div>
                                                                 {d.type === 'material' && d.costPurchased != null && Math.round(Number(d.costPurchased) || 0) !== Math.round(Number(d.costConsumed ?? 0) || 0) && (
-                                                                    <div className="mt-1 text-[10px] font-normal text-neutral-400">Achat {formatMoney(d.costPurchased, companyInfo.currency)}</div>
+                                                                    <div className="mt-1 text-[10px] font-normal text-neutral-500">Achat {formatMoney(d.costPurchased, companyInfo.currency)}</div>
                                                                 )}
                                                             </td>
                                                         </tr>
@@ -10536,7 +11516,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 ) : (
                     <div className="h-full min-h-[300px] flex items-center justify-center border-2 border-dashed border-neutral-200 rounded-2xl bg-white p-6 text-center">
                         <div>
-                            <div className="w-16 h-16 bg-neutral-50 border border-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4 text-neutral-400">
+                            <div className="w-16 h-16 bg-neutral-50 border border-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4 text-neutral-500">
                                 <i className="fa-solid fa-calculator text-2xl"></i>
                             </div>
                             <p className="text-neutral-500 font-medium">Sélectionnez un ouvrage pour démarrer</p>
@@ -10551,7 +11531,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white/95 backdrop-blur-md border-t border-neutral-200/80 p-3 sm:p-4 z-30 shadow-floating flex flex-wrap items-center justify-between gap-3 animate-fade-in">
                 <div className="flex items-center gap-3">
                     <div>
-                        <span className="text-[10px] text-neutral-400 block uppercase font-bold">Total Net HT</span>
+                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">Total Net HT</span>
                         <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(currentQuote.netHTConsomme, companyInfo.currency)}</span>
                     </div>
                     <div className="pl-3 border-l border-neutral-200">
@@ -10610,23 +11590,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const invoicedTotal = issuedInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
         const recentQuotes = savedQuotes.slice(0, 4);
         const recentInvoices = invoices.slice(0, 3);
-        const quoteStatusLabel = {
-            draft: ['Brouillon', 'bg-neutral-100 text-neutral-600'],
-            review: ['À vérifier', 'bg-amber-50 text-amber-700'],
-            ready: ['Prêt', 'bg-blue-50 text-blue-700'],
-            sent: ['Envoyé', 'bg-violet-50 text-violet-700'],
-            approved: ['Approuvé', 'bg-emerald-50 text-emerald-700'],
-            accepted: ['Accepté', 'bg-emerald-50 text-emerald-700']
-        };
 
         const DashboardMetric = ({ label, value, detail, icon, tone = 'brand' }) => (
             <div className="app-card p-4 sm:p-5 flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-neutral-400">{label}</p>
+                    <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-neutral-500">{label}</p>
                     <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 tabular-nums">{value}</p>
                     <p className="mt-1 text-xs text-neutral-500 truncate">{detail}</p>
                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tone === 'emerald' ? 'bg-emerald-50 text-emerald-600' : tone === 'amber' ? 'bg-amber-50 text-amber-600' : tone === 'violet' ? 'bg-violet-50 text-violet-600' : 'bg-brand-50 text-brand-600'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : tone === 'violet' ? 'bg-violet-50 text-violet-600' : 'bg-brand-50 text-brand-600'}`}>
                     <i className={`fa-solid ${icon}`}></i>
                 </div>
             </div>
@@ -10638,7 +11610,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div>
                         <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Vue d’ensemble</p>
                         <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900 mt-1">Votre activité, en un coup d’œil</h2>
-                        <p className="text-sm text-neutral-500 mt-1">Retrouvez rapidement les affaires et documents qui nécessitent votre attention.</p>
+                        <p className="text-sm text-neutral-500 mt-1">Retrouvez rapidement les chantiers et documents qui nécessitent votre attention.</p>
                     </div>
                     <button onClick={() => setActiveView('calculator')} className="btn-primary text-xs py-2.5 px-4 shrink-0" aria-label="Créer un nouveau devis">
                         <i className="fa-solid fa-plus mr-1.5"></i> Nouveau devis
@@ -10646,10 +11618,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <DashboardMetric label="Affaires actives" value={activeProjects.length} detail={`${projects.length} affaire(s) au total`} icon="fa-folder-tree" />
+                    <DashboardMetric label="Chantiers actifs" value={activeProjects.length} detail={projects.length === activeProjects.length ? "Tous en cours" : `sur ${projects.length} au total`} icon="fa-folder-tree" />
                     <DashboardMetric label="Clients" value={clients.length} detail="dans votre répertoire" icon="fa-users" tone="violet" />
-                    <DashboardMetric label="Devis à suivre" value={pendingQuotes.length} detail={`${savedQuotes.length} devis enregistré(s)`} icon="fa-file-signature" tone="amber" />
-                    <DashboardMetric label="Facturé" value={formatMoney(invoicedTotal, companyInfo.currency)} detail={`${issuedInvoices.length} facture(s) émise(s)`} icon="fa-chart-line" tone="emerald" />
+                    <DashboardMetric label="Devis à suivre" value={pendingQuotes.length} detail={`sur ${savedQuotes.length} devis enregistré${savedQuotes.length > 1 ? "s" : ""}`} icon="fa-file-signature" tone="amber" />
+                    <DashboardMetric label="Facturé" value={formatMoney(invoicedTotal, companyInfo.currency)} detail={issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`} icon="fa-chart-line" tone="emerald" />
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-5 min-h-0">
@@ -10659,13 +11631,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <h3 className="font-semibold text-neutral-900">Devis récents</h3>
                                 <p className="text-xs text-neutral-500 mt-0.5">Les dernières propositions enregistrées</p>
                             </div>
-                            <button onClick={() => setActiveView('savedQuotes')} className="text-xs font-semibold text-brand-600 hover:text-brand-800">Voir tous</button>
+                            <button onClick={() => setActiveView('savedQuotes')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir tous</button>
                         </div>
                         <div className="divide-y divide-neutral-100">
                             {recentQuotes.length === 0 ? (
-                                <div className="p-8 text-center text-sm text-neutral-400">Aucun devis enregistré.</div>
+                                <div className="p-8 text-center text-sm text-neutral-500">Aucun devis enregistré.</div>
                             ) : recentQuotes.map(q => {
-                                const [statusLabel, statusClass] = quoteStatusLabel[q.status] || ['À suivre', 'bg-neutral-100 text-neutral-600'];
+                                const [statusLabel, statusClass] = statutDevis(q.status);
                                 return (
                                     <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50 transition-colors">
                                         <div className="min-w-0">
@@ -10685,14 +11657,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <section className="app-card overflow-hidden">
                         <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
                             <div>
-                                <h3 className="font-semibold text-neutral-900">Affaires en cours</h3>
+                                <h3 className="font-semibold text-neutral-900">Chantiers en cours</h3>
                                 <p className="text-xs text-neutral-500 mt-0.5">Projets actifs à surveiller</p>
                             </div>
-                            <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800">Voir tous</button>
+                            <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir tous</button>
                         </div>
                         <div className="divide-y divide-neutral-100">
                             {activeProjects.length === 0 ? (
-                                <div className="p-8 text-center text-sm text-neutral-400">Aucune affaire active.</div>
+                                <div className="p-8 text-center text-sm text-neutral-500">Aucun chantier actif.</div>
                             ) : activeProjects.slice(0, 4).map(p => (
                                 <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-4 flex items-center gap-3 text-left hover:bg-neutral-50 transition-colors">
                                     <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-folder-tree text-xs"></i></div>
@@ -10708,7 +11680,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <section className="app-card overflow-hidden">
                         <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
                             <div><h3 className="font-semibold text-neutral-900">Facturation récente</h3><p className="text-xs text-neutral-500 mt-0.5">Les dernières factures créées</p></div>
-                            <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800">Voir toutes</button>
+                            <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir toutes</button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-neutral-100">
                             {recentInvoices.map(f => <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="p-4 text-left hover:bg-neutral-50 transition-colors"><p className="font-semibold text-sm text-neutral-900 truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p><p className="text-xs text-neutral-500 mt-1">{f.numero || 'Facture brouillon'}</p><p className="text-sm font-semibold text-neutral-800 mt-2">{formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}</p></button>)}
@@ -10736,16 +11708,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     par l'utilisateur en référence à Zoho Books. */}
                 <div className={`${selectedProject ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
-                        <h2 className="text-lg font-bold text-neutral-800">Projet</h2>
+                        <h2 className="text-lg font-bold text-neutral-800">Chantiers</h2>
                         <button
                             onClick={() => {
                                 setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
                                 setIsNewProjectModalOpen(true);
                             }}
                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
-                            aria-label="Créer une nouvelle affaire"
+                            aria-label="Créer un nouveau chantier"
                         >
-                            <i className="fa-solid fa-plus"></i> Nouvelle Affaire
+                            <i className="fa-solid fa-plus"></i> Nouveau Chantier
                         </button>
                     </div>
 
@@ -10754,18 +11726,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             type="text"
                             value={projectSearchQuery}
                             onChange={(e) => setProjectSearchQuery(e.target.value)}
-                            placeholder="Rechercher une affaire..."
+                            placeholder="Rechercher un chantier..."
                             className="w-full bg-white border border-neutral-200 focus:border-brand-500 rounded-xl px-3.5 py-2 pl-9 text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all shadow-2xs"
-                            aria-label="Rechercher une affaire"
+                            aria-label="Rechercher un chantier"
                         />
-                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                     </div>
 
                     <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
                         {filteredProjects.map(prj => {
                             const prjQuotesCount = savedQuotes.filter(q => q.projectRef === prj.name || (q.projectId && q.projectId === prj.id)).length;
                             return (
-                                <button key={prj.id} onClick={() => setSelectedProjectId(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner l'affaire ${prj.name}`}>
+                                <button key={prj.id} onClick={() => setSelectedProjectId(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner le chantier ${prj.name}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0">{prj.code}</span>
                                         <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}`}>{getProjectStatusBadge(prj.status).label}</span>
@@ -10781,11 +11753,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
                                         <i className="fa-solid fa-folder-tree"></i>
                                     </div>
-                                    <p className="text-sm font-bold text-neutral-800">Aucune affaire pour l'instant</p>
+                                    <p className="text-sm font-bold text-neutral-800">Aucun chantier pour l'instant</p>
                                     <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
                                         {clients.length === 0
-                                            ? "Créez d'abord un client, puis rattachez-lui une affaire."
-                                            : 'Créez une affaire pour regrouper les devis d’un même chantier.'}
+                                            ? "Créez d'abord un client, puis rattachez-lui un chantier."
+                                            : 'Créez un chantier pour y regrouper les devis d’un même client.'}
                                     </p>
                                     {clients.length > 0 && (
                                         <button
@@ -10794,14 +11766,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 setIsNewProjectModalOpen(true);
                                             }}
                                             className="btn-primary mt-4 text-xs py-2 px-3.5"
-                                            aria-label="Créer votre première affaire"
+                                            aria-label="Créer votre premier chantier"
                                         >
-                                            <i className="fa-solid fa-plus"></i> Nouvelle Affaire
+                                            <i className="fa-solid fa-plus"></i> Nouveau Chantier
                                         </button>
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-xs text-neutral-400 italic text-center py-6">Aucune affaire ne correspond à cette recherche.</p>
+                                <p className="text-xs text-neutral-500 italic text-center py-6">Aucun chantier ne correspond à cette recherche.</p>
                             )
                         )}
                     </div>
@@ -10811,9 +11783,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     est sélectionnée ; toujours visible côte-à-côte à partir de lg. */}
                 <div className={`${selectedProject ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                     {!selectedProject ? (
-                        <div className="app-card p-16 text-center text-neutral-400">
+                        <div className="app-card p-16 text-center text-neutral-500">
                             <i className="fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300"></i>
-                            <p className="text-sm font-bold text-neutral-600">Sélectionnez une affaire pour voir son détail</p>
+                            <p className="text-sm font-bold text-neutral-600">Sélectionnez un chantier pour voir son détail</p>
                         </div>
                     ) : (
                         <div className="app-card flex flex-col">
@@ -10829,12 +11801,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                         <h2 className="text-lg sm:text-xl font-bold text-neutral-800 break-words">{selectedProject.name}</h2>
                                         <p className="text-xs text-neutral-500 font-medium break-words">
-                                            <i className="fa-solid fa-user mr-1 text-neutral-400"></i> {selectedProject.clientName} &bull; <i className="fa-solid fa-location-dot mr-1 text-neutral-400"></i> {selectedProject.siteAddress || selectedProject.city}
+                                            <i className="fa-solid fa-user mr-1 text-neutral-500"></i> {selectedProject.clientName} &bull; <i className="fa-solid fa-location-dot mr-1 text-neutral-500"></i> {selectedProject.siteAddress || selectedProject.city}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="text-left sm:text-right shrink-0">
-                                    <span className="text-[10px] uppercase font-bold text-neutral-400 block">CA Cumulé Affaire</span>
+                                    <span className="text-[10px] uppercase font-bold text-neutral-500 block">CA Cumulé Chantier</span>
                                     <span className="text-lg font-bold text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
                                 </div>
                             </div>
@@ -10860,7 +11832,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     title="Ouvrir le dossier du devis"
                                                 >
                                                     <span className="font-semibold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
-                                                    <span className="text-[10px] text-neutral-400">{q.date}</span>
+                                                    <span className="text-[10px] text-neutral-500">{q.date}</span>
                                                     <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
                                                 </button>
                                                 <div className="flex items-center gap-2 shrink-0">
@@ -10873,7 +11845,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-[11px] text-neutral-400 italic">Aucun devis lié pour l'instant.</p>
+                                    <p className="text-[11px] text-neutral-500 italic">Aucun devis lié pour l'instant.</p>
                                 )}
                             </div>
                         </div>
@@ -10905,7 +11877,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         const stat = (label, value, icon) => (
             <div className="app-card p-4">
-                <div className="flex items-center gap-2 text-neutral-400 mb-1.5">
+                <div className="flex items-center gap-2 text-neutral-500 mb-1.5">
                     <i className={`fa-solid ${icon} text-xs`}></i>
                     <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
                 </div>
@@ -10933,7 +11905,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
 
                 {platformLoading && (
-                    <div className="app-card p-10 text-center text-neutral-400">
+                    <div className="app-card p-10 text-center text-neutral-500">
                         <i className="fa-solid fa-spinner fa-spin text-2xl mb-3"></i>
                         <p className="text-sm font-semibold">Chargement de la vue plateforme…</p>
                     </div>
@@ -10969,7 +11941,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
                                 Organisations clientes ({(o.organizations || []).length})
                             </h3>
-                            <span className="text-[10px] text-neutral-400 font-medium">
+                            <span className="text-[10px] text-neutral-500 font-medium">
                                 Généré le {o.generated_at ? new Date(o.generated_at).toLocaleString('fr-FR') : '—'}
                             </span>
                         </div>
@@ -10978,7 +11950,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="p-10 text-center">
                                 <i className="fa-solid fa-building-circle-exclamation text-3xl text-neutral-300 mb-3"></i>
                                 <p className="text-sm font-bold text-neutral-700">Aucune organisation cliente</p>
-                                <p className="text-xs text-neutral-400 mt-1">
+                                <p className="text-xs text-neutral-500 mt-1">
                                     Cet environnement ne contient encore aucun compte client.
                                 </p>
                             </div>
@@ -10990,7 +11962,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <th className="app-th pl-5">Organisation</th>
                                             <th className="app-th text-right">Membres</th>
                                             <th className="app-th text-right">Clients</th>
-                                            <th className="app-th text-right">Affaires</th>
+                                            <th className="app-th text-right">Chantiers</th>
                                             <th className="app-th text-right">Devis</th>
                                             <th className="app-th text-right">Volume TTC</th>
                                             <th className="app-th pr-5">Dernière activité</th>
@@ -11001,7 +11973,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <tr key={org.organization_id} className="hover:bg-neutral-50/60 transition-colors">
                                                 <td className="app-td pl-5">
                                                     <p className="font-bold text-neutral-900">{org.name}</p>
-                                                    <p className="text-[10px] text-neutral-400 font-mono">{org.organization_id}</p>
+                                                    <p className="text-[10px] text-neutral-500 font-mono">{org.organization_id}</p>
                                                 </td>
                                                 <td className="app-td text-right tabular-nums">{org.members}</td>
                                                 <td className="app-td text-right tabular-nums">{org.clients}</td>
@@ -11009,7 +11981,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <td className="app-td text-right tabular-nums">
                                                     {org.quotes}
                                                     {org.quotes_accepted > 0 && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600">
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-700">
                                                             ({org.quotes_accepted} acceptés)
                                                         </span>
                                                     )}
@@ -11054,7 +12026,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     par l'utilisateur en référence à Zoho Books. */}
                 <div className={`${selectedClient ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
-                        <h2 className="text-lg font-bold text-neutral-800">Client</h2>
+                        <h2 className="text-lg font-bold text-neutral-800">Clients</h2>
                         <button
                             onClick={() => {
                                 setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
@@ -11076,7 +12048,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             className="w-full bg-white border border-neutral-200 focus:border-brand-500 rounded-xl px-3.5 py-2 pl-9 text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all shadow-2xs"
                             aria-label="Rechercher un client"
                         />
-                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                     </div>
 
                     <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
@@ -11106,7 +12078,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <p className="text-sm font-bold text-neutral-800">Aucun client pour l'instant</p>
                                     <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
-                                        Ajoutez votre premier client pour commencer à lui rattacher des affaires et des devis.
+                                        Ajoutez votre premier client pour commencer à lui rattacher des chantiers et des devis.
                                     </p>
                                     <button
                                         onClick={() => {
@@ -11120,7 +12092,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </button>
                                 </div>
                             ) : (
-                                <p className="text-xs text-neutral-400 italic text-center py-6">Aucun client ne correspond à cette recherche.</p>
+                                <p className="text-xs text-neutral-500 italic text-center py-6">Aucun client ne correspond à cette recherche.</p>
                             )
                         )}
                     </div>
@@ -11130,7 +12102,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     sélectionné ; toujours visible côte-à-côte à partir de lg. */}
                 <div className={`${selectedClient ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                     {!selectedClient ? (
-                        <div className="app-card p-16 text-center text-neutral-400">
+                        <div className="app-card p-16 text-center text-neutral-500">
                             <i className="fa-solid fa-users text-3xl mb-3 text-neutral-300"></i>
                             <p className="text-sm font-bold text-neutral-600">Sélectionnez un client pour voir sa fiche</p>
                         </div>
@@ -11175,11 +12147,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="p-5 sm:p-6 space-y-5">
                                 <div className="bg-neutral-50 rounded-2xl p-4 text-sm space-y-2 text-neutral-700 border border-neutral-100">
                                     {selectedClient.taxId && <p className="font-mono text-xs text-neutral-500"><strong>NIF/RCCM :</strong> {selectedClient.taxId}</p>}
-                                    {selectedClient.phone && <p><i className="fa-solid fa-phone mr-2 text-neutral-400 w-4"></i> {selectedClient.phone}</p>}
-                                    {selectedClient.email && <p><i className="fa-solid fa-envelope mr-2 text-neutral-400 w-4"></i> {selectedClient.email}</p>}
-                                    {selectedClient.address && <p><i className="fa-solid fa-location-dot mr-2 text-neutral-400 w-4"></i> {selectedClient.address}{selectedClient.city ? `, ${selectedClient.city}` : ''}</p>}
+                                    {selectedClient.phone && <p><i className="fa-solid fa-phone mr-2 text-neutral-500 w-4"></i> {selectedClient.phone}</p>}
+                                    {selectedClient.email && <p><i className="fa-solid fa-envelope mr-2 text-neutral-500 w-4"></i> {selectedClient.email}</p>}
+                                    {selectedClient.address && <p><i className="fa-solid fa-location-dot mr-2 text-neutral-500 w-4"></i> {selectedClient.address}{selectedClient.city ? `, ${selectedClient.city}` : ''}</p>}
                                     {!selectedClient.taxId && !selectedClient.phone && !selectedClient.email && !selectedClient.address && (
-                                        <p className="text-xs text-neutral-400 italic">Aucune coordonnée renseignée pour ce client.</p>
+                                        <p className="text-xs text-neutral-500 italic">Aucune coordonnée renseignée pour ce client.</p>
                                     )}
                                 </div>
 
@@ -11189,10 +12161,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <button
                                         onClick={() => { setProjectSearchQuery(selectedClient.name); setSelectedProjectId(selectedClientProjects[0]?.id || null); setActiveView('projects'); }}
                                         className="bg-white border border-neutral-200 rounded-2xl p-4 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-all group"
-                                        aria-label={`Voir les ${selectedClientProjects.length} affaires de ${selectedClient.name}`}
+                                        aria-label={`Voir les ${selectedClientProjects.length} chantiers de ${selectedClient.name}`}
                                     >
                                         <span className="text-2xl font-bold text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientProjects.length}</span>
-                                        <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Affaires <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-500 group-hover:text-brand-600 transition-colors">Chantiers <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
                                     </button>
                                     <button
                                         onClick={() => { setQuotesClientFilter({ kind: 'client', id: selectedClient.id, name: selectedClient.name }); setActiveView('savedQuotes'); }}
@@ -11200,16 +12172,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         aria-label={`Voir les ${selectedClientQuotes.length} devis de ${selectedClient.name}`}
                                     >
                                         <span className="text-2xl font-bold text-neutral-900 block group-hover:text-brand-600 transition-colors">{selectedClientQuotes.length}</span>
-                                        <span className="text-[10px] uppercase font-bold text-neutral-400 group-hover:text-brand-600 transition-colors">Devis <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-500 group-hover:text-brand-600 transition-colors">Devis <i className="fa-solid fa-arrow-right ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
                                     </button>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Affaires du client</h4>
+                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Chantiers du client</h4>
                                     {selectedClientProjects.length > 0 ? (
                                         <div className="space-y-1.5">
                                             {selectedClientProjects.map(p => (
-                                                <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setProjectSearchQuery(''); setActiveView('projects'); }} className="w-full flex justify-between items-center text-xs bg-neutral-50 hover:bg-brand-50/50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-all text-left" aria-label={`Ouvrir l'affaire ${p.name}`}>
+                                                <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setProjectSearchQuery(''); setActiveView('projects'); }} className="w-full flex justify-between items-center text-xs bg-neutral-50 hover:bg-brand-50/50 p-2.5 rounded-xl border border-neutral-100 hover:border-brand-200 transition-all text-left" aria-label={`Ouvrir le chantier ${p.name}`}>
                                                     <div className="min-w-0">
                                                         <span className="font-semibold text-neutral-800 mr-2">{p.code}</span>
                                                         <span className="text-neutral-600">{p.name}</span>
@@ -11219,7 +12191,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-[11px] text-neutral-400 italic">Aucune affaire liée pour l'instant.</p>
+                                        <p className="text-[11px] text-neutral-500 italic">Aucun chantier lié pour l'instant.</p>
                                     )}
                                 </div>
 
@@ -11237,7 +12209,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         title="Ouvrir le dossier du devis"
                                                     >
                                                         <span className="font-semibold text-neutral-800 group-hover:text-brand-600 transition-colors">{q.number}</span>
-                                                        <span className="text-[10px] text-neutral-400">{q.date}</span>
+                                                        <span className="text-[10px] text-neutral-500">{q.date}</span>
                                                         <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-neutral-300 group-hover:text-brand-500 transition-colors"></i>
                                                     </button>
                                                     <div className="flex items-center gap-2 shrink-0">
@@ -11250,7 +12222,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-[11px] text-neutral-400 italic">Aucun devis lié pour l'instant.</p>
+                                        <p className="text-[11px] text-neutral-500 italic">Aucun devis lié pour l'instant.</p>
                                     )}
                                 </div>
                             </div>
@@ -11300,9 +12272,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             updateInvoices(invoices.map(f => f.id === facture.id
                 ? { ...f, numero: res.numero, statut: 'issued', dateEmission: res.dateEmission }
                 : f));
-            showToast(`✓ Facture ${res.numero} émise — elle ne peut plus être modifiée.`, "success");
+            showToast(`Facture ${res.numero} émise — elle ne peut plus être modifiée.`, "success");
         } catch (err) {
-            showToast(`✕ Émission impossible : ${err.message}`, "error");
+            showToast(`Émission impossible : ${err.message}`, "error");
         }
     };
 
@@ -11328,7 +12300,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         updateInvoices(invoices.map(f => f.id === facture.id
             ? { ...f, statut: 'sent', dateEnvoi }
             : f));
-        showToast(`✓ Facture ${facture.numero} marquée comme envoyée.`, 'success');
+        showToast(`Facture ${facture.numero} marquée comme envoyée.`, 'success');
     };
 
     const renderInvoices = () => {
@@ -11365,7 +12337,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setIsCreateInvoiceMenuOpen(false);
                 showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
             } catch (err) {
-                showToast(`✕ Création impossible : ${err.message}`, "error");
+                showToast(`Création impossible : ${err.message}`, "error");
             }
         };
 
@@ -11378,7 +12350,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className={`${activeInvoice ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1 gap-2">
                         <div className="min-w-0">
-                            <h2 className="text-lg font-bold text-neutral-800">Mes Factures</h2>
+                            <h2 className="text-lg font-bold text-neutral-800">Factures</h2>
                             <p className="text-xs text-neutral-500 truncate">
                                 {visibleInvoices.length} résultat(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
                             </p>
@@ -11397,7 +12369,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setIsCreateInvoiceMenuOpen(false)}></div>
                                     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-neutral-200 shadow-floating z-20 max-h-80 overflow-y-auto custom-scroll">
-                                        <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Créer une facture depuis un devis</p>
+                                        <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Créer une facture depuis un devis</p>
                                         {devisFacturables.map(q => (
                                             <button key={q.id} onClick={() => creerFactureDepuisDevis(q)} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
                                                 <span className="min-w-0">
@@ -11415,7 +12387,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     <div className="app-card p-2.5 space-y-2">
                         <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs"></i>
                             <input
                                 type="search"
                                 value={invoiceSearchQuery}
@@ -11445,7 +12417,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         numérotation y est locale et rien n'est verrouillé. */}
                     {!estCloud && (
                         <div className="app-card p-3 border-amber-300 bg-amber-50/60 flex items-start gap-2.5">
-                            <i className="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-xs"></i>
+                            <i className="fa-solid fa-triangle-exclamation text-amber-700 mt-0.5 text-xs"></i>
                             <p className="text-[11px] text-amber-900 leading-snug">
                                 <span className="font-bold">Mode Démo —</span> numérotation locale, factures modifiables. Connectez-vous pour la garantie légale.
                             </p>
@@ -11491,7 +12463,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     marge n'y figure. */}
                 <div className={`${activeInvoice ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                     {!activeInvoice ? (
-                        <div className="app-card p-16 text-center text-neutral-400">
+                        <div className="app-card p-16 text-center text-neutral-500">
                             <i className="fa-solid fa-file-invoice-dollar text-3xl mb-3 text-neutral-300"></i>
                             <p className="text-sm font-bold text-neutral-600">Sélectionnez une facture pour l'afficher</p>
                         </div>
@@ -11550,7 +12522,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         showToast("Brouillon supprimé");
                                                     }
                                                 })}
-                                                className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50"
+                                                className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50"
                                                 title="Supprimer le brouillon"
                                                 aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
                                             >
@@ -11584,7 +12556,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
                                                 <i className="fa-solid fa-print"></i> Imprimer
                                             </button>
-                                            <span className="text-[10px] text-neutral-400 px-1" title="Une facture émise est figée : correction par avoir uniquement.">
+                                            <span className="text-[10px] text-neutral-500 px-1" title="Une facture émise est figée : correction par avoir uniquement.">
                                                 <i className="fa-solid fa-lock"></i>
                                             </span>
                                         </>
@@ -11595,7 +12567,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                                 {estBrouillon && (
                                     <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
-                                        <i className="fa-solid fa-pen-ruler text-amber-600 mt-0.5"></i>
+                                        <i className="fa-solid fa-pen-ruler text-amber-700 mt-0.5"></i>
                                         <div>
                                             <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
                                             <p className="text-[11px] text-amber-800">
@@ -11617,7 +12589,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
                                             <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
                                             <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
-                                            <p className="text-[11px] text-neutral-400">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
+                                            <p className="text-[11px] text-neutral-500">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
                                         </div>
                                         <div className={invoiceHeaderLayout.document}>
                                             <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: invoiceDocumentTheme.brandColor }}>Facture</h2>
@@ -11630,18 +12602,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     : 'Non émise'}
                                             </p>
                                             {activeInvoice.devisNumero && (
-                                                <p className="text-[11px] text-neutral-400 mt-0.5">Devis d'origine : {activeInvoice.devisNumero}</p>
+                                                <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {activeInvoice.devisNumero}</p>
                                             )}
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                                         <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Client</p>
+                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
                                             <p className="font-semibold text-neutral-900 text-base">{activeInvoice.clientName}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">Désignation chantier</p>
+                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Désignation chantier</p>
                                             <p className="font-bold text-neutral-800">{activeInvoice.projectRef}</p>
                                         </div>
                                     </div>
@@ -11677,7 +12649,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <div className="text-neutral-500">
                                                     <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
                                                     {ci.vatExemptionNote && (
-                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">{ci.vatExemptionNote}</p>
+                                                        <p className="text-[10px] text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
                                                     )}
                                                 </div>
                                             ) : (
@@ -11706,7 +12678,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     )}
                                     {ci.pdfFooterNote && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
                                             {ci.pdfFooterNote}
                                         </div>
                                     )}
@@ -11803,6 +12775,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         showToast(`Création impossible : ${err.message}`, 'error');
                     }
                 };
+                // Audit UX (2026-08-31) — P0. Cette fenêtre portait `lg:hidden` :
+                // au-dessus de 1024 px elle était montée dans le DOM mais calculée
+                // à display:none. Depuis l'éditeur, « Aperçu Client & PDF » ne
+                // produisait donc RIEN sur un écran d'ordinateur — ni fenêtre, ni
+                // message, ni erreur : le livrable du produit était inatteignable
+                // par son propre bouton. Vérifié en direct : invisible à 1280 px,
+                // parfaitement fonctionnel à 1000 px.
+                //
+                // Le panneau desktop équivalent existe (branche asModal:false) et
+                // n'est monté que dans la vue 'savedQuotes' ; le handler
+                // onPreviewQuote ne faisait que setViewingSavedQuote sans y
+                // naviguer, contrairement à tous les autres appelants. C'est là
+                // qu'est le correctif (voir onPreviewQuote plus bas).
+                //
+                // `lg:hidden` doit RESTER : les deux rendus sont pilotés par le
+                // même état `viewingSavedQuote`. Le retirer fait afficher, sur la
+                // vue 'savedQuotes' en desktop, le panneau ET la modale plein
+                // écran par-dessus — un voile `fixed inset-0 z-[120]` qui recouvre
+                // toute l'application, sélecteur d'organisation compris. Vérifié :
+                // le banc test_documents_organization_currency échouait alors au
+                // clic sur « Changer d'organisation ».
                 return (
                 <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto lg:hidden" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
                     <div className={opts?.asModal ? "saved-quote-detail-card bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto" : "saved-quote-detail-card app-card flex flex-col w-full h-full min-h-0 overflow-hidden"}>
@@ -11829,7 +12822,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="saved-quote-detail-header-primary px-4 sm:px-6 pt-4 pb-3 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Devis enregistré</span>
+                                    {/* Audit UX (2026-08-31) — ce libellé était posé en dur : un devis
+                                        en cours d'édition, jamais enregistré, s'annonçait « DEVIS
+                                        ENREGISTRÉ » dans son propre aperçu, pendant que l'éditeur affichait
+                                        « Modifications non enregistrées » deux centimètres plus haut.
+                                        L'état réel se lit sur savedQuotes (mode local) ou sur serverId
+                                        (mode cloud) — la même définition que le libellé du bouton
+                                        Enregistrer / Mettre à jour, pour qu'ils ne puissent pas se
+                                        contredire. */}
+                                    {(() => {
+                                        const estEnregistre = Boolean(viewingSavedQuote.serverId)
+                                            || savedQuotes.some(q => q.id === viewingSavedQuote.id);
+                                        return (
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${estEnregistre ? 'text-neutral-500' : 'text-amber-700'}`}>
+                                                {estEnregistre ? 'Devis enregistré' : 'Brouillon non enregistré'}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div className="mt-3 min-w-0">
@@ -11838,22 +12847,40 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
 
                                 <div className="saved-quote-top-actions mt-3 flex flex-wrap items-center gap-2">
-                                    {canSend ? (<>
+                                    {/* Audit UX (2026-09-01) — la garde d'identité légale
+                                        masquait AUSSI « Imprimer » et « Télécharger le PDF ».
+                                        Or ces deux actions produisent un fichier POUR
+                                        l'utilisateur ; elles ne mettent rien sous les yeux d'un
+                                        client. Les couper revient à interdire de regarder son
+                                        propre travail — et, depuis que le Mode Démo part sans NIF
+                                        ni RCCM (P1-8), cela privait la démo du livrable, c'est-à-dire
+                                        exactement ce que le constat P0-1 demandait de rendre
+                                        accessible. Seules « Partager » et « Signer », qui envoient
+                                        le document au client, restent derrière la garde ; le bouton
+                                        ambre « Identité à compléter » reste affiché à côté. */}
+                                    {canSend && (<>
                                     {/* Une seule action porte un intitulé — le téléchargement,
                                         celle qu'on vient chercher. Les trois secondaires sont en
                                         icônes : libellées, elles consommaient 364 px et le nom du
                                         client tombait à « Clien… ». En icônes, l'identité récupère
                                         ~250 px et redevient lisible. Le sens passe par le title et
                                         l'aria-label, tous deux déjà présents. */}
-                                    <button onClick={() => setIsShareModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Partager le devis au client" aria-label="Partager le devis">
+                                    <button onClick={() => setIsShareModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary text-xs" title="Partager le devis au client" aria-label="Partager le devis">
                                         <i className="fa-solid fa-share-nodes text-brand-600"></i>
-                                    </button>
-                                    <button onClick={() => setIsSignatureModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary w-9 h-9 p-0 justify-center text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
-                                        <i className="fa-solid fa-signature text-emerald-600"></i>
-                                    </button>
-                                    <button onClick={() => window.print()} className="saved-quote-top-secondary-action btn-secondary w-9 h-9 p-0 justify-center text-xs" title="Imprimer — donne un PDF vectoriel, au texte sélectionnable" aria-label="Imprimer le devis">
+                                    
+                                    <span className="quote-action-libelle text-[11px] font-bold">Partager</span>
+                                </button>
+                                    <button onClick={() => setIsSignatureModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
+                                        <i className="fa-solid fa-signature text-emerald-700"></i>
+                                    
+                                    <span className="quote-action-libelle text-[11px] font-bold">Signer</span>
+                                </button>
+                                    </>)}
+                                    <button onClick={() => window.print()} className="saved-quote-top-secondary-action btn-secondary text-xs" title="Imprimer — donne un PDF vectoriel, au texte sélectionnable" aria-label="Imprimer le devis">
                                         <i className="fa-solid fa-print"></i>
-                                    </button>
+                                    
+                                    <span className="quote-action-libelle text-[11px] font-bold">Imprimer</span>
+                                </button>
                                     <button
                                         onClick={() => telechargerDocument(
                                             `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
@@ -11879,19 +12906,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </button>
                                         {isQuoteDetailMoreOpen && (
                                             <div className="saved-quote-mobile-more-menu absolute left-0 top-full mt-2 w-52 rounded-xl border border-neutral-200 bg-white p-1.5 shadow-floating z-20">
+                                                {/* Même garde que la barre desktop : ce menu est
+                                                    sa version mobile, il ne doit pas rouvrir une
+                                                    porte qu'elle vient de fermer. */}
+                                                {canSend && (<>
                                                 <button type="button" onClick={() => { setIsShareModalOpen(true); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
                                                     <i className="fa-solid fa-share-nodes text-brand-600 w-4"></i> Partager le devis
                                                 </button>
                                                 <button type="button" onClick={() => { setIsSignatureModalOpen(true); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
-                                                    <i className="fa-solid fa-signature text-emerald-600 w-4"></i> Signer le devis
+                                                    <i className="fa-solid fa-signature text-emerald-700 w-4"></i> Signer le devis
                                                 </button>
+                                                </>)}
                                                 <button type="button" onClick={() => { window.print(); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
                                                     <i className="fa-solid fa-print text-neutral-500 w-4"></i> Imprimer
                                                 </button>
                                             </div>
                                         )}
                                     </div>
-                                    </>) : (
+                                    {!canSend && (
                                     <button
                                         onClick={() => openAccountSettings('entreprise')}
                                         className="py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors"
@@ -11911,7 +12943,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 détail. Chacun porte son intitulé : les confondre
                                 exposerait la marge au client. */}
                             {(canViewInternalDocs || isCommercialMode) && (
-                                <div className="saved-quote-detail-display-options px-6 pb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                                <div className="saved-quote-detail-display-options px-6 pb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                                     {canViewInternalDocs && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
@@ -11952,8 +12984,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             )}
                         </div>
 
-                        <div className="saved-quote-action-strip px-6 py-3 border-t border-neutral-100 bg-neutral-50/70 flex flex-wrap items-center gap-2 shrink-0">
-                            <span className="saved-quote-action-label text-[10px] font-bold uppercase tracking-wider text-neutral-400 mr-1">Actions du devis</span>
+                        <div className="saved-quote-action-strip px-6 py-2 border-t border-neutral-100 bg-neutral-50/70 flex flex-wrap items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setActionsDevisDepliees(o => !o)}
+                                aria-expanded={actionsDevisDepliees}
+                                className="saved-quote-action-label flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 mr-1 py-1"
+                            >
+                                Actions du devis
+                                <i className={`fa-solid fa-chevron-${actionsDevisDepliees ? 'up' : 'down'} text-[9px]`} aria-hidden="true"></i>
+                            </button>
+                            <div className={`saved-quote-actions-list ${actionsDevisDepliees ? 'flex' : 'hidden'} flex-wrap items-center gap-2`}>
                             <button
                                 type="button"
                                 onClick={convertirEnFacture}
@@ -12009,7 +13050,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
                                     }
                                     updateSavedQuotes([newVersionQuote, ...savedQuotes]);
-                                    showToast(`✓ Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, 'success');
+                                    showToast(`Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, 'success');
                                 }}
                                 className="saved-quote-action-secondary btn-secondary text-xs py-1.5 px-3 font-bold"
                                 aria-label={`Créer une révision de ${viewingSavedQuote.number}`}
@@ -12073,6 +13114,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             >
                                 Supprimer
                             </button>
+                            </div>
                         </div>
 
                         {!canSend && (
@@ -12098,7 +13140,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
                             {(isCommercialMode || !canViewInternalDocs) ? (
-                                <div className="saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0" id="printArea" style={{ fontFamily: quoteDocumentTheme.fontFamily }}>
+                                <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${estModeDemo ? 'document-demo' : ''}`} id="printArea" style={{ fontFamily: quoteDocumentTheme.fontFamily }}>
+                                    {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
+                                        préremplis d'une identité d'entreprise complète et crédible
+                                        (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
+                                        s'imprimait telle quelle sur le PDF téléchargeable, sans que
+                                        rien n'indique qu'il s'agit d'exemples. Un utilisateur pressé
+                                        pouvait produire et envoyer un devis portant un numéro fiscal
+                                        et un registre du commerce fictifs.
+                                        Le filigrane suit le document dans l'aperçu, à l'impression et
+                                        dans le PDF (html2canvas rend le DOM tel quel). Il disparaît
+                                        dès qu'un compte réel est connecté. */}
+                                    {estModeDemo && (
+                                        <div className="document-demo-filigrane" aria-hidden="true">
+                                            {/* SVG plutôt que du texte : un <text> dans un viewBox se met
+                                                exactement à l'échelle de son cadre, quelle que soit la
+                                                largeur du panneau. Avec du texte HTML, « DÉMONSTRATION »
+                                                en nowrap forçait la boîte à 962 px dans un document de
+                                                523 px — le filigrane débordait au lieu de s'y adapter. */}
+                                            <svg viewBox="0 0 600 120" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+                                                <text x="300" y="86" textAnchor="middle" fontSize="96" fontWeight="800" letterSpacing="6" fill="currentColor">DÉMONSTRATION</text>
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {estModeDemo && (
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 border border-amber-300 bg-amber-50 rounded px-2 py-1 inline-block">
+                                            Document de démonstration — à ne pas envoyer à un client
+                                        </p>
+                                    )}
                                     <div className={`${quoteHeaderLayout.wrapper} border-b border-neutral-200 pb-6`}>
                                         <div className={quoteHeaderLayout.company}>
                                             {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
@@ -12120,7 +13189,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <p className="text-xs text-neutral-500 font-medium">{viewingSavedQuote.companyInfoSnapshot?.tagline || companyInfo.tagline}</p>
                                             <p className="text-xs text-neutral-500 font-medium">Adresse: {viewingSavedQuote.companyInfoSnapshot?.address || companyInfo.address}</p>
                                             <p className="text-xs text-neutral-500 font-medium">Contact: {viewingSavedQuote.companyInfoSnapshot?.email || companyInfo.email} &bull; Tel: {viewingSavedQuote.companyInfoSnapshot?.phone || companyInfo.phone}</p>
-                                            <p className="text-[11px] text-neutral-400">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
+                                            <p className="text-[11px] text-neutral-500">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
                                         </div>
                                         <div className={quoteHeaderLayout.document}>
                                             <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: quoteDocumentTheme.brandColor }}>DEVIS COMMERCIAL</h2>
@@ -12131,11 +13200,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                     <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                                         <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">CLIENT</p>
+                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
                                             <p className="font-semibold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
                                             <p className="font-bold text-neutral-800">{viewingSavedQuote.projectRef}</p>
                                         </div>
                                     </div>
@@ -12321,7 +13390,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         <span className="font-bold">Exonéré</span>
                                                     </div>
                                                     {(viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote) && (
-                                                        <p className="text-[10px] text-neutral-400 mt-1 italic">
+                                                        <p className="text-[10px] text-neutral-500 mt-1 italic">
                                                             {viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote}
                                                         </p>
                                                     )}
@@ -12380,7 +13449,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                         <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
                                             <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
-                                            <p className="text-[10px] text-neutral-400">Date et cachet</p>
+                                            <p className="text-[10px] text-neutral-500">Date et cachet</p>
                                         </div>
                                     </div>
 
@@ -12397,7 +13466,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         ) : null;
                                     })()}
                                     {(viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote) && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 whitespace-pre-line">
+                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
                                             {viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote}
                                         </div>
                                     )}
@@ -12445,7 +13514,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         return (
                                             <>
                                                 <div className="border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
-                                                    <i className="fa-solid fa-lock text-amber-600 mt-0.5"></i>
+                                                    <i className="fa-solid fa-lock text-amber-700 mt-0.5"></i>
                                                     <div>
                                                         <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Document interne — ne pas transmettre au client</p>
                                                         <p className="text-[11px] text-amber-800">Contient vos coûts d'achat, votre coefficient de vente et votre marge.</p>
@@ -12481,7 +13550,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                             </div>
 
                                                             {dets.length === 0 ? (
-                                                                <p className="px-4 py-3 text-[11px] text-neutral-400 italic">
+                                                                <p className="px-4 py-3 text-[11px] text-neutral-500 italic">
                                                                     Décomposition non disponible pour ce lot (devis antérieur à l'enregistrement du détail).
                                                                 </p>
                                                             ) : (
@@ -12507,7 +13576,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                                     <td className="px-4 py-1.5">
                                                                                         <span className="font-bold text-neutral-800">{d.label}</span>
                                                                                         {d.name && d.name !== d.label && (
-                                                                                            <span className="block text-[10px] text-neutral-400">{d.name}</span>
+                                                                                            <span className="block text-[10px] text-neutral-500">{d.name}</span>
                                                                                         )}
                                                                                     </td>
                                                                                     <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
@@ -12533,7 +13602,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 break-inside-avoid">
                                                     <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
+                                                        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Prix &amp; marge du devis</p>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Déboursé sec</span><span className="font-mono font-bold">{formatMoney(qd.totalDebourseConsomme, cur)}</span></div>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Frais généraux</span><span className="font-mono font-bold">{formatMoney(qd.fraisGenerauxConsomme, cur)}</span></div>
                                                         <div className="flex justify-between border-t border-neutral-100 pt-1.5"><span className="text-neutral-600">Prix de revient</span><span className="font-mono font-bold">{formatMoney(qd.totalRevientConsomme, cur)}</span></div>
@@ -12546,7 +13615,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         )}
                                                     </div>
                                                     <div className="border border-neutral-200 rounded-xl p-4 space-y-1.5 text-xs">
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Montants facturés au client</p>
+                                                        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Montants facturés au client</p>
                                                         <div className="flex justify-between"><span className="text-neutral-600">Total net HT</span><span className="font-mono font-bold">{formatMoney(qd.netHTConsomme, cur)}</span></div>
                                                         <div className="flex justify-between"><span className="text-neutral-600">TVA ({qd.vatRate !== undefined ? qd.vatRate : 18}%)</span><span className="font-mono font-bold">{formatMoney(qd.tvaConsomme, cur)}</span></div>
                                                         <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-bold text-brand-600"><span>Total TTC</span><span className="font-mono">{formatMoney(qd.totalTTCConsomme, cur)}</span></div>
@@ -12567,11 +13636,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <div className="grid grid-cols-2 gap-6 pt-4 border-t border-neutral-100 text-[11px] text-neutral-500 break-inside-avoid">
                                                     <div className="border border-dashed border-neutral-300 rounded-xl p-4">
                                                         <p className="font-bold text-neutral-700 mb-6">Étude vérifiée par :</p>
-                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                        <p className="text-[10px] text-neutral-500">Nom, date et signature</p>
                                                     </div>
                                                     <div className="border border-dashed border-neutral-300 rounded-xl p-4">
                                                         <p className="font-bold text-neutral-700 mb-6">Bon pour envoi au client :</p>
-                                                        <p className="text-[10px] text-neutral-400">Nom, date et signature</p>
+                                                        <p className="text-[10px] text-neutral-500">Nom, date et signature</p>
                                                     </div>
                                                 </div>
                                             </>
@@ -12592,9 +13661,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             appuyé du dialogue était celui qui ne fait rien. L'action
                             principale, c'est le téléchargement, et elle est dans la
                             barre d'outils. « Fermer » repasse donc en secondaire. */}
+                        {/* Audit UX (2026-09-01) — ce pied ne s'affiche plus que sur la
+                            modale mobile. Sur le panneau latéral desktop il coûtait
+                            80 px pour un bouton qui double exactement la croix de
+                            l'en-tête, alors que le document — la raison d'être de
+                            l'écran — n'avait que 86 px de haut pour 1 311 px de
+                            contenu. */}
+                        {opts?.asModal && (
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
                             <button onClick={() => setViewingSavedQuote(null)} className="btn-secondary">Fermer</button>
                         </div>
+                        )}
                     </div>
                 </div>
                 );
@@ -12623,8 +13700,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // gauche reste une liste dense et lisible, sans actions ni icônes dans
         // les lignes. Un clic sur une ligne alimente le détail à droite sur
         // desktop et ouvre le même document en vue mobile.
+        // Audit UX (2026-08-31) — le repli sur `viewingSavedQuote` est le fond du
+        // P0 « Aperçu Client & PDF ne fait rien en desktop ». Ce panneau ne
+        // cherchait QUE dans savedQuotes : un devis en cours d'édition, pas encore
+        // enregistré, n'y figure évidemment pas, donc activeQuote retombait à null
+        // et l'écran affichait « Sélectionnez un devis pour l'afficher » — sur un
+        // devis que l'utilisateur venait justement de demander à voir.
+        // `viewingSavedQuote` porte déjà un devis complet (adaptHybridToSavedQuote) :
+        // on le montre tel quel. La recherche dans savedQuotes reste prioritaire
+        // pour qu'un devis déjà enregistré affiche bien sa version persistée, et
+        // non une copie figée au moment du clic.
         const activeQuote = viewingSavedQuote
-            ? (savedQuotes.find(q => q.id === viewingSavedQuote.id) || null)
+            ? (savedQuotes.find(q => q.id === viewingSavedQuote.id) || viewingSavedQuote)
             : null;
 
         // Vue table dédiée : les actions restent disponibles dans le panneau
@@ -12651,16 +13738,35 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
                     className={`cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
                 >
-                    <td className="px-2.5 py-3 font-semibold text-neutral-900 min-w-0 align-top">
-                        <span className="block line-clamp-2 break-normal leading-snug" title={sq.clientName || 'Société non renseignée'}>{sq.clientName || 'Société non renseignée'}</span>
-                    </td>
-                    <td className="px-2.5 py-3 text-neutral-700 min-w-0 align-top">
-                        <span className="block line-clamp-2 break-normal leading-snug" title={sq.projectRef || 'Projet non renseigné'}>{sq.projectRef || 'Projet non renseigné'}</span>
+                    {/* Audit UX (2026-09-01) — Société et Chantier occupaient deux
+                        colonnes. Depuis l'ajout du montant et du statut, cinq
+                        colonnes ne tiennent plus dans les 438 px que laisse le
+                        panneau de détail : « CHANTIER » et le numéro de devis
+                        sortaient tronqués. Les deux textes sont empilés dans une
+                        seule colonne — ils désignent le même dossier (le client
+                        et son chantier) et se lisent naturellement l'un sous
+                        l'autre, comme le numéro et sa date juste à côté. */}
+                    <td className="px-2.5 py-3 min-w-0 align-top">
+                        <span className="block font-semibold text-neutral-900 line-clamp-2 break-normal leading-snug" title={sq.clientName || 'Société non renseignée'}>{sq.clientName || 'Société non renseignée'}</span>
+                        <span className="block text-[11px] text-neutral-500 line-clamp-2 break-normal leading-snug mt-0.5" title={sq.projectRef || 'Chantier non renseigné'}>{sq.projectRef || 'Chantier non renseigné'}</span>
                     </td>
                     <td className="px-2.5 py-3 whitespace-nowrap">
-                        <span className="font-mono text-[11px] font-semibold text-brand-700">{sq.number}</span>
+                        <span className="font-mono text-[11px] font-semibold text-brand-700 block">{sq.number}</span>
+                        <span className="text-[10px] tracking-tight text-neutral-500">{sq.date}</span>
                     </td>
-                    <td className="px-1 py-3 whitespace-nowrap text-[10px] tracking-tight text-neutral-500">{sq.date}</td>
+                    {/* Audit UX (2026-08-31) — le montant et le statut, les deux
+                        informations qu'on cherche dans une liste de devis, n'y
+                        figuraient pas ; il fallait ouvrir chaque fiche. La liste
+                        des factures, elle, affichait bien le montant. */}
+                    <td className="px-2.5 py-3 whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums">
+                        {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
+                    </td>
+                    <td className="px-1 py-3 whitespace-nowrap">
+                        {(() => {
+                            const [libelle, pastille] = statutDevis(sq.status);
+                            return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${pastille}`}>{libelle}</span>;
+                        })()}
+                    </td>
                 </tr>
             );
         };
@@ -12676,7 +13782,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1 space-y-3">
                             <div>
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">Société</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Société</span>
                                 <h3 className="font-semibold text-neutral-900 text-base truncate">{sq.clientName || 'Société non renseignée'}</h3>
                             </div>
                             <div className="border-l-2 border-brand-200 pl-3">
@@ -12688,7 +13794,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700">
                                 {sq.number}
                             </span>
-                            <span className="text-xs font-medium text-neutral-400 block">{sq.date}</span>
+                            <span className="text-xs font-medium text-neutral-500 block">{sq.date}</span>
                         </div>
                     </div>
 
@@ -12736,7 +13842,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
                                 }
                                 updateSavedQuotes([newVersionQuote, ...savedQuotes]);
-                                showToast(`✓ Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, "success");
+                                showToast(`Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, "success");
                             }}
                             className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
                             title="Créer une nouvelle révision (V2, V3) sans écraser la version envoyée"
@@ -12803,7 +13909,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 isDanger: true,
                                 onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }
                             })}
-                            className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 ml-auto"
+                            className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50 ml-auto"
                             aria-label={`Supprimer le devis ${sq.number}`}
                             title="Supprimer"
                         >
@@ -12821,16 +13927,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <div data-testid="saved-quotes-list" className="w-full lg:w-[min(46%,600px)] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
                 <div className="flex items-center justify-between px-1 gap-2">
                     <div className="min-w-0">
-                        <h2 className="text-lg font-bold text-neutral-800">Mes Devis</h2>
+                        <h2 className="text-lg font-bold text-neutral-800">Mes devis</h2>
                         <p className="text-xs text-neutral-500 truncate">
-                            {visibleQuotes.length} résultat(s) · prochain DEV-{new Date().getFullYear()}-{String(nextQuoteSeq).padStart(3, '0')}
+                            {visibleQuotes.length} résultat(s) · prochain {generateNextQuoteNumber(savedQuotes)}
                         </p>
                     </div>
                 </div>
 
                 <div className="app-card p-2.5 space-y-2">
                     <div className="relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs"></i>
                         <input
                             type="search"
                             value={savedQuoteSearchQuery}
@@ -12889,18 +13995,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="app-card p-0 overflow-hidden">
                             <div>
                                 <table className="w-full table-fixed text-left text-xs border-collapse">
+                                    {/* Audit UX (2026-09-01) — la répartition d'origine
+                                        (26/18/20/22/14) était calée sur une liste pleine
+                                        largeur. Depuis que le détail occupe la moitié
+                                        droite, la colonne ne fait plus que 438 px : l'en-tête
+                                        « MONTANT TTC » sortait tronqué et la pastille de
+                                        statut, en nowrap, débordait la table de 7 px.
+                                        Les deux colonnes qui portent l'information qu'on
+                                        vient chercher dans une liste de devis passent donc
+                                        devant les deux colonnes de texte, qui se replient
+                                        proprement sur deux lignes. */}
                                     <colgroup>
-                                        <col className="w-[34%]" />
-                                        <col className="w-[22%]" />
-                                        <col className="w-[26%]" />
-                                        <col className="w-[18%]" />
+                                        <col className="w-[35%]" />
+                                        <col className="w-[21%]" />
+                                        <col className="w-[24%]" />
+                                        <col className="w-[20%]" />
                                     </colgroup>
                                     <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500">
                                         <tr>
-                                            <th className="px-2.5 py-3 font-bold truncate">Société</th>
-                                            <th className="px-2.5 py-3 font-bold truncate">Projet</th>
+                                            <th className="px-2.5 py-3 font-bold truncate">Société / Chantier</th>
                                             <th className="px-2.5 py-3 font-bold truncate">Devis</th>
-                                            <th className="px-1 py-3 font-bold truncate">Date</th>
+                                            <th className="px-2.5 py-3 font-bold truncate text-right">Montant TTC</th>
+                                            <th className="px-1 py-3 font-bold truncate">Statut</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -12929,7 +14045,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 renderQuoteDetailPanel), inchangée. */}
             <div data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0">
                 {!activeQuote ? (
-                    <div className="app-card p-16 text-center text-neutral-400">
+                    <div className="app-card p-16 text-center text-neutral-500">
                         <i className="fa-solid fa-folder-open text-3xl mb-3 text-neutral-300"></i>
                         <p className="text-sm font-bold text-neutral-600">Sélectionnez un devis pour l'afficher</p>
                     </div>
@@ -13193,7 +14309,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className={`${systemDiagnostic.recommendedRepairs.length > 0 ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-emerald-50 border-emerald-200 text-emerald-900'} border rounded-xl p-3.5 text-xs font-bold shadow-sm space-y-2`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <i className={`fa-solid ${systemDiagnostic.recommendedRepairs.length > 0 ? 'fa-wand-magic-sparkles text-amber-600' : 'fa-shield-check text-emerald-600'} text-sm`}></i>
+                            <i className={`fa-solid ${systemDiagnostic.recommendedRepairs.length > 0 ? 'fa-wand-magic-sparkles text-amber-700' : 'fa-shield-check text-emerald-700'} text-sm`}></i>
                             <span>Santé du Catalogue :</span>
                         </div>
                         <span className="bg-white text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
@@ -13226,11 +14342,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         className="w-full bg-white border border-neutral-200 focus:border-brand-500 rounded-xl px-3.5 py-2 pl-9 text-xs font-bold text-neutral-800 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all shadow-2xs"
                         aria-label="Rechercher un ouvrage dans le catalogue"
                     />
-                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                     {solutionSearchQuery && (
                         <button
                             onClick={() => setSolutionSearchQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-600 text-xs"
                             aria-label="Effacer la recherche"
                         >
                             <i className="fa-solid fa-xmark"></i>
@@ -13242,7 +14358,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     {solutions.filter(s => s.name.toLowerCase().includes(solutionSearchQuery.toLowerCase())).map(s => (
                         <div key={s.id} className={`flex items-center justify-between p-2.5 rounded-xl border-2 transition-all duration-200 bg-white ${selectedSolutionForEdit?.id === s.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
                             <button onClick={() => { setSelectedSolutionForEdit(s); setCatalogResourceSearch(''); setIsCatalogResourceSearchOpen(false); }} className="flex items-center text-left gap-3 flex-1 min-w-0 outline-none" aria-label={`Sélectionner l'ouvrage ${s.name}`}>
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selectedSolutionForEdit?.id === s.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-400'}`}>
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selectedSolutionForEdit?.id === s.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                     <i className={`fa-solid ${s.icon}`}></i>
                                 </div>
                                 <span className={`font-bold text-xs leading-tight truncate ${selectedSolutionForEdit?.id === s.id ? 'text-neutral-900' : 'text-neutral-600'}`}>{s.name}</span>
@@ -13250,7 +14366,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="flex items-center gap-1 shrink-0 ml-2">
                                 <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setSolutionModalForm({ id: s.id, name: s.name, icon: s.icon || 'fa-cube', allowedModes: s.allowedModes || ['rectangle'] }); setIsSolutionModalOpen(true); }} className={`btn-icon text-xs w-7 h-7 ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-500 hover:text-brand-600'}`} title="Éditer le nom" aria-label={`Modifier ${s.name}`}><i className="fa-solid fa-pen"></i></button>
                                 <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDuplicateSolution(s)} className={`btn-icon text-xs w-7 h-7 ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-500 hover:text-indigo-600'}`} title="Dupliquer" aria-label={`Dupliquer ${s.name}`}><i className="fa-solid fa-copy"></i></button>
-                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteSolution(s)} className={`btn-icon text-xs w-7 h-7 ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600'}`} title="Supprimer" aria-label={`Supprimer ${s.name}`}><i className="fa-solid fa-trash"></i></button>
+                                <button disabled={isReadOnlyDueToDowngrade} onClick={() => handleDeleteSolution(s)} className={`btn-icon text-xs w-7 h-7 ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-500 hover:text-red-600'}`} title="Supprimer" aria-label={`Supprimer ${s.name}`}><i className="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
                     ))}
@@ -13278,7 +14394,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </button></span>
                                 <div className="min-w-0">
-                                <h3 className="text-neutral-400 text-[10px] font-semibold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
+                                <h3 className="text-neutral-500 text-[10px] font-semibold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
                                 <h2 className="text-xl font-bold text-neutral-800 truncate">{selectedSolutionForEdit.name}</h2>
                                 </div>
                             </div>
@@ -13297,7 +14413,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="p-3 sm:px-4 border-b border-neutral-100 bg-white">
                             <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1.5"><i className="fa-solid fa-link mr-1 text-brand-500"></i>Composant à ajouter</h4>
                             <div className="relative">
-                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                                 <input
                                     type="search"
                                     value={catalogResourceSearch}
@@ -13330,7 +14446,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             >
                                                 <span className="min-w-0">
                                                     <span className="block text-xs font-bold text-neutral-800 truncate">{resource.name}</span>
-                                                    <span className="block text-[10px] text-neutral-400">{nature} · {type === 'material' ? (resource.unitCalc || resource.unit || 'u') : (resource.unit || 'u')}</span>
+                                                    <span className="block text-[10px] text-neutral-500">{nature} · {type === 'material' ? (resource.unitCalc || resource.unit || 'u') : (resource.unit || 'u')}</span>
                                                 </span>
                                                 <span className="inline-flex items-center gap-2 shrink-0 text-[10px] font-semibold text-brand-600">
                                                     <span className="hidden sm:inline">Ajouter</span><i className="fa-solid fa-plus text-xs"></i>
@@ -13343,7 +14459,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 </div>
                             )}
-                            <p className="text-[10px] text-neutral-400 mt-1">Cliquez sur un composant pour l’ajouter immédiatement à cet ouvrage.</p>
+                            <p className="text-[10px] text-neutral-500 mt-1">Cliquez sur un composant pour l’ajouter immédiatement à cet ouvrage.</p>
                         </div>
 
                         {inlineRecipeDraft && inlineRecipeDraft.solutionId === selectedSolutionForEdit.id && (
@@ -13475,7 +14591,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </span>
                                             <i className="fa-solid fa-chevron-right text-neutral-300 text-xs shrink-0" aria-hidden="true"></i>
                                         </button>
-                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className="shrink-0 btn-icon text-neutral-400 hover:text-red-600 p-2.5 mr-1" aria-label={`Retirer le composant ${r.label}`}>
+                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className="shrink-0 btn-icon text-neutral-500 hover:text-red-600 p-2.5 mr-1" aria-label={`Retirer le composant ${r.label}`}>
                                             <i className="fa-solid fa-trash text-xs"></i>
                                         </button>
                                     </div>
@@ -13527,7 +14643,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <td className="p-4 pr-6 text-right">
                                                     <div className="flex justify-end gap-1">
                                                         <button disabled={isReadOnlyDueToDowngrade} onClick={() => openRecipeEditModal(r)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-500 hover:text-brand-600'}`} title="Éditer le composant" aria-label={`Éditer ${r.label}`}><i className="fa-solid fa-pen"></i></button>
-                                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Retirer" aria-label={`Retirer ${r.label}`}><i className="fa-solid fa-trash"></i></button>
+                                                        <button disabled={isReadOnlyDueToDowngrade} onClick={() => setConfirmDialog({ isOpen: true, title: "Retirer", message: "Retirer ce composant de la recette ?", isDanger: true, onConfirm: () => { setRecipes(recipes.filter(x => x.id !== r.id)); closeConfirm(); }})} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed text-neutral-300' : 'text-neutral-500 hover:text-red-600 hover:bg-red-50'}`} title="Retirer" aria-label={`Retirer ${r.label}`}><i className="fa-solid fa-trash"></i></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -13734,7 +14850,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 {resourceTab === 'materials' && (
                     <div className="flex gap-2">
                         <button type="button" onClick={() => setIsMatCsvModalOpen(true)} className="btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5" title="Importer un CSV" aria-label="Importer un fichier CSV">
-                            <i className="fa-solid fa-file-csv text-emerald-600"></i> CSV
+                            {/* Audit UX (2026-08-31) — « CSV » seul, à côté d'un bouton
+                                « Export », ne disait pas dans quel sens allait le
+                                transfert. Le title le disait déjà ; le libellé visible
+                                doit le dire aussi. */}
+                            <i className="fa-solid fa-file-csv text-emerald-700"></i> Importer CSV
                         </button>
                         <button type="button" onClick={() => {
                             const csvContent = "data:text/csv;charset=utf-8," +
@@ -13759,7 +14879,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </button>
 
                 <div className="relative">
-                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                     <input
                         type="search"
                         value={resourceSearchQuery}
@@ -13772,7 +14892,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={() => setResourceSearchQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 text-xs"
                             aria-label="Effacer la recherche des ressources"
                         >
                             <i className="fa-solid fa-xmark"></i>
@@ -13796,7 +14916,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </button>
                     ))}
                     {((resourceTab === 'materials' ? visibleMaterials : visibleLabor).length === 0) && (
-                        <div className="app-card p-6 text-center text-neutral-400">
+                        <div className="app-card p-6 text-center text-neutral-500">
                             <i className="fa-solid fa-magnifying-glass text-2xl mb-2 text-neutral-300"></i>
                             <p className="text-xs font-bold text-neutral-700">Aucune ressource correspondante</p>
                             <p className="text-[11px] mt-1">Modifiez votre recherche pour afficher d’autres ressources.</p>
@@ -13809,7 +14929,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 toujours visible côte-à-côte à partir de lg (≥1024px), état vide sinon. */}
             <div className={`${selectedItem ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
                 {!selectedItem ? (
-                    <div className="app-card p-16 text-center text-neutral-400">
+                    <div className="app-card p-16 text-center text-neutral-500">
                         <i className={`fa-solid ${resourceTab === 'materials' ? 'fa-box' : 'fa-user-gear'} text-3xl mb-3 text-neutral-300`}></i>
                         <p className="text-sm font-bold text-neutral-600">Sélectionnez {resourceTab === 'materials' ? 'une matière' : 'une prestation'} pour voir son détail</p>
                     </div>
@@ -13829,7 +14949,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <button disabled={isReadOnlyDueToDowngrade} onClick={() => resourceTab === 'materials' ? startEditMaterial(selectedItem) : startEditLabor(selectedItem)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : ''}`} title="Modifier" aria-label={`Modifier ${selectedItem.name}`}>
                                         <i className="fa-solid fa-pen"></i>
                                     </button>
-                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => resourceTab === 'materials' ? handleDeleteMaterial(selectedItem) : handleDeleteLabor(selectedItem)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${selectedItem.name}`}>
+                                    <button disabled={isReadOnlyDueToDowngrade} onClick={() => resourceTab === 'materials' ? handleDeleteMaterial(selectedItem) : handleDeleteLabor(selectedItem)} className={`btn-icon ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-500 hover:text-red-600 hover:bg-red-50'}`} title="Supprimer" aria-label={`Supprimer ${selectedItem.name}`}>
                                         <i className="fa-solid fa-trash"></i>
                                     </button>
                                 </div>
@@ -13873,7 +14993,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         }}
                                                     />
                                                 )}
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Sert au regroupement du catalogue.</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Sert au regroupement du catalogue.</p>
                                             </div>
 
                                             <div>
@@ -13884,7 +15004,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     options={calcUnitOptions}
                                                     onChange={e => setMatForm({ ...matForm, unitCalc: e.target.value })}
                                                 />
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Unité employée par les formules de recette (SURFACE, VOLUME…).</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Unité employée par les formules de recette (SURFACE, VOLUME…).</p>
                                             </div>
 
                                             <div>
@@ -13907,7 +15027,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         }}
                                                     />
                                                 )}
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Ce que le fournisseur vous vend.</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Ce que le fournisseur vous vend.</p>
                                             </div>
 
                                             <div>
@@ -13920,9 +15040,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         value={matForm.unitSize}
                                                         onChange={e => setMatForm({ ...matForm, unitSize: e.target.value })}
                                                     />
-                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
                                                 </div>
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">
                                                     {matForm.purchaseMode === 'real'
                                                         ? 'Fixé à 1 : en quantité réelle, on achète exactement l’unité de calcul.'
                                                         : `Ex : une barre de 6 ${matForm.unitCalc || 'm'} → saisir 6.`}
@@ -13933,21 +15053,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <label className="app-label">Prix d'Achat Brut</label>
                                                 <div className="relative">
                                                     <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-16" placeholder="0" value={matForm.priceBuy} onChange={e => setMatForm({ ...matForm, priceBuy: e.target.value })} />
-                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">{companyInfo.currency || 'FCFA'}</span>
                                                 </div>
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Prix payé pour UN conditionnement entier.</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Prix payé pour UN conditionnement entier.</p>
                                             </div>
 
                                             <div>
                                                 <label className="app-label">Taux de perte (%)</label>
                                                 <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" max="100" className="app-input" value={matForm.waste} onChange={e => setMatForm({ ...matForm, waste: e.target.value })} />
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Chutes et casse ajoutées à la quantité calculée.</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Chutes et casse ajoutées à la quantité calculée.</p>
                                             </div>
 
                                             <div>
                                                 <label className="app-label">Rendement Matière (optionnel)</label>
                                                 <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.1" min="0" className="app-input font-bold" value={matForm.yieldRate || ''} onChange={e => setMatForm({ ...matForm, yieldRate: e.target.value })} placeholder="ex: 10" />
-                                                <p className="text-[11px] text-neutral-400 mt-1.5">Surface couverte par unité (peinture, colle…). Laisser vide sinon.</p>
+                                                <p className="text-[11px] text-neutral-500 mt-1.5">Surface couverte par unité (peinture, colle…). Laisser vide sinon.</p>
                                             </div>
 
                                             <div>
@@ -13977,9 +15097,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <label className="app-label">Pas Commercial</label>
                                                     <div className="relative">
                                                         <input disabled={isReadOnlyDueToDowngrade} type="number" step="0.01" min="0.01" className="app-input font-bold text-brand-600 pr-14" value={matForm.purchaseStep || 0.5} onChange={e => setMatForm({ ...matForm, purchaseStep: e.target.value })} />
-                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
                                                     </div>
-                                                    <p className="text-[11px] text-neutral-400 mt-1.5">L’achat est arrondi à ce multiple (ex : 0.5 → 2.5 puis 3).</p>
+                                                    <p className="text-[11px] text-neutral-500 mt-1.5">L’achat est arrondi à ce multiple (ex : 0.5 → 2.5 puis 3).</p>
                                                 </div>
                                             )}
                                         </div>
@@ -13999,9 +15119,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     onChange={e => setMatForm({ ...matForm, stockQty: e.target.value })}
                                                     placeholder="Laisser vide si non suivi"
                                                 />
-                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold text-sm">{matForm.unitCalc || 'u'}</span>
                                             </div>
-                                            <p className="text-[11px] text-neutral-400 mt-1.5">
+                                            <p className="text-[11px] text-neutral-500 mt-1.5">
                                                 Suivi manuel : un devis ne modifie jamais cette valeur, même
                                                 enregistré. Ajustez-la vous-même à chaque réception ou sortie réelle.
                                             </p>
@@ -14015,7 +15135,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <div className="bg-brand-50/50 border border-brand-100 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2">
                                                 <span className="text-xs font-bold text-neutral-600">
                                                     Coût unitaire net calculé
-                                                    <span className="block text-[11px] font-medium text-neutral-400 mt-0.5">
+                                                    <span className="block text-[11px] font-medium text-neutral-500 mt-0.5">
                                                         {formatMoney(parseFloat(matForm.priceBuy), companyInfo.currency)} ÷ {matForm.unitSize} {matForm.unitCalc || 'u'}
                                                     </span>
                                                 </span>
@@ -14027,7 +15147,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         )}
 
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
-                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la ressource"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                                         </div>
                                     </form>
@@ -14118,7 +15238,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <label className="app-label">Tarif Unitaire</label>
                                                 <div className="relative">
                                                     <input disabled={isReadOnlyDueToDowngrade} required type="number" min="0" className="app-input font-bold text-brand-700 pr-12" value={laborForm.rate} onChange={e => setLaborForm({ ...laborForm, rate: e.target.value })} />
-                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">{companyInfo.currency || 'FCFA'}</span>
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">{companyInfo.currency || 'FCFA'}</span>
                                                 </div>
                                             </div>
                                             <div>
@@ -14187,7 +15307,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             );
                                         })()}
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
-                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la prestation"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                                         </div>
                                     </form>
@@ -14196,7 +15316,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div className="space-y-4">
                                     <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 flex items-center justify-between">
                                         <div>
-                                            <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Prix d'Achat Actuel</span>
+                                            <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">Prix d'Achat Actuel</span>
                                             <span className="text-xl font-bold text-brand-600 font-mono">{formatMoney(selectedItem.priceBuy || selectedItem.priceCalc, companyInfo.currency)}</span>
                                             <span className="text-[11px] text-neutral-500 block">par {selectedItem.unitBuy || selectedItem.unitCalc}</span>
                                         </div>
@@ -14207,23 +15327,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         )}
                                     </div>
                                     {!isCloudOrgActive ? (
-                                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200">
+                                        <div className="p-6 text-center text-neutral-500 bg-neutral-50 rounded-2xl border border-neutral-200">
                                             <i className="fa-solid fa-cloud text-2xl mb-2 text-neutral-300"></i>
                                             <p className="text-xs font-bold text-neutral-600">Historique disponible uniquement en mode connecté</p>
-                                            <p className="text-[11px] text-neutral-400 mt-1">Connectez-vous à votre organisation cloud pour suivre l'évolution réelle des prix.</p>
+                                            <p className="text-[11px] text-neutral-500 mt-1">Connectez-vous à votre organisation cloud pour suivre l'évolution réelle des prix.</p>
                                         </div>
                                     ) : materialHistoryLoading ? (
-                                        <div className="p-6 text-center text-neutral-400"><i className="fa-solid fa-circle-notch fa-spin text-xl text-amber-500"></i></div>
+                                        <div className="p-6 text-center text-neutral-500"><i className="fa-solid fa-circle-notch fa-spin text-xl text-amber-500"></i></div>
                                     ) : materialHistory.length === 0 ? (
-                                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-neutral-200">
+                                        <div className="p-6 text-center text-neutral-500 bg-neutral-50 rounded-2xl border border-neutral-200">
                                             <i className="fa-solid fa-clock-rotate-left text-2xl mb-2 text-neutral-300"></i>
                                             <p className="text-xs font-bold text-neutral-600">{materialHistoryError ? 'Historique indisponible pour le moment' : 'Aucun changement de prix enregistré'}</p>
-                                            <p className="text-[11px] text-neutral-400 mt-1">Chaque modification du prix d'achat sera journalisée ici.</p>
+                                            <p className="text-[11px] text-neutral-500 mt-1">Chaque modification du prix d'achat sera journalisée ici.</p>
                                         </div>
                                     ) : (
                                         <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden shadow-2xs">
                                             <table className="w-full text-left text-xs">
-                                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-semibold text-neutral-400 uppercase">
+                                                <thead className="bg-neutral-50 border-b border-neutral-100 text-[10px] font-semibold text-neutral-500 uppercase">
                                                     <tr><th className="p-2.5 pl-3">Date</th><th className="p-2.5">Fournisseur</th><th className="p-2.5 text-right pr-3">Tarif HT</th></tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-neutral-100">
@@ -14242,25 +15362,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             ) : resourceTab === 'materials' ? (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Achat Fournisseur</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Achat Fournisseur</span>
                                         <span className="font-bold text-neutral-800">{formatMoney(selectedItem.priceBuy, companyInfo.currency)}</span>
                                         <p className="text-[11px] text-neutral-500 mt-0.5">pour {selectedItem.unitSize} {selectedItem.unitCalc} ({selectedItem.unitBuy})</p>
                                     </div>
                                     <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Coût Unitaire Net</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Coût Unitaire Net</span>
                                         <span className="font-semibold text-brand-600 text-base">{formatMoney(selectedItem.priceCalc, companyInfo.currency)}</span>
                                         <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unitCalc}</p>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Rendement Matière</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Rendement Matière</span>
                                         <span className="font-bold text-neutral-800">{selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m²/${selectedItem.unitCalc}` : 'Non renseigné'}</span>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Taux de perte</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Taux de perte</span>
                                         <span className="font-bold text-neutral-800">{selectedItem.waste > 0 ? `${selectedItem.waste}%` : 'Aucune'}</span>
                                     </div>
                                     <div className={`bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 ${(selectedItem.stockQty !== null && selectedItem.stockQty !== undefined) ? '' : 'col-span-2'}`}>
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Stratégie d'Achat BTP</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Stratégie d'Achat BTP</span>
                                         <span className="font-bold text-neutral-800">
                                             {selectedItem.purchaseMode === 'real' ? 'Quantité Réelle Exacte' : selectedItem.purchaseMode === 'step' ? `Pas Commercial Ajustable (${selectedItem.purchaseStep || 0.5})` : 'Conditionnement Entier'}
                                         </span>
@@ -14276,16 +15396,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             ) : (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-brand-50/30 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Tarif Unitaire</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Tarif Unitaire</span>
                                         <span className="font-semibold text-brand-600 text-base">{formatMoney(selectedItem.rate, companyInfo.currency)}</span>
                                         <p className="text-[11px] text-neutral-500 mt-0.5">/ {selectedItem.unit || 'u'}</p>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Vitesse d'Exécution</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Vitesse d'Exécution</span>
                                         <span className="font-bold text-neutral-800">{selectedItem.yieldRate > 0 ? `${selectedItem.yieldRate} m²/${selectedItem.unit}` : 'Au forfait unitaire'}</span>
                                     </div>
                                     <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200/80 col-span-2">
-                                        <span className="text-neutral-400 block text-[10px] uppercase font-bold">Mode de Calcul</span>
+                                        <span className="text-neutral-500 block text-[10px] uppercase font-bold">Mode de Calcul</span>
                                         <span className="font-bold text-neutral-800 capitalize">{selectedItem.calcMode}</span>
                                     </div>
                                 </div>
@@ -14368,8 +15488,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             </button>
             {isTechnicalCatalogOpen && (
                 <div id={mobile ? 'mobile-technical-catalog' : 'technical-catalog'} className="sidebar-catalog-children">
-                    <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catégorie Ouvrage" onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
-                    <SidebarNavItem id="materials" icon="fa-database" label="Ressource" onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
+                    <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
+                    <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
                 </div>
             )}
         </div>
@@ -14405,6 +15525,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
         }
     };
+
+    // Audit UX (2026-08-31) — le nettoyage ci-dessus ne s'exécutait QUE via le
+    // bouton « ← Retour à l'application ». Quitter les Paramètres par la barre
+    // latérale appelle setActiveView directement : le fragment #settings/…
+    // survivait, et tout rechargement ultérieur renvoyait l'utilisateur dans
+    // les Paramètres depuis n'importe quel écran (reproduit le 2026-08-31).
+    // Rattacher le nettoyage à l'état plutôt qu'à un bouton ferme tous les
+    // chemins de sortie, présents et futurs.
+    useEffect(() => {
+        if (activeView !== 'settings' && window.location.hash.startsWith('#settings/')) {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+        }
+    }, [activeView]);
 
     return (
         <div className="mobile-app-shell flex h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
@@ -14446,23 +15579,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         isGuest={!sbUser || sbUser.id === 'guest'}
                     />
                 </div>
-                <nav className="flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll" aria-label="Menu principal">
+                <nav ref={sidebarNavRef} onScroll={majDefilementSidebar} className={`flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll sidebar-nav-scroll ${sidebarADuContenuSousLaLigne ? 'sidebar-nav-scroll-more' : ''}`} aria-label="Menu principal">
                     <p className="sidebar-section-label">Pilotage</p>
-                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label="Tableau de bord" />
+                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} />
                     <p className="sidebar-section-label mt-4">Exploitation</p>
-                    <SidebarNavItem id="projects" icon="fa-folder-tree" label="Projet" />
-                    <SidebarNavItem id="clients" icon="fa-users" label="Client" />
-                    <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" emphasis />
-                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis" />
-                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Facture" />
+                    <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} />
+                    <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} />
+                    <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} emphasis />
+                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
+                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} />
                     <p className="sidebar-section-label mt-4">Configuration</p>
                     <SidebarCatalogGroup />
                     {isPlatformAdmin && (<>
                         <p className="sidebar-section-label mt-4">Plateforme</p>
-                        <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label="Administration" />
+                        <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label={LIBELLES_NAV.platformAdmin} />
                     </>)}
                 </nav>
-                <div className="p-4 border-t border-neutral-100 flex flex-col gap-2.5">
+                <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
                     <PwaInstallButton />
                     {sbUser && connectionState.key !== 'local' && (
                         <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${connectionState.chip}`}>
@@ -14478,7 +15611,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <span className="truncate text-[11px] opacity-80">{connectionState.detail}</span>
                         </div>
                     )}
-                    <button onClick={() => openAccountSettings('entreprise')} className="w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
+                    <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
                         <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
                     </button>
                     {onSignOut && (
@@ -14496,14 +15629,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     étroit pour le logo complet ikadevis + baseline) */}
                 <IconeSVG className="h-7 w-7 text-brand-500" />
                 <nav className="flex-1 overflow-y-auto flex flex-col gap-[5px] custom-scroll w-full items-center" aria-label="Menu principal (replié)">
-                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label="Tableau de bord" collapsed />
-                    <SidebarNavItem id="projects" icon="fa-folder-tree" label="Projet" collapsed />
-                    <SidebarNavItem id="clients" icon="fa-users" label="Client" collapsed />
-                    <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" collapsed />
-                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis" collapsed />
-                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Facture" collapsed />
-                    <SidebarNavItem id="recipes" icon="fa-layer-group" label="Catégorie Ouvrage" collapsed />
-                    <SidebarNavItem id="materials" icon="fa-database" label="Ressource" collapsed />
+                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} collapsed />
+                    <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} collapsed />
+                    <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} collapsed />
+                    <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} collapsed />
+                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} collapsed />
+                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} collapsed />
+                    <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} collapsed />
+                    <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} collapsed />
                 </nav>
                 <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
                     <PwaInstallButton compact />
@@ -14515,7 +15648,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                     {onSignOut && (
                         <div className="relative sidebar-item-collapsed-wrap">
-                            <button onClick={deconnexionGardee} className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
+                            <button onClick={deconnexionGardee} className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
                                 <i className="fa-solid fa-arrow-right-from-bracket"></i>
                             </button>
                             <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
@@ -14536,15 +15669,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <i className="fa-solid fa-xmark text-xl"></i>
                             </button>
                         </div>
-                        <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
+                        <nav ref={drawerNavRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
                             <p className="sidebar-section-label">Pilotage</p>
-                            <SidebarNavItem id="dashboard" icon="fa-chart-pie" label="Tableau de bord" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <p className="sidebar-section-label mt-4">Exploitation</p>
-                            <SidebarNavItem id="projects" icon="fa-folder-tree" label="Projet" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="clients" icon="fa-users" label="Client" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="calculator" icon="fa-calculator" label="Créer un Devis" onClickExtra={() => setIsMobileDrawerOpen(false)} emphasis />
-                            <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label="Devis" onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label="Facture" onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} onClickExtra={() => setIsMobileDrawerOpen(false)} emphasis />
+                            <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                            <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} onClickExtra={() => setIsMobileDrawerOpen(false)} />
                             <p className="sidebar-section-label mt-4">Configuration</p>
                             <SidebarCatalogGroup mobile />
                         </nav>
@@ -14629,14 +15762,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
                         <header className="hidden lg:flex h-12 items-center justify-between mb-6 shrink-0">
                             <h1 className="text-2xl font-semibold text-neutral-800 tracking-tight">
-                                {activeView === 'calculator' && 'Création & Chiffrage de Devis BTP'}
-                                {activeView === 'dashboard' && 'Tableau de bord'}
-                                {activeView === 'savedQuotes' && 'Devis & PDF Commercial'}
-                                {activeView === 'invoices' && 'Factures'}
-                                {activeView === 'recipes' && 'Catégorie Ouvrage'}
-                                {activeView === 'materials' && 'Ressource'}
-                                {activeView === 'platformAdmin' && 'Administration de la Plateforme'}
-                                {activeView === 'settings' && 'Paramètres'}
+                                {/* Audit UX (2026-08-31) — les titres suivent désormais la
+                                    table LIBELLES_NAV : ils disaient « Devis & PDF
+                                    Commercial » là où la navigation dit « Mes devis »,
+                                    « Catégorie Ouvrage » pour « Catalogue », et deux écrans
+                                    (Client, Chantier) n'avaient pas de titre du tout.
+                                    Un écran doit porter le nom par lequel on y arrive. */}
+                                {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
                             </h1>
                             <div className="flex items-center gap-2">
                                 {connectionState.key !== 'local' && (
@@ -14670,10 +15802,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 {/* BOTTOM BAR MOBILE (< 768px) — tablette/desktop ont le rail/la sidebar persistants */}
                 <nav className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
-                    <NavItem id="calculator" icon="fa-calculator" label="Calcul" />
-                    <NavItem id="savedQuotes" icon="fa-folder-open" label="Mes devis" />
-                    <NavItem id="recipes" icon="fa-layer-group" label="Catalogue" />
-                    <NavItem id="materials" icon="fa-database" label="Ressources" />
+                    <NavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} />
+                    <NavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
+                    <NavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} />
+                    <NavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} />
                 </nav>
             </div>
 
@@ -14691,7 +15823,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-brand-600">Installation mobile</p>
                                 <h2 id="pwa-install-title" className="mt-1 text-lg font-bold text-neutral-900">Ajouter ikadevis à l’écran d’accueil</h2>
                             </div>
-                            <button type="button" onClick={() => setIsPwaHelpOpen(false)} className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-800" aria-label="Fermer les instructions d’installation">
+                            <button type="button" onClick={() => setIsPwaHelpOpen(false)} className="btn-icon w-8 h-8 text-neutral-500 hover:text-neutral-800" aria-label="Fermer les instructions d’installation">
                                 <i className="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                         </div>
@@ -14725,16 +15857,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <h3 className="font-bold text-neutral-800 text-lg">Nouvelle Affaire</h3>
+                            <h3 className="font-bold text-neutral-800 text-lg">Nouveau Chantier</h3>
                             <button onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                             <form id="newProjectForm" onSubmit={(e) => {
                                 e.preventDefault();
                                 const name = newProjectForm.name.trim();
-                                if (!name) { showToast("Le nom de l'affaire est requis.", "error"); return; }
+                                if (!name) { showToast("Le nom du chantier est requis.", "error"); return; }
                                 const selectedClient = clients.find(c => c.id === newProjectForm.clientId);
-                                if (!selectedClient) { showToast("Sélectionnez un client pour cette affaire.", "error"); return; }
+                                if (!selectedClient) { showToast("Sélectionnez un client pour ce chantier.", "error"); return; }
                                 const newCode = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`;
                                 const newP = {
                                     id: `prj-${Date.now()}`,
@@ -14749,7 +15881,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     createdAt: new Date().toISOString().split('T')[0]
                                 };
                                 updateProjects([newP, ...projects]);
-                                showToast(`✓ Affaire ${newCode} créée avec succès !`, 'success');
+                                showToast(`Chantier ${newCode} créé avec succès !`, 'success');
                                 if (newProjectOriginModal === 'quote') {
                                     setHybridQuote(prev => ({
                                         ...prev,
@@ -14758,13 +15890,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         projectId: newP.id,
                                         projectRef: newP.name
                                     }));
-                                    showToast(`✓ Projet « ${newP.name} » sélectionné dans le devis`, 'success');
+                                    showToast(`Projet « ${newP.name} » sélectionné dans le devis`, 'success');
                                 }
                                 setIsNewProjectModalOpen(false);
                                 setNewProjectOriginModal(null);
                             }} className="space-y-4">
                                 <div>
-                                    <label className="app-label">Nom de l'affaire</label>
+                                    <label className="app-label">Nom du chantier</label>
                                     <input required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
                                 </div>
                                 <div>
@@ -14820,7 +15952,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
                             <button type="button" onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
-                            <button type="submit" form="newProjectForm" className="btn-primary" aria-label="Créer l'affaire"><i className="fa-solid fa-check mr-1"></i> Créer l'affaire</button>
+                            <button type="submit" form="newProjectForm" className="btn-primary" aria-label="Créer le chantier"><i className="fa-solid fa-check mr-1"></i> Créer le chantier</button>
                         </div>
                     </div>
                 </div>
@@ -14860,16 +15992,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         updateProjects(projects.map(p => (p.clientId === editingClientId || p.clientName === previous.name) ? { ...p, clientName: name } : p));
                                         updateSavedQuotes(savedQuotes.map(q => (q.clientId === editingClientId || q.clientName === previous.name) ? { ...q, clientName: name } : q));
                                     }
-                                    showToast("✓ Fiche client mise à jour !", "success");
+                                    showToast("Fiche client mise à jour !", "success");
                                 } else {
                                     const newClientId = `cli-${Date.now()}`;
                                     updateClients([{ id: newClientId, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
-                                    showToast("✓ Fiche client créée !", "success");
+                                    showToast("Fiche client créée !", "success");
                                     if (newClientOriginModal === 'project') {
                                         setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
                                     } else if (newClientOriginModal === 'quote') {
                                         setHybridQuote(prev => ({ ...prev, clientId: newClientId, clientName: name }));
-                                        showToast(`✓ « ${name} » sélectionné dans le devis`, "success");
+                                        showToast(`« ${name} » sélectionné dans le devis`, "success");
                                     }
                                 }
                                 setIsNewClientModalOpen(false);
@@ -14944,7 +16076,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </header>
                     <div className="flex-1 min-h-0 flex">
                         <aside className="hidden xl:flex w-60 shrink-0 bg-white border-r border-neutral-200 p-4 flex-col gap-1 overflow-y-auto custom-scroll" aria-label="Sections des paramètres">
-                            <p className="px-3 pt-2 pb-2 text-[10px] font-bold tracking-[0.14em] uppercase text-neutral-400">Paramètres</p>
+                            <p className="px-3 pt-2 pb-2 text-[10px] font-bold tracking-[0.14em] uppercase text-neutral-500">Paramètres</p>
                             {settingsNavigation.map(tab => {
                                 const isActive = accountSettingsTab === tab.id;
                                 return (
@@ -14955,10 +16087,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         aria-current={isActive ? 'page' : undefined}
                                         className={`w-full text-left px-3 py-3 rounded-xl flex items-start gap-3 transition-colors ${isActive ? 'bg-brand-50 text-brand-700 shadow-[inset_3px_0_0_0_#3b5bdb]' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}
                                     >
-                                        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${isActive ? 'bg-white text-brand-600' : 'bg-neutral-100 text-neutral-400'}`}><i className={`fa-solid ${tab.icon} text-sm`}></i></span>
+                                        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${isActive ? 'bg-white text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}><i className={`fa-solid ${tab.icon} text-sm`}></i></span>
                                         <span className="min-w-0">
                                             <span className="block text-xs font-bold leading-5">{tab.label}</span>
-                                            <span className="block text-[10px] text-neutral-400 mt-0.5 leading-4">{tab.description}</span>
+                                            <span className="block text-[10px] text-neutral-500 mt-0.5 leading-4">{tab.description}</span>
                                         </span>
                                     </button>
                                 );
@@ -15200,7 +16332,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 )}
                                             </div>
                                             {logoError && <p className="text-[11px] text-red-600 font-semibold">{logoError}</p>}
-                                            <p className="text-[11px] text-neutral-400">
+                                            <p className="text-[11px] text-neutral-500">
                                                 Affiché en en-tête de vos devis PDF, à la place du logo ikadevis.
                                                 Redimensionné et compressé automatiquement — aucune limite de taille
                                                 de fichier stricte, mais préférez une image déjà raisonnable (&lt; 5 Mo).
@@ -15220,7 +16352,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         onChange={e => updateCompanyInfo({ ...companyInfo, pdfFooterNote: e.target.value })}
                                         placeholder={"Ex : Mentions légales, coordonnées bancaires (RIB), conditions générales de vente…"}
                                     />
-                                    <p className="text-[11px] text-neutral-400 mt-1.5">
+                                    <p className="text-[11px] text-neutral-500 mt-1.5">
                                         Affiché en bas de chaque devis PDF, sous la zone de signature. Laissez vide
                                         pour ne rien afficher.
                                     </p>
@@ -15296,7 +16428,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             onChange={e => updateCompanyInfo({ ...companyInfo, vatExemptionNote: e.target.value })}
                                             placeholder="Ex : Exonéré de TVA — marché financé sur ressources extérieures"
                                         />
-                                        <p className="text-[11px] text-neutral-400 mt-1.5">
+                                        <p className="text-[11px] text-neutral-500 mt-1.5">
                                             Imprimée sur le devis lorsque le taux retenu est 0 %.
                                         </p>
                                     </div>
@@ -15329,7 +16461,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             );
                                         })}
                                     </div>
-                                    <p className="text-[11px] text-neutral-400 mt-2">
+                                    <p className="text-[11px] text-neutral-500 mt-2">
                                         Le devis détaillé n'expose jamais vos coûts d'achat ni votre marge :
                                         chaque ligne est affichée au prix de vente, et la somme retombe
                                         exactement sur le total du devis.
@@ -15402,7 +16534,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <input id="commercial_bank_account" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium" value={companyInfo.commercialSettings?.bankAccount || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), bankAccount: e.target.value } })} placeholder="Ex : 01234 56789 00012345678 01" />
                                         </div>
                                         <div>
-                                            <label htmlFor="commercial_bank_swift" className="app-label">Code SWIFT / BIC <span className="normal-case font-normal text-neutral-400">(facultatif)</span></label>
+                                            <label htmlFor="commercial_bank_swift" className="app-label">Code SWIFT / BIC <span className="normal-case font-normal text-neutral-500">(facultatif)</span></label>
                                             <input id="commercial_bank_swift" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium uppercase" value={companyInfo.commercialSettings?.bankSwift || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), bankSwift: e.target.value.toUpperCase() } })} placeholder="Ex : CORIMLBA" />
                                         </div>
                                     </div>
@@ -15410,7 +16542,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
                                     <div className="flex items-start gap-3 mb-4">
-                                        <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-hard-hat"></i></span>
+                                        <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0"><i className="fa-solid fa-hard-hat"></i></span>
                                         <div>
                                             <h3 className="text-sm font-bold text-neutral-800">Règles BTP par défaut</h3>
                                             <p className="text-[11px] text-neutral-500 mt-0.5">Ces valeurs servent de repères à la préparation de vos prochains documents.</p>
@@ -15458,7 +16590,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <textarea id="commercial_invoice_email_body" disabled={isReadOnlyDueToDowngrade} rows="6" className="app-input font-medium resize-y" value={companyInfo.commercialSettings?.invoiceEmailBody || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), invoiceEmailBody: e.target.value } })} />
                                         </div>
                                     </div>
-                                    <p className="text-[11px] text-neutral-400">Variables disponibles : <code className="font-mono">{'{{Nom_Client}}'}</code>, <code className="font-mono">{'{{Numero_Devis}}'}</code>, <code className="font-mono">{'{{Numero_Facture}}'}</code>, <code className="font-mono">{'{{Montant_Devis}}'}</code>, <code className="font-mono">{'{{Montant_Facture}}'}</code>, <code className="font-mono">{'{{Entreprise}}'}</code>.</p>
+                                    <p className="text-[11px] text-neutral-500">Variables disponibles : <code className="font-mono">{'{{Nom_Client}}'}</code>, <code className="font-mono">{'{{Numero_Devis}}'}</code>, <code className="font-mono">{'{{Numero_Facture}}'}</code>, <code className="font-mono">{'{{Montant_Devis}}'}</code>, <code className="font-mono">{'{{Montant_Facture}}'}</code>, <code className="font-mono">{'{{Entreprise}}'}</code>.</p>
                                 </section>
                             </div>
                         )}
@@ -15481,6 +16613,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {accountSettingsTab === 'entreprise' && (
                         <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); showToast("Paramètres entreprise enregistrés"); } }} className="flex-1 min-h-0 flex flex-col">
                             <div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
+                                {/* Audit UX P1-8 (2026-09-01) — « avec un rappel “À compléter
+                                    avant votre premier vrai devis” ». Affiché seulement quand
+                                    il manque réellement quelque chose : un rappel permanent
+                                    cesse d'être lu. */}
+                                {getMissingLegalFields(companyInfo).length > 0 && (
+                                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2.5">
+                                        <i className="fa-solid fa-circle-info text-amber-600 mt-0.5 shrink-0" aria-hidden="true"></i>
+                                        <p className="text-xs text-amber-900 leading-relaxed">
+                                            <strong>À compléter avant votre premier vrai devis.</strong>{' '}
+                                            Ces informations s'impriment sur vos devis et factures :
+                                            tant qu'elles manquent, un document peut se consulter et
+                                            se télécharger, mais l'application le signale comme non
+                                            envoyable.
+                                        </p>
+                                    </div>
+                                )}
                                 <div>
                                     <label htmlFor="company_name" className="app-label">Raison Sociale / Nom Entreprise</label>
                                     <input id="company_name" disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={companyInfo.name} onChange={e => updateCompanyInfo({...companyInfo, name: e.target.value})} placeholder="Ex : Entreprise BTP SARL" />
@@ -15507,14 +16655,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div>
                                         <label htmlFor="company_nif" className="app-label app-label--split">
                                             <span>NIF (Identifiant Fiscal)</span>
-                                            <span className="text-[10px] text-neutral-400 font-normal">Numéro Fiscal</span>
+                                            <span className="text-[10px] text-neutral-500 font-normal">Numéro Fiscal</span>
                                         </label>
                                         <input id="company_nif" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.nif} onChange={e => updateCompanyInfo({...companyInfo, nif: e.target.value})} placeholder="Ex : 084123456A" />
                                     </div>
                                     <div>
                                         <label htmlFor="company_rccm" className="app-label app-label--split">
                                             <span>RCCM (Registre du Commerce)</span>
-                                            <span className="text-[10px] text-neutral-400 font-normal">Immatriculation</span>
+                                            <span className="text-[10px] text-neutral-500 font-normal">Immatriculation</span>
                                         </label>
                                         <input id="company_rccm" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.rccm} onChange={e => updateCompanyInfo({...companyInfo, rccm: e.target.value})} placeholder="Ex : MA.BKO.2024.B.1234" />
                                     </div>
@@ -15534,12 +16682,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <option value={companyInfo.currency}>{companyInfo.currency} — devise existante</option>
                                             )}
                                         </select>
-                                        <p className="text-[11px] text-neutral-400 mt-1.5">Devise d'affichage par défaut, sans conversion automatique.</p>
+                                        <p className="text-[11px] text-neutral-500 mt-1.5">Devise d'affichage par défaut, sans conversion automatique.</p>
                                     </div>
                                     <div>
                                         <label htmlFor="company_validity" className="app-label app-label--split">
                                             <span>Validité de l'offre</span>
-                                            <span className="text-[10px] text-neutral-400 font-normal">Sur devis client</span>
+                                            <span className="text-[10px] text-neutral-500 font-normal">Sur devis client</span>
                                         </label>
                                         <input id="company_validity" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.quoteValidity} onChange={e => updateCompanyInfo({...companyInfo, quoteValidity: e.target.value})} placeholder="30 jours" />
                                     </div>
@@ -15547,7 +16695,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                         <label className="app-label mb-0">Échéancier de Paiement</label>
-                                        <span className={`text-[11px] font-bold ${scheduleTotalPct === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        <span className={`text-[11px] font-bold ${scheduleTotalPct === 100 ? 'text-emerald-700' : 'text-red-600'}`}>
                                             Total : {scheduleTotalPct}%
                                         </span>
                                     </div>
@@ -15573,7 +16721,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     onChange={e => updatePaymentStage(idx, { pct: e.target.value })}
                                                     aria-label={`Pourcentage de l'étape ${idx + 1}`}
                                                 />
-                                                <span className="text-xs text-neutral-400 shrink-0">%</span>
+                                                <span className="text-xs text-neutral-500 shrink-0">%</span>
                                                 {!isReadOnlyDueToDowngrade && (
                                                     <button type="button" onClick={() => removePaymentStage(idx)} className="btn-icon w-8 h-8 text-red-500 shrink-0" aria-label={`Retirer l'étape ${idx + 1}`}>
                                                         <i className="fa-solid fa-trash-can"></i>
@@ -15620,7 +16768,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/60 space-y-4">
                             {systemDiagnostic.recommendedRepairs.length === 0 ? (
                                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-                                    <i className="fa-solid fa-circle-check text-3xl text-emerald-600 mb-3"></i>
+                                    <i className="fa-solid fa-circle-check text-3xl text-emerald-700 mb-3"></i>
                                     <p className="font-bold text-emerald-900">Aucune correction automatique n’est nécessaire.</p>
                                     <p className="text-sm text-emerald-800 mt-1">Les réglages qui demandent une décision métier restent disponibles dans chaque ouvrage.</p>
                                 </div>
@@ -15642,7 +16790,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </div>
                                             <div className="mt-4 rounded-xl bg-neutral-50 border border-neutral-100 p-3 space-y-2">
                                                 {repair.modeChanges && <p className="text-sm text-neutral-700 flex items-center gap-2"><i className="fa-solid fa-ruler-combined text-brand-500 w-4"></i><span>Mode de métré : <strong>{repair.modeLabel}</strong></span></p>}
-                                                {repair.recipeUpdates.map(update => <p key={update.recipeId} className="text-sm text-neutral-700 flex items-center gap-2"><i className="fa-solid fa-check text-emerald-600 w-4"></i><span>{update.label} : <strong>{update.formulaLabel}</strong></span></p>)}
+                                                {repair.recipeUpdates.map(update => <p key={update.recipeId} className="text-sm text-neutral-700 flex items-center gap-2"><i className="fa-solid fa-check text-emerald-700 w-4"></i><span>{update.label} : <strong>{update.formulaLabel}</strong></span></p>)}
                                             </div>
                                             <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
                                                 <button type="button" onClick={() => {
@@ -15853,7 +17001,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
 
                                     <div className="relative mb-2">
-                                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs pointer-events-none"></i>
+                                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none"></i>
                                         <input
                                             type="search"
                                             value={recipeResourceSearch}
@@ -15863,7 +17011,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             aria-label="Rechercher une ressource à rattacher"
                                         />
                                         {recipeResourceSearch && (
-                                            <button type="button" onClick={() => setRecipeResourceSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs" aria-label="Effacer la recherche de ressource">
+                                            <button type="button" onClick={() => setRecipeResourceSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 text-xs" aria-label="Effacer la recherche de ressource">
                                                 <i className="fa-solid fa-xmark"></i>
                                             </button>
                                         )}
@@ -16067,7 +17215,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-3 bg-white shrink-0">
-                            <button type="button" onClick={() => setIsRecipeModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                            <button type="button" onClick={() => setIsRecipeModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
                             {!isReadOnlyDueToDowngrade && <button type="submit" form="recipeForm" className="btn-primary" aria-label="Enregistrer le composant"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                         </div>
                     </div>
@@ -16139,7 +17287,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                             </div>
                             <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsSolutionModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification">Annuler</button>
+                                <button type="button" onClick={() => setIsSolutionModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
                                 {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer l'ouvrage"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                             </div>
                         </form>
@@ -16183,7 +17331,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                                 <div>
-                                    <label htmlFor="save_quote_project_ref" className="app-label">Référence du Projet / Chantier</label>
+                                    <label htmlFor="save_quote_project_ref" className="app-label">Référence du chantier</label>
                                     <input id="save_quote_project_ref" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={saveQuoteForm.projectRef} onChange={e => setSaveQuoteForm({...saveQuoteForm, projectRef: e.target.value})} placeholder="Ex: Rénovation Bâtiment A" />
                                 </div>
                                 <div>
@@ -16215,7 +17363,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         };
                         setViewingSavedQuote(updatedQ);
                         updateSavedQuotes(savedQuotes.map(q => q.id === updatedQ.id ? updatedQ : q));
-                        showToast(`✓ Devis ${updatedQ.number} signé électroniquement avec succès !`, 'success');
+                        showToast(`Devis ${updatedQ.number} signé électroniquement avec succès !`, 'success');
                     }
                 }}
             />
@@ -16307,14 +17455,53 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
             )}
 
-            {toast && (
-                <div key={toast.id} role="status" aria-live="polite" className="fixed bottom-32 md:bottom-32 lg:bottom-52 right-0 md:right-8 left-0 md:left-auto mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
-                        <i className="fa-solid fa-check"></i>
+            {toast && (() => {
+                // Audit UX (2026-08-31) — position. La notification était ancrée en
+                // bas (bottom-32 / lg:bottom-52) et se posait donc exactement sur la
+                // barre des totaux et sur les boutons d'action des lignes : elle
+                // masquait ce qu'on venait de modifier. Elle se cale maintenant JUSTE
+                // au-dessus de la barre des totaux : assez bas pour ne plus couvrir
+                // le tableau ni la barre d'outils (l'essayer en haut de page la
+                // faisait recouvrir le bouton « Enregistrer »), assez haut pour ne
+                // croiser ni les totaux ni la barre d'onglets mobile. Deux hauteurs
+                // distinctes car ces deux barres ne mesurent pas la même chose
+                // selon la surface : ~194 px cumulés sur téléphone, ~90 px sur
+                // ordinateur.
+                //
+                // Audit UX (2026-08-31) — ce bloc ignorait `toast.type` et rendait
+                // TOUTE notification en vert avec une coche, y compris les 38
+                // appels showToast(..., "error"). « Veuillez indiquer le nom du
+                // client » arrivait donc avec le costume visuel de « c'est
+                // enregistré », et l'utilisateur repartait en croyant son devis
+                // sauvegardé. Une erreur passe aussi en role="alert"/assertive :
+                // en "polite", un lecteur d'écran l'annonçait après tout le reste.
+                const estErreur = toast.type === 'error';
+                const estAlerte = toast.type === 'warning';
+                const pastille = estErreur ? 'bg-red-500/20 text-red-400'
+                    : estAlerte ? 'bg-amber-500/20 text-amber-300'
+                    : 'bg-emerald-500/20 text-emerald-400';
+                const icone = estErreur ? 'fa-circle-exclamation'
+                    : estAlerte ? 'fa-triangle-exclamation'
+                    : 'fa-check';
+                return (
+                /* Audit UX P2-13 (2026-09-01) — la notification s'affichait sur
+                   ordinateur en bas à droite, c'est-à-dire par-dessus le coin du
+                   tableau qui porte les totaux de ligne et les actions de ligne :
+                   elle masquait les chiffres qu'on vient de lire et les boutons
+                   qu'on s'apprête à cliquer. Mesuré en direct le 2026-09-01 :
+                   à 1280×720, elle recouvrait les champs de métré de l'inspecteur.
+                   Remontée en haut, centrée : au-dessus il n'y a que le titre de
+                   l'écran, un texte statique que rien n'oblige à lire pendant les
+                   trois secondes d'affichage. Le mobile garde son ancrage bas,
+                   au-dessus de la barre d'onglets, où la place est libre. */
+                <div key={toast.id} role={estErreur ? 'alert' : 'status'} aria-live={estErreur ? 'assertive' : 'polite'} className="fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${pastille}`}>
+                        <i className={`fa-solid ${icone}`}></i>
                     </div>
                     <span className="font-semibold text-sm leading-tight">{toast.message}</span>
                 </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
@@ -16450,7 +17637,7 @@ function UserSchemaGate({ supabaseSession, supabaseClient, onSignOut }) {
                         <i className="fa-solid fa-shield-cat text-3xl"></i>
                     </div>
                     <h2 className="text-xl font-semibold text-white">Protection Anti-Downgrade V5.9</h2>
-                    <p className="text-sm text-neutral-400 leading-relaxed">
+                    <p className="text-sm text-neutral-500 leading-relaxed">
                         Vos données locales ont été enregistrées avec une version de schéma supérieure (<strong className="text-red-400">V{userSchemaCheck.storedInt}</strong>).
                     </p>
                     <p className="text-xs text-neutral-500 leading-relaxed">
