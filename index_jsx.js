@@ -104,6 +104,13 @@ const lienEmail = (adresse, sujet, corps) =>
     `mailto:${encodeURIComponent(String(adresse || '').trim())}`
     + `?subject=${encodeURIComponent(sujet || '')}&body=${encodeURIComponent(corps || '')}`;
 
+// Un identifiant serveur est un uuid ; tout le reste vient du navigateur
+// (`cli-…`, `prj-…`, horodatage). Cette distinction est utilisée partout où
+// l'on décide d'envoyer une référence à Postgres ou de la laisser à NULL —
+// définie une seule fois pour que les règles ne divergent pas.
+const estUuid = (v) => typeof v === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
 const zoneImpressionVisible = () => {
     const zones = [...document.querySelectorAll('#printArea')];
     return zones.find(z => {
@@ -6938,8 +6945,7 @@ const InvoiceService = {
         // reste porté par `client_name` et `project_ref`, déjà enregistrés.
         // Le jour où clients et affaires seront réellement synchronisés, ces
         // colonnes se rempliront d'elles-mêmes sans rien changer ici.
-        const uuidOuNull = (v) => (typeof v === 'string'
-            && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) ? v : null;
+        const uuidOuNull = (v) => (estUuid(v) ? v : null);
 
         const { data: invoiceRow, error: invoiceErr } = await supabaseClient
             .from('invoices')
@@ -7046,6 +7052,8 @@ const QuoteService = {
             p_calc_form_snapshot: calcForm || {},
             p_lines: linesForV6,
             p_hybrid_snapshot: quote.hybridQuoteSnapshot || {},
+            p_client_id: estUuid(quote.clientId) ? quote.clientId : null,
+            p_project_id: estUuid(quote.projectId) ? quote.projectId : null,
             // Voir le commentaire P0 du 2026-09-02 sur rpcParams : sans ce
             // paramètre la fonction retombe sur son défaut de 18 % et écrit
             // un total_ttc_consomme faux pour tout devis d'un autre taux.
@@ -8612,9 +8620,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const [clients, setClients] = useState(() =>
         donneesInitiales(LS.get('clients', activeOrganizationId), initialClients));
+    // Une fiche créée en cours de session (bouton « Nouveau Client », ou
+    // création implicite depuis un devis) doit rejoindre le serveur sans
+    // attendre la prochaine connexion. La remontée est volontairement en
+    // arrière-plan : elle ne doit ni bloquer la saisie ni la faire échouer si
+    // le réseau manque — l'écriture locale, elle, a déjà eu lieu.
+    const remonterReferentiel = (listeClients, listeProjets) => {
+        if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) return;
+        const aRemonter = (listeClients || []).some(c => c.name && !estUuid(c.id))
+            || (listeProjets || []).some(p => p.name && !estUuid(p.id));
+        if (!aRemonter) return;
+        synchroniserReferentiel(listeClients, listeProjets, activeOrganizationId)
+            .then((ref) => {
+                if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, activeOrganizationId); }
+                if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, activeOrganizationId); }
+            })
+            .catch(e => console.warn('[Référentiel] Remontée différée impossible :', e));
+    };
+
     const updateClients = (newClients) => {
         setClients(newClients);
         LS.set('clients', newClients, activeOrganizationId);
+        remonterReferentiel(newClients, projects);
     };
 
     const [projects, setProjects] = useState(() =>
@@ -8622,6 +8649,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const updateProjects = (newProjects) => {
         setProjects(newProjects);
         LS.set('projects', newProjects, activeOrganizationId);
+        remonterReferentiel(clients, newProjects);
     };
 
     // ══ FACTURATION (2026-08-20, § 30) ══════════════════════════════════
@@ -8818,6 +8846,113 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         ref_id: rc.refId, formula: rc.formula, cost_category: rc.costCategory || rc.type, label: rc.label
     });
     const mapRecipeFromDb = (r) => ({ id: r.id, solutionId: r.solution_id, type: r.type, refId: r.ref_id, formula: r.formula, costCategory: r.cost_category, label: r.label });
+
+    // ══ RÉFÉRENTIEL CLIENTS / CHANTIERS ═══════════════════════════════════
+    // Audit du 2026-09-02 — défaut relevé sur le compte réel : les tables
+    // `clients` et `projects` comptaient 0 ligne alors que l'application en
+    // crée une à chaque devis (resolveClientAndProject). Elles ne vivaient que
+    // dans le navigateur, avec des identifiants `cli-…` / `prj-…`.
+    //
+    // Trois conséquences, toutes constatées :
+    //   • le répertoire clients en ligne était vide, donc inutilisable depuis
+    //     un autre poste ou après vidage du cache ;
+    //   • aucune facture ne pouvait porter `client_id` — l'insertion échouait
+    //     jusqu'au correctif du matin, qui se contente de mettre NULL ;
+    //   • les devis n'étaient reliés à leur client que par comparaison de
+    //     chaîne, fragile à la moindre variante d'orthographe.
+    //
+    // Les fiches montent désormais côté serveur, et leur identifiant local
+    // DEVIENT l'uuid : tout ce qui les référence par `id` fonctionne alors
+    // sans transposition. Le rapprochement se fait sur le nom normalisé,
+    // c'est-à-dire exactement la règle que l'application applique déjà en
+    // local — deux fiches du même nom ne sont pas dupliquées.
+    const cleReferentiel = (nom) => String(nom || '').trim().toLowerCase();
+
+    const mapClientFromDb = (r) => ({
+        id: r.id, serverId: r.id, name: r.name,
+        contactPerson: r.company_name || '', taxId: r.tax_id || '',
+        email: r.email || '', phone: r.phone || '', address: r.address || '',
+        city: r.city || '', notes: r.notes || ''
+    });
+    const mapClientToDb = (c, orgId) => ({
+        organization_id: orgId, name: c.name,
+        company_name: c.contactPerson || null, tax_id: c.taxId || null,
+        email: c.email || null, phone: c.phone || null,
+        address: c.address || null, city: c.city || null, notes: c.notes || null
+    });
+    const mapProjectFromDb = (r, clientsParId) => ({
+        id: r.id, serverId: r.id, code: r.code, name: r.name,
+        clientId: r.client_id || null,
+        clientName: (clientsParId && clientsParId.get(r.client_id)) || '',
+        siteAddress: r.site_address || '', city: r.city || '',
+        status: r.status || 'active',
+        budgetEstimated: Number(r.budget_estimated) || 0,
+        createdAt: String(r.created_at || '').slice(0, 10)
+    });
+    const mapProjectToDb = (p, orgId) => ({
+        organization_id: orgId,
+        client_id: estUuid(p.clientId) ? p.clientId : null,
+        code: p.code || `PRJ-${new Date().getFullYear()}-000`,
+        name: p.name,
+        site_address: p.siteAddress || null, city: p.city || null,
+        status: p.status || 'active',
+        budget_estimated: Number(p.budgetEstimated) || 0
+    });
+
+    // Remonte les fiches qui n'existent pas encore côté serveur et renvoie les
+    // deux listes fusionnées, chaque entrée portant alors un uuid. Ne supprime
+    // jamais : une fiche absente du serveur est poussée, jamais l'inverse —
+    // on ne veut pas qu'un navigateur en retard efface le référentiel commun.
+    const synchroniserReferentiel = async (clientsLocaux, projetsLocaux, orgId) => {
+        if (!supabaseClient || !orgId) return { clients: clientsLocaux, projects: projetsLocaux };
+
+        const [cRes, pRes] = await Promise.all([
+            supabaseClient.from('clients').select('*').eq('organization_id', orgId),
+            supabaseClient.from('projects').select('*').eq('organization_id', orgId)
+        ]);
+        if (cRes.error || pRes.error) {
+            console.warn('[Référentiel] Lecture impossible :', cRes.error || pRes.error);
+            return { clients: clientsLocaux, projects: projetsLocaux };
+        }
+
+        // ── Clients ───────────────────────────────────────────────────────
+        const clientsServeur = (cRes.data || []).map(mapClientFromDb);
+        const parNom = new Map(clientsServeur.map(c => [cleReferentiel(c.name), c]));
+        const aPousser = (clientsLocaux || []).filter(c => c.name && !parNom.has(cleReferentiel(c.name)));
+        let clientsFusionnes = clientsServeur.slice();
+        if (aPousser.length > 0) {
+            const { data, error } = await supabaseClient.from('clients')
+                .insert(aPousser.map(c => mapClientToDb(c, orgId))).select('*');
+            if (error) console.warn('[Référentiel] Remontée des clients impossible :', error);
+            else clientsFusionnes = clientsFusionnes.concat((data || []).map(mapClientFromDb));
+        }
+        // Table de correspondance ancien identifiant local → uuid, pour
+        // réécrire les rattachements des chantiers restés en local.
+        const parNomFinal = new Map(clientsFusionnes.map(c => [cleReferentiel(c.name), c]));
+        const ancienVersUuid = new Map();
+        (clientsLocaux || []).forEach(c => {
+            const trouve = parNomFinal.get(cleReferentiel(c.name));
+            if (trouve && c.id !== trouve.id) ancienVersUuid.set(c.id, trouve.id);
+        });
+
+        // ── Chantiers ─────────────────────────────────────────────────────
+        const clientsParId = new Map(clientsFusionnes.map(c => [c.id, c.name]));
+        const projetsServeur = (pRes.data || []).map(r => mapProjectFromDb(r, clientsParId));
+        const projetsParNom = new Map(projetsServeur.map(p => [cleReferentiel(p.name), p]));
+        const projetsAPousser = (projetsLocaux || [])
+            .filter(p => p.name && !projetsParNom.has(cleReferentiel(p.name)))
+            .map(p => ({ ...p, clientId: ancienVersUuid.get(p.clientId) || p.clientId }));
+        let projetsFusionnes = projetsServeur.slice();
+        if (projetsAPousser.length > 0) {
+            const { data, error } = await supabaseClient.from('projects')
+                .insert(projetsAPousser.map(p => mapProjectToDb(p, orgId))).select('*');
+            if (error) console.warn('[Référentiel] Remontée des chantiers impossible :', error);
+            else projetsFusionnes = projetsFusionnes.concat((data || []).map(r => mapProjectFromDb(r, clientsParId)));
+        }
+
+        return { clients: clientsFusionnes, projects: projetsFusionnes, ancienVersUuid };
+    };
+
     // P1-03 (2026-08-19) — Reconstruit une entrée `savedQuotes` depuis une
     // ligne `quotes`. Le chemin d'enregistrement réel (adaptHybridToSavedQuote,
     // js/calc-engine.js) écrit déjà un hybrid_quote_snapshot complet et fidèle
@@ -9101,6 +9236,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // bloc if/else ci-dessus : les devis existent même à la toute première
                 // connexion sur une organisation neuve tant qu'un catalogue de départ n'a
                 // pas encore été amorcé.
+                // Référentiel clients / chantiers (audit du 2026-09-02) : jusqu'ici
+                // il ne quittait jamais le navigateur. On le réconcilie à chaque
+                // connexion — les fiches du serveur font foi, celles restées en
+                // local sont poussées. En cas d'échec réseau on garde ce qu'on a :
+                // un référentiel local vaut mieux qu'un écran vide.
+                try {
+                    const ref = await synchroniserReferentiel(clients, projects, resolvedOrgId);
+                    if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, resolvedOrgId); }
+                    if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, resolvedOrgId); }
+                } catch (e) {
+                    console.warn('[Référentiel] Synchronisation ignorée :', e);
+                }
+
                 const loadedQuotes = (quotesRes.data || []).map(mapQuoteFromDb);
                 setSavedQuotes(loadedQuotes);
                 setInvoices((invoicesRes.data || []).map(row => mapInvoiceFromDb(row, invoiceLinesRes.data || [])));
@@ -9322,8 +9470,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // n'autorise l'opération qu'aux rôles owner et admin.
     const supprimerDevis = useCallback(async (devis) => {
         if (!devis) return false;
-        const estUuid = (v) => typeof v === 'string'
-            && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const idServeur = [devis.serverId, devis.id].find(estUuid) || null;
         const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
 
@@ -11142,6 +11288,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Depuis la synchronisation du référentiel
+                                    // (2026-09-02), client et chantier portent un
+                                    // uuid : le devis peut enfin leur être relié
+                                    // autrement que par comparaison de nom. Un
+                                    // identifiant resté local part à NULL — la
+                                    // fonction serveur refuserait un uuid inconnu.
+                                    p_client_id: estUuid(savedQ.clientId) ? savedQ.clientId : null,
+                                    p_project_id: estUuid(savedQ.projectId) ? savedQ.projectId : null,
                                     // Audit du 2026-09-02 sur le compte réel — P0.
                                     // `create_quote_v7` et `update_quote_v1` acceptent
                                     // `p_vat_rate numeric DEFAULT 18` et calculent
@@ -11170,6 +11324,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Depuis la synchronisation du référentiel
+                                    // (2026-09-02), client et chantier portent un
+                                    // uuid : le devis peut enfin leur être relié
+                                    // autrement que par comparaison de nom. Un
+                                    // identifiant resté local part à NULL — la
+                                    // fonction serveur refuserait un uuid inconnu.
+                                    p_client_id: estUuid(savedQ.clientId) ? savedQ.clientId : null,
+                                    p_project_id: estUuid(savedQ.projectId) ? savedQ.projectId : null,
                                     // Même correctif que ci-dessus, branche création.
                                     p_vat_rate: Number.isFinite(Number(savedQ.vatRate))
                                         ? Number(savedQ.vatRate)
@@ -11205,6 +11367,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Depuis la synchronisation du référentiel
+                                    // (2026-09-02), client et chantier portent un
+                                    // uuid : le devis peut enfin leur être relié
+                                    // autrement que par comparaison de nom. Un
+                                    // identifiant resté local part à NULL — la
+                                    // fonction serveur refuserait un uuid inconnu.
+                                    p_client_id: estUuid(savedQ.clientId) ? savedQ.clientId : null,
+                                    p_project_id: estUuid(savedQ.projectId) ? savedQ.projectId : null,
                                     // Idem : le repli doit transmettre le taux, sinon
                                     // il réintroduit le défaut qu'on vient de corriger.
                                     p_vat_rate: Number.isFinite(Number(savedQ.vatRate))

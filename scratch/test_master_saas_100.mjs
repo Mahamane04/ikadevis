@@ -46,6 +46,7 @@ import * as mentionsLegales from './test_mentions_legales_non_bloquantes.mjs';
 import * as focusModales from './test_focus_modales.mjs';
 import * as gardeSortieChiffrage from './test_garde_sortie_chiffrage.mjs';
 import * as alignementBoutons from './test_alignement_et_boutons.mjs';
+import * as referentielHorsLigne from './test_referentiel_hors_ligne.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -90,6 +91,7 @@ const SUITES = [
     { name: 'Fenêtres modales : focus, enfermement, Échap', mod: focusModales, expectedToFail: false },
     { name: 'On ne quitte pas le chiffrage sans qu\'on vous demande', mod: gardeSortieChiffrage, expectedToFail: false },
     { name: 'Alignement du champ client et compacité des boutons', mod: alignementBoutons, expectedToFail: false },
+    { name: 'Référentiel clients/chantiers : le chemin hors ligne intact', mod: referentielHorsLigne, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
