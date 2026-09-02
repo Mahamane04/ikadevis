@@ -13831,7 +13831,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     role="button"
                     aria-selected={isActive}
                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
-                    className={`cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
+                    className={`group cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
                 >
                     {/* Audit UX (2026-09-01) — Société et Chantier occupaient deux
                         colonnes. Depuis l'ajout du montant et du statut, cinq
@@ -13857,10 +13857,58 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
                     </td>
                     <td className="px-1 py-3 whitespace-nowrap">
-                        {(() => {
-                            const [libelle, pastille] = statutDevis(sq.status);
-                            return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${pastille}`}>{libelle}</span>;
-                        })()}
+                        <div className="flex items-center justify-between gap-1">
+                            {(() => {
+                                const [libelle, pastille] = statutDevis(sq.status);
+                                return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${pastille}`}>{libelle}</span>;
+                            })()}
+                            {/* Signalé par un utilisateur (2026-09-02) : « il n'y a pas
+                                une possibilité de supprimer aussi un devis ? »
+                                Il y en avait une, mais uniquement derrière le dépliant
+                                « Actions du devis » du panneau de détail — replié par
+                                défaut depuis la veille pour rendre 117 px au document.
+                                Résultat : le seul chemin de suppression était devenu
+                                invisible, sur un compte comptant 22 devis dont une
+                                majorité de brouillons répétés.
+                                La corbeille revient donc là où on la cherche : sur la
+                                ligne, comme dans toute liste. Elle n'apparaît qu'au
+                                survol ou au focus clavier — une action destructive n'a
+                                pas à s'offrir en permanence — et reste toujours
+                                atteignable au clavier. stopPropagation : sans lui, le
+                                clic ouvrirait aussi le devis derrière la confirmation.
+                                Volontairement visible en permanence, et non révélée au
+                                survol : sur mobile il n'y a pas de survol, et la
+                                corbeille y serait redevenue introuvable — le défaut
+                                même qu'on corrige. Elle est donc discrète (gris clair)
+                                plutôt que cachée, et la confirmation protège du
+                                geste malheureux. */}
+                            <button
+                                type="button"
+                                disabled={isReadOnlyDueToDowngrade}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDialog({
+                                        isOpen: true,
+                                        title: 'Supprimer ce devis ?',
+                                        message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
+                                        confirmLabel: 'Supprimer',
+                                        isDanger: true,
+                                        onConfirm: () => {
+                                            updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id));
+                                            if (activeQuote && activeQuote.id === sq.id) setViewingSavedQuote(null);
+                                            closeConfirm();
+                                            showToast(`Devis ${sq.number} supprimé`);
+                                        }
+                                    });
+                                }}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:bg-red-50 hover:text-red-600 focus-visible:text-red-600 focus-visible:bg-red-50 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                                aria-label={`Supprimer le devis ${sq.number}`}
+                                title="Supprimer ce devis"
+                            >
+                                <i className="fa-solid fa-trash-can text-[11px]"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             );

@@ -42,11 +42,25 @@ export async function run() {
         const simpleQuoteRow = await page.evaluate(() => {
             const row = [...document.querySelectorAll('tbody tr')]
                 .find(node => node.textContent.includes('Société Immobilière NBB'));
-            return { text: row?.innerText || '', hasIcon: Boolean(row?.querySelector('i')) };
+            return {
+                text: row?.innerText || '',
+                nbActions: row ? row.querySelectorAll('button').length : -1,
+                actions: row ? [...row.querySelectorAll('button')].map(b => b.getAttribute('aria-label') || b.textContent.trim()) : []
+            };
         });
         const simpleQuoteRowUpper = simpleQuoteRow.text.toUpperCase();
         ok('La liste des devis utilise une table Société/Projet/Devis/Date', ['SOCIÉTÉ IMMOBILIÈRE NBB', 'CONSTRUCTION SIÈGE NBB', 'DEV-2026-001'].every(value => simpleQuoteRowUpper.includes(value)) && /\d{2}\/\d{2}\/\d{4}/.test(simpleQuoteRow.text));
-        ok('Les lignes de devis sont dépourvues d’icônes et d’actions', !simpleQuoteRow.hasIcon);
+        // Cette ligne exigeait « aucune icône ni action » jusqu'au 2026-09-02.
+        // Un utilisateur a alors signalé, capture à l'appui, qu'il ne voyait
+        // aucun moyen de supprimer un devis — et il avait raison : la seule
+        // commande de suppression de l'application était derrière le dépliant
+        // « Actions du devis », replié par défaut la veille. La liste épurée
+        // était donc devenue une liste sans issue.
+        // La règle change, mais l'intention qu'elle défendait est conservée
+        // telle quelle : la ligne ne doit pas redevenir une rangée d'icônes.
+        // Une seule action, et c'est celle qui manquait.
+        ok(`La ligne n'expose qu'une seule action, la suppression — ${JSON.stringify(simpleQuoteRow.actions)}`,
+            simpleQuoteRow.nbActions === 1 && /^Supprimer le devis /.test(simpleQuoteRow.actions[0] || ''));
         await page.click('tbody tr[role="button"] td:nth-child(2)');
         await wait(180);
         const detailShown = await page.evaluate(() => document.body.innerText.includes('DEVIS COMMERCIAL') && document.body.innerText.includes('Construction Siège NBB'));
