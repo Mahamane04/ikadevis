@@ -43,6 +43,7 @@ import * as pdfBacASable from './test_pdf_bac_a_sable.mjs';
 import * as listeDevisVolume from './test_liste_devis_volume.mjs';
 import * as partageDocument from './test_partage_document.mjs';
 import * as mentionsLegales from './test_mentions_legales_non_bloquantes.mjs';
+import * as focusModales from './test_focus_modales.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -84,6 +85,7 @@ const SUITES = [
     { name: 'Liste de devis à volume réel : défilement et suppression durable', mod: listeDevisVolume, expectedToFail: false },
     { name: 'Envoi d\'un document par WhatsApp ou e-mail', mod: partageDocument, expectedToFail: false },
     { name: 'NIF et RCCM signalés mais non bloquants', mod: mentionsLegales, expectedToFail: false },
+    { name: 'Fenêtres modales : focus, enfermement, Échap', mod: focusModales, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },

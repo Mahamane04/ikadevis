@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260902h">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260902i">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260902h">
+    <link rel="stylesheet" href="tailwind.css?v=20260902i">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -230,8 +230,28 @@
             font-weight: 600;
             box-shadow: inset 2px 0 0 0 var(--sidebar-accent);
         }
-        .sidebar-item-collapsed { justify-content: center; padding: 0; gap: 0; }
+        /* Audit approfondi du 2026-09-02 — WCAG 2.5.8 (Target Size Minimum).
+           Entre 768 et 1023 px, la barre latérale devient un rail d'icônes de
+           71 px. Le conteneur de ce rail porte `items-center`, et en flex
+           colonne cela fait RÉTRÉCIR les enfants au lieu de les étirer : le
+           bouton se réduisait à la largeur de son icône, soit 19 px, alors
+           qu'il déclare pourtant `width: 100%`. Mesuré sur la production :
+           19 × 46 px pour les HUIT entrées de navigation principale, sur la
+           plage de largeurs qui correspond précisément aux tablettes tactiles.
+           WCAG 2.2 exige 24 × 24 px minimum ; on vise 44 px, la cible
+           confortable au doigt, qui tient largement dans les 71 px du rail. */
+        .sidebar-item-collapsed-wrap { width: 44px; }
+        .sidebar-item-collapsed { justify-content: center; padding: 0; gap: 0; width: 100%; }
         .sidebar-item-icon { width: 19px; font-size: 15px; text-align: center; flex-shrink: 0; }
+        /* Même audit — les croix « Effacer le client » et « Effacer le projet »
+           mesuraient 20 × 20 px, sous le minimum de 24. Le dessin reste
+           identique ; seule la zone atteignable est étendue par un calque
+           transparent, ce qui évite de déformer la mise en page du champ. */
+        .champ-effacer { position: relative; }
+        .champ-effacer::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 32px; height: 32px; transform: translate(-50%, -50%);
+        }
         .sidebar-item-icon-img { height: 19px; object-fit: contain; filter: invert(35%) sepia(61%) saturate(1800%) hue-rotate(205deg) brightness(88%) contrast(92%); }
         .sidebar-item:not(.sidebar-item-active) .sidebar-item-icon-img { opacity: 0.62; }
         .sidebar-item-active .sidebar-item-icon-img { opacity: 1; }
@@ -770,10 +790,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260902h"></script>
-    <script src="js/utils.js?v=20260902h"></script>
-    <script src="js/quote-templates.js?v=20260902h"></script>
-    <script src="app.compiled.js?v=20260902h"></script>
+    <script src="js/calc-engine.js?v=20260902i"></script>
+    <script src="js/utils.js?v=20260902i"></script>
+    <script src="js/quote-templates.js?v=20260902i"></script>
+    <script src="app.compiled.js?v=20260902i"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

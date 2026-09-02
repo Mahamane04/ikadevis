@@ -1001,7 +1001,7 @@ function ClientCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ clientName: '', clientId: null }); setIsOpen(true); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
                         aria-label="Effacer le client"
                     >
                         <i className="fa-solid fa-xmark text-[10px]"></i>
@@ -1279,7 +1279,7 @@ function ProjectCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ projectRef: '', projectId: null }); setIsOpen(true); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
                         aria-label="Effacer le projet"
                     >
                         <i className="fa-solid fa-xmark text-[10px]"></i>
@@ -7033,7 +7033,13 @@ const QuoteService = {
             p_company_snapshot: companyInfo || {},
             p_calc_form_snapshot: calcForm || {},
             p_lines: linesForV6,
-            p_hybrid_snapshot: quote.hybridQuoteSnapshot || {}
+            p_hybrid_snapshot: quote.hybridQuoteSnapshot || {},
+            // Voir le commentaire P0 du 2026-09-02 sur rpcParams : sans ce
+            // paramètre la fonction retombe sur son défaut de 18 % et écrit
+            // un total_ttc_consomme faux pour tout devis d'un autre taux.
+            p_vat_rate: Number.isFinite(Number(quote.vatRate))
+                ? Number(quote.vatRate)
+                : (Number(quote.hybridQuoteSnapshot?.vatRate) || 0)
         });
 
         if (rpcErr) {
@@ -9337,6 +9343,73 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
 
+    // Audit approfondi du 2026-09-02 — défaut SYSTÉMIQUE, mesuré sur la
+    // production : aucune des 19 fenêtres modales de l'application ne gère le
+    // focus. Ouvrir « Supprimer ce devis ? » laissait le focus sur le lien
+    // d'évitement, tout en haut de la page ; il fallait traverser toute
+    // l'interface au clavier pour atteindre « Supprimer » ou « Annuler », et
+    // Échap ne fermait rien. Un lecteur d'écran n'annonçait pas davantage
+    // l'ouverture, faute de role="dialog" et d'aria-modal.
+    //
+    // Ce crochet applique le motif attendu (WAI-ARIA APG, Dialog) : focus
+    // porté dans la fenêtre à l'ouverture, Tab et Maj+Tab enfermés à
+    // l'intérieur, Échap qui ferme, et focus rendu à l'élément déclencheur à
+    // la fermeture — sans quoi l'utilisateur repart au début de la page.
+    const useFocusModale = (refFenetre, active, onFermer) => {
+        const declencheurRef = React.useRef(null);
+        React.useEffect(() => {
+            if (!active) return undefined;
+            declencheurRef.current = document.activeElement;
+            const fenetre = refFenetre.current;
+            if (!fenetre) return undefined;
+
+            const focusables = () => [...fenetre.querySelectorAll(
+                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+
+            const premier = focusables()[0];
+            // À défaut d'élément focalisable, la fenêtre elle-même reçoit le
+            // focus : mieux vaut un conteneur annoncé qu'un focus resté dehors.
+            (premier || fenetre).focus({ preventScroll: true });
+
+            const auClavier = (e) => {
+                if (e.key === 'Escape') {
+                    // stopImmediatePropagation, et pas seulement preventDefault :
+                    // sans lui, Échap fermait la fenêtre ET le panneau situé
+                    // derrière, qui écoute la même touche. L'utilisateur perdait
+                    // le devis qu'il consultait en annulant un simple envoi, et
+                    // le focus n'avait plus de déclencheur où revenir — il
+                    // repartait sur <body>. Une touche ne doit fermer qu'une
+                    // seule couche : la plus haute.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                    onFermer();
+                    return;
+                }
+                if (e.key !== 'Tab') return;
+                const liste = focusables();
+                if (liste.length === 0) { e.preventDefault(); return; }
+                const debut = liste[0], fin = liste[liste.length - 1];
+                if (!fenetre.contains(document.activeElement)) { e.preventDefault(); debut.focus(); return; }
+                if (e.shiftKey && document.activeElement === debut) { e.preventDefault(); fin.focus(); }
+                else if (!e.shiftKey && document.activeElement === fin) { e.preventDefault(); debut.focus(); }
+            };
+            document.addEventListener('keydown', auClavier, true);
+            return () => {
+                document.removeEventListener('keydown', auClavier, true);
+                const d = declencheurRef.current;
+                if (d && typeof d.focus === 'function' && document.contains(d)) d.focus({ preventScroll: true });
+            };
+        }, [active, onFermer, refFenetre]);
+    };
+
+    const refFenetrePartage = React.useRef(null);
+    const refFenetreConfirmation = React.useRef(null);
+    const fermerPartage = React.useCallback(() => setPartage(null), []);
+    useFocusModale(refFenetrePartage, !!partage, fermerPartage);
+    useFocusModale(refFenetreConfirmation, !!confirmDialog.isOpen, closeConfirm);
+
     // ═══════════════════════════════════════════════════════════════
     // ATTERRISSAGE DE LA DÉMO SUR UN DEVIS RÉEL
     // ═══════════════════════════════════════════════════════════════
@@ -10972,7 +11045,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_company_snapshot: companyInfo,
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
-                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Audit du 2026-09-02 sur le compte réel — P0.
+                                    // `create_quote_v7` et `update_quote_v1` acceptent
+                                    // `p_vat_rate numeric DEFAULT 18` et calculent
+                                    // `total_ttc_consomme = total_ht × (1 + p_vat_rate/100)`.
+                                    // Ce paramètre n'était JAMAIS transmis : la colonne TTC
+                                    // partait donc à 18 % quel que soit le taux réel du devis.
+                                    // Constaté en base : 3 devis sur 4 divergeaient de leur
+                                    // propre instantané — DEV-2026-022 (taux 0 %) portait
+                                    // 3 848 734 en colonne contre 3 261 639 réels, soit
+                                    // 587 095 FCFA d'écart ; DEV-2026-001 et 002 (taux 10 %)
+                                    // 40 000 FCFA chacun. Seuls les devis à 18 % tombaient
+                                    // juste, par coïncidence.
+                                    // L'interface lit l'instantané et affichait donc le bon
+                                    // montant : le défaut ne se voyait pas à l'écran, mais
+                                    // toute lecture SQL — tableau de bord plateforme, export,
+                                    // audit — était fausse.
+                                    p_vat_rate: Number.isFinite(Number(savedQ.vatRate))
+                                        ? Number(savedQ.vatRate)
+                                        : (Number(savedQ.hybridQuoteSnapshot?.vatRate) || 0),
                                 }
                                 : {
                                     p_org_id: activeOrganizationId,
@@ -10981,7 +11073,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_company_snapshot: companyInfo,
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
-                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Même correctif que ci-dessus, branche création.
+                                    p_vat_rate: Number.isFinite(Number(savedQ.vatRate))
+                                        ? Number(savedQ.vatRate)
+                                        : (Number(savedQ.hybridQuoteSnapshot?.vatRate) || 0)
                                 };
                             let { data: rpcRes, error: rpcErr } = await supabaseClient.rpc(rpcName, rpcParams);
 
@@ -11012,7 +11108,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_company_snapshot: companyInfo,
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
-                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {}
+                                    p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
+                                    // Idem : le repli doit transmettre le taux, sinon
+                                    // il réintroduit le défaut qu'on vient de corriger.
+                                    p_vat_rate: Number.isFinite(Number(savedQ.vatRate))
+                                        ? Number(savedQ.vatRate)
+                                        : (Number(savedQ.hybridQuoteSnapshot?.vatRate) || 0)
                                 }));
                             }
 
@@ -17833,7 +17934,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 window.open() : après l'attente de génération du PDF, le geste
                 utilisateur est rompu et le navigateur bloquerait la fenêtre. */}
             {partage && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
+                <div ref={refFenetrePartage} tabIndex={-1} className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh]">
                         <div className="px-6 pt-6 pb-4 border-b border-neutral-100 shrink-0">
                             <h3 className="font-semibold text-neutral-900 text-lg">
@@ -17941,7 +18042,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             )}
 
             {confirmDialog.isOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4">
+                <div
+                    ref={refFenetreConfirmation}
+                    tabIndex={-1}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={confirmDialog.title || 'Confirmation'}
+                    className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none"
+                >
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center">
                         <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-500'}`}>
                             <i className={`fa-solid ${confirmDialog.isDanger ? 'fa-trash-can' : 'fa-circle-question'} text-2xl`}></i>
