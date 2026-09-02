@@ -9211,6 +9211,50 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Signalé en production le 2026-09-02 : « quand je supprime un devis il
+    // revient après rechargement de la page ».
+    //
+    // Exact, et vrai depuis toujours — ma corbeille du matin n'a fait que
+    // rendre le défaut visible en le mettant à portée de clic.
+    // `updateSavedQuotes` n'écrit QUE dans le navigateur (`LS.set`). En mode
+    // connecté, la liste est relue depuis Supabase à chaque chargement
+    // (`mapQuoteFromDb`) : le devis « supprimé » réapparaissait donc
+    // intégralement, et l'utilisateur ne pouvait rien nettoyer.
+    //
+    // On supprime côté serveur AVANT de retirer la ligne à l'écran. L'ordre
+    // compte : l'inverse ferait disparaître le devis de l'interface tout en le
+    // laissant en base, c'est-à-dire exactement le défaut signalé, mais cette
+    // fois sans que rien ne l'annonce. Si le serveur refuse, la liste n'est pas
+    // touchée et l'échec est dit.
+    //
+    // Contraintes vérifiées en base avant d'écrire ceci : `quote_lines` et
+    // `quote_comments` sont en ON DELETE CASCADE ; `invoices.quote_id` et
+    // `quotes.parent_quote_id` sont en ON DELETE SET NULL. Une facture déjà
+    // émise depuis ce devis n'est donc ni supprimée ni invalidée — elle perd
+    // seulement son lien de traçabilité. La règle RLS « Quotes delete »
+    // n'autorise l'opération qu'aux rôles owner et admin.
+    const supprimerDevis = useCallback(async (devis) => {
+        if (!devis) return false;
+        const estUuid = (v) => typeof v === 'string'
+            && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const idServeur = [devis.serverId, devis.id].find(estUuid) || null;
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+
+        if (estCloud && idServeur) {
+            const { error } = await supabaseClient
+                .from('quotes').delete()
+                .eq('id', idServeur)
+                .eq('organization_id', activeOrganizationId);
+            if (error) {
+                showToast(`Suppression impossible : ${error.message}`, 'error');
+                return false;
+            }
+        }
+        updateSavedQuotes(savedQuotes.filter(x => x.id !== devis.id));
+        if (viewingSavedQuote && viewingSavedQuote.id === devis.id) setViewingSavedQuote(null);
+        return true;
+    }, [supabaseClient, sbUser, activeOrganizationId, savedQuotes, updateSavedQuotes, viewingSavedQuote]);
+
     const updateNextQuoteSeq = useCallback((newVal) => {
         setNextQuoteSeq(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
@@ -13236,11 +13280,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     title: 'Supprimer Devis',
                                     message: `Supprimer définitivement le devis ${viewingSavedQuote.number} ?`,
                                     isDanger: true,
-                                    onConfirm: () => {
-                                        updateSavedQuotes(savedQuotes.filter(x => x.id !== viewingSavedQuote.id));
-                                        setViewingSavedQuote(null);
+                                    onConfirm: async () => {
+                                        const devis = viewingSavedQuote;
                                         closeConfirm();
-                                        showToast('Devis supprimé');
+                                        if (await supprimerDevis(devis)) showToast(`Devis ${devis.number} supprimé`);
                                     }
                                 })}
                                 className="saved-quote-action-secondary btn-secondary text-xs py-1.5 px-3 font-bold text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
@@ -13932,11 +13975,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
                                         confirmLabel: 'Supprimer',
                                         isDanger: true,
-                                        onConfirm: () => {
-                                            updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id));
-                                            if (activeQuote && activeQuote.id === sq.id) setViewingSavedQuote(null);
+                                        onConfirm: async () => {
                                             closeConfirm();
-                                            showToast(`Devis ${sq.number} supprimé`);
+                                            if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
                                         }
                                     });
                                 }}
@@ -14173,8 +14214,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 )}
 
                 <div className="flex flex-col gap-3 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
+                    {/* Signalé en production le 2026-09-02 : « je ne vois pas
+                            tous les devis sur la page car ce n'est plus possible
+                            de faire le scroll » — 23 devis, une dizaine visibles.
+
+                            Mécanisme exact, mesuré : cette carte est un élément
+                            flex de la zone défilante juste au-dessus. Un élément
+                            flex a normalement `min-height: auto`, ce qui l'empêche
+                            de rétrécir sous la hauteur de son contenu — SAUF si
+                            son propre `overflow` n'est pas `visible`. Or il vaut
+                            ici `hidden`, pour arrondir les coins du tableau. Le
+                            minimum automatique retombe donc à zéro, la carte est
+                            comprimée à la hauteur de la zone (669 px au lieu de
+                            1388), et elle rogne elle-même son tableau. La zone
+                            défilante, ne voyant plus rien dépasser, n'affiche
+                            aucune barre : les devis au-delà du dixième étaient
+                            simplement inatteignables.
+
+                            `shrink-0` rend à la carte sa hauteur de contenu ; le
+                            débordement revient là où il doit être, dans la zone
+                            défilante, et les coins restent arrondis. */}
                     {visibleQuotes.length > 0 && (
-                        <div className="app-card p-0 overflow-hidden">
+                        <div className="app-card p-0 overflow-hidden shrink-0">
                             <div>
                                 <table className="w-full table-fixed text-left text-xs border-collapse">
                                     {/* Audit UX (2026-09-01) — la répartition d'origine

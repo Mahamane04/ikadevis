@@ -40,6 +40,7 @@ import * as pdfZoneVisible from './test_pdf_zone_visible.mjs';
 import * as quoteDeleteReachable from './test_quote_delete_reachable.mjs';
 import * as pdfCaptureA4 from './test_pdf_capture_a4.mjs';
 import * as pdfBacASable from './test_pdf_bac_a_sable.mjs';
+import * as listeDevisVolume from './test_liste_devis_volume.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -78,6 +79,7 @@ const SUITES = [
     { name: 'Suppression d\'un devis atteignable depuis la liste', mod: quoteDeleteReachable, expectedToFail: false },
     { name: 'PDF — la capture A4 aboutit du premier coup, sans repli', mod: pdfCaptureA4, expectedToFail: false },
     { name: 'PDF — capture en bac à sable, hors de la chaîne d\'ancêtres', mod: pdfBacASable, expectedToFail: false },
+    { name: 'Liste de devis à volume réel : défilement et suppression durable', mod: listeDevisVolume, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },
