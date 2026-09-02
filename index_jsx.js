@@ -55,6 +55,29 @@ const LIBELLES_MODE_LONGS = {
 };
 const TOUS_LES_MODES = ['rectangle', 'surface', 'volume', 'linear', 'floor', 'unit'];
 
+// Zone imprimable réellement affichée.
+//
+// Signalé en production (2026-09-02) : « Télécharger le PDF » échouait avec
+// « Le document n'a pas pu être rendu pour le PDF ». Cause : il y a DEUX
+// éléments portant id="printArea" quand un devis est ouvert — le panneau de
+// détail desktop, et la copie mobile de la modale (cachée par `lg:hidden`,
+// mais bien présente dans le DOM). `getElementById` renvoie la PREMIÈRE, et
+// c'est justement l'invisible : mesuré sur la production, 0 × 0 px contre
+// 662 × 640 px pour la bonne. html2canvas capturait donc un élément de taille
+// nulle, et la validation du canvas rejetait le résultat.
+//
+// Le défaut de fond est le doublon d'identifiant (invalide en HTML) ; la règle
+// d'impression `#printArea` s'en accommode parce que la copie cachée n'est de
+// toute façon pas rendue. On ne touche donc pas à la feuille d'impression :
+// on choisit ici la zone qui a réellement une boîte à l'écran.
+const zoneImpressionVisible = () => {
+    const zones = [...document.querySelectorAll('#printArea')];
+    return zones.find(z => {
+        const r = z.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+    }) || zones[0] || null;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // LIBELLÉS DE NAVIGATION — SOURCE UNIQUE
 // ═══════════════════════════════════════════════════════════════
@@ -12300,7 +12323,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // brouillon de facture n'en a pas, il ne peut donc pas être téléchargé
     // — cohérent avec le fait qu'il n'a pas encore de numéro légal.
     const telechargerDocument = async (nomFichier, cle) => {
-        const cible = document.getElementById('printArea');
+        const cible = zoneImpressionVisible();
         if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return; }
         setPdfEnCours(cle);
         try {
@@ -12318,7 +12341,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         } catch (err) {
             console.warn('[PDF]', err);
-            showToast(`Génération impossible : ${err.message}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
+            showToast(`Génération impossible : ${String(err.message || "").replace(/\.\s*$/, "")}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
         } finally {
             setPdfEnCours(null);
         }
