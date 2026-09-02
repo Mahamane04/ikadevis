@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260902j">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260902k">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260902j">
+    <link rel="stylesheet" href="tailwind.css?v=20260902k">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -126,6 +126,34 @@
             box-shadow: 0 1px 2px 0 rgba(16, 24, 40, 0.06);
         }
         .btn-primary:hover { background-color: #000000; transform: translateY(-1px); }
+
+        /* Boutons des fenêtres de confirmation — signalé le 2026-09-02 :
+           « ils sont trop carrés et grands, le plus minime possible ».
+           Ils héritaient de .btn-secondary / .btn-primary, dimensionnés pour
+           des actions de pleine page (0,75 rem de haut, rayon 0,75 rem), et
+           s'étiraient en plus sur toute la largeur avec `flex-1` : trois pavés
+           dans une boîte de 28 rem. Ici, le texte de la question porte déjà le
+           poids ; les boutons n'ont qu'à être lisibles et distincts.
+           Sur téléphone ils reprennent la pleine largeur et 44 px de haut :
+           discret ne doit pas vouloir dire difficile à toucher. */
+        /* Sélecteur `button.btn-dialogue` et non `.btn-dialogue` seul :
+           `.btn-secondary` est redéfini plus bas dans cette feuille et, à
+           spécificité égale, c'est la dernière règle qui gagne — la première
+           version de ce bouton restait donc à 47 px de haut. Ajouter le type
+           d'élément fait passer la spécificité à (0,1,1) et rend la règle
+           indépendante de l'ordre du fichier. */
+        button.btn-dialogue {
+            padding: 0.4rem 0.85rem;
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            box-shadow: none;
+            flex: 0 0 auto;
+        }
+        button.btn-dialogue:hover { transform: none; }
+        @media (max-width: 639px) {
+            button.btn-dialogue { width: 100%; min-height: 2.75rem; padding: 0.6rem 0.85rem; }
+        }
         .btn-primary:active { transform: translateY(1px) scale(0.98); }
 
         .btn-secondary {
@@ -247,7 +275,16 @@
            mesuraient 20 × 20 px, sous le minimum de 24. Le dessin reste
            identique ; seule la zone atteignable est étendue par un calque
            transparent, ce qui évite de déformer la mise en page du champ. */
-        .champ-effacer { position: relative; }
+        /* ⚠️ NE PAS remettre `position: relative` ici. C'était le cas dans la
+           première version de cette règle (2026-09-02, matin) : posée après
+           Tailwind dans la feuille, elle écrasait le `absolute` de la classe
+           utilitaire du bouton, qui retombait donc DANS LE FLUX. La ligne
+           Client / Projet passait de 30 à 54 px de haut dès la première frappe,
+           le champ Client remontait de 2 px et le champ Projet descendait de
+           10 : le décalage signalé par l'utilisateur, capture à l'appui.
+           Un élément en `position: absolute` est déjà un bloc conteneur pour
+           ses propres enfants absolus — le ::after ci-dessous n'a besoin de
+           rien de plus. */
         .champ-effacer::after {
             content: ''; position: absolute; top: 50%; left: 50%;
             width: 32px; height: 32px; transform: translate(-50%, -50%);
@@ -790,10 +827,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260902j"></script>
-    <script src="js/utils.js?v=20260902j"></script>
-    <script src="js/quote-templates.js?v=20260902j"></script>
-    <script src="app.compiled.js?v=20260902j"></script>
+    <script src="js/calc-engine.js?v=20260902k"></script>
+    <script src="js/utils.js?v=20260902k"></script>
+    <script src="js/quote-templates.js?v=20260902k"></script>
+    <script src="app.compiled.js?v=20260902k"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

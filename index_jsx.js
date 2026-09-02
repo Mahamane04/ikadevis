@@ -18185,17 +18185,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {/* B4 (2026-08-17) — Action secondaire optionnelle : permet de
                             proposer « Enregistrer d'abord » à côté de « Continuer sans
                             enregistrer », au lieu du seul couple Annuler / Confirmer. */}
-                        <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={closeConfirm} className="btn-secondary flex-1 py-3">Annuler</button>
+                        {/* Boutons compacts et alignés à droite, dans l'ordre de
+                            lecture d'une décision : on retire d'abord (Annuler),
+                            puis l'échappatoire, puis l'action. Ils s'étiraient
+                            auparavant sur toute la largeur avec `flex-1`, ce qui
+                            donnait trois pavés de taille égale — rien n'indiquait
+                            laquelle des trois était l'action principale. */}
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 w-full">
+                            <button onClick={closeConfirm} className="btn-secondary btn-dialogue">Annuler</button>
                             {confirmDialog.onSecondary && (
-                                <button onClick={confirmDialog.onSecondary} className="btn-secondary flex-1 py-3 font-bold border-brand-300 text-brand-700">
+                                <button onClick={confirmDialog.onSecondary} className="btn-secondary btn-dialogue border-brand-300 text-brand-700">
                                     {confirmDialog.secondaryLabel || 'Enregistrer'}
                                 </button>
                             )}
                             {confirmDialog.onConfirm && (
                                 <button
                                     onClick={confirmDialog.onConfirm}
-                                    className={`flex flex-1 items-center justify-center gap-2 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 active:scale-95 ${
+                                    className={`btn-dialogue inline-flex items-center justify-center gap-2 text-white transition-colors duration-150 ${
                                         confirmDialog.isDanger
                                             ? 'bg-red-600 hover:bg-red-700'
                                             : 'bg-neutral-900 hover:bg-black'
