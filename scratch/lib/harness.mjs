@@ -403,9 +403,14 @@ export async function loadOneClickTemplate(page, titleSubstring) {
         if (btn) btn.click();
     });
     await new Promise((r) => setTimeout(r, 200));
+    // L'onglet des trames livrées s'appelait « Modèles Métiers 1-Clic ». Renommé
+    // « Exemples fournis » le 2026-09-02, quand l'assistant a été réorganisé
+    // autour des modèles de l'utilisateur ; l'ancien nom reste accepté pour ne
+    // pas rendre ce harnais dépendant d'un mot.
     await page.evaluate(() => {
         const btn = [...document.querySelectorAll('button')]
-            .find((b) => b.textContent.includes('Modèles Métiers 1-Clic'));
+            .find((b) => b.textContent.includes('Exemples fournis')
+                      || b.textContent.includes('Modèles Métiers 1-Clic'));
         if (btn) btn.click();
     });
     await new Promise((r) => setTimeout(r, 200));

@@ -879,6 +879,27 @@ function ClientCombobox({
     const latestRef = useRef({ query, value, clients, onChange, onSelectClient });
     latestRef.current = { query, value, clients, onChange, onSelectClient };
 
+    // Audit du 2026-09-02 — la validation ci-dessous n'était accrochée qu'au
+    // `mousedown` hors du champ. Quitter le champ AU CLAVIER (Tab) ne la
+    // déclenchait donc pas : le nom tapé restait affiché à l'écran mais
+    // n'atteignait jamais le devis, et l'enregistrement répondait « Nom du
+    // client manquant » devant un champ qui montrait pourtant le nom.
+    // Reproduit en tapant « Client Témoin » puis Tab. La logique est extraite
+    // ici pour servir les deux sorties — souris et clavier — sans divergence.
+    const committerSaisieLibre = React.useCallback(() => {
+        const { query: q, value: committedValue, clients: cs, onChange: change, onSelectClient: selectClientFn } = latestRef.current;
+        const trimmed = q.trim();
+        const committedTrimmed = (committedValue || '').trim();
+        const matched = cs.find((c) => normalizeSearchText(c.name) === normalizeSearchText(trimmed));
+        if (trimmed && trimmed !== committedTrimmed && matched) {
+            selectClientFn?.(matched);
+        } else if (trimmed && trimmed !== committedTrimmed) {
+            change?.({ clientName: trimmed, clientId: null });
+        } else {
+            setQuery((latestRef.current?.value ?? committedValue) || '');
+        }
+    }, []);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (rootRef.current && !rootRef.current.contains(event.target)) {
@@ -984,6 +1005,26 @@ function ClientCombobox({
                         setErreurAffichee(false);
                     }}
                     onKeyDown={handleKeyDown}
+                    // Sortie AU CLAVIER (Tab) — voir le commentaire de
+                    // committerSaisieLibre. Le report d'un cycle laisse un clic
+                    // sur une option de la liste se produire d'abord : sans lui,
+                    // le blur validerait le texte tapé et annulerait la
+                    // sélection que l'utilisateur vient de faire à la souris.
+                    onBlur={() => {
+                        // On ne renonce que si le focus part vers la LISTE de
+                        // suggestions : c'est le seul cas où l'utilisateur est
+                        // encore en train de choisir. Un premier jet excluait
+                        // tout le composant, or Tab depuis le champ atterrit sur
+                        // la croix « Effacer » qui en fait partie — la saisie
+                        // n'était donc toujours pas validée au clavier.
+                        setTimeout(() => {
+                            const actif = document.activeElement;
+                            const liste = document.getElementById('quote-client-listbox');
+                            if (actif && liste && liste.contains(actif)) return;
+                            committerSaisieLibre();
+                            setIsOpen(false);
+                        }, 0);
+                    }}
                     placeholder="Client"
                     // Puce compacte sous sm: (rounded-full, plus étroite, placeholder
                     // court) au lieu de la barre de recherche pleine largeur — même
@@ -1640,9 +1681,23 @@ function NewQuoteWizardModal({
     onLoadTemplate,
     onGenerateFromQuickEstimate,
     onInitBlankQuote,
+    modelesUtilisateur = [],
+    onSupprimerModele,
     currency = 'FCFA'
 }) {
-    const [wizardTab, setWizardTab] = useState('quick_estimate'); // 'quick_estimate' | 'templates' | 'blank'
+    // Demandé le 2026-09-02 : « je voudrais ici avoir d'abord une page vierge,
+    // créer seulement les nouveaux devis et les modèles que l'utilisateur a
+    // configurés au préalable (plus d'estimation fictive) ».
+    //
+    // L'assistant s'ouvrait sur « Estimation Rapide », qui produisait un budget
+    // à partir de tarifs au m² écrits en dur dans le code. Sur un compte réel,
+    // ces montants n'engagent personne et ne viennent d'aucun chiffrage : ils
+    // ont été retirés. L'entrée par défaut est désormais le devis vierge.
+    //
+    // Les huit modèles métier fournis restent disponibles, mais en TROISIÈME
+    // position et sous un nom qui dit ce qu'ils sont — des exemples — pour ne
+    // pas se faire passer pour le travail de l'utilisateur.
+    const [wizardTab, setWizardTab] = useState('blank'); // 'blank' | 'mes_modeles' | 'templates'
     
     // Quick Estimate State
     const [estimateCategory, setEstimateCategory] = useState('villa_house');
@@ -1850,15 +1905,28 @@ function NewQuoteWizardModal({
                 <div className="flex border-b border-neutral-200 bg-white px-6 pt-3 gap-3 shrink-0">
                     <button
                         type="button"
-                        onClick={() => setWizardTab('quick_estimate')}
+                        onClick={() => setWizardTab('blank')}
                         className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
-                            wizardTab === 'quick_estimate'
+                            wizardTab === 'blank'
                                 ? 'border-brand-600 text-brand-600'
                                 : 'border-transparent text-neutral-500 hover:text-neutral-900'
                         }`}
                     >
-                        <i className="fa-solid fa-bolt text-brand-500"></i>
-                        <span>1. Estimation Rapide (Particulier / Novice)</span>
+                        <i className="fa-solid fa-file-circle-plus text-brand-500"></i>
+                        <span>1. Devis vierge</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setWizardTab('mes_modeles')}
+                        className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+                            wizardTab === 'mes_modeles'
+                                ? 'border-brand-600 text-brand-600'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                        }`}
+                    >
+                        <i className="fa-solid fa-bookmark text-brand-500"></i>
+                        <span>2. Mes modèles{modelesUtilisateur.length > 0 ? ` (${modelesUtilisateur.length})` : ''}</span>
                     </button>
 
                     <button
@@ -1871,170 +1939,86 @@ function NewQuoteWizardModal({
                         }`}
                     >
                         <i className="fa-solid fa-layer-group text-indigo-500"></i>
-                        <span>2. Modèles Métiers 1-Clic (BTP, Événementiel, Façade)</span>
+                        <span>3. Exemples fournis</span>
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={() => setWizardTab('blank')}
-                        className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
-                            wizardTab === 'blank'
-                                ? 'border-brand-600 text-brand-600'
-                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                        }`}
-                    >
-                        <i className="fa-solid fa-file-circle-plus text-neutral-500"></i>
-                        <span>3. Devis Vierge</span>
-                    </button>
                 </div>
 
                 {/* Body Modal */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* TAB 1: ESTIMATION RAPIDE */}
-                    {wizardTab === 'quick_estimate' && (
-                        <div className="space-y-6 animate-fade-in">
-                            <div>
-                                <label className="app-label text-xs font-bold uppercase text-neutral-700">
-                                    Étape 1 : Que souhaitez-vous faire chiffrer ?
-                                </label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                                    {CATEGORIES_ESTIMATION.map(cat => (
-                                        <div
-                                            key={cat.id}
-                                            onClick={() => {
-                                                setEstimateCategory(cat.id);
-                                                setEstimateSurface(cat.defaultSurface);
-                                            }}
-                                            className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
-                                                estimateCategory === cat.id
-                                                    ? 'border-brand-500 bg-brand-50/40 shadow-sm ring-2 ring-brand-500/10'
-                                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
-                                                    estimateCategory === cat.id ? 'bg-brand-500 text-white' : 'bg-neutral-100 text-neutral-600'
-                                                }`}>
-                                                    <i className={`fa-solid ${cat.icon}`}></i>
+                    {/* Onglet 1 — DEVIS VIERGE, désormais l'entrée par défaut.
+                        L'ancien onglet « Estimation Rapide » occupait cette place :
+                        il produisait un budget à partir de tarifs au m² écrits en
+                        dur (260 000 FCFA/m² pour une villa, par exemple), sans lien
+                        avec le catalogue ni avec un chiffrage réel. Retiré le
+                        2026-09-02 à la demande de l'utilisateur : « plus
+                        d'estimation fictive ». */}
+                    {/* Onglet 2 — LES MODÈLES DE L'UTILISATEUR. Ils naissent d'un
+                        devis réellement chiffré (« Enregistrer comme modèle » depuis
+                        un devis), donc avec ses ouvrages et ses prix : c'est ce qui
+                        les distingue des exemples fournis. */}
+                    {wizardTab === 'mes_modeles' && (
+                        <div className="animate-fade-in">
+                            {modelesUtilisateur.length === 0 ? (
+                                <div className="p-8 text-center space-y-3 bg-neutral-50 rounded-2xl border border-neutral-200">
+                                    <div className="w-14 h-14 rounded-2xl bg-white border border-neutral-200 text-neutral-500 flex items-center justify-center mx-auto text-2xl">
+                                        <i className="fa-solid fa-bookmark"></i>
+                                    </div>
+                                    <p className="text-sm font-bold text-neutral-800">Aucun modèle enregistré</p>
+                                    <p className="text-xs text-neutral-500 max-w-sm mx-auto leading-relaxed">
+                                        Ouvrez un devis dans « Mes devis », puis « Plus d’actions »
+                                        → <strong>Enregistrer comme modèle</strong>. Vous le
+                                        retrouverez ici comme point de départ, avec vos ouvrages et
+                                        vos prix.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {modelesUtilisateur.map((m) => (
+                                        <div key={m.id} className="p-5 rounded-2xl border border-neutral-200 hover:border-brand-500 hover:shadow-md bg-white transition-all flex flex-col justify-between group">
+                                            <button
+                                                type="button"
+                                                onClick={() => { onLoadTemplate(m.template); onClose(); }}
+                                                className="text-left space-y-2 w-full"
+                                                aria-label={`Démarrer un devis depuis le modèle ${m.nom}`}
+                                            >
+                                                <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center transition-colors">
+                                                    <i className="fa-solid fa-bookmark"></i>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <h4 className="text-xs font-semibold text-neutral-900 truncate">{cat.label}</h4>
-                                                    <p className="text-[10px] text-neutral-500 truncate">{cat.desc}</p>
-                                                </div>
+                                                <h3 className="font-bold text-sm text-neutral-900">{m.nom}</h3>
+                                                <p className="text-xs text-neutral-500">{m.nbLots || 0} lot(s) · créé le {m.cree}</p>
+                                            </button>
+                                            <div className="pt-4 mt-3 border-t border-neutral-100 flex items-center justify-between">
+                                                <button type="button" onClick={() => { onLoadTemplate(m.template); onClose(); }} className="text-xs font-bold text-brand-600">
+                                                    Démarrer depuis ce modèle <i className="fa-solid fa-arrow-right ml-1"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onSupprimerModele && onSupprimerModele(m)}
+                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                    aria-label={`Supprimer le modèle ${m.nom}`}
+                                                    title="Supprimer ce modèle"
+                                                >
+                                                    <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-
-                            {/* Paramètres de l'estimation */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
-                                <div>
-                                    <label className="app-label text-[11px] font-bold">
-                                        Surface / Quantité estimée ({CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.unit || 'm²'})
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={estimateSurface}
-                                        onChange={(e) => setEstimateSurface(Math.max(1, parseFloat(e.target.value) || 1))}
-                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900 focus:border-brand-500 outline-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="app-label text-[11px] font-bold">Niveau de Finition / Standing</label>
-                                    <select
-                                        value={estimateQuality}
-                                        onChange={(e) => setEstimateQuality(e.target.value)}
-                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900 focus:border-brand-500 outline-none"
-                                    >
-                                        <option value="eco">Économique (Matériaux standards)</option>
-                                        <option value="standard">Standard (Bon rapport qualité/prix)</option>
-                                        <option value="premium">Haut Standing / Premium (Finitions luxe)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="app-label text-[11px] font-bold">Ville / Localisation Chantier</label>
-                                    <select
-                                        value={estimateCity}
-                                        onChange={(e) => setEstimateCity(e.target.value)}
-                                        className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900 focus:border-brand-500 outline-none"
-                                    >
-                                        <option value="Bamako">Bamako (Mali)</option>
-                                        <option value="Abidjan">Abidjan (Côte d'Ivoire)</option>
-                                        <option value="Dakar">Dakar (Sénégal)</option>
-                                        <option value="Ouagadougou">Ouagadougou (Burkina)</option>
-                                        <option value="Conakry">Conakry (Guinée)</option>
-                                        <option value="Autre">Autre Localité</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Résultat Visuel de la Fourchette */}
-                            <div className="p-5 rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-950 text-white shadow-lg space-y-3">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
-                                    <div>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-400">
-                                            Estimation Indicative Instantanée
-                                        </span>
-                                        <h3 className="text-sm font-semibold text-white">
-                                            {CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.label} — {estimateSurface} {quickResult.unit}
-                                        </h3>
-                                    </div>
-                                    <span className="px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 text-xs font-mono font-bold self-start sm:self-auto">
-                                        Tarif moyen : {formatMoney(quickResult.ratePerUnit, currency)} / {quickResult.unit}
-                                    </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-baseline justify-between gap-4 pt-1">
-                                    <div>
-                                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">Fourchette Estimative Net HT</span>
-                                        <span className="text-base sm:text-xl font-bold text-neutral-200">
-                                            {formatMoney(quickResult.minHT, currency)} <span className="text-neutral-500 text-xs">à</span> {formatMoney(quickResult.maxHT, currency)}
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <span className="text-[10px] text-brand-400 block uppercase font-bold">Budget Moyen Estimé TTC</span>
-                                        <span className="text-lg sm:text-2xl font-bold text-brand-400">
-                                            {formatMoney(quickResult.avgTTC, currency)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* M7 — Les deux chiffres ne se calculent pas de la même
-                                    façon : l'estimation ci-dessus est un ratio au m²/ml,
-                                    le devis détaillé un vrai métré (matériaux arrondis au
-                                    conditionnement, forfaits de pose qui ne doublent pas
-                                    quand le chantier double). L'écart est normal et
-                                    s'accroît avec la taille — mieux vaut le dire ici que
-                                    de le laisser découvrir après coup. */}
-                                <p className="text-[11px] text-neutral-500 leading-snug pt-1">
-                                    <i className="fa-solid fa-circle-info mr-1"></i>
-                                    Estimation indicative au {quickResult.unit} — le devis détaillé sera chiffré poste par poste
-                                    et différera de ce montant (forfaits de pose et conditionnements d'achat ne suivent pas
-                                    la surface).
-                                </p>
-
-                                <div className="pt-2 flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={handleApplyQuickEstimate}
-                                        className="bg-white text-neutral-900 hover:bg-neutral-100 py-2.5 px-5 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-colors"
-                                    >
-                                        <i className="fa-solid fa-arrow-right"></i>
-                                        <span>Transformer en Devis Détaillé &amp; Chiffrer</span>
-                                    </button>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     )}
 
-                    {/* TAB 2: MODÈLES MÉTIERS 1-CLIC */}
+                    {/* Onglet 3 — EXEMPLES FOURNIS, nommés et placés en dernier pour
+                        qu'on ne les confonde pas avec les modèles de l'utilisateur. */}
                     {wizardTab === 'templates' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                        <div className="animate-fade-in space-y-4">
+                        <p className="text-xs text-neutral-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 leading-relaxed">
+                            Ces huit trames sont <strong>fournies avec l’application</strong>, à titre
+                            d’exemple. Leurs quantités et leurs prix ne sont pas les vôtres — vérifiez-les
+                            avant d’envoyer un devis bâti dessus.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {templatesList.map(tpl => (
                                 <div
                                     key={tpl.id}
@@ -2070,9 +2054,9 @@ function NewQuoteWizardModal({
                                 </div>
                             ))}
                         </div>
+                        </div>
                     )}
 
-                    {/* TAB 3: DEVIS VIERGE */}
                     {wizardTab === 'blank' && (
                         <div className="p-8 text-center space-y-4 animate-fade-in bg-neutral-50 rounded-2xl border border-neutral-200">
                             <div className="w-14 h-14 rounded-2xl bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center mx-auto text-2xl shadow-xs">
@@ -4701,6 +4685,11 @@ function QuoteTotalsBar({
 
 function QuoteWorkspace({
     onDirtyChange,
+    onRegisterSave,
+    // Modèles de l'utilisateur : ils vivent dans l'App (persistés avec le reste
+    // des données) mais c'est l'atelier qui monte l'assistant de démarrage.
+    modelesDevis = [],
+    onSupprimerModele,
     hybridQuote,
     setHybridQuote,
     clients = [],
@@ -5189,6 +5178,19 @@ function QuoteWorkspace({
     // enregistré mais « Modifications non enregistrées » restait affiché, et
     // l'utilisateur re-cliquait en croyant avoir perdu son travail. L'état est
     // maintenant remis à zéro ici, donc quel que soit le bouton appelant.
+    // Demandé le 2026-09-02 : « je voudrais qu'on ne quitte jamais jamais
+    // chiffrage sans demander si on doit enregistrer le projet en cours ».
+    // Le parent doit pouvoir déclencher CET enregistrement — celui qui valide
+    // le nom du client et gère la confirmation d'écrasement — et non une copie
+    // qui finirait par diverger. L'atelier le publie donc vers le haut.
+    React.useEffect(() => {
+        if (typeof onRegisterSave !== 'function') return undefined;
+        // La flèche renvoie implicitement l'issue ('enregistre' | 'bloque' |
+        // 'confirmation') : c'est elle que la garde de navigation lit.
+        onRegisterSave(() => handleSaveQuoteAction());
+        return () => onRegisterSave(null);
+    });
+
     const handleSaveQuoteAction = () => {
         if (!calculatedQuote.clientName?.trim()) {
             // Audit UX (2026-09-01) — le message seul ne dit pas OÙ corriger.
@@ -5196,7 +5198,11 @@ function QuoteWorkspace({
             // déjà l'ancien formulaire d'enregistrement (`clientNameError`).
             setClientManquant(true);
             showToast("Nom du client manquant — indiquez-le en haut du devis pour enregistrer.", "error");
-            return;
+            // 'bloque' : la validation a refusé. Le parent, quand il enregistre
+            // pour quitter l'écran (garde de navigation du 2026-09-02), doit
+            // pouvoir distinguer ce cas d'un enregistrement réussi — naviguer
+            // ici reviendrait à perdre le devis en prétendant l'avoir sauvé.
+            return 'bloque';
         }
         setClientManquant(false);
         if (calculatedQuote.activityType === 'event') {
@@ -5205,7 +5211,7 @@ function QuoteWorkspace({
                 .map(item => item.name || 'Ligne événementielle'));
             if (incompleteEventLines.length) {
                 showToast(`Tarif à compléter avant l’enregistrement : ${incompleteEventLines[0]}`, "error");
-                return;
+                return 'bloque';
             }
         }
         const doSave = () => {
@@ -5227,9 +5233,13 @@ function QuoteWorkspace({
                 confirmLabel: 'Mettre à jour',
                 onConfirm: doSave
             });
-            return;
+            // 'confirmation' : une boîte est ouverte, l'enregistrement n'a pas
+            // encore eu lieu. On ne navigue pas — l'utilisateur tranche, puis
+            // reprend sa navigation s'il le souhaite.
+            return 'confirmation';
         }
         doSave();
+        return 'enregistre';
     };
 
     const handlePreviewQuoteAction = () => {
@@ -5366,6 +5376,8 @@ function QuoteWorkspace({
 
             {/* Assistant Intelligent de Démarrage */}
             <NewQuoteWizardModal
+                    modelesUtilisateur={modelesDevis}
+                    onSupprimerModele={onSupprimerModele}
                 isOpen={isWizardOpen}
                 onClose={() => setIsWizardOpen(false)}
                 onLoadTemplate={(tpl) => guardUnsavedQuote(() => {
@@ -7532,6 +7544,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [partage, setPartage] = useState(null);
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
+
     
     // P0.2 V5.7 — Schema Check Post-Auth (strictement propre à l'utilisateur connecté)
     const userSchemaInfo = useMemo(() => {
@@ -8739,6 +8752,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return { client, project, clients: clientsArr, projects: projectsArr };
     };
 
+    // Modèles de devis de l'utilisateur (2026-09-02). Ils naissent d'un devis
+    // déjà chiffré, donc de son vrai catalogue et de ses vrais prix — à la
+    // différence des huit exemples livrés avec l'application, qui restent
+    // disponibles mais en second rang et nommés comme tels.
+    // ⚠️ Déclaré ICI et pas plus haut : `loadLocalData` est un `const` défini
+    // au-dessus de cette ligne, et l'initialiseur d'un useState s'exécute au
+    // premier rendu. Placé avant, il levait « Cannot access before
+    // initialization » et l'application entière tombait sur son écran de
+    // récupération.
+    const [modelesDevis, setModelesDevis] = useState(() => loadLocalData('modelesDevis', []));
+
     const [nextQuoteSeq, setNextQuoteSeq] = useState(() => loadLocalData('nextQuoteSeq', 1));
     const [calcForm, setCalcForm] = useState(() => loadLocalData('calcForm', {
         solutionId: 1, takeoffMode: 'rectangle', width: 2, height: 1, lengthDirect: 2, surfaceDirect: 450, qty: 1, faces: 1, margin: 30, marginType: 'reel', overheadRate: 5, vatRate: 18, discountRate: 0, includeInstall: true, customVarValues: {}
@@ -9318,6 +9342,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return true;
     }, [supabaseClient, sbUser, activeOrganizationId, savedQuotes, updateSavedQuotes, viewingSavedQuote]);
 
+    const updateModelesDevis = useCallback((newVal) => {
+        setModelesDevis(newVal);
+        if (!isReadOnlyDueToDowngrade && sbUser) LS.set('modelesDevis', newVal, sbUser.id);
+    }, [isReadOnlyDueToDowngrade, sbUser]);
+
     const updateNextQuoteSeq = useCallback((newVal) => {
         setNextQuoteSeq(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
@@ -9342,6 +9371,54 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setTimeout(() => setToast(null), 3500);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
+
+    // Demandé le 2026-09-02 : « je voudrais qu'on ne quitte JAMAIS chiffrage
+    // sans demander si on doit enregistrer le projet en cours ou pas ».
+    //
+    // Le drapeau `devisNonEnregistre` existait déjà, mais ne gardait que deux
+    // sorties : la fermeture de l'onglet (beforeunload) et la déconnexion. Un
+    // clic sur « Mes devis », « Clients » ou n'importe quelle entrée de la
+    // barre latérale emportait le chiffrage en cours sans un mot. C'est le
+    // seul écran où le travail n'est pas encore persisté : il mérite sa garde.
+    //
+    // Trois issues, parce que deux ne suffisent pas. « Quitter sans
+    // enregistrer » seul obligerait à annuler puis chercher le bouton
+    // Enregistrer ; l'utilisateur a demandé qu'on lui propose d'enregistrer.
+    // On appelle l'enregistrement RÉEL de l'atelier (publié via
+    // onRegisterSave) et non une copie : il valide le nom du client et gère
+    // la confirmation d'écrasement. S'il refuse — client manquant, tarif
+    // événementiel incomplet — `devisNonEnregistre` reste vrai et on RESTE sur
+    // le chiffrage, l'erreur affichée. Naviguer quand même reviendrait à
+    // perdre le devis en prétendant l'avoir sauvé.
+    const enregistrerChiffrageRef = React.useRef(null);
+
+    const naviguerVers = React.useCallback((vue) => {
+        if (vue === activeView) return;
+        if (activeView !== 'calculator' || !devisNonEnregistre) { setActiveView(vue); return; }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Enregistrer le devis en cours ?',
+            message: 'Ce chiffrage contient des modifications qui ne sont pas encore enregistrées.\n\nSi vous quittez sans enregistrer, elles seront perdues.',
+            confirmLabel: 'Enregistrer et continuer',
+            secondaryLabel: 'Quitter sans enregistrer',
+            onSecondary: () => { closeConfirm(); setActiveView(vue); },
+            onConfirm: () => {
+                closeConfirm();
+                const enregistrer = enregistrerChiffrageRef.current;
+                if (typeof enregistrer !== 'function') { setActiveView(vue); return; }
+                // L'atelier dit ce qui s'est passé plutôt que de laisser
+                // deviner : 'enregistre' (c'est fait, on peut partir),
+                // 'bloque' (validation refusée, on reste, l'erreur est à
+                // l'écran) ou 'confirmation' (une boîte attend une réponse).
+                // Un premier jet sondait le drapeau « non enregistré » à
+                // intervalles : la moindre modification survenant après
+                // l'enregistrement le rallumait et la navigation n'avait
+                // jamais lieu, sans que rien ne l'explique.
+                const issue = enregistrer();
+                if (issue === 'enregistre') setActiveView(vue);
+            }
+        });
+    }, [activeView, devisNonEnregistre]);
 
     // Audit approfondi du 2026-09-02 — défaut SYSTÉMIQUE, mesuré sur la
     // production : aucune des 19 fenêtres modales de l'application ne gère le
@@ -10931,6 +11008,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <QuoteWorkspace
                     key={`ws-${seqRestauration}`}
                     onDirtyChange={setDevisNonEnregistre}
+                    onRegisterSave={(fn) => { enregistrerChiffrageRef.current = fn; }}
+                    modelesDevis={modelesDevis}
+                    onSupprimerModele={(m) => setConfirmDialog({
+                        isOpen: true,
+                        title: 'Supprimer ce modèle ?',
+                        message: `« ${m.nom} » ne sera plus proposé au démarrage d'un devis.\n\nLes devis déjà créés à partir de lui ne changent pas.`,
+                        confirmLabel: 'Supprimer',
+                        isDanger: true,
+                        onConfirm: () => {
+                            updateModelesDevis(modelesDevis.filter(x => x.id !== m.id));
+                            closeConfirm();
+                            showToast(`Modèle « ${m.nom} » supprimé`);
+                        }
+                    })}
                     initialDirty={devisNonEnregistre}
                     hybridQuote={hybridQuote}
                     setHybridQuote={setHybridQuote}
@@ -13472,6 +13563,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             >
                                 Nouvelle révision
                             </button>
+                            {/* Demandé le 2026-09-02 : les modèles proposés au
+                                démarrage doivent être ceux de l'utilisateur. Ils
+                                naissent donc d'un devis déjà chiffré — avec ses
+                                ouvrages et ses prix, pas ceux d'un exemple livré
+                                avec l'application. Placé ici, dans « Plus
+                                d'actions » : on crée un modèle rarement, on
+                                consulte un devis souvent. */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const instantane = viewingSavedQuote.hybridQuoteSnapshot;
+                                    if (!instantane) {
+                                        showToast("Ce devis n'a pas d'instantané exploitable — rouvrez-le puis réenregistrez-le avant d'en faire un modèle.", 'error');
+                                        return;
+                                    }
+                                    const nom = `${viewingSavedQuote.projectRef || viewingSavedQuote.clientName || 'Modèle'}`.trim();
+                                    const modele = {
+                                        id: `mod-${Date.now()}`,
+                                        nom,
+                                        cree: new Date().toLocaleDateString('fr-FR'),
+                                        origine: viewingSavedQuote.number,
+                                        nbLots: (instantane.lots || []).length,
+                                        // Copie profonde : un modèle ne doit pas
+                                        // bouger quand le devis d'origine évolue,
+                                        // ni l'inverse.
+                                        template: JSON.parse(JSON.stringify(instantane))
+                                    };
+                                    updateModelesDevis([modele, ...modelesDevis]);
+                                    showToast(`Modèle « ${nom} » enregistré — proposé au prochain nouveau devis.`, 'success');
+                                }}
+                                className="saved-quote-action-secondary btn-secondary text-xs py-1.5 px-3 font-bold"
+                                aria-label={`Enregistrer le devis ${viewingSavedQuote.number} comme modèle`}
+                            >
+                                Enregistrer comme modèle
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setConfirmDialog({
@@ -15903,7 +16029,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return (
             <button 
                 onClick={() => {
-                    setActiveView(id);
+                    naviguerVers(id);
                     if (onClickExtra) onClickExtra();
                 }} 
                 aria-current={isActive ? 'page' : undefined}
@@ -15936,7 +16062,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return (
             <div className={collapsed ? 'relative sidebar-item-collapsed-wrap' : 'relative'}>
                 <button
-                    onClick={() => { setActiveView(id); if (onClickExtra) onClickExtra(); }}
+                    onClick={() => { naviguerVers(id); if (onClickExtra) onClickExtra(); }}
                     aria-current={isActive ? 'page' : undefined}
                     aria-label={collapsed ? label : undefined}
                     className={`sidebar-item outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${collapsed ? 'sidebar-item-collapsed' : ''} ${isActive ? 'sidebar-item-active' : ''}`}
