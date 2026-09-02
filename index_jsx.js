@@ -7724,11 +7724,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // telles quelles sur le PDF téléchargeable. Un filigrane ne protège pas
         // d'un numéro fiscal inventé : il suffit de l'ignorer.
         // Ces trois champs partent donc VIDES. Leurs `placeholder` sont déjà
-        // écrits dans le formulaire, et `REQUIRED_LEGAL_FIELDS` les tient pour
-        // obligatoires — le devis se consulte et se télécharge, mais l'app dit
-        // clairement qu'il n'est pas envoyable tant que l'identité n'est pas
-        // celle de l'utilisateur. Le nom, l'email et l'adresse restent renseignés :
-        // sans eux le document de démonstration n'aurait plus d'en-tête à montrer.
+        // écrits dans le formulaire. Le téléphone reste BLOQUANT pour l'envoi ;
+        // le NIF et le RCCM sont, depuis le 2026-09-02, seulement signalés
+        // (voir CHAMPS_LEGAUX_RECOMMANDES). Le nom, l'email et l'adresse restent
+        // renseignés : sans eux le document de démonstration n'aurait plus
+        // d'en-tête à montrer.
         phone: '',
         email: 'contact@ikadevis.com',
         address: "Abidjan, Côte d'Ivoire",
@@ -7787,11 +7787,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
     const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
 
-    // B3 — Champs légaux obligatoires avant tout envoi au client : sans eux,
-    // le devis engagerait l'entreprise sous une identité incomplète ou
-    // (pire, avant ce correctif) sous celle, fictive, de la démo.
-    const REQUIRED_LEGAL_FIELDS = ['name', 'address', 'phone', 'email', 'nif', 'rccm'];
-    const getMissingLegalFields = (info) => REQUIRED_LEGAL_FIELDS.filter(k => !(info?.[k] || '').trim());
+    // B3 — Champs légaux exigés avant tout envoi au client : sans eux, le
+    // devis engagerait l'entreprise sous une identité incomplète ou (pire,
+    // avant ce correctif) sous celle, fictive, de la démo.
+    //
+    // Révisé le 2026-09-02 à la demande de l'utilisateur : « je ne veux pas
+    // que le NIF et le RCCM soient obligatoirement remplis pour que la
+    // facture soit émise ».
+    //
+    // Les six champs bloquaient à l'identique. Ils sont désormais séparés en
+    // deux familles, parce qu'ils ne jouent pas le même rôle :
+    //
+    //  • BLOQUANTS — raison sociale, adresse, téléphone, e-mail : sans eux le
+    //    client ne sait ni qui l'engage ni comment le joindre. Un document
+    //    parti sans ça n'est pas exploitable, c'est un défaut d'application.
+    //
+    //  • RECOMMANDÉS — NIF et RCCM : ce sont des mentions légales OHADA. Leur
+    //    absence est un risque FISCAL, qui appartient au chef d'entreprise et
+    //    non au logiciel. Ils restent donc signalés partout où ils manquent,
+    //    mais n'empêchent plus ni l'envoi d'un devis ni l'émission d'une
+    //    facture. L'utilisateur a été informé du risque avant ce changement.
+    const CHAMPS_LEGAUX_BLOQUANTS = ['name', 'address', 'phone', 'email'];
+    const CHAMPS_LEGAUX_RECOMMANDES = ['nif', 'rccm'];
+    const getMissingLegalFields = (info) => CHAMPS_LEGAUX_BLOQUANTS.filter(k => !(info?.[k] || '').trim());
+    const champsLegauxRecommandesManquants = (info) => CHAMPS_LEGAUX_RECOMMANDES.filter(k => !(info?.[k] || '').trim());
 
     // B2 (2026-08-18) — Garde-fou réutilisable pour TOUTE prestation de
     // main-d'œuvre, présente ou future (pas seulement maçonnerie/carrelage,
@@ -16986,6 +17005,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             tant qu'elles manquent, un document peut se consulter et
                                             se télécharger, mais l'application le signale comme non
                                             envoyable.
+                                        </p>
+                                    </div>
+                                )}
+                                {/* NIF et RCCM ne bloquent plus rien depuis le 2026-09-02, à la
+                                    demande de l'utilisateur. Ils restent signalés : ce sont des
+                                    mentions légales OHADA, et leur absence expose l'entreprise —
+                                    pas l'application. Le ton change donc de « à compléter » à
+                                    « vous en portez le risque », sans jamais barrer la route. */}
+                                {champsLegauxRecommandesManquants(companyInfo).length > 0 && (
+                                    <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3 flex items-start gap-2.5">
+                                        <i className="fa-solid fa-scale-balanced text-neutral-500 mt-0.5 shrink-0" aria-hidden="true"></i>
+                                        <p className="text-xs text-neutral-700 leading-relaxed">
+                                            <strong>
+                                                {champsLegauxRecommandesManquants(companyInfo).map(f => ({ nif: 'NIF', rccm: 'RCCM' }[f])).join(' et ')} non renseigné{champsLegauxRecommandesManquants(companyInfo).length > 1 ? 's' : ''}.
+                                            </strong>{' '}
+                                            Ce sont des mentions obligatoires sur une facture en zone
+                                            OHADA. Vos devis et factures partent quand même — c'est
+                                            votre choix — mais un document qui en manque peut être
+                                            contesté par l'administration ou refusé par un client.
                                         </p>
                                     </div>
                                 )}
