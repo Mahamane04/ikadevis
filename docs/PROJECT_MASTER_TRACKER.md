@@ -2818,3 +2818,54 @@ Ni supprimée, ni contournée — réécrite en gardant l'intention :
 
 Bancs ajoutés : `test_quote_delete_reachable`, `test_pdf_capture_a4`.
 **267/267 au vert, 0 régression, 35 suites, 7 étalons conformes.**
+
+### 42.6 Conversion en facture : identifiants locaux dans des colonnes `uuid`
+
+Signalé le 2026-09-02 : `Création impossible : invalid input syntax for type
+uuid: "cli-1787941253353"`.
+
+`invoices.quote_id`, `client_id` et `project_id` sont de type `uuid`. Or
+**clients et affaires n'existent que côté navigateur** : `resolveClientAndProject`
+leur attribue `cli-<horodatage>-<aléa>` et `prj-…`, et les tables `clients` /
+`projects` sont **restées vides en base** (vérifié : 0 ligne pour l'organisation
+concernée, contre 22 devis). Postgres rejetait l'insertion entière — convertir
+un devis en facture était donc impossible pour **tout devis rattaché à un
+client**, c'est-à-dire pour tous.
+
+Correctif : un identifiant qui n'est pas un uuid ne désigne rien côté serveur,
+il part à `NULL` (les trois colonnes sont nullables). Le lien reste porté par
+`client_name` et `project_ref`. `quote_id` prend l'uuid serveur du devis quand
+il existe — en mode cloud `devis.id` **est** déjà cet uuid (`mapQuoteFromDb`).
+
+> Dette de fond, non traitée ici : clients et affaires ne sont jamais
+> synchronisés vers Supabase. Le CRM cloud est donc vide, et aucune facture ne
+> porte de lien réel vers son client. À reprendre.
+
+### 42.7 PDF : la panne signalée n'a **pas** été reproduite
+
+À dire clairement, parce qu'un correctif non éprouvé qui se présente comme
+éprouvé est pire que pas de correctif.
+
+Le message de diagnostic (§ 42.4) a livré la mesure côté utilisateur :
+`zone 720x1918, A4@1800=0x0, repli=0x0` — les deux tentatives vides pour une
+zone pourtant bien dimensionnée. Ont été **écartés, mesures à l'appui** :
+
+| Piste | Vérification | Résultat |
+|---|---|---|
+| Largeur de fenêtre | testée jusqu'à 1800 px | capture correcte |
+| Logo data-URI 30 Ko | injecté à l'identique | capture correcte |
+| Le document lui-même | DEV-2026-022 rejoué depuis la base réelle en invité | 1600 × 3886 |
+| Chaîne d'ancêtres sabotée | `overflow`, hauteur, largeur, `content-visibility`, `contain` | **l'ancien code y survit aussi** |
+
+Faute de cause identifiée, ce qui change n'est pas un correctif ciblé mais la
+suppression d'une fragilité : le document est désormais **copié dans un bac à
+sable** posé sur `<body>`, à la largeur A4, sans aucun ancêtre. Toute la
+famille des causes liées à la chaîne de conteneurs disparaît avec eux. Les deux
+anciennes tentatives restent en repli, et le message d'échec porte maintenant
+le résultat du bac en plus des deux autres.
+
+`test_pdf_bac_a_sable` **dit en tête qu'il ne reproduit pas la panne** : il
+vérifie que le bac est la voie empruntée, monté à la largeur A4, rendu, hors
+champ et retiré après coup. Rien de plus.
+
+**274/274 au vert, 0 régression, 36 suites, 7 étalons conformes.**
