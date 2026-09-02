@@ -13080,16 +13080,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
 
                         <div className="saved-quote-action-strip px-6 py-2 border-t border-neutral-100 bg-neutral-50/70 flex flex-wrap items-center gap-2 shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setActionsDevisDepliees(o => !o)}
-                                aria-expanded={actionsDevisDepliees}
-                                className="saved-quote-action-label flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 mr-1 py-1"
-                            >
-                                Actions du devis
-                                <i className={`fa-solid fa-chevron-${actionsDevisDepliees ? 'up' : 'down'} text-[9px]`} aria-hidden="true"></i>
-                            </button>
-                            <div className={`saved-quote-actions-list ${actionsDevisDepliees ? 'flex' : 'hidden'} flex-wrap items-center gap-2`}>
+                            {/* Signalé en production le 2026-09-02 : « je ne vois pas de
+                                bouton pour convertir en facture le devis ».
+                                Le repli introduit la veille (Lot 7 de l'audit UX) ne visait
+                                que la place perdue — 117 px pour cinq boutons sur deux rangs
+                                dans un panneau de 584 px. Il masquait en réalité les DEUX
+                                actions qui font avancer un devis : le convertir en facture,
+                                et le modifier. Replier « Dupliquer » se défend ; replier la
+                                suite du parcours commercial, non — c'est la seule raison
+                                d'ouvrir un devis approuvé.
+                                Les deux actions décisives restent donc visibles, et le
+                                dépliant ne garde que les variantes : révision, duplication,
+                                suppression (celle-ci étant par ailleurs sur chaque ligne de
+                                la liste depuis le même signalement). Une seule rangée au
+                                lieu de deux : la place gagnée l'est toujours. */}
                             <button
                                 type="button"
                                 onClick={convertirEnFacture}
@@ -13114,6 +13118,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             >
                                 Modifier
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setActionsDevisDepliees(o => !o)}
+                                aria-expanded={actionsDevisDepliees}
+                                className="saved-quote-action-label flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800 py-1 px-1"
+                            >
+                                Plus d’actions
+                                <i className={`fa-solid fa-chevron-${actionsDevisDepliees ? 'up' : 'down'} text-[9px]`} aria-hidden="true"></i>
+                            </button>
+                            <div className={`saved-quote-actions-list ${actionsDevisDepliees ? 'flex' : 'hidden'} flex-wrap items-center gap-2`}>
                             <button
                                 type="button"
                                 onClick={() => {

@@ -38,6 +38,7 @@ import * as quickEstimateMatchesQuote from './test_quick_estimate_matches_quote.
 import * as draftAutosave from './test_draft_autosave.mjs';
 import * as pdfZoneVisible from './test_pdf_zone_visible.mjs';
 import * as quoteDeleteReachable from './test_quote_delete_reachable.mjs';
+import * as pdfCaptureA4 from './test_pdf_capture_a4.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -74,6 +75,7 @@ const SUITES = [
     { name: 'Audit UX — le devis en cours survit à un rechargement (brouillon automatique)', mod: draftAutosave, expectedToFail: false },
     { name: 'Production — le PDF cible la zone imprimable réellement affichée', mod: pdfZoneVisible, expectedToFail: false },
     { name: 'Suppression d\'un devis atteignable depuis la liste', mod: quoteDeleteReachable, expectedToFail: false },
+    { name: 'PDF — la capture A4 aboutit du premier coup, sans repli', mod: pdfCaptureA4, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },

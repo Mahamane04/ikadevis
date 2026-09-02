@@ -80,12 +80,22 @@ export async function run() {
         // actions devenues inatteignables. Il vérifie donc maintenant l'état réel —
         // repliées à l'ouverture, effectivement visibles après le clic — et que le
         // document, la raison d'être de l'écran, a une hauteur exploitable.
-        const LIBELLES_ACTIONS = [
-            'Modifier le devis DEV-2026-001',
+        // Révisé le 2026-09-02, second signalement du même utilisateur : « je ne
+        // vois pas de bouton pour convertir en facture le devis ». Le repli
+        // écrit la veille masquait les CINQ actions, dont les deux qui font
+        // avancer un devis — le convertir en facture, et le modifier. Replier
+        // « Dupliquer » se défend ; replier la suite du parcours commercial,
+        // non. Le banc distingue donc désormais deux familles au lieu d'une.
+        const ACTIONS_TOUJOURS_VISIBLES = [
+            'Convertir le devis DEV-2026-001 en facture',
+            'Modifier le devis DEV-2026-001'
+        ];
+        const ACTIONS_REPLIEES = [
             'Créer une révision de DEV-2026-001',
             'Dupliquer le devis DEV-2026-001',
             'Supprimer le devis DEV-2026-001'
         ];
+        const LIBELLES_ACTIONS = [...ACTIONS_TOUJOURS_VISIBLES, ...ACTIONS_REPLIEES];
         const mesureActions = () => page.evaluate((libelles) => {
             const carte = document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-detail-card');
             const visibles = libelles.filter(l => {
@@ -103,15 +113,31 @@ export async function run() {
             };
         }, LIBELLES_ACTIONS);
 
+        const mesureGroupe = (libelles) => page.evaluate((ls) => {
+            const carte = document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-detail-card');
+            return ls.filter((l) => {
+                const b = carte?.querySelector(`button[aria-label="${l}"]`);
+                if (!b) return false;
+                const r = b.getBoundingClientRect();
+                return r.width > 0 && r.height > 0;
+            }).length;
+        }, libelles);
+
         const avantDepli = await mesureActions();
         ok('Les actions du devis sont présentes dans le détail', avantDepli.presentes);
-        ok('Les actions sont repliées à l’ouverture, au profit du document', avantDepli.visibles === 0);
+        const visiblesDemblee = await mesureGroupe(ACTIONS_TOUJOURS_VISIBLES);
+        const repliesDemblee = await mesureGroupe(ACTIONS_REPLIEES);
+        ok(`« Convertir en facture » et « Modifier » sont visibles sans rien déplier — ${visiblesDemblee}/2`,
+            visiblesDemblee === ACTIONS_TOUJOURS_VISIBLES.length);
+        ok(`Les variantes (révision, duplication, suppression) restent repliées — ${repliesDemblee}/3 visibles`,
+            repliesDemblee === 0);
         ok(`Le document occupe une hauteur exploitable (≥ 180 px) — mesuré=${avantDepli.hauteurDocument}`, avantDepli.hauteurDocument >= 180);
         ok('L’aperçu ne déborde pas horizontalement', !avantDepli.debordeHorizontalement);
         await page.evaluate(() => document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-action-label')?.click());
         await wait(220);
         const apresDepli = await mesureActions();
-        ok(`Déplier « Actions du devis » rend les quatre actions cliquables — visibles=${apresDepli.visibles}/4`, apresDepli.visibles === 4);
+        ok(`Déplier « Plus d’actions » rend les cinq actions cliquables — visibles=${apresDepli.visibles}/5`,
+            apresDepli.visibles === LIBELLES_ACTIONS.length);
         await page.evaluate(() => document.querySelector('[data-testid="saved-quote-detail"] .saved-quote-action-label')?.click());
         await wait(220);
 

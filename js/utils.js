@@ -275,41 +275,83 @@ async function telechargerElementEnPdf(element, nomFichier) {
         scrollY: -window.scrollY
     };
 
+    // ⚠️ Le piège qui a coûté deux signalements en production (2026-09-02).
+    //
+    // html2canvas rend le clone dans une iframe dont la largeur est celle
+    // passée en `windowWidth` — et les MEDIA QUERIES du document sont
+    // réévaluées à cette largeur. Le code posait `windowWidth = 920` pour
+    // obtenir une mise en page A4. Or le panneau de détail d'un devis vit
+    // sous `hidden lg:flex` : à 920 px, c'est-à-dire SOUS le seuil `lg`
+    // (1024 px) de Tailwind, il devient `display:none` DANS LE CLONE. La
+    // capture rendait donc un canvas de 0 × 0, systématiquement, sur tout
+    // écran de bureau — mesuré à 1440, 1280, 1100 et 1024 px.
+    //
+    // Le repli sauvait la mise, ce qui a longtemps masqué le défaut : le
+    // téléchargement aboutissait, mais avec une capture à la largeur réelle
+    // du panneau (530 px), donc un PDF comprimé au lieu d'une page A4.
+    //
+    // La largeur du clone doit donc rester AU MOINS celle de la fenêtre
+    // réelle, pour que ce qui est visible à l'écran le reste dans le clone.
+    // Le plancher à LARGEUR_CAPTURE + 120 sert le cas inverse, celui du
+    // téléphone : à 390 px la modale mobile est la zone visible, et sans ce
+    // plancher on retomberait sur une capture de 366 px — le PDF illisible
+    // que ce paramètre corrigeait à l'origine. Les deux besoins sont
+    // opposés ; c'est le maximum qui les concilie.
+    const largeurClone = Math.max(
+        document.documentElement.clientWidth || window.innerWidth || 0,
+        LARGEUR_CAPTURE + 120
+    );
+
+    // Le forçage de la largeur A4 s'applique aussi au repli : sans lui, la
+    // seconde tentative produit le PDF comprimé décrit plus haut.
+    const forcerMiseEnPageA4 = (docClone) => {
+        const cible = docClone.querySelector('[data-pdf-cible]');
+        if (!cible) return;
+        cible.style.width = LARGEUR_CAPTURE + 'px';
+        cible.style.maxWidth = 'none';
+        // Les ancêtres sont souvent une modale à hauteur bornée et
+        // défilante : conservés tels quels, ils tronqueraient le document
+        // à la partie visible à l'écran.
+        for (let p = cible.parentElement; p && p !== docClone.body; p = p.parentElement) {
+            p.style.overflow = 'visible';
+            p.style.maxHeight = 'none';
+            p.style.height = 'auto';
+            p.style.maxWidth = 'none';
+        }
+    };
+
     element.setAttribute('data-pdf-cible', '1');
+    const tentatives = [];
     let canvas;
     try {
         canvas = await window.html2canvas(element, {
             ...optionsCapture,
-            windowWidth: LARGEUR_CAPTURE + 120,
-            onclone: (docClone) => {
-                const cible = docClone.querySelector('[data-pdf-cible]');
-                if (!cible) return;
-                cible.style.width = LARGEUR_CAPTURE + 'px';
-                cible.style.maxWidth = 'none';
-                // Les ancêtres sont souvent une modale à hauteur bornée et
-                // défilante : conservés tels quels, ils tronqueraient le document
-                // à la partie visible à l'écran.
-                for (let p = cible.parentElement; p && p !== docClone.body; p = p.parentElement) {
-                    p.style.overflow = 'visible';
-                    p.style.maxHeight = 'none';
-                    p.style.height = 'auto';
-                    p.style.maxWidth = 'none';
-                }
-            }
+            windowWidth: largeurClone,
+            onclone: forcerMiseEnPageA4
         });
+        tentatives.push(`A4@${largeurClone}=${canvas?.width || 0}x${canvas?.height || 0}`);
 
         // Repli sûr : on capture exactement le document tel qu'il est rendu
         // dans l'interface plutôt que de laisser un canvas vide faire échouer
         // le téléchargement au moment de la création du PDF.
         if (!estCanvasValide(canvas)) {
-            canvas = await window.html2canvas(element, optionsCapture);
+            canvas = await window.html2canvas(element, { ...optionsCapture, onclone: forcerMiseEnPageA4 });
+            tentatives.push(`repli=${canvas?.width || 0}x${canvas?.height || 0}`);
         }
     } finally {
         element.removeAttribute('data-pdf-cible');
     }
 
     if (!estCanvasValide(canvas)) {
-        throw new Error("Le document n'a pas pu être rendu pour le PDF. Réessayez après avoir rouvert le document.");
+        // Le message portait auparavant « réessayez » et rien d'autre : face à
+        // un signalement, impossible de savoir quelle étape avait lâché. Les
+        // mesures y figurent désormais — elles ne coûtent rien à l'utilisateur
+        // et rendent le prochain rapport exploitable du premier coup.
+        const boite = element.getBoundingClientRect();
+        throw new Error(
+            "Le document n'a pas pu être rendu pour le PDF "
+            + `(zone ${Math.round(boite.width)}x${Math.round(boite.height)}, ${tentatives.join(', ')})`
+        );
     }
 
     const { jsPDF } = window.jspdf;
