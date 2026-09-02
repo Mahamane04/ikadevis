@@ -6823,6 +6823,10 @@ const InvoiceService = {
             statut: 'draft',
             type: 'standard',
             devisId: devis.id,
+            // En mode cloud, `devis.id` EST déjà l'uuid serveur (mapQuoteFromDb) ;
+            // en local c'est un horodatage. On transporte les deux, la
+            // validation en aval décide lequel est envoyable.
+            devisServerId: devis.serverId || devis.id || null,
             clientId: devis.clientId || null,
             projectId: devis.projectId || null,
             devisNumero: devis.number,
@@ -6870,13 +6874,34 @@ const InvoiceService = {
         if (estLocal) {
             return { isLocal: true, serverId: null };
         }
+        // Signalé en production le 2026-09-02 : « Création impossible : invalid
+        // input syntax for type uuid: "cli-1787941253353" ».
+        //
+        // `quote_id`, `client_id` et `project_id` sont des colonnes uuid. Or
+        // clients et affaires sont construits UNIQUEMENT côté navigateur —
+        // resolveClientAndProject leur donne des identifiants de la forme
+        // `cli-<horodatage>-<alea>` et `prj-…`, et les tables `clients` et
+        // `projects` sont restées vides en base (vérifié : 0 ligne pour
+        // l'organisation concernée). Les envoyer tels quels faisait rejeter
+        // l'insertion entière par Postgres : la conversion d'un devis en
+        // facture était donc impossible pour tout devis rattaché à un client,
+        // c'est-à-dire pour tous.
+        //
+        // Un identifiant qui n'est pas un uuid ne désigne rien côté serveur :
+        // on le laisse à NULL plutôt que de faire échouer la facture. Le lien
+        // reste porté par `client_name` et `project_ref`, déjà enregistrés.
+        // Le jour où clients et affaires seront réellement synchronisés, ces
+        // colonnes se rempliront d'elles-mêmes sans rien changer ici.
+        const uuidOuNull = (v) => (typeof v === 'string'
+            && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) ? v : null;
+
         const { data: invoiceRow, error: invoiceErr } = await supabaseClient
             .from('invoices')
             .insert({
                 organization_id: activeOrgId,
-                quote_id: facture.devisId || null,
-                client_id: facture.clientId || null,
-                project_id: facture.projectId || null,
+                quote_id: uuidOuNull(facture.devisServerId) || uuidOuNull(facture.devisId),
+                client_id: uuidOuNull(facture.clientId),
+                project_id: uuidOuNull(facture.projectId),
                 client_name: facture.clientName || 'Client Passage',
                 project_ref: facture.projectRef || null,
                 invoice_type: facture.type || 'standard',

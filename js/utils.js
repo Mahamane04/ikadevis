@@ -320,26 +320,81 @@ async function telechargerElementEnPdf(element, nomFichier) {
         }
     };
 
-    element.setAttribute('data-pdf-cible', '1');
+    // Capture en bac à sable (2026-09-02, après un troisième signalement).
+    //
+    // Les deux tentatives précédentes rendaient toutes deux 0 × 0 chez
+    // l'utilisateur — « zone 720x1918, A4@1800=0x0, repli=0x0 » — alors que le
+    // même devis, rejoué à l'identique depuis sa base, se capturait sans
+    // difficulté ici. Chercher la différence d'environnement une fois de plus
+    // n'aurait fait que déplacer le problème : la faiblesse est structurelle.
+    //
+    // Le document vit au fond d'une chaîne de conteneurs contraints — panneau
+    // en `hidden lg:flex`, carte en `h-full overflow-hidden`, zone de défilement
+    // en `overflow-auto`, le tout en flex avec `min-h-0`. Capturer un élément à
+    // cet endroit oblige à réécrire ses ancêtres dans le clone, et il suffit
+    // qu'un seul se comporte autrement — une media query réévaluée, une hauteur
+    // qui s'effondre, un conteneur qui clippe — pour que le rendu sorte vide.
+    //
+    // On copie donc le document dans un bac à sable posé directement sur
+    // <body>, à la largeur A4, sans aucun ancêtre contraignant. Plus de chaîne
+    // à réparer, donc plus rien à casser. Le bac est hors champ mais bel et
+    // bien rendu : ni `display:none` ni `visibility:hidden`, qui donneraient
+    // eux-mêmes un canvas vide.
+    const capturerEnBacASable = async () => {
+        const bac = document.createElement('div');
+        bac.setAttribute('data-pdf-bac', '1');
+        bac.style.cssText = [
+            'position:fixed', 'top:0', 'left:-20000px', 'z-index:-1',
+            `width:${LARGEUR_CAPTURE}px`, 'background:#ffffff',
+            'overflow:visible', 'pointer-events:none'
+        ].join(';');
+        const copie = element.cloneNode(true);
+        copie.style.width = LARGEUR_CAPTURE + 'px';
+        copie.style.maxWidth = 'none';
+        copie.style.height = 'auto';
+        copie.style.maxHeight = 'none';
+        copie.style.overflow = 'visible';
+        bac.appendChild(copie);
+        document.body.appendChild(bac);
+        try {
+            // Laisser un cycle de rendu au navigateur : sans lui, la copie peut
+            // être mesurée avant sa mise en page.
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            return await window.html2canvas(copie, { ...optionsCapture, windowWidth: largeurClone });
+        } finally {
+            bac.remove();
+        }
+    };
+
     const tentatives = [];
     let canvas;
     try {
-        canvas = await window.html2canvas(element, {
-            ...optionsCapture,
-            windowWidth: largeurClone,
-            onclone: forcerMiseEnPageA4
-        });
-        tentatives.push(`A4@${largeurClone}=${canvas?.width || 0}x${canvas?.height || 0}`);
+        canvas = await capturerEnBacASable();
+        tentatives.push(`bac=${canvas?.width || 0}x${canvas?.height || 0}`);
+    } catch (e) {
+        tentatives.push(`bac=erreur(${String(e && e.message || e).slice(0, 60)})`);
+    }
 
-        // Repli sûr : on capture exactement le document tel qu'il est rendu
-        // dans l'interface plutôt que de laisser un canvas vide faire échouer
-        // le téléchargement au moment de la création du PDF.
-        if (!estCanvasValide(canvas)) {
-            canvas = await window.html2canvas(element, { ...optionsCapture, onclone: forcerMiseEnPageA4 });
-            tentatives.push(`repli=${canvas?.width || 0}x${canvas?.height || 0}`);
+    // Les deux anciennes tentatives restent en repli : elles ont fonctionné
+    // pendant des mois pour la plupart des utilisateurs, et rien ne justifie
+    // de les retirer tant que le bac à sable n'a pas fait ses preuves partout.
+    if (!estCanvasValide(canvas)) {
+        element.setAttribute('data-pdf-cible', '1');
+        try {
+            canvas = await window.html2canvas(element, {
+                ...optionsCapture,
+                windowWidth: largeurClone,
+                onclone: forcerMiseEnPageA4
+            });
+            tentatives.push(`A4@${largeurClone}=${canvas?.width || 0}x${canvas?.height || 0}`);
+
+            if (!estCanvasValide(canvas)) {
+                canvas = await window.html2canvas(element, { ...optionsCapture, onclone: forcerMiseEnPageA4 });
+                tentatives.push(`repli=${canvas?.width || 0}x${canvas?.height || 0}`);
+            }
+        } finally {
+            element.removeAttribute('data-pdf-cible');
         }
-    } finally {
-        element.removeAttribute('data-pdf-cible');
     }
 
     if (!estCanvasValide(canvas)) {
