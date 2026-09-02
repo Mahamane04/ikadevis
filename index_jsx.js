@@ -9399,8 +9399,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             isOpen: true,
             title: 'Enregistrer le devis en cours ?',
             message: 'Ce chiffrage contient des modifications qui ne sont pas encore enregistrées.\n\nSi vous quittez sans enregistrer, elles seront perdues.',
-            confirmLabel: 'Enregistrer et continuer',
-            secondaryLabel: 'Quitter sans enregistrer',
+            // Libellés courts : le titre pose déjà la question, les boutons
+            // n'ont qu'à nommer l'issue. Les versions longues (« Enregistrer et
+            // continuer », « Quitter sans enregistrer ») totalisaient 436 px
+            // dans une rangée de 384 : le bouton « Annuler » sortait de la
+            // boîte par la gauche.
+            confirmLabel: 'Enregistrer',
+            secondaryLabel: 'Ne pas enregistrer',
             onSecondary: () => { closeConfirm(); setActiveView(vue); },
             onConfirm: () => {
                 closeConfirm();
@@ -18191,7 +18196,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             auparavant sur toute la largeur avec `flex-1`, ce qui
                             donnait trois pavés de taille égale — rien n'indiquait
                             laquelle des trois était l'action principale. */}
-                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 w-full">
+                        <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end gap-2 w-full">
                             <button onClick={closeConfirm} className="btn-secondary btn-dialogue">Annuler</button>
                             {confirmDialog.onSecondary && (
                                 <button onClick={confirmDialog.onSecondary} className="btn-secondary btn-dialogue border-brand-300 text-brand-700">

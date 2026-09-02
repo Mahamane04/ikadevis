@@ -75,8 +75,8 @@ export async function run() {
             !!boite && /Enregistrer le devis en cours/.test(boite.titre), boite ? boite.titre : 'aucune boîte');
         ok(`Les trois issues sont proposées — ${JSON.stringify(boite && boite.boutons)}`,
             !!boite && boite.boutons.includes('Annuler')
-            && boite.boutons.some((b) => /Quitter sans enregistrer/.test(b))
-            && boite.boutons.some((b) => /Enregistrer et continuer/.test(b)));
+            && boite.boutons.some((b) => /Ne pas enregistrer/.test(b))
+            && boite.boutons.some((b) => b === 'Enregistrer'));
         ok('On est toujours sur le chiffrage tant qu’on n’a pas répondu',
             (await ecran()) === 'Chiffrage');
 
@@ -88,7 +88,7 @@ export async function run() {
         // ── Enregistrer sans client : refusé, on reste ────────────────────
         await allerA('Mes devis');
         await wait(900);
-        await clicBoite('Enregistrer et continuer');
+        await clicBoite('^Enregistrer$');
         await wait(1800);
         ok('Un enregistrement refusé (client manquant) ne fait pas quitter l’écran',
             (await ecran()) === 'Chiffrage');
@@ -104,9 +104,9 @@ export async function run() {
         await wait(1200);
         await allerA('Mes devis');
         await wait(900);
-        await clicBoite('Enregistrer et continuer');
+        await clicBoite('^Enregistrer$');
         await wait(2500);
-        ok(`« Enregistrer et continuer » enregistre — ${devisAvant} → ${await nbDevis()}`,
+        ok(`« Enregistrer » enregistre — ${devisAvant} → ${await nbDevis()}`,
             (await nbDevis()) === devisAvant + 1);
         ok('…puis mène bien à l’écran demandé', (await ecran()) === 'Mes devis');
 
@@ -121,9 +121,9 @@ export async function run() {
         const avantAbandon = await nbDevis();
         await allerA('Clients');
         await wait(900);
-        await clicBoite('Quitter sans enregistrer');
+        await clicBoite('Ne pas enregistrer');
         await wait(1500);
-        ok('« Quitter sans enregistrer » laisse partir', (await ecran()) === 'Clients');
+        ok('« Ne pas enregistrer » laisse partir', (await ecran()) === 'Clients');
         ok('…sans rien enregistrer', (await nbDevis()) === avantAbandon);
     } finally {
         await close();
