@@ -70,6 +70,40 @@ const TOUS_LES_MODES = ['rectangle', 'surface', 'volume', 'linear', 'floor', 'un
 // d'impression `#printArea` s'en accommode parce que la copie cachée n'est de
 // toute façon pas rendue. On ne touche donc pas à la feuille d'impression :
 // on choisit ici la zone qui a réellement une boîte à l'écran.
+// Partage d'un document par WhatsApp ou e-mail (demandé le 2026-09-02).
+//
+// Contrainte de fond, dite à l'utilisateur avant d'écrire une ligne : ni
+// `wa.me` ni `mailto:` ne permettent de joindre un fichier depuis une page
+// web. Seul un TEXTE prérempli passe. Le PDF est donc téléchargé sur le poste
+// et joint à la main — deux gestes, mais rien qui promette ce que le
+// navigateur ne sait pas faire. (L'alternative, déposer le PDF sur un
+// stockage et n'envoyer qu'un lien, a été écartée par l'utilisateur : elle
+// rendrait le document accessible à quiconque détient l'adresse.)
+//
+// On n'utilise volontairement PAS window.open() après la génération du PDF :
+// l'attente rompt le geste utilisateur et le navigateur bloque la fenêtre.
+// L'ouverture passe par une vraie balise <a>, que rien ne bloque jamais.
+const normaliserNumeroWhatsApp = (brut) => String(brut || '').replace(/[^\d]/g, '').replace(/^0+/, '');
+
+// `wa.me` exige l'indicatif pays, sans « + » ni séparateur. Un numéro local
+// de 8 chiffres (le format malien) partirait vers un pays au hasard : on ne
+// devine pas, on le signale. L'application ne connaît pas le pays de
+// l'utilisateur de façon fiable — la ville par défaut des fiches clients dit
+// « Dakar » alors que la société est à Bamako.
+const numeroWhatsAppIncomplet = (brut) => {
+    const n = normaliserNumeroWhatsApp(brut);
+    return n.length > 0 && n.length <= 9;
+};
+
+const lienWhatsApp = (numero, message) => {
+    const n = normaliserNumeroWhatsApp(numero);
+    return `https://wa.me/${n}?text=${encodeURIComponent(message || '')}`;
+};
+
+const lienEmail = (adresse, sujet, corps) =>
+    `mailto:${encodeURIComponent(String(adresse || '').trim())}`
+    + `?subject=${encodeURIComponent(sujet || '')}&body=${encodeURIComponent(corps || '')}`;
+
 const zoneImpressionVisible = () => {
     const zones = [...document.querySelectorAll('#printArea')];
     return zones.find(z => {
@@ -7486,6 +7520,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [platformLoading, setPlatformLoading] = useState(false);
     const [platformError, setPlatformError] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isDanger: false });
+    // Fenêtre de partage : canal, destinataire, message éditable, et mémoire
+    // du fait que le PDF a déjà été téléchargé (pour guider l'ordre des deux
+    // gestes sans jamais l'imposer).
+    const [partage, setPartage] = useState(null);
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
     
@@ -12391,6 +12429,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // #printArea n'existe que sur un document réellement imprimable : un
     // brouillon de facture n'en a pas, il ne peut donc pas être téléchargé
     // — cohérent avec le fait qu'il n'a pas encore de numéro légal.
+    // Ouvre la fenêtre de partage avec un message déjà rédigé. Le message
+    // reste modifiable : c'est l'utilisateur qui parle à son client, pas nous.
+    const ouvrirPartage = ({ canal, genre, numero, clientNom, chantier, montant, validite, nomFichier, cle, destinataire }) => {
+        const societe = companyInfo.name || 'notre équipe';
+        const lignes = [
+            `Bonjour,`,
+            ``,
+            `Vous trouverez ${genre === 'facture' ? 'la facture' : 'le devis'} ${numero || ''} `.trim()
+                + (chantier ? `pour « ${chantier} »` : '') + '.',
+            `Montant : ${montant}.`
+        ];
+        if (genre !== 'facture' && validite) lignes.push(`Validité : ${validite}.`);
+        lignes.push('', 'Le document détaillé est en pièce jointe.', '', `Cordialement,`, societe);
+        setPartage({
+            canal, genre, numero, clientNom, nomFichier, cle,
+            destinataire: destinataire || '',
+            sujet: `${genre === 'facture' ? 'Facture' : 'Devis'} ${numero || ''} — ${societe}`.replace(/\s+—/, ' —'),
+            message: lignes.join('\n'),
+            pdfFait: false
+        });
+    };
+
     const telechargerDocument = async (nomFichier, cle) => {
         const cible = zoneImpressionVisible();
         if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return; }
@@ -12408,9 +12468,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             } else {
                 showToast("PDF téléchargé", "success");
             }
+            // Renvoie l'issue : la fenêtre de partage s'en sert pour dire à
+            // l'utilisateur qu'il a bien le fichier à joindre.
+            return true;
         } catch (err) {
             console.warn('[PDF]', err);
             showToast(`Génération impossible : ${String(err.message || "").replace(/\.\s*$/, "")}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
+            return false;
         } finally {
             setPdfEnCours(null);
         }
@@ -12704,6 +12768,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <i className="fa-solid fa-paper-plane mr-1.5"></i> Envoyer
                                                 </button>
                                             )}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const fiche = clients.find(c => c.id === activeInvoice.clientId);
+                                                    ouvrirPartage({
+                                                        canal: 'whatsapp', genre: 'facture',
+                                                        numero: activeInvoice.numero,
+                                                        clientNom: activeInvoice.clientName,
+                                                        chantier: activeInvoice.projectRef,
+                                                        montant: `${formatMoney(activeInvoice.netAPayerTTC || activeInvoice.totalTTC || 0, companyInfo.currency)} TTC`,
+                                                        nomFichier: `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                        cle: 'facture',
+                                                        destinataire: fiche?.phone || ''
+                                                    });
+                                                }}
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                title="Envoyer cette facture par WhatsApp ou par e-mail"
+                                                aria-label={`Envoyer la facture ${activeInvoice.numero || 'brouillon'} par WhatsApp ou e-mail`}
+                                            >
+                                                <i className="fa-solid fa-share-nodes mr-1.5"></i> Envoyer au client
+                                            </button>
                                             <button
                                                 onClick={() => telechargerDocument(
                                                     `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
@@ -13045,6 +13130,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     
                                     <span className="quote-action-libelle text-[11px] font-bold">Imprimer</span>
                                 </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const fiche = clients.find(c => c.id === viewingSavedQuote.clientId);
+                                            ouvrirPartage({
+                                                canal: 'whatsapp', genre: 'devis',
+                                                numero: viewingSavedQuote.number,
+                                                clientNom: viewingSavedQuote.clientName,
+                                                chantier: viewingSavedQuote.projectRef,
+                                                montant: `${formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme || 0, companyInfo.currency)} TTC`,
+                                                validite: companyInfo.quoteValidity ? `${companyInfo.quoteValidity}` : '',
+                                                nomFichier: `Devis ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
+                                                cle: 'devis',
+                                                destinataire: fiche?.phone || ''
+                                            });
+                                        }}
+                                        className="saved-quote-top-secondary-action btn-secondary text-xs py-1.5 px-3 font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                        title="Envoyer ce devis par WhatsApp ou par e-mail"
+                                        aria-label={`Envoyer le devis ${viewingSavedQuote.number} par WhatsApp ou e-mail`}
+                                    >
+                                        <i className="fa-solid fa-share-nodes"></i>
+                                        <span className="quote-action-libelle text-[11px] font-bold ml-1.5">Envoyer</span>
+                                    </button>
                                     <button
                                         onClick={() => telechargerDocument(
                                             `${isCommercialMode ? 'Devis' : 'Etude de prix'} ${viewingSavedQuote.number} ${viewingSavedQuote.clientName}`,
@@ -17657,6 +17765,128 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 showToast("Base locale réinitialisée. Compte cloud propre.");
                             }} className="btn-secondary w-full py-3 text-neutral-600 hover:text-red-600">
                                 Ignorer &amp; Démarrer sur un compte propre
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Fenêtre de partage — demandée le 2026-09-02 : « j'aimerais avoir la
+                possibilité d'envoyer par WhatsApp et d'envoyer par email ».
+
+                Deux gestes assumés, et dits : le PDF d'abord, l'ouverture de
+                WhatsApp ou du courrier ensuite. C'est la conséquence directe
+                d'une limite du navigateur — aucune page web ne peut joindre un
+                fichier à un message WhatsApp ou à un mailto. Plutôt que de la
+                masquer derrière un bouton unique qui n'enverrait, en réalité,
+                qu'un texte sans document, elle est écrite noir sur blanc dans
+                la fenêtre.
+
+                L'ouverture passe par une vraie balise <a> et non par
+                window.open() : après l'attente de génération du PDF, le geste
+                utilisateur est rompu et le navigateur bloquerait la fenêtre. */}
+            {partage && (
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
+                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh]">
+                        <div className="px-6 pt-6 pb-4 border-b border-neutral-100 shrink-0">
+                            <h3 className="font-semibold text-neutral-900 text-lg">
+                                Envoyer {partage.genre === 'facture' ? 'la facture' : 'le devis'} {partage.numero}
+                            </h3>
+                            <p className="text-xs text-neutral-500 mt-0.5">à {partage.clientNom || 'votre client'}</p>
+                            <div className="flex bg-neutral-100 p-1 rounded-xl mt-3" role="group" aria-label="Canal d'envoi">
+                                <button
+                                    type="button"
+                                    onClick={() => setPartage(p => ({ ...p, canal: 'whatsapp', destinataire: '' }))}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-all ${partage.canal === 'whatsapp' ? 'bg-white text-emerald-700 shadow-sm' : 'text-neutral-500'}`}
+                                >
+                                    <i className="fa-brands fa-whatsapp mr-1.5"></i> WhatsApp
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPartage(p => ({ ...p, canal: 'email', destinataire: '' }))}
+                                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg transition-all ${partage.canal === 'email' ? 'bg-white text-brand-700 shadow-sm' : 'text-neutral-500'}`}
+                                >
+                                    <i className="fa-solid fa-envelope mr-1.5"></i> E-mail
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scroll">
+                            <div>
+                                <label htmlFor="partage-destinataire" className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                    {partage.canal === 'whatsapp' ? 'Numéro WhatsApp' : 'Adresse e-mail'}
+                                </label>
+                                <input
+                                    id="partage-destinataire"
+                                    type={partage.canal === 'whatsapp' ? 'tel' : 'email'}
+                                    value={partage.destinataire}
+                                    onChange={(e) => setPartage(p => ({ ...p, destinataire: e.target.value }))}
+                                    placeholder={partage.canal === 'whatsapp' ? '+223 71 36 05 25' : 'client@exemple.com'}
+                                    className="app-input py-2 text-sm"
+                                />
+                                {partage.canal === 'whatsapp' && numeroWhatsAppIncomplet(partage.destinataire) && (
+                                    <p role="status" className="text-[11px] text-amber-700 mt-1.5 flex items-start gap-1.5">
+                                        <i className="fa-solid fa-circle-info mt-0.5"></i>
+                                        <span>Indicatif pays manquant — WhatsApp en a besoin. Pour le Mali : <strong>+223</strong> devant le numéro.</span>
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label htmlFor="partage-message" className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Message</label>
+                                <textarea
+                                    id="partage-message"
+                                    rows={7}
+                                    value={partage.message}
+                                    onChange={(e) => setPartage(p => ({ ...p, message: e.target.value }))}
+                                    className="app-input py-2 text-sm leading-relaxed resize-y"
+                                />
+                            </div>
+
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                <p className="text-[11px] text-amber-900 leading-relaxed">
+                                    <i className="fa-solid fa-paperclip mr-1.5"></i>
+                                    <strong>Le document ne peut pas être joint automatiquement.</strong> Aucune page web
+                                    n'a le droit d'attacher un fichier à un message WhatsApp ou à un e-mail. Téléchargez
+                                    le PDF ci-dessous, puis joignez-le dans la conversation qui s'ouvrira.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-neutral-50/70 shrink-0 space-y-2.5">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const ok = await telechargerDocument(partage.nomFichier, partage.cle);
+                                    if (ok) setPartage(p => (p ? { ...p, pdfFait: true } : p));
+                                }}
+                                disabled={pdfEnCours === partage.cle}
+                                className={`w-full py-2.5 px-4 rounded-xl text-sm font-bold transition-all disabled:opacity-60 ${partage.pdfFait ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'btn-secondary'}`}
+                            >
+                                <i className={`fa-solid ${pdfEnCours === partage.cle ? 'fa-circle-notch fa-spin' : (partage.pdfFait ? 'fa-circle-check' : 'fa-download')} mr-2`}></i>
+                                {pdfEnCours === partage.cle ? 'Génération…' : (partage.pdfFait ? 'PDF téléchargé — prêt à joindre' : '1. Télécharger le PDF')}
+                            </button>
+
+                            <a
+                                href={partage.canal === 'whatsapp'
+                                    ? lienWhatsApp(partage.destinataire, partage.message)
+                                    : lienEmail(partage.destinataire, partage.sujet, partage.message)}
+                                target={partage.canal === 'whatsapp' ? '_blank' : undefined}
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                    if (partage.canal === 'whatsapp' && numeroWhatsAppIncomplet(partage.destinataire)) {
+                                        e.preventDefault();
+                                        showToast("Ajoutez l'indicatif pays au numéro (par exemple +223) avant d'ouvrir WhatsApp.", 'warning');
+                                    }
+                                }}
+                                className={`w-full py-2.5 px-4 rounded-xl text-sm font-bold text-center block transition-all ${partage.canal === 'whatsapp' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'btn-primary'}`}
+                            >
+                                <i className={`fa-${partage.canal === 'whatsapp' ? 'brands fa-whatsapp' : 'solid fa-envelope'} mr-2`}></i>
+                                2. Ouvrir {partage.canal === 'whatsapp' ? 'WhatsApp' : 'mon courrier'}
+                            </a>
+
+                            <button type="button" onClick={() => setPartage(null)} className="w-full py-2 text-xs font-bold text-neutral-500 hover:text-neutral-800">
+                                Fermer
                             </button>
                         </div>
                     </div>
