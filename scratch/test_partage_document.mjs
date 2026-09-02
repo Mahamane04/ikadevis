@@ -74,6 +74,14 @@ export async function run() {
         ok('Elle guide les deux gestes dans l’ordre', fenetre.deuxEtapes);
         ok(`Le message est prérédigé et reprend le devis — ${fenetre.message.length} caractères`,
             /DEV-2026-001/.test(fenetre.message) && /FCFA/.test(fenetre.message));
+        // Deux fautes constatées sur la capture de production du premier jet :
+        // « DEV-2026-001pour » (espace mangée par un .trim() mal placé) et
+        // « d'émission.. » (la validité, champ libre, finissait déjà par un
+        // point). Un message envoyé à un client ne peut pas porter ça.
+        ok('Aucune espace manquante avant « pour »',
+            !/\d(pour )/.test(fenetre.message), fenetre.message.split('\n')[2] || '');
+        ok('Aucun point doublé dans le message', !/\.\./.test(fenetre.message),
+            (fenetre.message.match(/.{0,30}\.\..{0,10}/) || [''])[0]);
 
         // Piège 1 : l'ouverture doit être une ancre, jamais un window.open.
         const ancre = await page.evaluate(() => {

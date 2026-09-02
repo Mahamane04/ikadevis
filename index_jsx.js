@@ -12433,14 +12433,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // reste modifiable : c'est l'utilisateur qui parle à son client, pas nous.
     const ouvrirPartage = ({ canal, genre, numero, clientNom, chantier, montant, validite, nomFichier, cle, destinataire }) => {
         const societe = companyInfo.name || 'notre équipe';
-        const lignes = [
-            `Bonjour,`,
-            ``,
-            `Vous trouverez ${genre === 'facture' ? 'la facture' : 'le devis'} ${numero || ''} `.trim()
-                + (chantier ? `pour « ${chantier} »` : '') + '.',
-            `Montant : ${montant}.`
-        ];
-        if (genre !== 'facture' && validite) lignes.push(`Validité : ${validite}.`);
+        // Le message est assemblé morceau par morceau parce que numéro et
+        // chantier peuvent manquer. Les segments sont donc joints par un
+        // espace après filtrage, plutôt que concaténés — un `.trim()` mal
+        // placé avait produit « DEV-2026-001pour « Chantier » ».
+        const phrase = [
+            'Vous trouverez',
+            genre === 'facture' ? 'la facture' : 'le devis',
+            numero || null,
+            chantier ? `pour « ${chantier} »` : null
+        ].filter(Boolean).join(' ') + '.';
+        const lignes = [`Bonjour,`, ``, phrase, `Montant : ${montant}.`];
+        // La validité vient d'un champ libre saisi par l'utilisateur : elle se
+        // termine parfois déjà par un point (« … à compter de la date
+        // d'émission. »), d'où le doublon constaté.
+        if (genre !== 'facture' && validite) {
+            lignes.push(`Validité : ${String(validite).trim().replace(/[.\s]+$/, '')}.`);
+        }
         lignes.push('', 'Le document détaillé est en pièce jointe.', '', `Cordialement,`, societe);
         setPartage({
             canal, genre, numero, clientNom, nomFichier, cle,
