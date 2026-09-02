@@ -2726,3 +2726,95 @@ inchangés, conformes à tolérance zéro.
    est intégralement réversible par Cmd+Z, et l'alternative est nommée.
 4. **Le parcours connecté reste non éprouvé** — inchangé, voir § 3 de la fiche
    de reprise : il faut un vrai mot de passe.
+
+---
+
+## 🧾 42. Retours de production du 2026-09-02 — deux signalements, une même cause
+
+Trois signalements en une journée, par l'utilisateur, sur la production.
+
+### 42.1 « Il n'y a pas une possibilité de supprimer aussi un devis »
+
+Exact, et c'était une régression de la veille. Le § 41 avait replié par défaut
+la bande « Actions du devis » (117 px pour cinq boutons sur deux rangs, dans un
+panneau de 584 px) pour rendre la place au document. Le raisonnement valait
+pour « Dupliquer ». Il ne valait pas pour « Supprimer » : c'était le **seul**
+chemin de suppression de l'application, `carteDevis` — l'ancienne vue en cartes
+qui portait une corbeille par ligne — n'étant **plus appelée nulle part** depuis
+le passage au tableau (code mort, toujours présent).
+
+Corbeille remise sur chaque ligne de la liste. **Visible en permanence, pas au
+survol** : sur mobile il n'y a pas de survol, elle y serait restée introuvable —
+le défaut même qu'on corrige.
+
+### 42.2 « Je ne vois pas de bouton pour convertir en facture le devis »
+
+Même cause, deux heures plus tard. Le repli masquait les **cinq** actions, dont
+les deux qui font avancer un devis : le convertir en facture, et le modifier.
+
+**Leçon** : replier une action de confort (dupliquer, réviser) se défend ;
+replier la suite du parcours — la seule raison d'ouvrir un devis approuvé — non.
+Un repli par défaut doit être décidé action par action, jamais en bloc sur une
+bande entière. « Convertir en facture » et « Modifier » sont sortis du dépliant,
+renommé « Plus d'actions ». Une rangée au lieu de deux : la place gagnée l'est
+toujours.
+
+### 42.3 ⚠️ Piège html2canvas : `windowWidth` réévalue les media queries
+
+**Le plus coûteux des trois, et invisible pendant des semaines.**
+
+`telechargerElementEnPdf` posait `windowWidth: 920` pour forcer une mise en page
+A4 quel que soit l'écran. Or html2canvas rend le clone dans une **iframe de cette
+largeur**, et les media queries du document y sont **réévaluées**. Le panneau de
+détail d'un devis vit sous `hidden lg:flex` : à 920 px — sous le seuil `lg` de
+Tailwind (1024 px) — il devient `display:none` **dans le clone**.
+
+Mesuré sur la production, devis ouvert depuis « Mes devis » :
+
+| viewport | `windowWidth: 920` (code) | largeur réelle + forçage A4 |
+|---|---|---|
+| 1440 | **0 × 0** | 800 × 1358 |
+| 1280 | **0 × 0** | 800 × 1358 |
+| 1100 | **0 × 0** | 800 × 1358 |
+| 1024 | **0 × 0** | 800 × 1358 |
+
+La capture optimisée échouait donc **à tous les coups sur écran de bureau**. Le
+repli sans `windowWidth` rattrapait — ce qui a masqué le défaut — mais capturait
+à la largeur réelle du panneau (530 px) : un PDF **comprimé**, exactement ce que
+le paramètre voulait éviter. Dès que le repli lâchait à son tour, l'utilisateur
+n'avait plus rien.
+
+Le mobile impose l'**inverse** : à 390 px la modale est la zone visible, et sans
+élargissement la capture retombe à 366 px. Les deux besoins sont opposés ; c'est
+le maximum qui les concilie :
+
+```js
+const largeurClone = Math.max(document.documentElement.clientWidth, LARGEUR_CAPTURE + 120);
+```
+
+**Règle générale** : toute option d'html2canvas qui change la largeur de rendu
+(`windowWidth`, `width`) rejoue les media queries. Ne jamais la fixer sous un
+seuil auquel l'élément capturé, ou l'un de ses ancêtres, est masqué. Forcer la
+largeur sur l'élément dans `onclone` — pas sur la fenêtre.
+
+Le forçage A4 s'applique désormais **aussi au repli**, qui produisait sinon le
+PDF comprimé.
+
+### 42.4 Diagnostic : un message d'erreur doit être exploitable
+
+L'échec disait « Réessayez après avoir rouvert le document » et rien d'autre.
+Face au signalement, impossible de savoir quelle étape avait lâché — d'où une
+première correction qui visait le bon symptôme mais pas la cause. Le message
+porte maintenant les mesures : taille de la zone, résultat de chaque tentative.
+
+### 42.5 Deux bancs dont l'assertion a dû être révisée
+
+Ni supprimée, ni contournée — réécrite en gardant l'intention :
+
+| Banc | Exigeait | Exige désormais |
+|---|---|---|
+| `test_documents_organization_currency` | « lignes de devis dépourvues d'icônes et d'actions » | **exactement une** action par ligne, et c'est la suppression |
+| idem | « actions repliées à l'ouverture, visibles = 0 » | les deux décisives visibles, les trois variantes repliées |
+
+Bancs ajoutés : `test_quote_delete_reachable`, `test_pdf_capture_a4`.
+**267/267 au vert, 0 régression, 35 suites, 7 étalons conformes.**
