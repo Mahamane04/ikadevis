@@ -431,7 +431,12 @@ function AuthScreen({ onAuthSuccess }) {
         // découvrant le fond clair du <body> en haut et poussant le logo hors de
         // l'écran au premier clic. `min-height: 100%` + le dégradé posé aussi sur
         // le body couvrent toute la hauteur réelle, quelle qu'elle soit.
-        <div className="auth-screen flex items-center justify-center p-4">
+        // Audit UX (2026-09-02) — audit sémantique : cet écran n'avait aucun
+        // repère de page (<main>), aucun h1, et ses deux champs portaient des
+        // <label> NON associés (ni `for`/`id`, ni imbrication) — un lecteur
+        // d'écran les annonçait donc sans nom. Le reste de l'application était
+        // déjà propre sur ces points ; seul le seuil d'entrée ne l'était pas.
+        <main className="auth-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="auth-logo text-center mb-10">
@@ -446,6 +451,7 @@ function AuthScreen({ onAuthSuccess }) {
                         « ERP » range mentalement le produit du côté « logiciel de
                         comptable » pour un artisan. On dit ce qu'on fait, pour qui,
                         et en combien de temps. */}
+                    <h1 className="sr-only">ikadevis — calculateur de devis BTP</h1>
                     <p className="text-white font-bold text-lg mt-5 leading-snug">
                         Chiffrez un devis BTP au métré,<br className="hidden sm:block" /> et sortez le PDF client.
                     </p>
@@ -453,6 +459,36 @@ function AuthScreen({ onAuthSuccess }) {
                         Matières, main-d'œuvre, pertes et marge calculées pour vous —
                         du déboursé sec au total TTC.
                     </p>
+
+                    {/* Audit UX (2026-09-02) — le visiteur ne voyait RIEN du produit
+                        avant de s'authentifier : ni écran, ni exemple. Cet aperçu
+                        montre ce qui se passe réellement — une ligne de devis au métré
+                        et la chaîne de calcul qu'elle alimente. Écrit en HTML plutôt
+                        qu'en capture : il reste lisible, sélectionnable, traduisible,
+                        il ne pèse rien et ne se périme pas à la prochaine passe UI.
+                        Les montants sont ceux du devis d'exemple réel de la démo. */}
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left" aria-label="Aperçu d’une ligne de devis">
+                        <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-white/10">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Ligne de devis</span>
+                            <span className="text-[10px] font-mono text-neutral-400">au métré</span>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-3 py-2.5">
+                            <span className="text-xs font-semibold text-white truncate">Maçonnerie en murs d’agglos de 15</span>
+                            <span className="text-xs font-mono text-neutral-200 shrink-0">120&nbsp;m²</span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/10 text-center">
+                            {[['Déboursé', '122 760'], ['Coeff K', '1,5'], ['Net HT', '184 140'], ['Marge', '+30 %']].map(([libelle, valeur]) => (
+                                <div key={libelle}>
+                                    <span className="block text-[9px] uppercase tracking-wider text-neutral-400">{libelle}</span>
+                                    <span className="block text-[11px] font-mono font-bold text-white mt-0.5">{valeur}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-2.5 leading-relaxed">
+                            Vous saisissez le métré. Le reste — quantités de matières, pertes,
+                            conditionnements, main-d’œuvre, marge — est calculé.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Card */}
@@ -464,33 +500,33 @@ function AuthScreen({ onAuthSuccess }) {
                         {mode === 'login' ? 'Accédez à votre espace de travail BTP.' : mode === 'signup' ? 'Commencez à chiffrer vos projets.' : 'Entrez votre email pour recevoir un lien.'}
                     </p>
 
-                    {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{error}</div>}
-                    {info && <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{info}</div>}
+                    {error && <div role="alert" aria-live="assertive" className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{error}</div>}
+                    {info && <div role="status" aria-live="polite" className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{info}</div>}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {mode === 'signup' && (
                             <div>
-                                <label className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Nom de l'organisation</label>
-                                <input type="text" value={orgName} onChange={e=>setOrgName(e.target.value)} required
+                                <label htmlFor="auth-org" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Nom de l'organisation</label>
+                                <input id="auth-org" type="text" value={orgName} onChange={e=>setOrgName(e.target.value)} required
                                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
                                     placeholder="Ex: BATI SARL, BTP Constructions…" />
                             </div>
                         )}
                         <div>
-                            <label className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Email</label>
-                            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required
+                            <label htmlFor="auth-email" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Email</label>
+                            <input id="auth-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required
                                 className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
                                 placeholder="vous@entreprise.com" />
                         </div>
                         {mode !== 'reset' && (
                             <div>
-                                <label className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Mot de passe</label>
+                                <label htmlFor="auth-password" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Mot de passe</label>
                                 {/* Audit UX (2026-08-31) — minLength s'appliquait AUSSI à la
                                     connexion : un compte créé avant cette règle ne pouvait
                                     littéralement pas soumettre le formulaire, le navigateur
                                     bloquant l'envoi avant tout appel réseau. La contrainte
                                     n'a de sens qu'à la création du mot de passe. */}
-                                <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
+                                <input id="auth-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
                                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
                                     placeholder={mode === 'signup' ? 'Minimum 8 caractères' : '••••••••'} />
                             </div>
@@ -588,7 +624,7 @@ function AuthScreen({ onAuthSuccess }) {
                     Vos devis restent les vôtres · Aucune carte bancaire pour essayer
                 </p>
             </div>
-        </div>
+        </main>
     );
 }
 
@@ -2392,14 +2428,16 @@ function QuoteHeader({
                                 >
                                     <i className="fa-solid fa-print text-neutral-500"></i> Imprimer / Exporter PDF
                                 </button>
-                                <div className="border-t border-neutral-100 my-1"></div>
-                                <button
-                                    type="button"
-                                    onClick={() => { onToggleHybridEditor(); setIsMenuOpen(false); }}
-                                    className="w-full text-left px-3 py-2 text-neutral-500 hover:bg-neutral-50 flex items-center gap-2 text-[11px]"
-                                >
-                                    <i className="fa-solid fa-clock-rotate-left text-neutral-500"></i> Revenir à l’ancien calculateur (ouvrage unique)
-                                </button>
+                                {/* Audit UX (2026-09-02) — la bascule « Mode Classique V5 »
+                                    a été retirée. Elle exposait un numéro de version interne
+                                    comme intitulé d'action, personne ne pouvait deviner ce
+                                    qu'il perdait en cliquant, et elle renvoyait vers un
+                                    éditeur qui ne connaît qu'un seul ouvrage — donc sans les
+                                    lots, ni le métré multi-postes, ni rien de ce que la
+                                    campagne de remédiation vient de corriger.
+                                    Le code de l'ancien éditeur reste en place : le retirer
+                                    est un chantier à part, et rien ne presse tant qu'il
+                                    n'est plus atteignable. */}
                             </div>
                         )}
                     </div>
@@ -5326,7 +5364,12 @@ function QuoteWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
-                    <main className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}>
+                    {/* Audit UX (2026-09-02) — c'était un second <main>. Deux repères
+                        principaux dans une même page désorientent la navigation par
+                        repères d'un lecteur d'écran : il ne sait plus lequel est LE
+                        contenu. Ce bloc est une région du devis, pas la page — il
+                        devient une section nommée. */}
+                    <section aria-label="Ouvrages du lot sélectionné" className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}>
                         <ActiveLotHeader
                             lot={activeLot}
                             lotIndex={activeLotIndex}
@@ -5364,7 +5407,7 @@ function QuoteWorkspace({
                             onAddCustomLine={handleAddCustomLine}
                             currency={companyInfo.currency}
                         />
-                    </main>
+                    </section>
 
                     <aside className={`${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:w-[min(560px,42vw)] shrink-0 min-h-0 bg-white border-l border-neutral-200 lg:h-full`} aria-label="Inspecteur de l'ouvrage">
                         <WorkItemInspector
@@ -7049,17 +7092,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [workingLots, setWorkingLots] = useState([]); // Moteur Multi-Lots R+1
     
     // V6 HYBRID QUOTE EDITOR FEATURE FLAG & STATE
-    const [useHybridEditor, setUseHybridEditor] = useState(() => {
-        const saved = localStorage.getItem('costcalc_hybrid_editor');
-        return saved !== null ? saved === 'true' : true;
-    });
+    // Audit UX (2026-09-02) — l'éditeur hybride est désormais le seul chemin.
+    // On ne lit plus la préférence enregistrée : quelqu'un l'ayant mise à false
+    // par le passé serait resté bloqué dans l'ancien écran, sans plus aucune
+    // commande pour en sortir une fois la bascule retirée du menu.
+    const [useHybridEditor, setUseHybridEditor] = useState(true);
 
-    const toggleHybridEditor = (val) => {
-        const nextVal = typeof val === 'boolean' ? val : !useHybridEditor;
-        setUseHybridEditor(nextVal);
-        localStorage.setItem('costcalc_hybrid_editor', String(nextVal));
-        showToast(nextVal ? "Mode Éditeur Hybride V6 activé" : "Mode Éditeur Classique V5 activé");
-    };
+    // Conservé pour les appels internes qui forcent l'éditeur hybride
+    // (ouverture d'un devis enregistré, par exemple) : ils passent `true`.
+    // La bascule vers l'ancien éditeur n'est plus offerte nulle part.
+    const toggleHybridEditor = () => setUseHybridEditor(true);
 
     const [hybridQuote, setHybridQuote] = useState(() => {
         return {
@@ -10593,11 +10635,31 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const renderBandeauExemple = () => {
         if (!devisExemplecharge) return null;
         return (
-            <div role="status" className="mb-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+            <div role="status" className="mb-3 flex flex-col lg:flex-row lg:items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
                 <i className="fa-solid fa-lightbulb text-brand-700 shrink-0" aria-hidden="true"></i>
-                <p className="flex-1 text-xs font-semibold text-neutral-800 leading-snug">
-                    Vous explorez un <strong>devis d’exemple</strong> déjà chiffré. Modifiez-le librement pour voir les prix se recalculer — rien n’est envoyé à personne.
-                </p>
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-neutral-800 leading-snug">
+                        Vous explorez un <strong>devis d’exemple</strong> déjà chiffré. Modifiez-le librement pour voir les prix se recalculer — rien n’est envoyé à personne.
+                    </p>
+                    {/* Audit UX (2026-09-02) — le bandeau disait ce qu'on voyait, pas ce
+                        qu'on pouvait en faire. Trois gestes, dans l'ordre où ils ont du
+                        sens, chacun cochable : c'est ce qui manquait pour transformer
+                        « je regarde » en « j'ai essayé ». Volontairement court — une
+                        visite guidée pas-à-pas serait plus intrusive qu'utile sur un
+                        écran déjà rempli. */}
+                    <ol className="mt-2 flex flex-col xl:flex-row xl:items-center gap-x-5 gap-y-1 text-[11px] text-neutral-700">
+                        {[
+                            'Ouvrez un ouvrage pour voir son métré',
+                            'Changez une dimension : tout se recalcule',
+                            'Sortez le PDF client'
+                        ].map((etape, i) => (
+                            <li key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="w-4 h-4 rounded-full bg-brand-100 text-brand-700 text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                                {etape}
+                            </li>
+                        ))}
+                    </ol>
+                </div>
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
@@ -12243,7 +12305,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setPdfEnCours(cle);
         try {
             await telechargerElementEnPdf(cible, nomFichier);
-            showToast("PDF téléchargé", "success");
+            // Audit UX (2026-09-02) — c'est LE moment où le manque se fait
+            // sentir : l'utilisateur tient son devis, et il porte un filigrane
+            // de démonstration. Rien, jusqu'ici, ne lui disait quoi faire de
+            // cette gêne. On la nomme, une fois, au moment précis où elle
+            // compte — pas en bandeau permanent, qui ne serait qu'un bruit de
+            // plus. Sur un compte réel, le PDF est net : rien ne s'affiche.
+            if (estModeDemo) {
+                showToast("PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client.", "warning");
+            } else {
+                showToast("PDF téléchargé", "success");
+            }
         } catch (err) {
             console.warn('[PDF]', err);
             showToast(`Génération impossible : ${err.message}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
