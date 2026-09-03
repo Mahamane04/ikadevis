@@ -34,7 +34,13 @@ const binaires = [
     'vendor/fonts/files/open-sans-0.woff2',
     'vendor/fonts/files/open-sans-1.woff2',
     'vendor/fontawesome/webfonts/fa-solid-900.woff2',
-    'vendor/fontawesome/webfonts/fa-brands-400.woff2',
+    // Retirée le 2026-09-03 (audit, poste « performance ») : la police
+    // « Font Awesome Brands » pesait 108 Ko pour DEUX glyphes, WhatsApp et
+    // Google — 18 % du poids de la page pour 54 Ko l'icône. Les deux sont
+    // désormais dessinées en SVG dans la page (classe .icone-marque).
+    // Elle était PRÉ-CHARGÉE ici, donc téléchargée à chaque première visite
+    // même sans aucune icône de marque à l'écran : retirer les usages ne
+    // suffisait pas, il fallait aussi la retirer de cette liste.
 ].filter((f) => existsSync(path.join(racine, f)));
 
 const liste = [...new Set(['./', ...refs, ...binaires])]

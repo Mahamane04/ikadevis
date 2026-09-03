@@ -44,6 +44,7 @@ import * as listeDevisVolume from './test_liste_devis_volume.mjs';
 import * as partageDocument from './test_partage_document.mjs';
 import * as mentionsLegales from './test_mentions_legales_non_bloquantes.mjs';
 import * as focusModales from './test_focus_modales.mjs';
+import * as focusToutesModales from './test_focus_toutes_modales.mjs';
 import * as gardeSortieChiffrage from './test_garde_sortie_chiffrage.mjs';
 import * as alignementBoutons from './test_alignement_et_boutons.mjs';
 import * as referentielHorsLigne from './test_referentiel_hors_ligne.mjs';
@@ -89,6 +90,7 @@ const SUITES = [
     { name: 'Envoi d\'un document par WhatsApp ou e-mail', mod: partageDocument, expectedToFail: false },
     { name: 'NIF et RCCM signalés mais non bloquants', mod: mentionsLegales, expectedToFail: false },
     { name: 'Fenêtres modales : focus, enfermement, Échap', mod: focusModales, expectedToFail: false },
+    { name: 'Filet générique de focus sur les autres modales', mod: focusToutesModales, expectedToFail: false },
     { name: 'On ne quitte pas le chiffrage sans qu\'on vous demande', mod: gardeSortieChiffrage, expectedToFail: false },
     { name: 'Alignement du champ client et compacité des boutons', mod: alignementBoutons, expectedToFail: false },
     { name: 'Référentiel clients/chantiers : le chemin hors ligne intact', mod: referentielHorsLigne, expectedToFail: false },

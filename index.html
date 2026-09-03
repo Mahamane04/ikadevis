@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260902m">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260903a">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260902m">
+    <link rel="stylesheet" href="tailwind.css?v=20260903a">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -126,6 +126,20 @@
             box-shadow: 0 1px 2px 0 rgba(16, 24, 40, 0.06);
         }
         .btn-primary:hover { background-color: #000000; transform: translateY(-1px); }
+
+        /* Icônes de marque en SVG (audit du 2026-09-02, poste « performance »).
+           La police « Font Awesome Brands » pesait 108 Ko — pour DEUX glyphes,
+           WhatsApp et Google, soit 54 Ko l'unité. Elle représentait 18 % du
+           poids total de la page, sur une application destinée à des
+           connexions de chantier. Les deux dessins tiennent ici en quelques
+           centaines d'octets ; la police entière n'est plus chargée.
+           `currentColor` : l'icône prend la couleur du texte qui l'entoure,
+           comme le faisait la version police — les classes de couleur
+           existantes continuent donc de s'appliquer sans changement. */
+        .icone-marque {
+            display: inline-block; width: 1em; height: 1em;
+            vertical-align: -0.125em; fill: currentColor;
+        }
 
         /* Boutons des fenêtres de confirmation — signalé le 2026-09-02 :
            « ils sont trop carrés et grands, le plus minime possible ».
@@ -268,8 +282,32 @@
            plage de largeurs qui correspond précisément aux tablettes tactiles.
            WCAG 2.2 exige 24 × 24 px minimum ; on vise 44 px, la cible
            confortable au doigt, qui tient largement dans les 71 px du rail. */
-        .sidebar-item-collapsed-wrap { width: 44px; }
+        .sidebar-item-collapsed-wrap { width: 56px; }
         .sidebar-item-collapsed { justify-content: center; padding: 0; gap: 0; width: 100%; }
+
+        /* Audit du 2026-09-02, point resté ouvert — entre 768 et 1023 px la
+           navigation devient un rail d'icônes. Les noms n'existaient que dans
+           `aria-label` et dans une bulle au SURVOL : or il n'y a pas de survol
+           au doigt, et cette plage de largeurs est précisément celle des
+           tablettes tactiles. Un nouvel utilisateur y voyait huit icônes
+           muettes.
+           Un libellé court est donc affiché sous chaque icône, comme dans une
+           barre de navigation de téléphone. Le rail passe de 71 à 84 px — 13 px
+           pris au contenu pour rendre la navigation lisible, l'échange est
+           largement favorable. La bulle de survol reste pour la souris, qui a
+           la place d'afficher le nom complet. */
+        .sidebar-item-collapsed { flex-direction: column; gap: 3px; min-height: 56px; padding: 6px 2px; }
+        /* Deux lignes autorisées plutôt qu'une coupure : « Tableau de bord »
+           sortait en « Tableau de… ». Abréger aurait demandé d'inventer un mot
+           qui ne figure nulle part ailleurs dans l'application ; le texte exact
+           tient sur deux lignes, et c'est le même que celui du menu déplié. */
+        .sidebar-item-collapsed-label {
+            font-size: 9px; font-weight: 600; line-height: 1.15;
+            letter-spacing: -0.01em; text-align: center;
+            max-width: 100%; opacity: .85;
+            white-space: normal; overflow: hidden;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        }
         .sidebar-item-icon { width: 19px; font-size: 15px; text-align: center; flex-shrink: 0; }
         /* Même audit — les croix « Effacer le client » et « Effacer le projet »
            mesuraient 20 × 20 px, sous le minimum de 24. Le dessin reste
@@ -827,10 +865,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260902m"></script>
-    <script src="js/utils.js?v=20260902m"></script>
-    <script src="js/quote-templates.js?v=20260902m"></script>
-    <script src="app.compiled.js?v=20260902m"></script>
+    <script src="js/calc-engine.js?v=20260903a"></script>
+    <script src="js/utils.js?v=20260903a"></script>
+    <script src="js/quote-templates.js?v=20260903a"></script>
+    <script src="app.compiled.js?v=20260903a"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
