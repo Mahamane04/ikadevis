@@ -7101,6 +7101,91 @@ const normalizePdfBrandColor = (value) => /^#[0-9A-Fa-f]{6}$/.test(String(value 
     ? String(value).trim().toUpperCase()
     : PDF_BRAND_COLOR_DEFAULT;
 
+// ══ MODÈLES DE DOCUMENT — configuration ═══════════════════════════════════
+// Étape 1 de l'éditeur de modèles (2026-09-03).
+//
+// La configuration est un ARBRE, pas une liste de colonnes : chaque bloc du
+// document porte son affichage, son libellé, parfois sa taille. C'est ce qui
+// permet d'ajouter un réglage sans migration — et c'est pourquoi la table ne
+// garde en colonnes que ce qu'on interroge (type, nom, drapeau par défaut).
+//
+// Les valeurs par défaut reproduisent EXACTEMENT le document actuel. Une
+// organisation qui n'ouvre jamais l'éditeur ne doit voir aucune différence :
+// c'est la seule façon d'introduire cette table sans changer un seul devis.
+const CONFIGURATION_MODELE_DEFAUT = {
+    general: {
+        format: 'A4',              // seul format retenu : la lettre US n'existe pas en zone OHADA
+        orientation: 'portrait',
+        margesMm: { haut: 15, bas: 15, gauche: 15, droit: 15 },
+        police: 'modern',
+        couleurMarque: '#3B5BDB'
+    },
+    entete: {
+        alignement: 'left',
+        afficherLogo: true,
+        tailleLogo: 100,           // pourcentage de la taille de référence
+        afficherNomEntreprise: true,
+        afficherAdresse: true,
+        afficherMentionsLegales: true   // NIF et RCCM, obligatoires en OHADA
+    },
+    pied: {
+        note: '',
+        afficherNumeroPage: true
+    },
+    document: {
+        titreDevis: 'DEVIS COMMERCIAL',
+        titreEtude: 'ÉTUDE DE PRIX',
+        afficherValidite: true,
+        afficherChantier: true
+    },
+    tableau: {
+        niveauDetail: 'synthese',  // 'synthese' | 'detaille'
+        afficherEnteteLot: true,
+        afficherSousTotalLot: true
+    },
+    totaux: {
+        afficherEcheancier: true,
+        afficherSignature: true,
+        libelleSignature: 'Bon pour accord'
+    }
+};
+
+// Fusion en profondeur, section par section : une configuration enregistrée
+// avec moins de clés qu'aujourd'hui (modèle créé avant l'ajout d'un réglage)
+// ne doit pas faire disparaître ce réglage, mais hériter de son défaut.
+const fusionnerConfiguration = (configuration) => {
+    const sortie = {};
+    for (const section of Object.keys(CONFIGURATION_MODELE_DEFAUT)) {
+        sortie[section] = { ...CONFIGURATION_MODELE_DEFAUT[section], ...((configuration || {})[section] || {}) };
+    }
+    return sortie;
+};
+
+// Construit un modèle à partir des réglages que l'organisation possède DÉJÀ
+// (couleur, police, alignement, note de pied, niveau de détail). C'est ce qui
+// rend l'étape 1 invisible : le premier modèle est le document actuel.
+const modeleDepuisReglages = (societe) => {
+    const configuration = fusionnerConfiguration({});
+    configuration.general.police = societe?.pdfFont || configuration.general.police;
+    configuration.general.couleurMarque = normalizePdfBrandColor(societe?.brandColor);
+    configuration.entete.alignement = societe?.pdfHeaderAlignment || configuration.entete.alignement;
+    configuration.entete.afficherLogo = !!societe?.logo;
+    configuration.pied.note = societe?.pdfFooterNote || '';
+    configuration.tableau.niveauDetail = societe?.clientQuoteTemplate || configuration.tableau.niveauDetail;
+    return { nom: 'Modèle par défaut', type_document: 'devis', par_defaut: true, configuration };
+};
+
+// Le thème attendu par DocumentDevisClient, dérivé d'une configuration de
+// modèle. Passe par le même resolvePdfDocumentTheme que le chemin historique :
+// une seule règle de résolution, pas deux qui divergeraient.
+const themeDepuisConfiguration = (configuration) => {
+    const c = fusionnerConfiguration(configuration);
+    return resolvePdfDocumentTheme(
+        { pdfFont: c.general.police, brandColor: c.general.couleurMarque, pdfHeaderAlignment: c.entete.alignement },
+        null
+    );
+};
+
 const resolvePdfDocumentTheme = (snapshot, fallback) => {
     const source = snapshot || {};
     const fontId = PDF_FONT_OPTIONS.some(option => option.id === source.pdfFont)
@@ -7904,6 +7989,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // du fait que le PDF a déjà été téléchargé (pour guider l'ordre des deux
     // gestes sans jamais l'imposer).
     const [partage, setPartage] = useState(null);
+
+    // ── Éditeur de modèles de document (étape 1, 2026-09-03) ─────────────
+    // `modeles` est la liste chargée depuis Supabase ; `modeleEnEdition` est la
+    // copie de travail. On édite une COPIE et non la liste : fermer sans
+    // enregistrer doit tout rendre, y compris après vingt réglages changés.
+    const [modelesDocument, setModelesDocument] = useState([]);
+    const [editeurModele, setEditeurModele] = useState(null);
+    const [sectionEditeur, setSectionEditeur] = useState('general');
+    const [enregistrementModele, setEnregistrementModele] = useState(false);
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
 
@@ -9534,17 +9628,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // recipes/company_settings), org par org — remplace l'ancien blob JSON
                 // `user_data` (V5, supprimé de la production le 2026-08-16). Voir
                 // PROJECT_MASTER_TRACKER.md § 16.
-                const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes, quotesRes, invoicesRes, invoiceLinesRes] = await Promise.all([
+                const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes, quotesRes, modelesRes, invoicesRes, invoiceLinesRes] = await Promise.all([
                     supabaseClient.from('company_settings').select('*').eq('organization_id', resolvedOrgId).maybeSingle(),
                     supabaseClient.from('materials').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('labor').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('solutions').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('recipes').select('*').eq('organization_id', resolvedOrgId),
                     supabaseClient.from('quotes').select('*').eq('organization_id', resolvedOrgId).order('date_created', { ascending: false }),
+                    supabaseClient.from('document_templates').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: true }),
                     supabaseClient.from('invoices').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }),
                     supabaseClient.from('invoice_lines').select('*').eq('organization_id', resolvedOrgId).order('line_order', { ascending: true })
                 ]);
 
+                // `modelesRes` est volontairement absent de ce contrôle : tant que la
+                // migration document_templates n'est pas appliquée sur une base, la
+                // requête échoue — et ce serait absurde d'empêcher toute l'application
+                // de charger pour un écran de personnalisation. L'éditeur se contente
+                // alors d'une liste vide et repartira des réglages de l'entreprise.
                 const firstError = [companyRes.error, materialsRes.error, laborRes.error, solutionsRes.error, recipesRes.error, quotesRes.error, invoicesRes.error, invoiceLinesRes.error].find(Boolean);
                 if (firstError) {
                     console.error('[Bloc 1] Erreur de chargement du catalogue cloud:', firstError);
@@ -9601,6 +9701,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, resolvedOrgId); }
                 } catch (e) {
                     console.warn('[Référentiel] Synchronisation ignorée :', e);
+                }
+
+                if (modelesRes.error) {
+                    console.warn('[Modèles] Table document_templates indisponible :', modelesRes.error.message);
+                    setModelesDocument([]);
+                } else {
+                    setModelesDocument(modelesRes.data || []);
                 }
 
                 const loadedQuotes = (quotesRes.data || []).map(mapQuoteFromDb);
@@ -9933,6 +10040,99 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setTimeout(() => setToast(null), 3500);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
+
+    // ── Éditeur de modèles : ouvrir, enregistrer ─────────────────────────
+    const ouvrirEditeurModele = () => {
+        const existant = modelesDocument.find(m => m.type_document === 'devis' && m.par_defaut)
+            || modelesDocument.find(m => m.type_document === 'devis');
+        const base = existant
+            ? { ...existant, configuration: fusionnerConfiguration(existant.configuration) }
+            : modeleDepuisReglages(companyInfo);
+        setEditeurModele(base);
+        setSectionEditeur('general');
+    };
+
+    // Une modification ne touche qu'une clé d'une section. On recompose l'objet
+    // plutôt que de muter : React ne redessinerait pas l'aperçu autrement, et
+    // l'aperçu continu est tout l'intérêt de cet écran.
+    const majModele = (section, cle, valeur) => setEditeurModele(m => m && ({
+        ...m,
+        configuration: { ...m.configuration, [section]: { ...m.configuration[section], [cle]: valeur } }
+    }));
+
+    // Appliquer le modèle aux réglages que le DOCUMENT lit réellement.
+    //
+    // Transition assumée, et à retirer à l'étape 2 : aujourd'hui le rendu lit
+    // `companyInfo` (police, couleur, alignement, note de pied, niveau de
+    // détail). Le modèle est le nouvel enregistrement, mais tant que le
+    // document ne le lit pas, enregistrer un modèle sans reporter ces valeurs
+    // ne changerait RIEN au document — l'éditeur mentirait à l'utilisateur.
+    //
+    // Le report va dans un seul sens, modèle → réglages : il n'y a donc pas
+    // deux sources de vérité qui divergent, mais une source et sa projection.
+    // À l'étape 2, le document lira le modèle et ce report disparaîtra.
+    const appliquerModeleAuxReglages = (configuration) => {
+        const c = fusionnerConfiguration(configuration);
+        updateCompanyInfo({
+            ...companyInfo,
+            pdfFont: c.general.police,
+            brandColor: c.general.couleurMarque,
+            pdfHeaderAlignment: c.entete.alignement,
+            pdfFooterNote: c.pied.note,
+            clientQuoteTemplate: c.tableau.niveauDetail,
+            logo: c.entete.afficherLogo ? companyInfo.logo : ''
+        });
+    };
+
+    const enregistrerModele = async () => {
+        if (!editeurModele) return;
+        setEnregistrementModele(true);
+        try {
+            appliquerModeleAuxReglages(editeurModele.configuration);
+            const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+            if (!estCloud) {
+                // Hors ligne, le modèle vit dans le navigateur comme le reste du
+                // catalogue : l'éditeur doit rester utilisable sur un chantier.
+                const liste = [{ ...editeurModele, id: editeurModele.id || 'local-devis' }];
+                setModelesDocument(liste);
+                LS.set('documentTemplates', liste, sbUser ? sbUser.id : 'guest');
+                showToast('Modèle enregistré');
+                setEditeurModele(null);
+                return;
+            }
+            const charge = {
+                organization_id: activeOrganizationId,
+                type_document: editeurModele.type_document || 'devis',
+                nom: (editeurModele.nom || '').trim() || 'Modèle par défaut',
+                par_defaut: editeurModele.par_defaut !== false,
+                configuration: editeurModele.configuration,
+                updated_at: new Date().toISOString()
+            };
+            const requete = estUuid(editeurModele.id)
+                ? supabaseClient.from('document_templates').update(charge).eq('id', editeurModele.id).select('*').single()
+                : supabaseClient.from('document_templates').insert(charge).select('*').single();
+            const { data, error } = await requete;
+            if (error) {
+                // Message utile : « relation does not exist » veut dire que la
+                // migration n'a pas été appliquée, ce qui n'est pas une erreur
+                // de saisie et n'a rien à voir avec ce que l'utilisateur vient
+                // de faire.
+                const migrationAbsente = /does not exist|relation .* does not exist/i.test(error.message || '');
+                showToast(migrationAbsente
+                    ? "Modèles indisponibles : la migration document_templates n'est pas appliquée sur cette base."
+                    : `Enregistrement impossible : ${error.message}`, 'error');
+                return;
+            }
+            setModelesDocument(liste => {
+                const autres = liste.filter(m => m.id !== data.id);
+                return [...autres, data];
+            });
+            showToast('Modèle enregistré');
+            setEditeurModele(null);
+        } finally {
+            setEnregistrementModele(false);
+        }
+    };
 
     // Demandé le 2026-09-02 : « je voudrais qu'on ne quitte JAMAIS chiffrage
     // sans demander si on doit enregistrer le projet en cours ou pas ».
@@ -17163,6 +17363,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     </div>
 
+                                    {/* Entrée de l'éditeur de modèles (étape 1, 2026-09-03).
+                                        Les réglages ci-dessus restent en place : ils pilotent
+                                        toujours le document tant qu'aucun modèle n'est
+                                        enregistré. L'éditeur part d'ailleurs de ces valeurs —
+                                        ouvrir puis enregistrer sans rien toucher ne change
+                                        strictement rien au document. */}
+                                    <button
+                                        type="button"
+                                        onClick={ouvrirEditeurModele}
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        className="mt-4 w-full rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-50 px-4 py-3.5 text-left transition-colors disabled:opacity-50 flex items-center gap-3"
+                                    >
+                                        <span className="w-9 h-9 rounded-lg bg-white border border-brand-200 text-brand-600 flex items-center justify-center shrink-0">
+                                            <i className="fa-solid fa-pen-ruler"></i>
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-[13px] font-bold text-neutral-900">Éditeur de modèles</span>
+                                            <span className="block text-[11px] text-neutral-600 leading-snug mt-0.5">
+                                                Régler l’en-tête, les titres, le tableau et le pied de page, avec l’aperçu de votre devis à côté.
+                                            </span>
+                                        </span>
+                                        <i className="fa-solid fa-arrow-right text-neutral-400 text-xs shrink-0"></i>
+                                    </button>
+
                                     {(() => {
                                         const previewTheme = resolvePdfDocumentTheme(companyInfo, companyInfo);
                                         const previewLayout = getPdfHeaderLayout(previewTheme.headerAlignment);
@@ -18349,6 +18573,289 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 L'ouverture passe par une vraie balise <a> et non par
                 window.open() : après l'attente de génération du PDF, le geste
                 utilisateur est rompu et le navigateur bloquerait la fenêtre. */}
+            {/* ══ ÉDITEUR DE MODÈLES DE DOCUMENT ═══════════════════════════════
+                Étape 1 (2026-09-03). Écran plein : rail de sections à gauche,
+                contrôles au centre, document réel à droite.
+
+                L'aperçu appelle `DocumentDevisClient` — le MÊME composant que le
+                panneau de détail. Écrire un rendu « pour l'aperçu » aurait recréé
+                le défaut relevé pendant l'audit : deux sources de vérité qui
+                divergent. Et il est CONTINU, sans bouton « Actualiser » : le
+                document est rendu dans la page, rien n'oblige à passer par un
+                aller-retour serveur comme le fait Zoho. */}
+            {editeurModele && (() => {
+                const c = editeurModele.configuration;
+                const themeApercu = themeDepuisConfiguration(c);
+                const dispositionApercu = getPdfHeaderLayout(c.entete.alignement);
+                // L'aperçu montre le VRAI dernier devis quand il y en a un : régler
+                // une mise en page sur des données inventées ne dit pas si elle tient
+                // avec de vrais intitulés d'ouvrage et de vrais montants.
+                const devisApercu = savedQuotes[0] || null;
+                const societeApercu = { ...companyInfo, logo: c.entete.afficherLogo ? companyInfo.logo : '' };
+
+                const Bascule = ({ section, cle, libelle, aide }) => (
+                    <label className="flex items-start gap-2.5 py-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={!!c[section][cle]}
+                            onChange={(e) => majModele(section, cle, e.target.checked)}
+                            className="mt-0.5 w-4 h-4 accent-brand-600 shrink-0"
+                        />
+                        <span className="min-w-0">
+                            <span className="block text-[13px] font-semibold text-neutral-800">{libelle}</span>
+                            {aide && <span className="block text-[11px] text-neutral-500 leading-snug mt-0.5">{aide}</span>}
+                        </span>
+                    </label>
+                );
+
+                const Texte = ({ section, cle, libelle, placeholder }) => (
+                    <label className="block py-2">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">{libelle}</span>
+                        <input
+                            type="text"
+                            value={c[section][cle] || ''}
+                            placeholder={placeholder}
+                            onChange={(e) => majModele(section, cle, e.target.value)}
+                            className="app-input py-2 text-sm"
+                        />
+                    </label>
+                );
+
+                const SECTIONS = [
+                    { id: 'general',  icone: 'fa-sliders',     libelle: 'Général' },
+                    { id: 'entete',   icone: 'fa-heading',     libelle: 'En-tête' },
+                    { id: 'document', icone: 'fa-file-lines',  libelle: 'Document' },
+                    { id: 'tableau',  icone: 'fa-table-list',  libelle: 'Tableau' },
+                    { id: 'totaux',   icone: 'fa-calculator',  libelle: 'Totaux' },
+                    { id: 'pied',     icone: 'fa-align-left',  libelle: 'Pied de page' }
+                ];
+
+                return (
+                    <div className="fixed inset-0 z-[140] bg-neutral-100 flex flex-col" role="dialog" aria-modal="true" aria-label="Éditeur de modèle de document">
+                        {/* Barre du haut */}
+                        <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+                            <div className="min-w-0 flex-1 flex items-center gap-3">
+                                <i className="fa-solid fa-file-pdf text-brand-600"></i>
+                                <input
+                                    type="text"
+                                    value={editeurModele.nom || ''}
+                                    onChange={(e) => setEditeurModele(m => ({ ...m, nom: e.target.value }))}
+                                    placeholder="Nom du modèle"
+                                    aria-label="Nom du modèle"
+                                    className="app-input py-1.5 text-sm font-bold max-w-xs"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={enregistrerModele}
+                                disabled={enregistrementModele}
+                                className="btn-primary py-2 px-4 text-xs font-bold disabled:opacity-60"
+                            >
+                                <i className={`fa-solid ${enregistrementModele ? 'fa-circle-notch fa-spin' : 'fa-floppy-disk'} mr-1.5`}></i>
+                                {enregistrementModele ? 'Enregistrement…' : 'Enregistrer'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setEditeurModele(null)}
+                                className="btn-secondary py-2 px-3 text-xs font-bold"
+                                aria-label="Fermer l’éditeur de modèle"
+                            >
+                                Fermer
+                            </button>
+                        </div>
+
+                        <div className="flex-1 min-h-0 flex">
+                            {/* Rail des sections */}
+                            <nav className="shrink-0 w-[86px] bg-white border-r border-neutral-200 overflow-y-auto custom-scroll py-3 flex flex-col items-center gap-1" aria-label="Sections du modèle">
+                                {SECTIONS.map(sec => {
+                                    const actif = sectionEditeur === sec.id;
+                                    return (
+                                        <button
+                                            key={sec.id}
+                                            type="button"
+                                            onClick={() => setSectionEditeur(sec.id)}
+                                            aria-current={actif ? 'true' : undefined}
+                                            className={`w-[70px] min-h-[62px] rounded-xl flex flex-col items-center justify-center gap-1.5 px-1 transition-colors ${actif ? 'bg-brand-50 text-brand-700' : 'text-neutral-500 hover:bg-neutral-50'}`}
+                                        >
+                                            <i className={`fa-solid ${sec.icone} text-base`}></i>
+                                            <span className="text-[9px] font-bold leading-tight text-center">{sec.libelle}</span>
+                                        </button>
+                                    );
+                                })}
+                            </nav>
+
+                            {/* Panneau de contrôles */}
+                            <div className="shrink-0 w-full max-w-[360px] bg-white border-r border-neutral-200 overflow-y-auto custom-scroll p-5">
+                                {sectionEditeur === 'general' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">Général</h3>
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Police du document</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {PDF_FONT_OPTIONS.map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('general', 'police', o.id)}
+                                                        className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${c.general.police === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                                        <span className="block text-[12px] font-bold text-neutral-800" style={{ fontFamily: o.family }}>{o.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <label className="block py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Couleur de marque</span>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" value={c.general.couleurMarque}
+                                                    onChange={(e) => majModele('general', 'couleurMarque', e.target.value)}
+                                                    aria-label="Couleur de marque du document"
+                                                    className="w-11 h-9 rounded-lg border border-neutral-200 cursor-pointer bg-white" />
+                                                <input type="text" value={c.general.couleurMarque}
+                                                    onChange={(e) => majModele('general', 'couleurMarque', e.target.value)}
+                                                    className="app-input py-2 text-sm font-mono" />
+                                            </div>
+                                        </label>
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-2 border-t border-neutral-100 mt-2">
+                                            Format A4 portrait. Les marges et l’orientation paysage arrivent avec les modèles multiples.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {sectionEditeur === 'entete' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">En-tête</h3>
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Disposition</span>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {PDF_HEADER_ALIGNMENTS.map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('entete', 'alignement', o.id)}
+                                                        className={`rounded-lg border px-2 py-2 text-[11px] font-bold transition-colors ${c.entete.alignement === o.id ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}>
+                                                        {o.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <Bascule section="entete" cle="afficherLogo" libelle="Afficher le logo"
+                                            aide={companyInfo.logo ? null : "Aucun logo n’est chargé dans les paramètres de l’entreprise."} />
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
+                                            Nom, adresse, NIF et RCCM s’impriment systématiquement pour l’instant.
+                                            Les rendre masquables demande que le document lise le modèle — étape
+                                            suivante.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {sectionEditeur === 'document' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">Document</h3>
+                                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5">
+                                            <p className="text-[12px] text-neutral-700 leading-relaxed">
+                                                Le titre du document, la durée de validité et la désignation du chantier
+                                                sont aujourd’hui <strong>fixes</strong> dans le rendu.
+                                            </p>
+                                            <p className="text-[11px] text-neutral-500 leading-relaxed mt-2">
+                                                Les rendre réglables demande de faire lire le modèle par le document
+                                                lui-même — c’est l’objet de l’étape suivante. Afficher ici des
+                                                interrupteurs sans effet serait pire que de ne rien afficher.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {sectionEditeur === 'tableau' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">Tableau des ouvrages</h3>
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Niveau de détail</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {[{ id: 'synthese', l: 'Synthèse', d: 'Une ligne par ouvrage' },
+                                                  { id: 'detaille', l: 'Détaillé', d: 'Fournitures et main-d’œuvre' }].map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('tableau', 'niveauDetail', o.id)}
+                                                        className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${c.tableau.niveauDetail === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                                        <span className="block text-[12px] font-bold text-neutral-800">{o.l}</span>
+                                                        <span className="block text-[10px] text-neutral-500 leading-tight mt-0.5">{o.d}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
+                                            Le choix des colonnes, leurs largeurs et l’en-tête de lot arrivent à
+                                            l’étape suivante, quand le document lira le modèle.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {sectionEditeur === 'totaux' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">Totaux et accord</h3>
+                                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5">
+                                            <p className="text-[12px] text-neutral-700 leading-relaxed">
+                                                L’échéancier de paiement et le cadre « Bon pour accord » s’impriment
+                                                aujourd’hui <strong>systématiquement</strong>.
+                                            </p>
+                                            <p className="text-[11px] text-neutral-500 leading-relaxed mt-2">
+                                                L’échéancier se règle pour l’instant dans l’onglet Entreprise, où se
+                                                définissent ses tranches.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {sectionEditeur === 'pied' && (
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-neutral-900 mb-3">Pied de page</h3>
+                                        <label className="block py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Mention de pied de page</span>
+                                            <textarea
+                                                rows={4}
+                                                value={c.pied.note || ''}
+                                                onChange={(e) => majModele('pied', 'note', e.target.value)}
+                                                placeholder="Conditions, mentions légales, coordonnées bancaires…"
+                                                className="app-input py-2 text-sm resize-y"
+                                            />
+                                        </label>
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
+                                            Cette mention s’imprime en bas de chaque document. La numérotation des
+                                            pages arrive à l’étape suivante.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Aperçu réel, continu */}
+                            <div className="flex-1 min-w-0 overflow-auto custom-scroll bg-neutral-100 p-6">
+                                <div className="mx-auto" style={{ maxWidth: '820px' }}>
+                                    <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
+                                        Aperçu {devisApercu ? `— ${devisApercu.number}` : ''}
+                                    </p>
+                                    {devisApercu ? (
+                                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                                            <DocumentDevisClient
+                                                devis={devisApercu}
+                                                societe={societeApercu}
+                                                theme={themeApercu}
+                                                disposition={dispositionApercu}
+                                                gabarit={c.tableau.niveauDetail}
+                                                modeDemo={estModeDemo}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white rounded-2xl border border-neutral-200 p-10 text-center">
+                                            <i className="fa-solid fa-file-circle-plus text-3xl text-neutral-300 mb-3"></i>
+                                            <p className="text-sm font-bold text-neutral-800">Aucun devis à prévisualiser</p>
+                                            <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                                                Enregistrez un premier devis : l’aperçu montrera le vôtre, avec vos
+                                                intitulés d’ouvrage et vos montants, plutôt qu’un exemple inventé.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {partage && (
                 <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh]">
