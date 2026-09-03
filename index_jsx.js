@@ -9468,6 +9468,40 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // émise depuis ce devis n'est donc ni supprimée ni invalidée — elle perd
     // seulement son lien de traçabilité. La règle RLS « Quotes delete »
     // n'autorise l'opération qu'aux rôles owner et admin.
+    // Signalé par le test sur compte réel du 2026-09-03 : supprimer un
+    // brouillon de facture affichait « Brouillon supprimé » et le retirait de
+    // l'écran, mais la ligne restait EN BASE. Exactement le même défaut que
+    // celui corrigé la veille pour les devis — `updateInvoices` n'écrit que
+    // dans le navigateur, et la liste est relue depuis Supabase à chaque
+    // connexion. L'interface affichait 1 facture, la base en contenait 2.
+    //
+    // Vérifié avant d'écrire : `invoice_lines` est en ON DELETE CASCADE, la
+    // règle RLS « Invoices delete » autorise l'opération, et un avoir
+    // éventuel (`invoices_corrects_invoice_id_fkey`) passe en SET NULL plutôt
+    // que d'être supprimé.
+    //
+    // Comme pour les devis, le serveur est traité AVANT l'écran : l'inverse
+    // ferait disparaître la facture de l'interface en la laissant en base,
+    // c'est-à-dire le défaut qu'on corrige, mais silencieux.
+    const supprimerFacture = useCallback(async (facture) => {
+        if (!facture) return false;
+        const idServeur = [facture.serverId, facture.id].find(estUuid) || null;
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+        if (estCloud && idServeur) {
+            const { error } = await supabaseClient
+                .from('invoices').delete()
+                .eq('id', idServeur)
+                .eq('organization_id', activeOrganizationId);
+            if (error) {
+                showToast(`Suppression impossible : ${error.message}`, 'error');
+                return false;
+            }
+        }
+        updateInvoices(invoices.filter(x => x.id !== facture.id));
+        setViewingInvoice(null);
+        return true;
+    }, [supabaseClient, sbUser, activeOrganizationId, invoices, updateInvoices]);
+
     const supprimerDevis = useCallback(async (devis) => {
         if (!devis) return false;
         const idServeur = [devis.serverId, devis.id].find(estUuid) || null;
@@ -13230,11 +13264,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     title: "Supprimer le brouillon",
                                                     message: `Supprimer ce brouillon de facture pour ${activeInvoice.clientName} ?`,
                                                     isDanger: true,
-                                                    onConfirm: () => {
-                                                        updateInvoices(invoices.filter(x => x.id !== activeInvoice.id));
-                                                        setViewingInvoice(null);
+                                                    onConfirm: async () => {
+                                                        const f = activeInvoice;
                                                         closeConfirm();
-                                                        showToast("Brouillon supprimé");
+                                                        if (await supprimerFacture(f)) showToast("Brouillon supprimé");
                                                     }
                                                 })}
                                                 className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50"
