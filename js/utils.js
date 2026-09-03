@@ -359,7 +359,22 @@ async function telechargerElementEnPdf(element, nomFichier) {
         try {
             // Laisser un cycle de rendu au navigateur : sans lui, la copie peut
             // être mesurée avant sa mise en page.
-            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            //
+            // ⚠️ Course avec un délai, et non `requestAnimationFrame` seul.
+            // Constaté sur un vrai compte le 2026-09-03 : dans un onglet MASQUÉ,
+            // le navigateur ne déclenche plus rAF du tout. L'attente ne se
+            // terminait donc jamais — bouton figé sur « Génération… »,
+            // indéfiniment, sans erreur ni message. Or cliquer puis passer à
+            // autre chose est précisément ce qu'on fait en attendant un
+            // téléchargement. Le délai garantit que la génération avance, que
+            // l'onglet soit au premier plan ou non ; rAF reste utilisé quand il
+            // fonctionne, parce qu'il cale l'attente sur un vrai cycle de rendu.
+            await new Promise((resoudre) => {
+                let fini = false;
+                const finir = () => { if (!fini) { fini = true; resoudre(); } };
+                requestAnimationFrame(() => requestAnimationFrame(finir));
+                setTimeout(finir, 150);
+            });
             return await window.html2canvas(copie, { ...optionsCapture, windowWidth: largeurClone });
         } finally {
             bac.remove();
