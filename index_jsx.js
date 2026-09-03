@@ -7135,6 +7135,11 @@ const CONFIGURATION_MODELE_DEFAUT = {
         afficherNumeroPage: true
     },
     document: {
+        // Filigrane de statut : un devis en brouillon qui circule pour un devis
+        // ferme est un vrai risque commercial. Zoho appelle ça « timbre du
+        // statut » et le laisse décoché ; ici il est ACTIVÉ par défaut, parce
+        // que l'erreur qu'il évite coûte plus cher que la gêne visuelle.
+        afficherStatut: true,
         titreDevis: 'DEVIS COMMERCIAL',
         titreEtude: 'ÉTUDE DE PRIX',
         afficherValidite: true,
@@ -7276,6 +7281,13 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // (en-tête de lot, sous-total) : le figer à 4 casserait la mise en page dès
     // qu'une colonne est masquée.
     const nbColonnes = 2 + (montrerQuantite ? 1 : 0) + (montrerPrixUnitaire ? 1 : 0);
+    // Le libellé vient de la même table que la pastille de la liste : deux
+    // vocabulaires pour un même statut créeraient un doute là où il faut une
+    // certitude. Un devis accepté ou approuvé ne porte rien : le filigrane
+    // sert à alerter, pas à décorer.
+    const [libelleStatut] = statutDevis(devis.status);
+    const statutADeclarer = cfg.document.afficherStatut
+        && devis.status && devis.status !== 'accepted' && devis.status !== 'approved';
     // L'échéancier suit la même règle que partout ailleurs : celui figé dans le
     // devis fait foi, celui de l'entreprise ne sert que de repli. Il est calculé
     // ICI et non passé en propriété, pour que le composant reste autonome — un
@@ -7348,6 +7360,16 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     <p className="text-xs text-neutral-500">Date : {devis.date}</p>
                 </div>
             </div>
+
+            {statutADeclarer && (
+                <div className="flex items-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5"
+                     style={{ borderColor: theme.brandColor }}>
+                    <i className="fa-solid fa-stamp text-sm" style={{ color: theme.brandColor }}></i>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.brandColor }}>
+                        {libelleStatut}
+                    </span>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                 <div>
@@ -8048,6 +8070,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [editeurModele, setEditeurModele] = useState(null);
     const [sectionEditeur, setSectionEditeur] = useState('general');
     const [enregistrementModele, setEnregistrementModele] = useState(false);
+    const [galerieModeles, setGalerieModeles] = useState(false);
 
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
@@ -10117,14 +10140,69 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
 
     // ── Éditeur de modèles : ouvrir, enregistrer ─────────────────────────
-    const ouvrirEditeurModele = () => {
-        const existant = modelesDocument.find(m => m.type_document === 'devis' && m.par_defaut)
-            || modelesDocument.find(m => m.type_document === 'devis');
-        const base = existant
-            ? { ...existant, configuration: fusionnerConfiguration(existant.configuration) }
-            : modeleDepuisReglages(companyInfo);
-        setEditeurModele(base);
+    // La galerie s'ouvre d'abord : dès qu'on peut tenir plusieurs modèles,
+    // atterrir directement dans l'un d'eux cache les autres et fait croire
+    // qu'il n'y en a qu'un.
+    const ouvrirEditeurModele = () => setGalerieModeles(true);
+
+    const editerModele = (modele) => {
+        setEditeurModele(modele
+            ? { ...modele, configuration: fusionnerConfiguration(modele.configuration) }
+            : modeleDepuisReglages(companyInfo));
         setSectionEditeur('general');
+        setGalerieModeles(false);
+    };
+
+    // Dupliquer, c'est repartir d'un modèle éprouvé sans risquer de l'abîmer :
+    // la copie n'est JAMAIS le modèle par défaut, sans quoi le simple fait de
+    // dupliquer changerait les documents émis.
+    const dupliquerModele = (modele) => {
+        setEditeurModele({
+            nom: `${modele.nom} (copie)`,
+            type_document: modele.type_document || 'devis',
+            par_defaut: false,
+            configuration: fusionnerConfiguration(modele.configuration)
+        });
+        setSectionEditeur('general');
+        setGalerieModeles(false);
+    };
+
+    const definirModeleParDefaut = async (modele) => {
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+        if (!estCloud || !estUuid(modele.id)) {
+            setModelesDocument(l => l.map(m => ({ ...m, par_defaut: m.id === modele.id })));
+            showToast(`« ${modele.nom} » est le modèle par défaut`);
+            return;
+        }
+        // L'index unique n'accepte qu'un seul par défaut par type : il faut
+        // retirer l'ancien AVANT de poser le nouveau, sinon l'écriture est
+        // refusée. Deux requêtes, dans cet ordre.
+        const { error: e1 } = await supabaseClient.from('document_templates')
+            .update({ par_defaut: false })
+            .eq('organization_id', activeOrganizationId)
+            .eq('type_document', modele.type_document || 'devis')
+            .eq('par_defaut', true);
+        if (e1) { showToast(`Changement impossible : ${e1.message}`, 'error'); return; }
+        const { error: e2 } = await supabaseClient.from('document_templates')
+            .update({ par_defaut: true }).eq('id', modele.id);
+        if (e2) { showToast(`Changement impossible : ${e2.message}`, 'error'); return; }
+        setModelesDocument(l => l.map(m => ({
+            ...m,
+            par_defaut: m.id === modele.id
+                ? true
+                : (m.type_document === (modele.type_document || 'devis') ? false : m.par_defaut)
+        })));
+        showToast(`« ${modele.nom} » est le modèle par défaut`);
+    };
+
+    const supprimerModele = async (modele) => {
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+        if (estCloud && estUuid(modele.id)) {
+            const { error } = await supabaseClient.from('document_templates').delete().eq('id', modele.id);
+            if (error) { showToast(`Suppression impossible : ${error.message}`, 'error'); return; }
+        }
+        setModelesDocument(l => l.filter(m => m.id !== modele.id));
+        showToast(`Modèle « ${modele.nom} » supprimé`);
     };
 
     // Une modification ne touche qu'une clé d'une section. On recompose l'objet
@@ -10218,6 +10296,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             });
             showToast('Modèle enregistré');
             setEditeurModele(null);
+            setGalerieModeles(true);
         } finally {
             setEnregistrementModele(false);
         }
@@ -18678,6 +18757,125 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 L'ouverture passe par une vraie balise <a> et non par
                 window.open() : après l'attente de génération du PDF, le geste
                 utilisateur est rompu et le navigateur bloquerait la fenêtre. */}
+            {/* ══ GALERIE DE MODÈLES ═══════════════════════════════════════════
+                Étape 3 (2026-09-03). Elle précède l'éditeur : dès qu'on peut
+                tenir plusieurs modèles, atterrir directement dans l'un d'eux
+                cache les autres.
+
+                Chaque carte montre ce qui distingue vraiment un modèle d'un
+                autre — sa couleur, son niveau de détail, ses colonnes — plutôt
+                qu'une vignette illisible à cette taille. */}
+            {galerieModeles && (
+                <div className="fixed inset-0 z-[140] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Modèles de document">
+                    <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-base font-bold text-neutral-900">Modèles de devis</h2>
+                            <p className="text-[11px] text-neutral-500">
+                                {modelesDocument.filter(m => m.type_document === 'devis').length || 'Aucun'} modèle{modelesDocument.filter(m => m.type_document === 'devis').length > 1 ? 's' : ''} · le modèle par défaut s’applique aux nouveaux devis
+                            </p>
+                        </div>
+                        <button type="button" onClick={() => editerModele(null)}
+                            disabled={isReadOnlyDueToDowngrade}
+                            className="btn-primary py-2 px-4 text-xs font-bold disabled:opacity-50">
+                            <i className="fa-solid fa-plus mr-1.5"></i> Nouveau modèle
+                        </button>
+                        <button type="button" onClick={() => setGalerieModeles(false)}
+                            className="btn-secondary py-2 px-3 text-xs font-bold" aria-label="Fermer les modèles">
+                            Fermer
+                        </button>
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
+                        <div className="mx-auto max-w-4xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {modelesDocument.filter(m => m.type_document === 'devis').map(modele => {
+                                const cfgM = fusionnerConfiguration(modele.configuration);
+                                const colonnesVisibles = 2
+                                    + (cfgM.tableau.colonnes.quantite.affiche !== false ? 1 : 0)
+                                    + (cfgM.tableau.colonnes.prixUnitaire.affiche !== false ? 1 : 0);
+                                return (
+                                    <div key={modele.id} className="app-card p-0 overflow-hidden flex flex-col">
+                                        <div className="h-2" style={{ backgroundColor: cfgM.general.couleurMarque }}></div>
+                                        <div className="p-4 flex-1 flex flex-col gap-3">
+                                            <div className="flex items-start gap-2">
+                                                <h3 className="text-sm font-bold text-neutral-900 min-w-0 flex-1 break-words">{modele.nom}</h3>
+                                                {modele.par_defaut && (
+                                                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                                        Par défaut
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <dl className="text-[11px] text-neutral-600 space-y-1">
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Détail</dt>
+                                                    <dd className="font-semibold">{cfgM.tableau.niveauDetail === 'detaille' ? 'Détaillé' : 'Synthèse'}</dd>
+                                                </div>
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Colonnes</dt>
+                                                    <dd className="font-semibold">{colonnesVisibles} sur 4</dd>
+                                                </div>
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Police</dt>
+                                                    <dd className="font-semibold">{(PDF_FONT_OPTIONS.find(o => o.id === cfgM.general.police) || {}).label || cfgM.general.police}</dd>
+                                                </div>
+                                            </dl>
+                                            <div className="mt-auto pt-2 flex flex-wrap items-center gap-1.5">
+                                                <button type="button" onClick={() => editerModele(modele)}
+                                                    className="btn-secondary btn-dialogue" aria-label={`Modifier le modèle ${modele.nom}`}>
+                                                    Modifier
+                                                </button>
+                                                <button type="button" onClick={() => dupliquerModele(modele)}
+                                                    className="btn-secondary btn-dialogue" aria-label={`Dupliquer le modèle ${modele.nom}`}>
+                                                    Dupliquer
+                                                </button>
+                                                {!modele.par_defaut && (
+                                                    <>
+                                                        <button type="button" onClick={() => definirModeleParDefaut(modele)}
+                                                            className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
+                                                            aria-label={`Utiliser ${modele.nom} par défaut`}>
+                                                            Par défaut
+                                                        </button>
+                                                        <button type="button"
+                                                            onClick={() => setConfirmDialog({
+                                                                isOpen: true,
+                                                                title: 'Supprimer ce modèle ?',
+                                                                message: `« ${modele.nom} » sera retiré.\n\nLes devis déjà enregistrés ne changent pas : chacun porte sa mise en page figée.`,
+                                                                confirmLabel: 'Supprimer',
+                                                                isDanger: true,
+                                                                onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
+                                                            })}
+                                                            className="btn-secondary btn-dialogue text-red-600 border-red-200 hover:bg-red-50"
+                                                            aria-label={`Supprimer le modèle ${modele.nom}`}>
+                                                            Supprimer
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {modelesDocument.filter(m => m.type_document === 'devis').length === 0 && (
+                                <div className="sm:col-span-2 lg:col-span-3 app-card p-8 text-center">
+                                    <i className="fa-solid fa-pen-ruler text-3xl text-neutral-300 mb-3"></i>
+                                    <p className="text-sm font-bold text-neutral-800">Aucun modèle enregistré</p>
+                                    <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto leading-relaxed">
+                                        Vos devis utilisent la mise en page issue de vos réglages d’entreprise.
+                                        Créez un modèle pour la régler finement, ou en tenir plusieurs — un pour
+                                        les appels d’offres, un pour les particuliers.
+                                    </p>
+                                    <button type="button" onClick={() => editerModele(null)}
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        className="btn-primary mt-4 py-2 px-4 text-xs font-bold disabled:opacity-50">
+                                        Créer un premier modèle
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ══ ÉDITEUR DE MODÈLES DE DOCUMENT ═══════════════════════════════
                 Étape 1 (2026-09-03). Écran plein : rail de sections à gauche,
                 contrôles au centre, document réel à droite.
@@ -18770,7 +18968,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setEditeurModele(null)}
+                                onClick={() => { setEditeurModele(null); setGalerieModeles(true); }}
                                 className="btn-secondary py-2 px-3 text-xs font-bold"
                                 aria-label="Fermer l’éditeur de modèle"
                             >
@@ -18859,6 +19057,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div className="space-y-1">
                                         <h3 className="text-sm font-bold text-neutral-900 mb-3">Document</h3>
                                         {Texte({ section: 'document', cle: 'titreDevis', libelle: 'Titre du document', placeholder: 'DEVIS COMMERCIAL' })}
+                                        {Bascule({ section: 'document', cle: 'afficherStatut', libelle: 'Afficher le statut du devis',
+                                            aide: 'Un bandeau « Brouillon » ou « À vérifier ». Rien sur un devis accepté.' })}
                                         {Bascule({ section: 'document', cle: 'afficherValidite', libelle: 'Afficher la durée de validité' })}
                                         {Bascule({ section: 'document', cle: 'afficherChantier', libelle: 'Afficher la désignation du chantier' })}
                                     </div>

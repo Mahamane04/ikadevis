@@ -57,6 +57,25 @@ export async function run() {
         ok('L’éditeur de modèles est proposé', await cliquer(page, 'Éditeur de modèles'));
         await wait(2200);
 
+        // Depuis l'étape 3, ce bouton ouvre la GALERIE : atterrir directement
+        // dans un modèle cacherait les autres. On y entre par « Nouveau ».
+        const entrerDansLEditeur = async () => {
+            const dejaOuvert = await page.evaluate((sel) => !!document.querySelector(sel), SEL);
+            if (dejaOuvert) return true;
+            const clique = await page.evaluate(() => {
+                const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+                if (!g) return false;
+                const b = [...g.querySelectorAll('button')]
+                    .find((x) => /Nouveau modèle|Créer un premier modèle/.test(x.textContent || ''));
+                if (b) { b.click(); return true; }
+                return false;
+            });
+            await wait(2000);
+            return clique;
+        };
+        ok('La galerie mène à l’éditeur', await entrerDansLEditeur());
+        await wait(1200);
+
         const ouverture = await page.evaluate((sel) => {
             const d = document.querySelector(sel);
             if (!d) return { ouvert: false };
@@ -121,6 +140,8 @@ export async function run() {
         await wait(1700);
         await cliquer(page, 'Éditeur de modèles');
         await wait(2200);
+        await entrerDansLEditeur();
+        await wait(1200);
         await page.evaluate((sel) => {
             const d = document.querySelector(sel);
             const b = [...d.querySelectorAll('nav button')].find((x) => /Tableau/.test(x.innerText));
@@ -186,6 +207,69 @@ export async function run() {
         ok('Le champ garde le focus pendant la frappe', saisie.focusConserve);
         ok(`Le titre saisi apparaît dans le document — « ${saisie.apercu} »`,
             saisie.apercu === 'DEVIS COMMERCIAL MODIFIÉ');
+
+        // ── Étape 3 : galerie et filigrane de statut ──────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => /^Fermer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        }, SEL);
+        await wait(1600);
+
+        const galerie = await page.evaluate(() => {
+            const d = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            if (!d) return { ouverte: false };
+            return {
+                ouverte: true,
+                titre: /Modèles de devis/.test(d.innerText),
+                nouveau: [...d.querySelectorAll('button')].some((b) => /Nouveau modèle/.test(b.textContent))
+            };
+        });
+        ok('Fermer l’éditeur ramène à la galerie, pas au néant', galerie.ouverte);
+        ok('La galerie annonce les modèles de devis', galerie.titre && galerie.nouveau);
+
+        await page.evaluate(() => {
+            const d = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            const b = [...d.querySelectorAll('button')].find((x) => /^Fermer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        });
+        await wait(1200);
+
+        // Le filigrane : rien sur un devis approuvé, un bandeau sur un brouillon.
+        // C'est la règle qui compte — un tampon décoratif sur tous les documents
+        // n'alerterait plus personne.
+        const tampon = (page) => page.evaluate(() => {
+            const z = document.querySelector('[data-zone-impression]');
+            const t = z && z.querySelector('.fa-stamp');
+            return { present: !!t, libelle: t ? t.parentElement.innerText.trim() : null };
+        });
+
+        const ouvrirPremierDevis = async () => {
+            await page.evaluate(() => {
+                const b = [...document.querySelectorAll('aside button')].find((x) => (x.textContent || '').trim().startsWith('Mes devis'));
+                if (b) b.click();
+            });
+            await wait(1800);
+            await page.evaluate(() => { const tr = document.querySelector('tbody tr'); if (tr) tr.click(); });
+            await wait(2400);
+        };
+
+        await ouvrirPremierDevis();
+        const approuve = await tampon(page);
+        ok('Un devis approuvé ne porte aucun filigrane', !approuve.present);
+
+        await page.evaluate(() => {
+            const l = JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]');
+            if (l[0]) { l[0].status = 'draft'; localStorage.setItem('costcalc:guest:savedQuotes', JSON.stringify(l)); }
+        });
+        await page.reload({ waitUntil: 'networkidle0' });
+        await wait(1500);
+        await enterGuestMode(page, { demo: false });
+        await wait(2400);
+        await ouvrirPremierDevis();
+        const brouillon = await tampon(page);
+        ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
+            brouillon.present && brouillon.libelle === 'BROUILLON');
     } finally {
         await close();
     }
