@@ -7143,6 +7143,360 @@ const getPdfHeaderLayout = (alignment) => {
     };
 };
 
+// ══ DOCUMENT CLIENT — rendu unique, partagé ═══════════════════════════════
+// Extrait le 2026-09-03 du panneau « Mes devis », sans changer une ligne du
+// rendu : seules les variables de fermeture sont devenues des propriétés.
+//
+// Motif de l'extraction : l'éditeur de modèles a besoin d'un aperçu FIDÈLE.
+// Écrire un second rendu « pour l'aperçu » aurait recréé exactement le défaut
+// relevé pendant l'audit — deux sources de vérité qui divergent, l'écran
+// affichant une chose et la base une autre. Un seul composant, deux endroits
+// où on l'appelle : le panneau de détail, et l'aperçu de l'éditeur.
+const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, modeDemo }) => {
+    // L'échéancier suit la même règle que partout ailleurs : celui figé dans le
+    // devis fait foi, celui de l'entreprise ne sert que de repli. Il est calculé
+    // ICI et non passé en propriété, pour que le composant reste autonome — un
+    // aperçu d'éditeur doit pouvoir l'appeler sans reconstituer le contexte du
+    // panneau de détail.
+    const echeancier = (devis.companyInfoSnapshot?.echeancier?.length > 0)
+        ? devis.companyInfoSnapshot.echeancier
+        : (societe.echeancier || []);
+    return (
+        <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${modeDemo ? 'document-demo' : ''}`} data-zone-impression="1" style={{ fontFamily: theme.fontFamily }}>
+            {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
+                préremplis d'une identité d'entreprise complète et crédible
+                (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
+                s'imprimait telle quelle sur le PDF téléchargeable, sans que
+                rien n'indique qu'il s'agit d'exemples. Un utilisateur pressé
+                pouvait produire et envoyer un devis portant un numéro fiscal
+                et un registre du commerce fictifs.
+                Le filigrane suit le document dans l'aperçu, à l'impression et
+                dans le PDF (html2canvas rend le DOM tel quel). Il disparaît
+                dès qu'un compte réel est connecté. */}
+            {modeDemo && (
+                <div className="document-demo-filigrane" aria-hidden="true">
+                    {/* SVG plutôt que du texte : un <text> dans un viewBox se met
+                        exactement à l'échelle de son cadre, quelle que soit la
+                        largeur du panneau. Avec du texte HTML, « DÉMONSTRATION »
+                        en nowrap forçait la boîte à 962 px dans un document de
+                        523 px — le filigrane débordait au lieu de s'y adapter. */}
+                    <svg viewBox="0 0 600 120" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+                        <text x="300" y="86" textAnchor="middle" fontSize="96" fontWeight="800" letterSpacing="6" fill="currentColor">DÉMONSTRATION</text>
+                    </svg>
+                </div>
+            )}
+            {modeDemo && (
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 border border-amber-300 bg-amber-50 rounded px-2 py-1 inline-block">
+                    Document de démonstration — à ne pas envoyer à un client
+                </p>
+            )}
+            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
+                <div className={disposition.company}>
+                    {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
+                        du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
+                        jamais le logo de l'entreprise émettrice. Corrigé : le logo de
+                        l'entreprise si renseigné (Paramètres du Compte → Documents & PDF),
+                        sinon rien plutôt que de perpétuer le même problème avec un repli
+                        sur la marque du logiciel. */}
+                    {(devis.companyInfoSnapshot?.logo || societe.logo) && (
+                        <div className={`flex items-center gap-2 mb-2 ${disposition.logo}`}>
+                            <img
+                                src={devis.companyInfoSnapshot?.logo || societe.logo}
+                                alt={`Logo ${devis.companyInfoSnapshot?.name || societe.name}`}
+                                className="h-10 max-w-[160px] object-contain"
+                            />
+                        </div>
+                    )}
+                    <p className="text-xs font-bold text-neutral-800">{devis.companyInfoSnapshot?.name || societe.name}</p>
+                    <p className="text-xs text-neutral-500 font-medium">{devis.companyInfoSnapshot?.tagline || societe.tagline}</p>
+                    <p className="text-xs text-neutral-500 font-medium">Adresse: {devis.companyInfoSnapshot?.address || societe.address}</p>
+                    <p className="text-xs text-neutral-500 font-medium">Contact: {devis.companyInfoSnapshot?.email || societe.email} &bull; Tel: {devis.companyInfoSnapshot?.phone || societe.phone}</p>
+                    <p className="text-[11px] text-neutral-500">NIF: {devis.companyInfoSnapshot?.nif || societe.nif} &bull; RCCM: {devis.companyInfoSnapshot?.rccm || societe.rccm}</p>
+                </div>
+                <div className={disposition.document}>
+                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>DEVIS COMMERCIAL</h2>
+                    <p className="text-sm font-bold text-neutral-800 mt-1">N° : {devis.number}</p>
+                    <p className="text-xs text-neutral-500">Date : {devis.date}</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                <div>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
+                    <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
+                </div>
+                <div>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                    <p className="font-bold text-neutral-800">{devis.projectRef}</p>
+                </div>
+            </div>
+
+            {devis.notes && (
+                <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900">
+                    <p className="font-bold text-[10px] uppercase text-amber-700 tracking-wider mb-1"><i className="fa-solid fa-note-sticky mr-1"></i>Notes & Remarques :</p>
+                    <p className="whitespace-pre-line">{devis.notes}</p>
+                </div>
+            )}
+
+            {/* F4 (2026-08-18) — Le tableau aplatissait toutes les lignes en
+                une seule liste, sans intitulé de lot ni sous-total, alors que
+                commercialItems porte déjà lotCode/lotName depuis leur création
+                (js/calc-engine.js). C'est pourtant la découpe en lots qui permet
+                au client d'arbitrer (« je prends le mur, je reporte l'enseigne »)
+                — la norme d'un bordereau BTP. Un seul lot ne montre pas d'en-tête
+                ni de sous-total : la redondance n'apporterait rien face au total
+                général juste en dessous. */}
+            {(() => {
+                const printCurrency = devis.companyInfoSnapshot?.currency || societe.currency;
+
+                // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
+                // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
+                // le prix du lot au prorata des coûts, somme garantie exacte —
+                // voir js/utils.js). Le client ne voit jamais un coût d'achat, un
+                // coefficient ni une marge : c'est la règle de l'axe
+                // « destinataire = client », et elle tient ici parce que
+                // AUCUN champ de coût n'est lu dans cette branche.
+                if (gabarit === 'detaille') {
+                    const detLots = devis.quoteData?.lots || [];
+                    const anyDetail = detLots.some(l => (l.quoteData?.details || []).length > 0);
+                    if (anyDetail) {
+                        return (
+                            <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
+                                        <th className="p-3 rounded-l-lg">Désignation</th>
+                                        <th className="p-3 text-center">Quantité</th>
+                                        <th className="p-3 text-right">Prix Unitaire HT</th>
+                                        <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100">
+                                    {detLots.map((lot, li) => {
+                                        const ld = lot.quoteData || {};
+                                        const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
+                                        const groupes = new Map();
+                                        (reparties || []).forEach(d => {
+                                            const cat = d.costCategory || 'material';
+                                            if (!groupes.has(cat)) groupes.set(cat, []);
+                                            groupes.get(cat).push(d);
+                                        });
+                                        return (
+                                            <React.Fragment key={lot.id || li}>
+                                                <tr className="bg-neutral-100">
+                                                    <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                        {formatLotHeading(lot.lotName, li)}
+                                                    </td>
+                                                </tr>
+                                                {!reparties ? (
+                                                    <tr>
+                                                        <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
+                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                    </tr>
+                                                ) : [...groupes.entries()].map(([cat, lignes]) => (
+                                                    <React.Fragment key={cat}>
+                                                        <tr className="bg-neutral-50/70">
+                                                            <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
+                                                                {COST_CATEGORY_LABELS[cat] || cat}
+                                                            </td>
+                                                        </tr>
+                                                        {lignes.map((d, di) => (
+                                                            <tr key={cat + di}>
+                                                                <td className="p-3 pl-6">
+                                                                    <p className="font-bold text-neutral-900">{d.label}</p>
+                                                                    {d.name && d.name !== d.label && (
+                                                                        <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
+                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </React.Fragment>
+                                                ))}
+                                                <tr className="bg-neutral-50/60">
+                                                    <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                        Sous-total Lot {li + 1} HT
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right font-semibold text-neutral-800">
+                                                        {formatMoney(ld.netHTConsomme, printCurrency)}
+                                                    </td>
+                                                </tr>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        );
+                    }
+                    // Devis antérieur à l'enregistrement du détail : on retombe
+                    // silencieusement sur la synthèse plutôt que d'afficher un
+                    // tableau vide.
+                }
+
+                const items = devis.quoteData?.commercialItems || [];
+                const lotsMap = new Map();
+                items.forEach(item => {
+                    const code = item.lotCode || '01';
+                    if (!lotsMap.has(code)) lotsMap.set(code, { lotCode: code, lotName: item.lotName || `Lot ${code}`, items: [] });
+                    lotsMap.get(code).items.push(item);
+                });
+                const lots = [...lotsMap.values()];
+                const showLotHeaders = lots.length > 1;
+                return (
+                    <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
+                                <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
+                                <th className="p-3.5 text-center">Quantité</th>
+                                <th className="p-3.5 text-right">Prix Unitaire HT</th>
+                                <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                            {lots.map(lot => {
+                                const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
+                                return (
+                                    <React.Fragment key={lot.lotCode}>
+                                        {showLotHeaders && (
+                                            <tr className="bg-neutral-50">
+                                                <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                    {lot.lotName}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {lot.items.map(item => (
+                                            <tr key={item.id}>
+                                                <td className="p-3.5">
+                                                    <p className="font-bold text-neutral-900">{item.label}</p>
+                                                    {item.dimensionSummary && (
+                                                        <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
+                                                    )}
+                                                </td>
+                                                <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
+                                                <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
+                                                <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                            </tr>
+                                        ))}
+                                        {showLotHeaders && (
+                                            <tr className="bg-neutral-50/60">
+                                                <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                    Sous-total Lot {lot.lotCode} HT
+                                                </td>
+                                                <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
+                                                    {formatMoney(lotSubtotal, printCurrency)}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                );
+            })()}
+
+            <div className="flex justify-end pt-4 border-t border-neutral-200">
+                <div className="w-72 space-y-2 text-xs">
+                    <div className="flex justify-between font-bold text-neutral-800 text-sm">
+                        <span>Net HT Client :</span>
+                        <span>{formatMoney(devis.quoteData?.netHTConsomme, devis.companyInfoSnapshot?.currency || societe.currency)}</span>
+                    </div>
+                    {/* 2026-08-20 — Un devis exonéré doit porter la mention
+                        légale correspondante, pas une ligne « TVA (0%) : +0 »
+                        qui n'informe de rien. */}
+                    {(devis.vatRate !== undefined ? devis.vatRate : 18) === 0 ? (
+                        <div className="text-neutral-500">
+                            <div className="flex justify-between">
+                                <span>TVA :</span>
+                                <span className="font-bold">Exonéré</span>
+                            </div>
+                            {(devis.companyInfoSnapshot?.vatExemptionNote || societe.vatExemptionNote) && (
+                                <p className="text-[10px] text-neutral-500 mt-1 italic">
+                                    {devis.companyInfoSnapshot?.vatExemptionNote || societe.vatExemptionNote}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex justify-between text-neutral-500">
+                            <span>TVA ({devis.vatRate !== undefined ? devis.vatRate : 18}%) :</span>
+                            <span>+{formatMoney(devis.quoteData?.tvaConsomme, devis.companyInfoSnapshot?.currency || societe.currency)}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
+                        <span>TOTAL TTC :</span>
+                        <span>{formatMoney(devis.quoteData?.totalTTCConsomme, devis.companyInfoSnapshot?.currency || societe.currency)}</span>
+                    </div>
+                </div>
+            </div>
+
+            {echeancier.length > 0 && (
+            <div className="pt-4 border-t border-neutral-200">
+                <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i className="fa-solid fa-calendar-check text-brand-600"></i>
+                    Échéancier Prévisionnel des Règlements
+                </h4>
+                <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+                    <table className="w-full text-left text-xs">
+                        <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
+                            <tr>
+                                <th className="p-2.5 pl-3">Étape</th>
+                                <th className="p-2.5 text-center">Taux (%)</th>
+                                <th className="p-2.5 text-right pr-3">Montant TTC</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 font-medium">
+                            {echeancier.map((stage, idx) => {
+                                const isLast = idx === echeancier.length - 1;
+                                const pct = parseFloat(stage.pct) || 0;
+                                const amount = (devis.quoteData?.totalTTCConsomme || 0) * (pct / 100);
+                                return (
+                                    <tr key={idx} className={isLast ? 'bg-neutral-50/60 font-bold' : undefined}>
+                                        <td className={`p-2.5 pl-3 ${isLast ? 'text-brand-700' : ''}`}>{stage.label}</td>
+                                        <td className={`p-2.5 text-center ${isLast ? 'text-brand-700' : 'font-bold text-neutral-700'}`}>{pct}%</td>
+                                        <td className={`p-2.5 text-right pr-3 font-mono ${isLast ? 'text-brand-700' : 'font-bold text-neutral-900'}`}>{formatMoney(amount, devis.companyInfoSnapshot?.currency || societe.currency)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            )}
+
+            <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
+                <div>
+                    <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
+                    <p>{devis.companyInfoSnapshot?.quoteValidity || societe.quoteValidity}</p>
+                </div>
+                <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
+                    <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
+                    <p className="text-[10px] text-neutral-500">Date et cachet</p>
+                </div>
+            </div>
+
+            {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
+                mentions légales, RIB, CGV... Absent si jamais renseigné, pas de bloc
+                vide sur le devis. */}
+            {(() => {
+                const commercial = devis.companyInfoSnapshot?.commercialSettings || societe.commercialSettings || {};
+                return (commercial.bankName || commercial.bankAccount || commercial.bankSwift) ? (
+                    <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
+                        <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
+                        <p>{[commercial.bankName, commercial.bankAccount, commercial.bankSwift].filter(Boolean).join(' · ')}</p>
+                    </div>
+                ) : null;
+            })()}
+            {(devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote) && (
+                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
+                    {devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 function App({ supabaseSession, supabaseClient, onSignOut }) {
     const sbUser = supabaseSession ? supabaseSession.user : null;
     const currentUserId = sbUser ? sbUser.id : 'guest';
@@ -14071,337 +14425,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
                             {(isCommercialMode || !canViewInternalDocs) ? (
-                                <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${estModeDemo ? 'document-demo' : ''}`} data-zone-impression="1" style={{ fontFamily: quoteDocumentTheme.fontFamily }}>
-                                    {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
-                                        préremplis d'une identité d'entreprise complète et crédible
-                                        (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
-                                        s'imprimait telle quelle sur le PDF téléchargeable, sans que
-                                        rien n'indique qu'il s'agit d'exemples. Un utilisateur pressé
-                                        pouvait produire et envoyer un devis portant un numéro fiscal
-                                        et un registre du commerce fictifs.
-                                        Le filigrane suit le document dans l'aperçu, à l'impression et
-                                        dans le PDF (html2canvas rend le DOM tel quel). Il disparaît
-                                        dès qu'un compte réel est connecté. */}
-                                    {estModeDemo && (
-                                        <div className="document-demo-filigrane" aria-hidden="true">
-                                            {/* SVG plutôt que du texte : un <text> dans un viewBox se met
-                                                exactement à l'échelle de son cadre, quelle que soit la
-                                                largeur du panneau. Avec du texte HTML, « DÉMONSTRATION »
-                                                en nowrap forçait la boîte à 962 px dans un document de
-                                                523 px — le filigrane débordait au lieu de s'y adapter. */}
-                                            <svg viewBox="0 0 600 120" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
-                                                <text x="300" y="86" textAnchor="middle" fontSize="96" fontWeight="800" letterSpacing="6" fill="currentColor">DÉMONSTRATION</text>
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {estModeDemo && (
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 border border-amber-300 bg-amber-50 rounded px-2 py-1 inline-block">
-                                            Document de démonstration — à ne pas envoyer à un client
-                                        </p>
-                                    )}
-                                    <div className={`${quoteHeaderLayout.wrapper} border-b border-neutral-200 pb-6`}>
-                                        <div className={quoteHeaderLayout.company}>
-                                            {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
-                                                du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
-                                                jamais le logo de l'entreprise émettrice. Corrigé : le logo de
-                                                l'entreprise si renseigné (Paramètres du Compte → Documents & PDF),
-                                                sinon rien plutôt que de perpétuer le même problème avec un repli
-                                                sur la marque du logiciel. */}
-                                            {(viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo) && (
-                                                <div className={`flex items-center gap-2 mb-2 ${quoteHeaderLayout.logo}`}>
-                                                    <img
-                                                        src={viewingSavedQuote.companyInfoSnapshot?.logo || companyInfo.logo}
-                                                        alt={`Logo ${viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}`}
-                                                        className="h-10 max-w-[160px] object-contain"
-                                                    />
-                                                </div>
-                                            )}
-                                            <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">{viewingSavedQuote.companyInfoSnapshot?.tagline || companyInfo.tagline}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Adresse: {viewingSavedQuote.companyInfoSnapshot?.address || companyInfo.address}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Contact: {viewingSavedQuote.companyInfoSnapshot?.email || companyInfo.email} &bull; Tel: {viewingSavedQuote.companyInfoSnapshot?.phone || companyInfo.phone}</p>
-                                            <p className="text-[11px] text-neutral-500">NIF: {viewingSavedQuote.companyInfoSnapshot?.nif || companyInfo.nif} &bull; RCCM: {viewingSavedQuote.companyInfoSnapshot?.rccm || companyInfo.rccm}</p>
-                                        </div>
-                                        <div className={quoteHeaderLayout.document}>
-                                            <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: quoteDocumentTheme.brandColor }}>DEVIS COMMERCIAL</h2>
-                                            <p className="text-sm font-bold text-neutral-800 mt-1">N° : {viewingSavedQuote.number}</p>
-                                            <p className="text-xs text-neutral-500">Date : {viewingSavedQuote.date}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
-                                            <p className="font-semibold text-neutral-900 text-base">{viewingSavedQuote.clientName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
-                                            <p className="font-bold text-neutral-800">{viewingSavedQuote.projectRef}</p>
-                                        </div>
-                                    </div>
-
-                                    {viewingSavedQuote.notes && (
-                                        <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900">
-                                            <p className="font-bold text-[10px] uppercase text-amber-700 tracking-wider mb-1"><i className="fa-solid fa-note-sticky mr-1"></i>Notes & Remarques :</p>
-                                            <p className="whitespace-pre-line">{viewingSavedQuote.notes}</p>
-                                        </div>
-                                    )}
-
-                                    {/* F4 (2026-08-18) — Le tableau aplatissait toutes les lignes en
-                                        une seule liste, sans intitulé de lot ni sous-total, alors que
-                                        commercialItems porte déjà lotCode/lotName depuis leur création
-                                        (js/calc-engine.js). C'est pourtant la découpe en lots qui permet
-                                        au client d'arbitrer (« je prends le mur, je reporte l'enseigne »)
-                                        — la norme d'un bordereau BTP. Un seul lot ne montre pas d'en-tête
-                                        ni de sous-total : la redondance n'apporterait rien face au total
-                                        général juste en dessous. */}
-                                    {(() => {
-                                        const printCurrency = viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency;
-
-                                        // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
-                                        // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
-                                        // le prix du lot au prorata des coûts, somme garantie exacte —
-                                        // voir js/utils.js). Le client ne voit jamais un coût d'achat, un
-                                        // coefficient ni une marge : c'est la règle de l'axe
-                                        // « destinataire = client », et elle tient ici parce que
-                                        // AUCUN champ de coût n'est lu dans cette branche.
-                                        if (clientTemplate === 'detaille') {
-                                            const detLots = viewingSavedQuote.quoteData?.lots || [];
-                                            const anyDetail = detLots.some(l => (l.quoteData?.details || []).length > 0);
-                                            if (anyDetail) {
-                                                return (
-                                                    <table className="w-full text-left text-xs border-collapse">
-                                                        <thead>
-                                                            <tr className="text-white font-bold uppercase" style={{ backgroundColor: quoteDocumentTheme.brandColor }}>
-                                                                <th className="p-3 rounded-l-lg">Désignation</th>
-                                                                <th className="p-3 text-center">Quantité</th>
-                                                                <th className="p-3 text-right">Prix Unitaire HT</th>
-                                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-neutral-100">
-                                                            {detLots.map((lot, li) => {
-                                                                const ld = lot.quoteData || {};
-                                                                const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
-                                                                const groupes = new Map();
-                                                                (reparties || []).forEach(d => {
-                                                                    const cat = d.costCategory || 'material';
-                                                                    if (!groupes.has(cat)) groupes.set(cat, []);
-                                                                    groupes.get(cat).push(d);
-                                                                });
-                                                                return (
-                                                                    <React.Fragment key={lot.id || li}>
-                                                                        <tr className="bg-neutral-100">
-                                                                            <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
-                                                                                {formatLotHeading(lot.lotName, li)}
-                                                                            </td>
-                                                                        </tr>
-                                                                        {!reparties ? (
-                                                                            <tr>
-                                                                                <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
-                                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
-                                                                            </tr>
-                                                                        ) : [...groupes.entries()].map(([cat, lignes]) => (
-                                                                            <React.Fragment key={cat}>
-                                                                                <tr className="bg-neutral-50/70">
-                                                                                    <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
-                                                                                        {COST_CATEGORY_LABELS[cat] || cat}
-                                                                                    </td>
-                                                                                </tr>
-                                                                                {lignes.map((d, di) => (
-                                                                                    <tr key={cat + di}>
-                                                                                        <td className="p-3 pl-6">
-                                                                                            <p className="font-bold text-neutral-900">{d.label}</p>
-                                                                                            {d.name && d.name !== d.label && (
-                                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
-                                                                                            )}
-                                                                                        </td>
-                                                                                        <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
-                                                                                        <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
-                                                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                            </React.Fragment>
-                                                                        ))}
-                                                                        <tr className="bg-neutral-50/60">
-                                                                            <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
-                                                                                Sous-total Lot {li + 1} HT
-                                                                            </td>
-                                                                            <td className="px-3 py-2 text-right font-semibold text-neutral-800">
-                                                                                {formatMoney(ld.netHTConsomme, printCurrency)}
-                                                                            </td>
-                                                                        </tr>
-                                                                    </React.Fragment>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                );
-                                            }
-                                            // Devis antérieur à l'enregistrement du détail : on retombe
-                                            // silencieusement sur la synthèse plutôt que d'afficher un
-                                            // tableau vide.
-                                        }
-
-                                        const items = viewingSavedQuote.quoteData?.commercialItems || [];
-                                        const lotsMap = new Map();
-                                        items.forEach(item => {
-                                            const code = item.lotCode || '01';
-                                            if (!lotsMap.has(code)) lotsMap.set(code, { lotCode: code, lotName: item.lotName || `Lot ${code}`, items: [] });
-                                            lotsMap.get(code).items.push(item);
-                                        });
-                                        const lots = [...lotsMap.values()];
-                                        const showLotHeaders = lots.length > 1;
-                                        return (
-                                            <table className="w-full text-left text-xs border-collapse">
-                                                <thead>
-                                                    <tr className="text-white font-bold uppercase" style={{ backgroundColor: quoteDocumentTheme.brandColor }}>
-                                                        <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
-                                                        <th className="p-3.5 text-center">Quantité</th>
-                                                        <th className="p-3.5 text-right">Prix Unitaire HT</th>
-                                                        <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-neutral-100">
-                                                    {lots.map(lot => {
-                                                        const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
-                                                        return (
-                                                            <React.Fragment key={lot.lotCode}>
-                                                                {showLotHeaders && (
-                                                                    <tr className="bg-neutral-50">
-                                                                        <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
-                                                                            {lot.lotName}
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                                {lot.items.map(item => (
-                                                                    <tr key={item.id}>
-                                                                        <td className="p-3.5">
-                                                                            <p className="font-bold text-neutral-900">{item.label}</p>
-                                                                            {item.dimensionSummary && (
-                                                                                <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
-                                                                            )}
-                                                                        </td>
-                                                                        <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
-                                                                        <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
-                                                                        <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
-                                                                    </tr>
-                                                                ))}
-                                                                {showLotHeaders && (
-                                                                    <tr className="bg-neutral-50/60">
-                                                                        <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
-                                                                            Sous-total Lot {lot.lotCode} HT
-                                                                        </td>
-                                                                        <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
-                                                                            {formatMoney(lotSubtotal, printCurrency)}
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                            </React.Fragment>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        );
-                                    })()}
-
-                                    <div className="flex justify-end pt-4 border-t border-neutral-200">
-                                        <div className="w-72 space-y-2 text-xs">
-                                            <div className="flex justify-between font-bold text-neutral-800 text-sm">
-                                                <span>Net HT Client :</span>
-                                                <span>{formatMoney(viewingSavedQuote.quoteData?.netHTConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                            </div>
-                                            {/* 2026-08-20 — Un devis exonéré doit porter la mention
-                                                légale correspondante, pas une ligne « TVA (0%) : +0 »
-                                                qui n'informe de rien. */}
-                                            {(viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18) === 0 ? (
-                                                <div className="text-neutral-500">
-                                                    <div className="flex justify-between">
-                                                        <span>TVA :</span>
-                                                        <span className="font-bold">Exonéré</span>
-                                                    </div>
-                                                    {(viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote) && (
-                                                        <p className="text-[10px] text-neutral-500 mt-1 italic">
-                                                            {viewingSavedQuote.companyInfoSnapshot?.vatExemptionNote || companyInfo.vatExemptionNote}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="flex justify-between text-neutral-500">
-                                                    <span>TVA ({viewingSavedQuote.vatRate !== undefined ? viewingSavedQuote.vatRate : 18}%) :</span>
-                                                    <span>+{formatMoney(viewingSavedQuote.quoteData?.tvaConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
-                                                <span>TOTAL TTC :</span>
-                                                <span>{formatMoney(viewingSavedQuote.quoteData?.totalTTCConsomme, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {paymentSchedule.length > 0 && (
-                                    <div className="pt-4 border-t border-neutral-200">
-                                        <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <i className="fa-solid fa-calendar-check text-brand-600"></i>
-                                            Échéancier Prévisionnel des Règlements
-                                        </h4>
-                                        <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
-                                            <table className="w-full text-left text-xs">
-                                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
-                                                    <tr>
-                                                        <th className="p-2.5 pl-3">Étape</th>
-                                                        <th className="p-2.5 text-center">Taux (%)</th>
-                                                        <th className="p-2.5 text-right pr-3">Montant TTC</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-neutral-100 font-medium">
-                                                    {paymentSchedule.map((stage, idx) => {
-                                                        const isLast = idx === paymentSchedule.length - 1;
-                                                        const pct = parseFloat(stage.pct) || 0;
-                                                        const amount = (viewingSavedQuote.quoteData?.totalTTCConsomme || 0) * (pct / 100);
-                                                        return (
-                                                            <tr key={idx} className={isLast ? 'bg-neutral-50/60 font-bold' : undefined}>
-                                                                <td className={`p-2.5 pl-3 ${isLast ? 'text-brand-700' : ''}`}>{stage.label}</td>
-                                                                <td className={`p-2.5 text-center ${isLast ? 'text-brand-700' : 'font-bold text-neutral-700'}`}>{pct}%</td>
-                                                                <td className={`p-2.5 text-right pr-3 font-mono ${isLast ? 'text-brand-700' : 'font-bold text-neutral-900'}`}>{formatMoney(amount, viewingSavedQuote.companyInfoSnapshot?.currency || companyInfo.currency)}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    )}
-
-                                    <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
-                                        <div>
-                                            <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
-                                            <p>{viewingSavedQuote.companyInfoSnapshot?.quoteValidity || companyInfo.quoteValidity}</p>
-                                        </div>
-                                        <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
-                                            <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
-                                            <p className="text-[10px] text-neutral-500">Date et cachet</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
-                                        mentions légales, RIB, CGV... Absent si jamais renseigné, pas de bloc
-                                        vide sur le devis. */}
-                                    {(() => {
-                                        const commercial = viewingSavedQuote.companyInfoSnapshot?.commercialSettings || companyInfo.commercialSettings || {};
-                                        return (commercial.bankName || commercial.bankAccount || commercial.bankSwift) ? (
-                                            <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
-                                                <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: quoteDocumentTheme.brandColor }}></i>Coordonnées de règlement</p>
-                                                <p>{[commercial.bankName, commercial.bankAccount, commercial.bankSwift].filter(Boolean).join(' · ')}</p>
-                                            </div>
-                                        ) : null;
-                                    })()}
-                                    {(viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote) && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
-                                            {viewingSavedQuote.companyInfoSnapshot?.pdfFooterNote || companyInfo.pdfFooterNote}
-                                        </div>
-                                    )}
-                                </div>
+                                <DocumentDevisClient
+                                    devis={viewingSavedQuote}
+                                    societe={companyInfo}
+                                    theme={quoteDocumentTheme}
+                                    disposition={quoteHeaderLayout}
+                                    gabarit={clientTemplate}
+                                    modeDemo={estModeDemo}
+                                />
                             ) : (
                                 <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">
                                     {(() => {
