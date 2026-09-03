@@ -270,6 +270,64 @@ export async function run() {
         const brouillon = await tampon(page);
         ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
             brouillon.present && brouillon.libelle === 'BROUILLON');
+
+        // ── Plusieurs modèles coexistent, un seul par défaut ──────────────
+        // La première version du chemin hors ligne remplaçait la liste entière
+        // par le modèle en cours : créer un second écrasait le premier, sans
+        // un mot. C'est le genre de perte qu'on ne remarque qu'après.
+        await cliquer(page, 'Paramètres du Compte');
+        await wait(1700);
+        await cliquer(page, 'Documents');
+        await wait(1700);
+        await cliquer(page, 'Éditeur de modèles');
+        await wait(2000);
+
+        const creerModele = async (nom, couleur) => {
+            await page.evaluate(() => {
+                const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+                if (!g) return;
+                const b = [...g.querySelectorAll('button')]
+                    .find((x) => /Nouveau modèle|Créer un premier modèle/.test(x.textContent || ''));
+                if (b) b.click();
+            });
+            await wait(2000);
+            await page.evaluate(({ nom, couleur }) => {
+                const d = document.querySelector('[role="dialog"][aria-label*="modèle"]');
+                if (!d) return;
+                const set = (el, v) => {
+                    if (!el) return;
+                    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, v);
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                };
+                set(d.querySelector('input[aria-label="Nom du modèle"]'), nom);
+                set([...d.querySelectorAll('input[type="color"]')][0], couleur);
+            }, { nom, couleur });
+            await wait(1100);
+            await page.evaluate(() => {
+                const d = document.querySelector('[role="dialog"][aria-label*="modèle"]');
+                if (!d) return;
+                const b = [...d.querySelectorAll('button')].find((x) => /^Enregistrer$/.test(x.textContent.trim()));
+                if (b) b.click();
+            });
+            await wait(2400);
+        };
+
+        await creerModele('Devis standard', '#2f3fa8');
+        await creerModele('Appel d’offres', '#0f766e');
+
+        const parc = await page.evaluate(() => {
+            const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            if (!g) return { galerie: false };
+            return {
+                galerie: true,
+                modeles: [...g.querySelectorAll('h3')].map((h) => h.textContent.trim()),
+                nbParDefaut: [...g.querySelectorAll('span')].filter((x) => /PAR DÉFAUT/i.test(x.textContent)).length
+            };
+        });
+        ok('Enregistrer ramène à la galerie, y compris hors ligne', parc.galerie);
+        ok(`Deux modèles coexistent — ${JSON.stringify(parc.modeles)}`,
+            (parc.modeles || []).length === 2);
+        ok(`Un seul modèle porte le badge « par défaut » — ${parc.nbParDefaut}`, parc.nbParDefaut === 1);
     } finally {
         await close();
     }

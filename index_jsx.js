@@ -10260,11 +10260,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             if (!estCloud) {
                 // Hors ligne, le modèle vit dans le navigateur comme le reste du
                 // catalogue : l'éditeur doit rester utilisable sur un chantier.
-                const liste = [{ ...editeurModele, id: editeurModele.id || 'local-devis' }];
+                //
+                // La première version remplaçait la liste entière par le modèle
+                // en cours : créer un second écrasait le premier, sans un mot.
+                // On conserve donc les autres, et on n'écrase que celui qui
+                // porte le même identifiant.
+                const identifiant = editeurModele.id || `local-${Date.now()}`;
+                const enregistre = { ...editeurModele, id: identifiant, type_document: editeurModele.type_document || 'devis' };
+                const autres = modelesDocument.filter(m => m.id !== identifiant);
+                // Un seul modèle par défaut, ici aussi : la règle ne peut pas
+                // dépendre du fait qu'on soit connecté ou non.
+                const liste = enregistre.par_defaut !== false
+                    ? [...autres.map(m => (m.type_document === enregistre.type_document ? { ...m, par_defaut: false } : m)), enregistre]
+                    : [...autres, enregistre];
                 setModelesDocument(liste);
                 LS.set('documentTemplates', liste, sbUser ? sbUser.id : 'guest');
                 showToast('Modèle enregistré');
                 setEditeurModele(null);
+                // Revenir à la galerie, comme sur le chemin cloud : enregistrer
+                // sans y revenir laissait l'utilisateur sur l'application nue,
+                // sans aucun retour visible sur ce qu'il venait de créer.
+                setGalerieModeles(true);
                 return;
             }
             const charge = {
