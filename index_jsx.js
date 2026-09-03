@@ -9483,6 +9483,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Comme pour les devis, le serveur est traité AVANT l'écran : l'inverse
     // ferait disparaître la facture de l'interface en la laissant en base,
     // c'est-à-dire le défaut qu'on corrige, mais silencieux.
+    // Trouvé par le test sur compte réel du 2026-09-03 : on peut créer un
+    // client — et l'application en crée un AUTOMATIQUEMENT à chaque devis —
+    // mais aucun écran ne permet d'en supprimer un. Anodin tant que ces fiches
+    // ne quittaient pas le navigateur ; depuis leur synchronisation, chaque
+    // nom mal saisi devient une ligne serveur définitive.
+    //
+    // Vérifié en base : toutes les clés étrangères qui pointent vers `clients`
+    // et `projects` (quotes, invoices, projects) sont en ON DELETE SET NULL.
+    // Supprimer une fiche ne détruit donc AUCUN document — elle rompt le lien,
+    // et les documents gardent le nom du client en clair. La confirmation le
+    // dit, chiffres à l'appui, plutôt que d'interdire par précaution.
+    const supprimerFicheReferentiel = useCallback(async (table, fiche, apres) => {
+        if (!fiche) return false;
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+        if (estCloud && estUuid(fiche.id)) {
+            const { error } = await supabaseClient
+                .from(table).delete()
+                .eq('id', fiche.id)
+                .eq('organization_id', activeOrganizationId);
+            if (error) {
+                showToast(`Suppression impossible : ${error.message}`, 'error');
+                return false;
+            }
+        }
+        apres();
+        return true;
+    }, [supabaseClient, sbUser, activeOrganizationId]);
+
     const supprimerFacture = useCallback(async (facture) => {
         if (!facture) return false;
         const idServeur = [facture.serverId, facture.id].find(estUuid) || null;
@@ -12509,9 +12537,39 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-left sm:text-right shrink-0">
-                                    <span className="text-[10px] uppercase font-bold text-neutral-500 block">CA Cumulé Chantier</span>
-                                    <span className="text-lg font-bold text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
+                                <div className="flex items-start gap-3 shrink-0">
+                                    <div className="text-left sm:text-right">
+                                        <span className="text-[10px] uppercase font-bold text-neutral-500 block">CA Cumulé Chantier</span>
+                                        <span className="text-lg font-bold text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
+                                    </div>
+                                    {/* Même manque que pour les clients, trouvé le 2026-09-03 :
+                                        un chantier pouvait se créer — automatiquement à chaque
+                                        devis — mais jamais se supprimer. */}
+                                    <button
+                                        onClick={() => setConfirmDialog({
+                                            isOpen: true,
+                                            title: 'Supprimer ce chantier ?',
+                                            message: selectedProjectQuotes.length > 0
+                                                ? `« ${selectedProject.name} » porte ${selectedProjectQuotes.length} devis.\n\nCes devis ne sont PAS supprimés : ils conservent le nom du chantier, mais perdent le lien vers sa fiche.`
+                                                : `La fiche du chantier « ${selectedProject.name} » sera définitivement retirée.`,
+                                            confirmLabel: 'Supprimer',
+                                            isDanger: true,
+                                            onConfirm: async () => {
+                                                const p = selectedProject;
+                                                closeConfirm();
+                                                const ok = await supprimerFicheReferentiel('projects', p, () => {
+                                                    updateProjects(projects.filter(x => x.id !== p.id));
+                                                    setSelectedProjectId(null);
+                                                });
+                                                if (ok) showToast(`Chantier ${p.name} supprimé`);
+                                            }
+                                        })}
+                                        className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50"
+                                        title="Supprimer le chantier"
+                                        aria-label={`Supprimer le chantier ${selectedProject.name}`}
+                                    >
+                                        <i className="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </div>
                             </div>
 
@@ -12837,6 +12895,39 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         setIsNewClientModalOpen(true);
                                     }} className="btn-icon" title="Modifier la fiche client" aria-label={`Modifier ${selectedClient.name}`}>
                                         <i className="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const devisLies = savedQuotes.filter(q => q.clientId === selectedClient.id || q.clientName === selectedClient.name).length;
+                                            const chantiersLies = projects.filter(p => p.clientId === selectedClient.id).length;
+                                            const rattachements = [
+                                                devisLies > 0 ? `${devisLies} devis` : null,
+                                                chantiersLies > 0 ? `${chantiersLies} chantier${chantiersLies > 1 ? 's' : ''}` : null
+                                            ].filter(Boolean).join(' et ');
+                                            setConfirmDialog({
+                                                isOpen: true,
+                                                title: 'Supprimer cette fiche client ?',
+                                                message: rattachements
+                                                    ? `« ${selectedClient.name} » est rattaché à ${rattachements}.\n\nCes documents ne sont PAS supprimés : ils conservent le nom du client, mais perdent le lien vers sa fiche.`
+                                                    : `La fiche de « ${selectedClient.name} » sera définitivement retirée.`,
+                                                confirmLabel: 'Supprimer',
+                                                isDanger: true,
+                                                onConfirm: async () => {
+                                                    const c = selectedClient;
+                                                    closeConfirm();
+                                                    const ok = await supprimerFicheReferentiel('clients', c, () => {
+                                                        updateClients(clients.filter(x => x.id !== c.id));
+                                                        setSelectedClientId(null);
+                                                    });
+                                                    if (ok) showToast(`Fiche ${c.name} supprimée`);
+                                                }
+                                            });
+                                        }}
+                                        className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50"
+                                        title="Supprimer la fiche client"
+                                        aria-label={`Supprimer la fiche de ${selectedClient.name}`}
+                                    >
+                                        <i className="fa-solid fa-trash-can"></i>
                                     </button>
                                     <button onClick={() => {
                                         setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
