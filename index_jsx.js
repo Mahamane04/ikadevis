@@ -59,7 +59,7 @@ const TOUS_LES_MODES = ['rectangle', 'surface', 'volume', 'linear', 'floor', 'un
 //
 // Signalé en production (2026-09-02) : « Télécharger le PDF » échouait avec
 // « Le document n'a pas pu être rendu pour le PDF ». Cause : il y a DEUX
-// éléments portant id="printArea" quand un devis est ouvert — le panneau de
+// éléments portant data-zone-impression="1" quand un devis est ouvert — le panneau de
 // détail desktop, et la copie mobile de la modale (cachée par `lg:hidden`,
 // mais bien présente dans le DOM). `getElementById` renvoie la PREMIÈRE, et
 // c'est justement l'invisible : mesuré sur la production, 0 × 0 px contre
@@ -112,7 +112,7 @@ const estUuid = (v) => typeof v === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
 const zoneImpressionVisible = () => {
-    const zones = [...document.querySelectorAll('#printArea')];
+    const zones = [...document.querySelectorAll('[data-zone-impression]')];
     return zones.find(z => {
         const r = z.getBoundingClientRect();
         return r.width > 0 && r.height > 0;
@@ -13437,7 +13437,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 )}
 
-                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" id={estBrouillon ? undefined : 'printArea'} style={{ fontFamily: invoiceDocumentTheme.fontFamily }}>
+                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" data-zone-impression={estBrouillon ? undefined : '1'} style={{ fontFamily: invoiceDocumentTheme.fontFamily }}>
                                     <div className={`${invoiceHeaderLayout.wrapper} border-b border-neutral-200 pb-6`}>
                                         <div className={invoiceHeaderLayout.company}>
                                             {ci.logo && (
@@ -14071,7 +14071,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
                             {(isCommercialMode || !canViewInternalDocs) ? (
-                                <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${estModeDemo ? 'document-demo' : ''}`} id="printArea" style={{ fontFamily: quoteDocumentTheme.fontFamily }}>
+                                <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${estModeDemo ? 'document-demo' : ''}`} data-zone-impression="1" style={{ fontFamily: quoteDocumentTheme.fontFamily }}>
                                     {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
                                         préremplis d'une identité d'entreprise complète et crédible
                                         (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
@@ -14403,10 +14403,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                             ) : (
-                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" id="printArea">
+                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">
                                     {(() => {
                                         // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
-                                        // cartes, PAS un document : elle n'avait pas d'id="printArea", donc
+                                        // cartes, PAS un document : elle n'avait pas d'data-zone-impression="1", donc
                                         // l'imprimer produisait une PAGE BLANCHE (la feuille de style
                                         // d'impression masque tout sauf #printArea). Refaite en document A4
                                         // imprimable — métré, décomposition ligne à ligne, prix & marge,
@@ -14748,154 +14748,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             );
         };
 
-        const carteDevis = (sq) => {
-            const isActive = !!(activeQuote && activeQuote.id === sq.id);
-            return (
-                <div
-                    key={sq.id}
-                    onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(true); }}
-                    className={`bg-white border-2 rounded-2xl p-4 space-y-3 cursor-pointer transition-all duration-200 ${isActive ? 'border-brand-500 shadow-sm' : 'border-neutral-200 hover:border-neutral-300 shadow-sm'}`}
-                >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1 space-y-3">
-                            <div>
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Société</span>
-                                <h3 className="font-semibold text-neutral-900 text-base truncate">{sq.clientName || 'Société non renseignée'}</h3>
-                            </div>
-                            <div className="border-l-2 border-brand-200 pl-3">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-500 block mb-1">Projet</span>
-                                <p className="text-sm font-semibold text-neutral-700 truncate">{sq.projectRef || 'Projet non renseigné'}</p>
-                            </div>
-                        </div>
-                        <div className="text-right shrink-0 space-y-1">
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700">
-                                {sq.number}
-                            </span>
-                            <span className="text-xs font-medium text-neutral-500 block">{sq.date}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                            onClick={() => {
-                                const hq = adaptSavedQuoteToHybrid(sq, solutions, materials, labor, recipes);
-                                setHybridQuote(hq);
-                                setUseHybridEditor(true);
-                                setActiveView('calculator');
-                                showToast(`Devis ${sq.number} ouvert dans l'Éditeur Hybride !`);
-                            }}
-                            className="btn-primary py-1.5 px-2.5 text-xs font-bold justify-center bg-brand-600 hover:bg-brand-700 text-white"
-                            aria-label={`Modifier dans l'éditeur hybride ${sq.number}`}
-                            title="Modifier dans l'Éditeur Hybride V6"
-                        >
-                            <i className="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        {/* BLOC 7.3 : VERSIONING STRICT (V1 -> V2 -> V3) */}
-                        <button
-                            onClick={() => {
-                                const currentVersion = sq.versionNumber || 1;
-                                const nextVersion = currentVersion + 1;
-                                const baseNum = sq.number.replace(/-V\d+$/, '');
-                                const newVersionNum = `${baseNum}-V${nextVersion}`;
-                                const newId = Date.now() + Math.floor(Math.random() * 100000);
-
-                                const newVersionQuote = {
-                                    ...JSON.parse(JSON.stringify(sq)),
-                                    id: newId,
-                                    // Fix "doublon à chaque Enregistrer" (2026-08-30) — voir la même
-                                    // note sur l'autre bouton de révision (fiche détail).
-                                    serverId: null,
-                                    number: newVersionNum,
-                                    versionNumber: nextVersion,
-                                    parentQuoteId: sq.id,
-                                    status: 'draft',
-                                    signedAt: null,
-                                    signedByName: null,
-                                    signatureData: null,
-                                    date: new Date().toLocaleDateString('fr-FR')
-                                };
-                                if (newVersionQuote.hybridQuoteSnapshot) {
-                                    newVersionQuote.hybridQuoteSnapshot.id = newId;
-                                    newVersionQuote.hybridQuoteSnapshot.number = newVersionNum;
-                                }
-                                updateSavedQuotes([newVersionQuote, ...savedQuotes]);
-                                showToast(`Nouvelle révision ${newVersionNum} créée (V${currentVersion} préservée) !`, "success");
-                            }}
-                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-                            title="Créer une nouvelle révision (V2, V3) sans écraser la version envoyée"
-                            aria-label={`Créer une révision de ${sq.number}`}
-                        >
-                            <i className="fa-solid fa-code-branch"></i>
-                        </button>
-                        <button
-                            onClick={() => setConfirmDialog({
-                                isOpen: true,
-                                title: 'Dupliquer ce devis ?',
-                                // Dupliquer crée un DOCUMENT de plus dans la liste, avec son
-                                // propre numéro consommé sur la séquence. Rien n'est détruit,
-                                // mais la confusion entre l'original et la copie coûte cher :
-                                // on annonce donc le numéro attribué à la copie.
-                                message: `Une copie de ${sq.number} sera créée sous le numéro ${generateNextQuoteNumber(savedQuotes)}, au nom de « ${sq.clientName} (Copie) ».\n\nL'original n'est pas modifié.`,
-                                confirmLabel: 'Dupliquer',
-                                onConfirm: () => {
-                                    closeConfirm();
-                                    const newId = Date.now() + Math.floor(Math.random() * 100000);
-                                    const nextNum = generateNextQuoteNumber(savedQuotes);
-                                    const duplicated = {
-                                        ...JSON.parse(JSON.stringify(sq)),
-                                        id: newId,
-                                        // Fix "doublon à chaque Enregistrer" (2026-08-30) — voir la même
-                                        // note sur l'autre bouton Dupliquer (fiche détail).
-                                        serverId: null,
-                                        number: nextNum,
-                                        clientName: `${sq.clientName} (Copie)`,
-                                        date: new Date().toLocaleDateString('fr-FR')
-                                    };
-                                    if (duplicated.hybridQuoteSnapshot) {
-                                        duplicated.hybridQuoteSnapshot.id = newId;
-                                        duplicated.hybridQuoteSnapshot.number = nextNum;
-                                        duplicated.hybridQuoteSnapshot.clientName = duplicated.clientName;
-                                    }
-                                    updateSavedQuotes([duplicated, ...savedQuotes]);
-                                    updateNextQuoteSeq(nextQuoteSeq + 1);
-                                    showToast(`Devis ${sq.number} dupliqué avec succès !`, "success");
-                                }
-                            })}
-                            className="btn-icon text-neutral-600 hover:bg-neutral-100"
-                            title="Dupliquer ce devis"
-                            aria-label={`Dupliquer ${sq.number}`}
-                        >
-                            <i className="fa-solid fa-clone"></i>
-                        </button>
-                        {canViewInternalDocs && (
-                            <button
-                                onClick={() => { setViewingSavedQuote(sq); setIsCommercialMode(false); }}
-                                className="btn-icon text-brand-600 hover:bg-brand-50"
-                                aria-label={`Voir l'étude de prix interne ${sq.number}`}
-                                title="Étude de prix (interne)"
-                            >
-                                <i className="fa-solid fa-eye"></i>
-                            </button>
-                        )}
-                        <button
-                            disabled={isReadOnlyDueToDowngrade}
-                            onClick={() => setConfirmDialog({
-                                isOpen: true,
-                                title: "Supprimer Devis",
-                                message: `Supprimer définitivement le devis ${sq.number} ?`,
-                                isDanger: true,
-                                onConfirm: () => { updateSavedQuotes(savedQuotes.filter(x => x.id !== sq.id)); closeConfirm(); showToast("Devis supprimé"); }
-                            })}
-                            className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50 ml-auto"
-                            aria-label={`Supprimer le devis ${sq.number}`}
-                            title="Supprimer"
-                        >
-                            <i className="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            );
-        };
+        // `carteDevis` (148 lignes) a été retirée le 2026-09-03. Elle rendait
+        // l'ancienne vue en CARTES de la liste des devis, remplacée depuis par un
+        // tableau — plus aucun appel ne la référençait.
+        //
+        // Ce n'était pas du code mort inoffensif : c'est elle qui portait la
+        // corbeille de suppression. En la laissant en place, un lecteur pouvait
+        // conclure que la suppression existait déjà — et c'est exactement ce qui
+        // s'est produit lors de l'audit, avant de vérifier qu'elle n'était jamais
+        // appelée. La suppression vit désormais sur la ligne du tableau et dans le
+        // panneau de détail.
 
         return (
         <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">

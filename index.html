@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260903c">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260903d">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260903c">
+    <link rel="stylesheet" href="tailwind.css?v=20260903d">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -847,8 +847,15 @@
         /* P1.2 DEPARTURE A4 PRINT STYLESHEET */
         @media print {
             body * { visibility: hidden !important; }
-            #printArea, #printArea * { visibility: visible !important; }
-            #printArea {
+            /* Attribut et non identifiant : le document du devis est rendu DEUX
+               fois — panneau de bureau et modale mobile — par le même composant.
+               Deux éléments ne peuvent pas partager un `id` ; `#printArea` les
+               visait d'ailleurs tous les deux, et seul le `display:none` de la
+               copie masquée évitait de les imprimer l'un sur l'autre.
+               Un attribut a le droit d'être multiple, et la sélection retient
+               celui qui est réellement affiché (voir zoneImpressionVisible). */
+            [data-zone-impression], [data-zone-impression] * { visibility: visible !important; }
+            [data-zone-impression] {
                 position: absolute !important;
                 left: 0 !important; top: 0 !important;
                 width: 100% !important;
@@ -865,10 +872,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260903c"></script>
-    <script src="js/utils.js?v=20260903c"></script>
-    <script src="js/quote-templates.js?v=20260903c"></script>
-    <script src="app.compiled.js?v=20260903c"></script>
+    <script src="js/calc-engine.js?v=20260903d"></script>
+    <script src="js/utils.js?v=20260903d"></script>
+    <script src="js/quote-templates.js?v=20260903d"></script>
+    <script src="app.compiled.js?v=20260903d"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

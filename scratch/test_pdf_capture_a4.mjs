@@ -39,7 +39,7 @@ async function mesurer(page, largeur, hauteur) {
     await page.setViewport({ width: largeur, height: hauteur });
     await wait(700);
     return page.evaluate(async () => {
-        const cible = [...document.querySelectorAll('#printArea')]
+        const cible = [...document.querySelectorAll('[data-zone-impression]')]
             .find((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
         if (!cible) return { erreur: 'aucune zone visible' };
         // Reproduit exactement ce que fait telechargerElementEnPdf, première

@@ -2,7 +2,7 @@
 // échouait avec « Génération impossible : Le document n'a pas pu être rendu
 // pour le PDF ».
 //
-// Cause : quand un devis est ouvert, DEUX éléments portent id="printArea" — le
+// Cause : quand un devis est ouvert, DEUX éléments portent data-zone-impression — le
 // panneau de détail desktop, et la copie mobile de la modale, cachée par
 // `lg:hidden` mais bien présente dans le DOM. `getElementById` renvoie la
 // PREMIÈRE, et c'est l'invisible. Mesuré sur la production au moment du
@@ -47,7 +47,7 @@ export async function run() {
         });
         await wait(2200);
 
-        const zones = await page.evaluate(() => [...document.querySelectorAll('#printArea')].map((z) => {
+        const zones = await page.evaluate(() => [...document.querySelectorAll('[data-zone-impression]')].map((z) => {
             const r = z.getBoundingClientRect();
             return { largeur: Math.round(r.width), hauteur: Math.round(r.height) };
         }));
@@ -57,12 +57,12 @@ export async function run() {
         // La propriété centrale : la zone retenue est visible. Le test vaut que
         // le doublon existe encore ou qu'il ait été supprimé depuis.
         const retenue = await page.evaluate(() => {
-            const toutes = [...document.querySelectorAll('#printArea')];
+            const toutes = [...document.querySelectorAll('[data-zone-impression]')];
             const visible = toutes.find((z) => {
                 const r = z.getBoundingClientRect();
                 return r.width > 0 && r.height > 0;
             });
-            const premiere = document.getElementById('printArea');
+            const premiere = document.querySelector('[data-zone-impression]');
             const r = visible ? visible.getBoundingClientRect() : null;
             const rp = premiere ? premiere.getBoundingClientRect() : null;
             return {
@@ -88,7 +88,7 @@ export async function run() {
         // plutôt que de compter sur un ordre favorable.
         if (retenue.nbZones > 1) {
             await page.evaluate(() => {
-                const premiere = document.getElementById('printArea');
+                const premiere = document.querySelector('[data-zone-impression]');
                 if (premiere) { premiere.dataset.testMasque = '1'; premiere.style.display = 'none'; }
             });
             await wait(300);
