@@ -7048,6 +7048,8 @@ const QuoteService = {
             p_org_id: orgId,
             p_client_name: quote.clientName || 'Client Passage',
             p_project_ref: quote.projectRef || 'Chantier BTP',
+            // Voir le commentaire de gel plus bas : le modèle voyage avec
+            // l'identité de l'entreprise, dans le même instantané.
             p_company_snapshot: companyInfo || {},
             p_calc_form_snapshot: calcForm || {},
             p_lines: linesForV6,
@@ -7141,7 +7143,18 @@ const CONFIGURATION_MODELE_DEFAUT = {
     tableau: {
         niveauDetail: 'synthese',  // 'synthese' | 'detaille'
         afficherEnteteLot: true,
-        afficherSousTotalLot: true
+        afficherSousTotalLot: true,
+        // Désignation et total ne sont volontairement PAS masquables : une
+        // ligne de devis sans intitulé ni montant ne veut rien dire, et les
+        // rendre optionnelles n'apporterait qu'un moyen de produire un
+        // document illisible. Quantité et prix unitaire, si — certains
+        // donneurs d'ordre ne veulent qu'un prix par poste.
+        colonnes: {
+            designation:  { libelle: 'Désignation Ouvrage / Prestation Commerciale', largeur: 52 },
+            quantite:     { affiche: true, libelle: 'Quantité',          largeur: 14 },
+            prixUnitaire: { affiche: true, libelle: 'Prix Unitaire HT',  largeur: 17 },
+            totalHT:      { libelle: 'Total HT',          largeur: 17 }
+        }
     },
     totaux: {
         afficherEcheancier: true,
@@ -7157,6 +7170,15 @@ const fusionnerConfiguration = (configuration) => {
     const sortie = {};
     for (const section of Object.keys(CONFIGURATION_MODELE_DEFAUT)) {
         sortie[section] = { ...CONFIGURATION_MODELE_DEFAUT[section], ...((configuration || {})[section] || {}) };
+    }
+    // `colonnes` est le seul sous-arbre : une fusion de surface remplacerait le
+    // groupe entier, et une colonne ajoutée plus tard n'aurait pas de défaut
+    // dans les modèles déjà enregistrés — elle sortirait sans libellé.
+    const defColonnes = CONFIGURATION_MODELE_DEFAUT.tableau.colonnes;
+    const enregistrees = ((configuration || {}).tableau || {}).colonnes || {};
+    sortie.tableau.colonnes = {};
+    for (const cle of Object.keys(defColonnes)) {
+        sortie.tableau.colonnes[cle] = { ...defColonnes[cle], ...(enregistrees[cle] || {}) };
     }
     return sortie;
 };
@@ -7237,7 +7259,23 @@ const getPdfHeaderLayout = (alignment) => {
 // relevé pendant l'audit — deux sources de vérité qui divergent, l'écran
 // affichant une chose et la base une autre. Un seul composant, deux endroits
 // où on l'appelle : le panneau de détail, et l'aperçu de l'éditeur.
-const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, modeDemo }) => {
+const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, modeDemo, configuration }) => {
+    // Étape 2 (2026-09-03) : le document lit le modèle. Jusqu'ici l'éditeur ne
+    // pouvait proposer que les réglages déjà câblés en dur ; les autres étaient
+    // annoncés comme « à venir » plutôt qu'affichés comme des interrupteurs
+    // sans effet.
+    //
+    // `fusionnerConfiguration` garantit qu'un devis enregistré AVANT l'arrivée
+    // d'un réglage hérite de son défaut au lieu d'afficher un blanc : c'est ce
+    // qui permet d'ajouter un contrôle sans retoucher les documents existants.
+    const cfg = fusionnerConfiguration(configuration);
+    const colonnes = cfg.tableau.colonnes;
+    const montrerQuantite = colonnes.quantite.affiche !== false;
+    const montrerPrixUnitaire = colonnes.prixUnitaire.affiche !== false;
+    // Le nombre de colonnes pilote les colSpan des lignes pleine largeur
+    // (en-tête de lot, sous-total) : le figer à 4 casserait la mise en page dès
+    // qu'une colonne est masquée.
+    const nbColonnes = 2 + (montrerQuantite ? 1 : 0) + (montrerPrixUnitaire ? 1 : 0);
     // L'échéancier suit la même règle que partout ailleurs : celui figé dans le
     // devis fait foi, celui de l'entreprise ne sert que de repli. Il est calculé
     // ICI et non passé en propriété, pour que le composant reste autonome — un
@@ -7292,14 +7330,20 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                             />
                         </div>
                     )}
-                    <p className="text-xs font-bold text-neutral-800">{devis.companyInfoSnapshot?.name || societe.name}</p>
-                    <p className="text-xs text-neutral-500 font-medium">{devis.companyInfoSnapshot?.tagline || societe.tagline}</p>
-                    <p className="text-xs text-neutral-500 font-medium">Adresse: {devis.companyInfoSnapshot?.address || societe.address}</p>
+                    {cfg.entete.afficherNomEntreprise && (<>
+                        <p className="text-xs font-bold text-neutral-800">{devis.companyInfoSnapshot?.name || societe.name}</p>
+                        <p className="text-xs text-neutral-500 font-medium">{devis.companyInfoSnapshot?.tagline || societe.tagline}</p>
+                    </>)}
+                    {cfg.entete.afficherAdresse && (
+                        <p className="text-xs text-neutral-500 font-medium">Adresse: {devis.companyInfoSnapshot?.address || societe.address}</p>
+                    )}
                     <p className="text-xs text-neutral-500 font-medium">Contact: {devis.companyInfoSnapshot?.email || societe.email} &bull; Tel: {devis.companyInfoSnapshot?.phone || societe.phone}</p>
-                    <p className="text-[11px] text-neutral-500">NIF: {devis.companyInfoSnapshot?.nif || societe.nif} &bull; RCCM: {devis.companyInfoSnapshot?.rccm || societe.rccm}</p>
+{cfg.entete.afficherMentionsLegales && (
+                        <p className="text-[11px] text-neutral-500">NIF: {devis.companyInfoSnapshot?.nif || societe.nif} &bull; RCCM: {devis.companyInfoSnapshot?.rccm || societe.rccm}</p>
+                    )}
                 </div>
                 <div className={disposition.document}>
-                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>DEVIS COMMERCIAL</h2>
+                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>{cfg.document.titreDevis}</h2>
                     <p className="text-sm font-bold text-neutral-800 mt-1">N° : {devis.number}</p>
                     <p className="text-xs text-neutral-500">Date : {devis.date}</p>
                 </div>
@@ -7311,8 +7355,10 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
                 </div>
                 <div>
-                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
-                    <p className="font-bold text-neutral-800">{devis.projectRef}</p>
+                    {cfg.document.afficherChantier && (<>
+                        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                        <p className="font-bold text-neutral-800">{devis.projectRef}</p>
+                    </>)}
                 </div>
             </div>
 
@@ -7349,10 +7395,10 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead>
                                     <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
-                                        <th className="p-3 rounded-l-lg">Désignation</th>
-                                        <th className="p-3 text-center">Quantité</th>
-                                        <th className="p-3 text-right">Prix Unitaire HT</th>
-                                        <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                                        <th className="p-3 rounded-l-lg" style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                        {montrerQuantite && <th className="p-3 text-center" style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
+                                        {montrerPrixUnitaire && <th className="p-3 text-right" style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
+                                        <th className="p-3 text-right rounded-r-lg" style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100">
@@ -7368,19 +7414,19 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                         return (
                                             <React.Fragment key={lot.id || li}>
                                                 <tr className="bg-neutral-100">
-                                                    <td colSpan={4} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                    <td colSpan={nbColonnes} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
                                                         {formatLotHeading(lot.lotName, li)}
                                                     </td>
                                                 </tr>
                                                 {!reparties ? (
                                                     <tr>
-                                                        <td className="p-3 font-bold text-neutral-900" colSpan={3}>{lot.lotName}</td>
+                                                        <td className="p-3 font-bold text-neutral-900" colSpan={nbColonnes - 1}>{lot.lotName}</td>
                                                         <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
                                                     </tr>
                                                 ) : [...groupes.entries()].map(([cat, lignes]) => (
                                                     <React.Fragment key={cat}>
                                                         <tr className="bg-neutral-50/70">
-                                                            <td colSpan={4} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
+                                                            <td colSpan={nbColonnes} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
                                                                 {COST_CATEGORY_LABELS[cat] || cat}
                                                             </td>
                                                         </tr>
@@ -7392,15 +7438,15 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
                                                                     )}
                                                                 </td>
-                                                                <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
-                                                                <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>
+                                                                {montrerQuantite && <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>}
+                                                                {montrerPrixUnitaire && <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>}
                                                                 <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
                                                             </tr>
                                                         ))}
                                                     </React.Fragment>
                                                 ))}
                                                 <tr className="bg-neutral-50/60">
-                                                    <td colSpan={3} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                    <td colSpan={nbColonnes - 1} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
                                                         Sous-total Lot {li + 1} HT
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-semibold text-neutral-800">
@@ -7432,10 +7478,10 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     <table className="w-full text-left text-xs border-collapse">
                         <thead>
                             <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
-                                <th className="p-3.5 rounded-l-lg">Désignation Ouvrage / Prestation Commerciale</th>
-                                <th className="p-3.5 text-center">Quantité</th>
-                                <th className="p-3.5 text-right">Prix Unitaire HT</th>
-                                <th className="p-3.5 text-right rounded-r-lg">Total HT</th>
+                                <th className="p-3.5 rounded-l-lg" style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                {montrerQuantite && <th className="p-3.5 text-center" style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
+                                {montrerPrixUnitaire && <th className="p-3.5 text-right" style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
+                                <th className="p-3.5 text-right rounded-r-lg" style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100">
@@ -7443,9 +7489,9 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                 const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
                                 return (
                                     <React.Fragment key={lot.lotCode}>
-                                        {showLotHeaders && (
+                                        {showLotHeaders && cfg.tableau.afficherEnteteLot && (
                                             <tr className="bg-neutral-50">
-                                                <td colSpan={4} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                <td colSpan={nbColonnes} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
                                                     {lot.lotName}
                                                 </td>
                                             </tr>
@@ -7458,14 +7504,14 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
                                                     )}
                                                 </td>
-                                                <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>
-                                                <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>
+                                                {montrerQuantite && <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>}
+                                                {montrerPrixUnitaire && <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>}
                                                 <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
                                             </tr>
                                         ))}
-                                        {showLotHeaders && (
+                                        {showLotHeaders && cfg.tableau.afficherSousTotalLot && (
                                             <tr className="bg-neutral-50/60">
-                                                <td colSpan={3} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                <td colSpan={nbColonnes - 1} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
                                                     Sous-total Lot {lot.lotCode} HT
                                                 </td>
                                                 <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
@@ -7515,7 +7561,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 </div>
             </div>
 
-            {echeancier.length > 0 && (
+            {cfg.totaux.afficherEcheancier && echeancier.length > 0 && (
             <div className="pt-4 border-t border-neutral-200">
                 <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <i className="fa-solid fa-calendar-check text-brand-600"></i>
@@ -7551,13 +7597,17 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
 
             <div className="pt-8 border-t border-neutral-100 grid grid-cols-2 gap-8 text-[11px] text-neutral-500">
                 <div>
-                    <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
-                    <p>{devis.companyInfoSnapshot?.quoteValidity || societe.quoteValidity}</p>
+                    {cfg.document.afficherValidite && (<>
+                        <p className="font-bold text-neutral-700 mb-1">Validité de l'offre :</p>
+                        <p>{devis.companyInfoSnapshot?.quoteValidity || societe.quoteValidity}</p>
+                    </>)}
                 </div>
-                <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
-                    <p className="font-bold text-neutral-700 mb-8">Bon pour accord et signature client :</p>
-                    <p className="text-[10px] text-neutral-500">Date et cachet</p>
-                </div>
+                {cfg.totaux.afficherSignature && (
+                    <div className="text-center border border-dashed border-neutral-300 p-4 rounded-xl">
+                        <p className="font-bold text-neutral-700 mb-8">{cfg.totaux.libelleSignature} :</p>
+                        <p className="text-[10px] text-neutral-500">Date et cachet</p>
+                    </div>
+                )}
             </div>
 
             {/* Pied de page PDF (2026-08-20, Paramètres du Compte → Documents & PDF) —
@@ -7998,6 +8048,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [editeurModele, setEditeurModele] = useState(null);
     const [sectionEditeur, setSectionEditeur] = useState('general');
     const [enregistrementModele, setEnregistrementModele] = useState(false);
+
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
 
@@ -8999,6 +9050,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 : 'left'
         };
     });
+    // ── Configuration de modèle applicable ───────────────────────────────
+    // Placé APRÈS la déclaration de companyInfo, et pas plus haut avec les
+    // autres états de l'éditeur : un React.useMemo qui lit companyInfo depuis
+    // un point antérieur à sa déclaration lève une ReferenceError de zone morte
+    // au premier rendu — écran blanc, sans indication de la cause.
+    // La configuration qui s'applique aux NOUVEAUX documents : le modèle par
+    // défaut de l'organisation, ou, tant qu'aucun n'est enregistré, celle
+    // dérivée des réglages actuels — ce qui garantit qu'introduire les modèles
+    // ne change aucun document tant que personne n'ouvre l'éditeur.
+    const configurationActive = React.useMemo(() => {
+        const m = modelesDocument.find(x => x.type_document === 'devis' && x.par_defaut)
+            || modelesDocument.find(x => x.type_document === 'devis');
+        return fusionnerConfiguration(m ? m.configuration : modeleDepuisReglages(companyInfo).configuration);
+    }, [modelesDocument, companyInfo]);
+
+    // Celle qui s'applique à UN devis donné. Un devis porte la configuration
+    // figée au moment de son enregistrement : rouvrir dans deux ans un devis
+    // signé doit montrer le document signé, pas celui qu'aurait produit le
+    // modèle d'aujourd'hui. C'est la même règle que pour l'identité de
+    // l'entreprise, déjà figée dans companyInfoSnapshot — on s'y range plutôt
+    // que d'inventer un second mécanisme de gel.
+    const configurationDuDevis = (devis) =>
+        fusionnerConfiguration(devis?.companyInfoSnapshot?.templateConfiguration || configurationActive);
+
     const [materials, setMaterials] = useState(() => {
         let loaded = loadLocalData('materials', initialMaterials);
         if (Array.isArray(loaded)) {
@@ -10055,6 +10130,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Une modification ne touche qu'une clé d'une section. On recompose l'objet
     // plutôt que de muter : React ne redessinerait pas l'aperçu autrement, et
     // l'aperçu continu est tout l'intérêt de cet écran.
+    const majColonne = (colonne, cle, valeur) => setEditeurModele(m => m && ({
+        ...m,
+        configuration: {
+            ...m.configuration,
+            tableau: {
+                ...m.configuration.tableau,
+                colonnes: {
+                    ...m.configuration.tableau.colonnes,
+                    [colonne]: { ...m.configuration.tableau.colonnes[colonne], [cle]: valeur }
+                }
+            }
+        }
+    }));
+
     const majModele = (section, cle, valeur) => setEditeurModele(m => m && ({
         ...m,
         configuration: { ...m.configuration, [section]: { ...m.configuration[section], [cle]: valeur } }
@@ -11992,7 +12081,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_org_id: activeOrganizationId,
                                     p_client_name: savedQ.clientName || 'Client Particulier',
                                     p_project_ref: savedQ.projectRef || 'Chantier BTP',
-                                    p_company_snapshot: companyInfo,
+                                    // Le modèle est FIGÉ dans le devis, au même
+                                    // endroit et par le même mécanisme que l'identité
+                                    // de l'entreprise. Sans ce gel, éditer un modèle
+                                    // réécrirait l'apparence de tous les devis passés,
+                                    // y compris ceux déjà acceptés par un client.
+                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -12028,7 +12122,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_org_id: activeOrganizationId,
                                     p_client_name: savedQ.clientName || 'Client Particulier',
                                     p_project_ref: savedQ.projectRef || 'Chantier BTP',
-                                    p_company_snapshot: companyInfo,
+                                    // Le modèle est FIGÉ dans le devis, au même
+                                    // endroit et par le même mécanisme que l'identité
+                                    // de l'entreprise. Sans ce gel, éditer un modèle
+                                    // réécrirait l'apparence de tous les devis passés,
+                                    // y compris ceux déjà acceptés par un client.
+                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -12071,7 +12170,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     p_org_id: activeOrganizationId,
                                     p_client_name: savedQ.clientName || 'Client Particulier',
                                     p_project_ref: savedQ.projectRef || 'Chantier BTP',
-                                    p_company_snapshot: companyInfo,
+                                    // Le modèle est FIGÉ dans le devis, au même
+                                    // endroit et par le même mécanisme que l'identité
+                                    // de l'entreprise. Sans ce gel, éditer un modèle
+                                    // réécrirait l'apparence de tous les devis passés,
+                                    // y compris ceux déjà acceptés par un client.
+                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -14632,6 +14736,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     disposition={quoteHeaderLayout}
                                     gabarit={clientTemplate}
                                     modeDemo={estModeDemo}
+                                    configuration={configurationDuDevis(viewingSavedQuote)}
                                 />
                             ) : (
                                 <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">
@@ -18593,6 +18698,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 const devisApercu = savedQuotes[0] || null;
                 const societeApercu = { ...companyInfo, logo: c.entete.afficherLogo ? companyInfo.logo : '' };
 
+                // ⚠️ Ces deux fabriques sont APPELÉES ({Bascule({...})}) et non
+                // écrites comme des balises (<Bascule .../>).
+                //
+                // Déclarées dans le rendu, elles produisent un TYPE de composant
+                // différent à chaque passage : React démonte puis remonte
+                // l'élément, et le champ perd le focus. Constaté avant
+                // correction — taper « ABC » dans le titre du document ne
+                // laissait que « A ». Appelées comme des fonctions, elles
+                // rendent leur JSX directement et rien n'est remonté.
                 const Bascule = ({ section, cle, libelle, aide }) => (
                     <label className="flex items-start gap-2.5 py-2 cursor-pointer">
                         <input
@@ -18734,30 +18848,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 ))}
                                             </div>
                                         </div>
-                                        <Bascule section="entete" cle="afficherLogo" libelle="Afficher le logo"
-                                            aide={companyInfo.logo ? null : "Aucun logo n’est chargé dans les paramètres de l’entreprise."} />
-                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
-                                            Nom, adresse, NIF et RCCM s’impriment systématiquement pour l’instant.
-                                            Les rendre masquables demande que le document lise le modèle — étape
-                                            suivante.
-                                        </p>
+                                        {Bascule({ section: 'entete', cle: 'afficherLogo', libelle: 'Afficher le logo', aide: companyInfo.logo ? null : "Aucun logo n’est chargé dans les paramètres de l’entreprise." })}
+                                        {Bascule({ section: 'entete', cle: 'afficherNomEntreprise', libelle: 'Afficher le nom et la baseline' })}
+                                        {Bascule({ section: 'entete', cle: 'afficherAdresse', libelle: 'Afficher l’adresse' })}
+                                        {Bascule({ section: 'entete', cle: 'afficherMentionsLegales', libelle: 'Afficher NIF et RCCM', aide: 'Mentions obligatoires sur une facture en zone OHADA.' })}
                                     </div>
                                 )}
 
                                 {sectionEditeur === 'document' && (
                                     <div className="space-y-1">
                                         <h3 className="text-sm font-bold text-neutral-900 mb-3">Document</h3>
-                                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5">
-                                            <p className="text-[12px] text-neutral-700 leading-relaxed">
-                                                Le titre du document, la durée de validité et la désignation du chantier
-                                                sont aujourd’hui <strong>fixes</strong> dans le rendu.
-                                            </p>
-                                            <p className="text-[11px] text-neutral-500 leading-relaxed mt-2">
-                                                Les rendre réglables demande de faire lire le modèle par le document
-                                                lui-même — c’est l’objet de l’étape suivante. Afficher ici des
-                                                interrupteurs sans effet serait pire que de ne rien afficher.
-                                            </p>
-                                        </div>
+                                        {Texte({ section: 'document', cle: 'titreDevis', libelle: 'Titre du document', placeholder: 'DEVIS COMMERCIAL' })}
+                                        {Bascule({ section: 'document', cle: 'afficherValidite', libelle: 'Afficher la durée de validité' })}
+                                        {Bascule({ section: 'document', cle: 'afficherChantier', libelle: 'Afficher la désignation du chantier' })}
                                     </div>
                                 )}
 
@@ -18778,26 +18881,71 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 ))}
                                             </div>
                                         </div>
-                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
-                                            Le choix des colonnes, leurs largeurs et l’en-tête de lot arrivent à
-                                            l’étape suivante, quand le document lira le modèle.
-                                        </p>
+                                        {Bascule({ section: 'tableau', cle: 'afficherEnteteLot', libelle: 'Afficher l’en-tête de chaque lot' })}
+                                        {Bascule({ section: 'tableau', cle: 'afficherSousTotalLot', libelle: 'Afficher le sous-total par lot' })}
+
+                                        <div className="pt-3 mt-3 border-t border-neutral-100">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-2">Colonnes</span>
+                                            <div className="space-y-2.5">
+                                                {[
+                                                    { cle: 'designation',  masquable: false },
+                                                    { cle: 'quantite',     masquable: true },
+                                                    { cle: 'prixUnitaire', masquable: true },
+                                                    { cle: 'totalHT',      masquable: false }
+                                                ].map(col => {
+                                                    const def = c.tableau.colonnes[col.cle];
+                                                    return (
+                                                        <div key={col.cle} className="rounded-lg border border-neutral-200 p-2.5">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                {col.masquable ? (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={def.affiche !== false}
+                                                                        onChange={(e) => majColonne(col.cle, 'affiche', e.target.checked)}
+                                                                        aria-label={`Afficher la colonne ${def.libelle}`}
+                                                                        className="w-4 h-4 accent-brand-600 shrink-0"
+                                                                    />
+                                                                ) : (
+                                                                    <i className="fa-solid fa-lock text-[10px] text-neutral-400 w-4 text-center shrink-0"
+                                                                       title="Colonne toujours affichée"></i>
+                                                                )}
+                                                                <input
+                                                                    type="text"
+                                                                    value={def.libelle}
+                                                                    onChange={(e) => majColonne(col.cle, 'libelle', e.target.value)}
+                                                                    aria-label={`Libellé de la colonne ${col.cle}`}
+                                                                    className="app-input py-1.5 text-[12px] min-w-0"
+                                                                />
+                                                            </div>
+                                                            <label className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 shrink-0">Largeur</span>
+                                                                <input
+                                                                    type="number" min="5" max="80"
+                                                                    value={def.largeur}
+                                                                    onChange={(e) => majColonne(col.cle, 'largeur', Math.max(5, Math.min(80, Number(e.target.value) || 5)))}
+                                                                    aria-label={`Largeur de la colonne ${col.cle} en pourcentage`}
+                                                                    className="app-input py-1 text-[12px] w-20"
+                                                                />
+                                                                <span className="text-[11px] text-neutral-500">%</span>
+                                                            </label>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-[11px] text-neutral-500 leading-relaxed mt-2.5">
+                                                Désignation et total ne se masquent pas : une ligne sans intitulé ni
+                                                montant ne veut rien dire.
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
 
                                 {sectionEditeur === 'totaux' && (
                                     <div className="space-y-1">
                                         <h3 className="text-sm font-bold text-neutral-900 mb-3">Totaux et accord</h3>
-                                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3.5">
-                                            <p className="text-[12px] text-neutral-700 leading-relaxed">
-                                                L’échéancier de paiement et le cadre « Bon pour accord » s’impriment
-                                                aujourd’hui <strong>systématiquement</strong>.
-                                            </p>
-                                            <p className="text-[11px] text-neutral-500 leading-relaxed mt-2">
-                                                L’échéancier se règle pour l’instant dans l’onglet Entreprise, où se
-                                                définissent ses tranches.
-                                            </p>
-                                        </div>
+                                        {Bascule({ section: 'totaux', cle: 'afficherEcheancier', libelle: 'Afficher l’échéancier de paiement', aide: 'Les tranches se définissent dans l’onglet Entreprise.' })}
+                                        {Bascule({ section: 'totaux', cle: 'afficherSignature', libelle: 'Afficher le cadre de signature' })}
+                                        {Texte({ section: 'totaux', cle: 'libelleSignature', libelle: 'Libellé de la signature', placeholder: 'Bon pour accord et signature client' })}
                                     </div>
                                 )}
 
@@ -18837,6 +18985,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 disposition={dispositionApercu}
                                                 gabarit={c.tableau.niveauDetail}
                                                 modeDemo={estModeDemo}
+                                                configuration={c}
                                             />
                                         </div>
                                     ) : (

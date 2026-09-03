@@ -113,6 +113,79 @@ export async function run() {
 
         const reel = await couleurTitreDocument(page, false);
         ok(`Le document réel a pris la couleur enregistrée — ${reel}`, reel === 'rgb(15, 118, 110)');
+
+        // ── Étape 2 : le document LIT le modèle ───────────────────────────
+        await cliquer(page, 'Paramètres du Compte');
+        await wait(1700);
+        await cliquer(page, 'Documents');
+        await wait(1700);
+        await cliquer(page, 'Éditeur de modèles');
+        await wait(2200);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Tableau/.test(x.innerText));
+            if (b) b.click();
+        }, SEL);
+        await wait(1500);
+
+        const lireTableau = () => page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const t = d.querySelector('[data-zone-impression] table');
+            if (!t) return { absent: true };
+            return {
+                entetes: [...t.querySelectorAll('thead th')].map((h) => h.textContent.trim()),
+                colSpans: [...new Set([...t.querySelectorAll('tbody td[colspan]')].map((c) => +c.getAttribute('colspan')))].sort()
+            };
+        }, SEL);
+
+        const avantColonne = await lireTableau();
+        ok(`Le tableau part de quatre colonnes — ${JSON.stringify(avantColonne.entetes)}`,
+            (avantColonne.entetes || []).length === 4);
+
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const cb = [...d.querySelectorAll('input[type="checkbox"]')]
+                .find((x) => /Prix Unitaire/i.test(x.getAttribute('aria-label') || ''));
+            if (cb) cb.click();
+        }, SEL);
+        await wait(1200);
+        const apresColonne = await lireTableau();
+        ok(`Masquer une colonne la retire du document — ${(apresColonne.entetes || []).length} colonnes`,
+            (apresColonne.entetes || []).length === 3);
+        // Le point qui casse en silence : les lignes pleine largeur (en-tête de
+        // lot, sous-total) portent un colSpan. Figé à 4, il déborde du tableau
+        // dès qu'une colonne disparaît.
+        ok(`Les colSpan suivent — ${JSON.stringify(avantColonne.colSpans)} → ${JSON.stringify(apresColonne.colSpans)}`,
+            JSON.stringify(apresColonne.colSpans) === JSON.stringify([2, 3]));
+
+        // ── Le focus ne doit pas sauter à chaque frappe ───────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Document/.test(x.innerText));
+            if (b) b.click();
+        }, SEL);
+        await wait(1400);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const i = [...d.querySelectorAll('input[type="text"]')].find((x) => /DEVIS COMMERCIAL/.test(x.placeholder || ''));
+            if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+        }, SEL);
+        await page.keyboard.type(' MODIFIÉ', { delay: 80 });
+        await wait(700);
+        const saisie = await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const i = [...d.querySelectorAll('input[type="text"]')].find((x) => /DEVIS COMMERCIAL/.test(x.placeholder || ''));
+            return { champ: i.value, focusConserve: document.activeElement === i,
+                     apercu: (d.querySelector('[data-zone-impression] h2') || {}).textContent };
+        }, SEL);
+        // Avant correction, taper « ABC » ne laissait que « A » : les fabriques
+        // Bascule/Texte étaient déclarées dans le rendu, donc React créait un
+        // TYPE de composant neuf à chaque frappe et remontait le champ.
+        ok(`La saisie n’est pas coupée au premier caractère — « ${saisie.champ} »`,
+            saisie.champ === 'DEVIS COMMERCIAL MODIFIÉ');
+        ok('Le champ garde le focus pendant la frappe', saisie.focusConserve);
+        ok(`Le titre saisi apparaît dans le document — « ${saisie.apercu} »`,
+            saisie.apercu === 'DEVIS COMMERCIAL MODIFIÉ');
     } finally {
         await close();
     }
