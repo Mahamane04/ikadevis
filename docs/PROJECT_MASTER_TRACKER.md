@@ -3147,3 +3147,52 @@ rendu, sans quoi ils finiraient par diverger.
 > le mauvais document.
 
 **450/450 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 📐 46. Retours sur capture : le cadre et l'espacement (2026-09-04)
+
+Deux notes annotées sur des captures de l'éditeur, plus une croix rouge.
+
+### 46.1 « Masquer le rectangle qui entoure les contenus devis / facture »
+
+Le document porte `rounded-2xl border border-neutral-200 shadow-sm`. C'est une
+commodité d'**écran** — elle détache la feuille du fond gris. Mais html2canvas
+rend le DOM tel quel : ce liseré **s'imprimait sur le PDF**, un rectangle gris
+arrondi autour de tout le devis. Le `print:border-0` déjà présent dans les
+classes dit bien l'intention d'origine ; il ne s'applique qu'à l'impression
+navigateur, jamais à la capture.
+
+`general.cadreDocument`, coché par défaut (le document ne change pas). Décoché,
+le rectangle disparaît de l'écran **et** du PDF, puisque c'est le même DOM.
+
+### 46.2 « Voir comment gérer l'espacement des lots / ouvrage et contenu »
+
+`densite` n'offrait que deux crans et n'agissait que sur le rembourrage
+**dans** chaque cellule. Deux réglages distincts, parce que ce sont deux
+besoins distincts :
+
+| Réglage | Ce qu'il fait |
+|---|---|
+| `tableau.densite` — **aérée / normale / compacte** | L'espace DANS chaque ligne d'ouvrage (20 / 14 / 8 px mesurés) |
+| `tableau.espaceLots` — 0 à 40 px | Le blanc AVANT chaque nouveau lot |
+
+L'espace entre lots **ne se pose jamais sur le premier** : il sépare les lots
+entre eux, il ne décolle pas le tableau de son en-tête. C'est ce blanc-là qui
+distingue un bordereau de huit lots d'une longue liste continue.
+
+Les en-têtes de lot portent désormais `data-entete-lot={index}` : les repérer
+au texte est fragile, le libellé différant entre la synthèse (« Terrassement »)
+et le détaillé (« LOT 01 — Terrassement »), et c'est précisément la ligne dont
+l'espacement se règle.
+
+### 46.3 La croix sur le bandeau « BROUILLON »
+
+Rien à coder : le réglage existe déjà — **Document → « Afficher le statut du
+devis »**. Il reste **coché par défaut** délibérément. Un devis en brouillon qui
+circule pour un devis ferme est un risque commercial ; l'erreur qu'il évite
+coûte plus cher que la gêne visuelle. Le décocher est l'affaire d'un clic, et
+c'est un choix qui appartient à l'utilisateur, pas un défaut à changer pour
+tout le monde.
+
+**455/455 au vert, 0 régression, 49 suites, 7 étalons conformes.**

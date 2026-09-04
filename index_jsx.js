@@ -7140,7 +7140,14 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // gris sale en photocopie noir et blanc — le sort réservé à la plupart
         // des devis d'appel d'offres. Décoché, le bandeau devient un filet :
         // même hiérarchie visuelle, lisible une fois photocopié.
-        aplatsColores: true
+        aplatsColores: true,
+        // Le liseré arrondi qui entoure le document. C'est une commodité
+        // d'ÉCRAN — il détache la feuille du fond gris — mais html2canvas le
+        // rend tel quel : il finit imprimé sur le PDF, un rectangle gris
+        // arrondi autour de tout le devis. Le `print:border-0` déjà présent
+        // dans les classes dit bien l'intention d'origine ; il ne s'applique
+        // qu'à l'impression navigateur, jamais à la capture.
+        cadreDocument: true
     },
     entete: {
         alignement: 'left',
@@ -7174,7 +7181,12 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // Densité : un bordereau BTP tient couramment 60 ouvrages sur 8 lots.
         // À l'interligne de référence il sort sur cinq pages ; resserré, sur
         // deux, sans qu'aucune ligne ne disparaisse.
-        densite: 'normale',        // 'normale' | 'compacte'
+        densite: 'normale',        // 'aeree' | 'normale' | 'compacte'
+        // Espace vertical AVANT chaque nouveau lot, en pixels. Sur un bordereau
+        // de huit lots, c'est ce blanc-là qui fait la différence entre une
+        // liste continue et un document où l'œil trouve ses sections. Nul par
+        // défaut : le document d'aujourd'hui n'en a pas.
+        espaceLots: 0,
         afficherEnteteLot: true,
         afficherSousTotalLot: true,
         // Désignation et total ne sont volontairement PAS masquables : une
@@ -7463,12 +7475,18 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // les mêmes lignes sortent, resserrées ou non, en couleur ou en filet. Ce
     // sont les deux réglages qui décident si un devis de 60 ouvrages tient sur
     // deux pages, et s'il reste lisible une fois photocopié.
-    const compact = cfg.tableau.densite === 'compacte';
-    const padCel      = compact ? 'p-2'         : 'p-3.5';
-    const padCelDet   = compact ? 'p-2'         : 'p-3';
-    const padBande    = compact ? 'px-2 py-1'   : 'px-3.5 py-2';
-    const padBandeDet = compact ? 'px-2 py-1'   : 'px-3 py-2';
-    const padSousCat  = compact ? 'px-2 py-0.5' : 'px-3 py-1.5';
+    const densite = ['aeree', 'normale', 'compacte'].includes(cfg.tableau.densite) ? cfg.tableau.densite : 'normale';
+    const parDensite = (aeree, normale, compacte) =>
+        densite === 'aeree' ? aeree : densite === 'compacte' ? compacte : normale;
+    const padCel      = parDensite('p-5',       'p-3.5',        'p-2');
+    const padCelDet   = parDensite('p-4',       'p-3',          'p-2');
+    const padBande    = parDensite('px-5 py-3', 'px-3.5 py-2',  'px-2 py-1');
+    const padBandeDet = parDensite('px-4 py-3', 'px-3 py-2',    'px-2 py-1');
+    const padSousCat  = parDensite('px-4 py-2', 'px-3 py-1.5',  'px-2 py-0.5');
+    // L'espace ne se pose PAS sur le premier lot : il sépare les lots entre
+    // eux, il ne décolle pas le tableau de son en-tête.
+    const espaceLots = Math.max(0, Math.min(40, Number(cfg.tableau.espaceLots) || 0));
+    const respirationLot = (index) => (index > 0 && espaceLots > 0 ? { paddingTop: `${espaceLots}px` } : undefined);
     // Borné : une valeur aberrante venue d'une configuration enregistrée à la
     // main ne doit pas produire un logo qui écrase l'en-tête.
     const tailleLogo = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
@@ -7498,7 +7516,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         : (societe.echeancier || []);
     return (
         <div
-            className={`saved-quote-document document-echelle w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
+            className={`saved-quote-document document-echelle w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -7648,7 +7666,8 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                         return (
                                             <React.Fragment key={lot.id || li}>
                                                 <tr className="bg-neutral-100">
-                                                    <td colSpan={nbColonnes} className={`${padBandeDet} font-semibold text-[11px] uppercase tracking-wide text-neutral-700`}>
+                                                    <td colSpan={nbColonnes} style={respirationLot(li)} data-entete-lot={li}
+                                                        className={`${padBandeDet} font-semibold text-[11px] uppercase tracking-wide text-neutral-700`}>
                                                         {formatLotHeading(lot.lotName, li)}
                                                     </td>
                                                 </tr>
@@ -7752,13 +7771,14 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100">
-                            {lots.map(lot => {
+                            {lots.map((lot, li) => {
                                 const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
                                 return (
                                     <React.Fragment key={lot.lotCode}>
                                         {showLotHeaders && cfg.tableau.afficherEnteteLot && (
                                             <tr className="bg-neutral-50">
-                                                <td colSpan={nbColonnes} className={`${padBande} font-semibold text-[11px] uppercase tracking-wide text-neutral-600`}>
+                                                <td colSpan={nbColonnes} style={respirationLot(li)} data-entete-lot={li}
+                                                    className={`${padBande} font-semibold text-[11px] uppercase tracking-wide text-neutral-600`}>
                                                     {lot.lotName}
                                                 </td>
                                             </tr>
@@ -19704,6 +19724,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </span>
                                         </label>
 
+                                        {Bascule({ section: 'general', cle: 'cadreDocument', libelle: 'Encadrer le document',
+                                            aide: 'Le liseré gris arrondi autour du contenu. Utile à l’écran pour détacher la feuille du fond ; décoché, il disparaît aussi du PDF, où il s’imprimait comme un rectangle autour de tout le devis.' })}
                                         {Bascule({ section: 'general', cle: 'aplatsColores', libelle: 'Aplats de couleur',
                                             aide: 'Décoché, le bandeau du tableau devient un filet. Un dossier d’appel d’offres est presque toujours photocopié en noir et blanc, où un aplat sort gris sale.' })}
 
@@ -19803,22 +19825,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </div>
                                         </div>
                                         <div className="py-2">
-                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Densité</span>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {[{ id: 'normale',  l: 'Normale',  d: '10 à 20 ouvrages' },
-                                                  { id: 'compacte', l: 'Compacte', d: '40 à 80 ouvrages' }].map(o => (
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Interligne des ouvrages</span>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[{ id: 'aeree',    l: 'Aérée',    d: '5 à 15' },
+                                                  { id: 'normale',  l: 'Normale',  d: '10 à 20' },
+                                                  { id: 'compacte', l: 'Compacte', d: '40 à 80' }].map(o => (
                                                     <button key={o.id} type="button"
                                                         onClick={() => majModele('tableau', 'densite', o.id)}
-                                                        className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${(c.tableau.densite || 'normale') === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                                        className={`rounded-lg border px-2 py-2 text-left transition-colors ${(c.tableau.densite || 'normale') === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
                                                         <span className="block text-[12px] font-bold text-neutral-800">{o.l}</span>
-                                                        <span className="block text-[10px] text-neutral-500 leading-tight mt-0.5">{o.d}</span>
+                                                        <span className="block text-[10px] text-neutral-500 leading-tight mt-0.5">{o.d} ouvrages</span>
                                                     </button>
                                                 ))}
                                             </div>
                                             <p className="text-[10px] text-neutral-500 leading-snug mt-1.5">
-                                                La densité resserre les interlignes ; aucune ligne n’est retirée du bordereau.
+                                                Agit sur l’espace DANS chaque ligne ; aucune ligne n’est retirée du bordereau.
                                             </p>
                                         </div>
+
+                                        <label className="block py-2">
+                                            <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                                <span>Espace entre les lots</span>
+                                                <span className="font-mono text-neutral-700">{c.tableau.espaceLots || 0} px</span>
+                                            </span>
+                                            <input
+                                                type="range" min="0" max="40" step="2"
+                                                value={c.tableau.espaceLots || 0}
+                                                onChange={(e) => majModele('tableau', 'espaceLots', Number(e.target.value))}
+                                                aria-label="Espace entre les lots en pixels"
+                                                className="w-full accent-brand-600"
+                                            />
+                                            <span className="block text-[10px] text-neutral-500 leading-snug mt-1">
+                                                Un blanc avant chaque nouveau lot — jamais avant le premier. C’est ce qui
+                                                sépare un bordereau de huit lots d’une longue liste continue.
+                                            </span>
+                                        </label>
                                         {Bascule({ section: 'tableau', cle: 'afficherEnteteLot', libelle: 'Afficher l’en-tête de chaque lot' })}
                                         {Bascule({ section: 'tableau', cle: 'afficherSousTotalLot', libelle: 'Afficher le sous-total par lot' })}
 

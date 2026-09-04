@@ -49,6 +49,23 @@ const typographie = (page, racine) => page.evaluate((sel) => {
         mentions: px([...z.querySelectorAll('p')].find((p) => /NIF:/.test(p.textContent || ''))),
         couleurForte: couleur([...z.querySelectorAll('.text-neutral-900')][0]),
         couleurFaible: couleur([...z.querySelectorAll('.text-neutral-500')][0]),
+        cadre: getComputedStyle(z).borderTopWidth,
+        rayon: getComputedStyle(z).borderTopLeftRadius,
+        // Le blanc AVANT chaque lot : mesuré sur la deuxième bande, la première
+        // ne devant jamais en porter. Les bandes sont repérées par
+        // `data-entete-lot` — le libellé diffère entre synthèse et détaillé.
+        espaceLot1: (() => {
+            const b = z.querySelector('[data-entete-lot="0"]');
+            return b ? getComputedStyle(b).paddingTop : null;
+        })(),
+        espaceLot2: (() => {
+            const b = z.querySelector('[data-entete-lot="1"]');
+            return b ? getComputedStyle(b).paddingTop : null;
+        })(),
+        celluleHaut: (() => {
+            const td = [...z.querySelectorAll('table tbody td')].find((t) => !t.hasAttribute('colspan'));
+            return td ? getComputedStyle(td).paddingTop : null;
+        })(),
         margesAttribut: z.getAttribute('data-marges-mm'),
         numerotation: z.getAttribute('data-numeroter-pages'),
         cadreHaut: z.parentElement ? getComputedStyle(z.parentElement).paddingTop : null
@@ -192,6 +209,82 @@ export async function run() {
         await wait(900);
         ok('Cocher « Numéroter les pages » se transmet au PDF',
             (await typographie(page, ED)).numerotation === '1');
+
+        // ── Le cadre autour du document ───────────────────────────────────
+        // Signalé sur capture : « masquer le rectangle qui entoure le contenu
+        // devis / facture ». Ce liseré est une commodité d'écran, mais
+        // html2canvas le rend tel quel — il s'imprimait sur le PDF.
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Général/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1200);
+        const avecCadre = await typographie(page, ED);
+        ok(`Le document est encadré par défaut — bordure ${avecCadre.cadre}, rayon ${avecCadre.rayon}`,
+            parseFloat(avecCadre.cadre) > 0 && parseFloat(avecCadre.rayon) > 0);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const l = [...d.querySelectorAll('label')].find((x) => /Encadrer le document/.test(x.textContent || ''));
+            const cb = l && l.querySelector('input[type="checkbox"]');
+            if (cb) cb.click();
+        }, ED);
+        await wait(900);
+        const sansCadre = await typographie(page, ED);
+        ok(`Décoché, le rectangle disparaît — bordure ${sansCadre.cadre}, rayon ${sansCadre.rayon}`,
+            parseFloat(sansCadre.cadre) === 0 && parseFloat(sansCadre.rayon) === 0);
+
+        // ── L'espacement des lots et des ouvrages ─────────────────────────
+        // Signalé sur capture : « voir comment gérer l'espacement des lots /
+        // ouvrage et contenu ».
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Tableau/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1200);
+
+        const interligne = async (id) => {
+            await page.evaluate(({ sel, id }) => {
+                const d = document.querySelector(sel);
+                // Le libellé est dans le premier <span> du bouton ; `textContent`
+                // colle le titre et sa description sans séparateur.
+                const b = [...d.querySelectorAll('button')]
+                    .find((x) => {
+                        const t = x.querySelector('span');
+                        return t && t.textContent.trim() === id;
+                    });
+                if (b) b.click();
+            }, { sel: ED, id });
+            await wait(900);
+            return typographie(page, ED);
+        };
+        const aeree = await interligne('Aérée');
+        const normale = await interligne('Normale');
+        const compacte = await interligne('Compacte');
+        ok(`Trois interlignes, réellement distincts — aérée ${aeree.celluleHaut}, normale ${normale.celluleHaut}, compacte ${compacte.celluleHaut}`,
+            parseFloat(aeree.celluleHaut) > parseFloat(normale.celluleHaut)
+            && parseFloat(normale.celluleHaut) > parseFloat(compacte.celluleHaut));
+
+        await interligne('Normale');
+        const avantEspace = await typographie(page, ED);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const r = [...d.querySelectorAll('input[type="range"]')]
+                .find((x) => /Espace entre les lots/i.test(x.getAttribute('aria-label') || ''));
+            if (!r) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(r, '32');
+            r.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const apresEspace = await typographie(page, ED);
+        ok(`L’espace entre les lots s’ouvre — ${avantEspace.espaceLot2} → ${apresEspace.espaceLot2}`,
+            avantEspace.espaceLot2 !== null
+            && parseFloat(apresEspace.espaceLot2) > parseFloat(avantEspace.espaceLot2) + 20);
+        // Le premier lot ne doit PAS être décollé de l'en-tête du tableau :
+        // l'espace sépare les lots entre eux, il n'ouvre pas le tableau.
+        ok(`Le premier lot reste collé à l’en-tête — ${apresEspace.espaceLot1}`,
+            apresEspace.espaceLot1 === avantEspace.espaceLot1);
 
         // ── L'aperçu PDF ──────────────────────────────────────────────────
         ok('L’éditeur propose un aperçu PDF sans obliger à enregistrer',
