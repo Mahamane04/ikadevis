@@ -2869,3 +2869,127 @@ vérifie que le bac est la voie empruntée, monté à la largeur A4, rendu, hors
 champ et retiré après coup. Rien de plus.
 
 **274/274 au vert, 0 régression, 36 suites, 7 étalons conformes.**
+
+---
+
+## 🗂️ 43. Modèles de document — du réglage unique au catalogue (2026-09-03 → 04)
+
+### 43.1 D'où ça vient
+
+Le document client était piloté par cinq réglages épars dans « Paramètres du
+compte → Documents & PDF » : couleur, police, alignement d'en-tête, note de pied,
+niveau de détail. Une seule combinaison à la fois, pour toute l'organisation.
+Or un devis de particulier et un dossier d'appel d'offres n'appellent pas la
+même mise en page, et changer les réglages entre deux devis n'est pas une
+méthode.
+
+Quatre étapes, dans cet ordre — chacune livrée et éprouvée avant la suivante :
+
+| Étape | Ce qu'elle apporte | Commit |
+|---|---|---|
+| 0 | `DocumentDevisClient` extrait du panneau de détail : **un seul rendu**, partagé | `6532292` |
+| 1 | La coquille de l'éditeur et l'aperçu **continu** | `f7aa0d0` |
+| 2 | Le document **lit** la configuration du modèle | `a1ddf69` |
+| 3 | Plusieurs modèles, galerie, modèle par défaut | `d024a5e` |
+| 4 | **Catalogue de modèles préétablis** | ce jour |
+
+La table `document_templates` (migration `v6_document_templates.sql`) ne garde
+en colonnes que ce qu'on interroge — `type_document`, `nom`, `par_defaut` — et
+range tout le reste dans un `jsonb`. Ajouter un réglage ne demande donc aucune
+migration ; `fusionnerConfiguration` donne sa valeur par défaut à un modèle
+enregistré avant son arrivée.
+
+### 43.2 Étape 4 — ce que Zoho Books range, et ce qu'il ne fallait pas recopier
+
+La galerie « Choisir un modèle » de Zoho Books tient 22 modèles en cinq
+familles. Elle a servi de référence, mais **la recopier aurait été une erreur** :
+
+- ses **7 « Standard » se distinguent par le PAYS** — style japonais, japonais
+  sans cases sceau, européen, TPS Inde, Sri Lanka IRD. La zone OHADA est un
+  seul contexte réglementaire : sept documents identiques ;
+- sa famille **« Vente au détail »** vise des imprimantes thermiques, papier
+  3 à 4 pouces. Un devis de chantier ne sort pas sur un rouleau.
+
+Restent les deux axes qui portent quelque chose ici — la **densité** (leur
+famille « Feuille de calcul ») et le **caractère** (leur famille « Premium ») —
+auxquels s'ajoute celui qui n'existe que dans un devis d'entreprise : **ce que
+le destinataire a le droit de voir**.
+
+Sept modèles, trois familles :
+
+| Famille | Modèle | Ce qui le définit |
+|---|---|---|
+| Densité | Standard | La référence : quatre colonnes, interlignes larges |
+| Densité | Compact | `densite: 'compacte'` — interlignes resserrés, **aucune ligne retirée** |
+| Densité | Récapitulatif | `niveauDetail: 'recapitulatif'` — un montant par lot |
+| Caractère | Sobre | `aplatsColores: false` + gris ardoise — lisible en photocopie |
+| Caractère | Marque | En-tête centré, logo à 130 % |
+| Ce que le client voit | Sans prix unitaires | Colonne `prixUnitaire` masquée, largeurs redistribuées |
+| Ce que le client voit | Détaillé fournitures & main-d'œuvre | `niveauDetail: 'detaille'`, compacté |
+
+**Un préétabli est un DELTA, pas une configuration complète.** Il se pose sur
+l'identité de l'organisation (`appliquerPreetabli`) : choisir « Compact » ne
+doit pas effacer au passage le logo, la police et la couleur déjà réglés.
+« Sobre » est le seul à imposer sa couleur, et c'est précisément ce qu'il vend.
+
+### 43.3 Trois réglages nouveaux, un quatrième enfin branché
+
+- `tableau.densite` — un bordereau BTP tient couramment 60 ouvrages sur 8 lots.
+  À l'interligne de référence il sort sur cinq pages ; resserré, sur deux.
+- `general.aplatsColores` — un dossier d'appel d'offres est presque toujours
+  reproduit en noir et blanc, où un aplat de couleur sort gris sale. Décoché,
+  le bandeau du tableau devient un filet : même hiérarchie, lisible photocopié.
+- `tableau.niveauDetail: 'recapitulatif'` — un montant par lot. Quantité et
+  prix unitaire n'y sortent **pas**, même si le modèle les coche : un lot n'a
+  ni l'une ni l'autre, et en afficher une reviendrait à inventer un chiffre.
+
+Et `entete.tailleLogo`, qui figurait dans la configuration par défaut **depuis
+l'étape 1 sans être ni exposé ni lu** — le document rendait le logo à une taille
+fixe. C'est précisément l'interrupteur sans effet que cet écran s'interdit. Il
+vaut désormais un pourcentage de la taille de référence (40 px de haut, 160 px
+de large), borné à 50–200 %, avec son curseur dans la section En-tête. À 100,
+le rendu est exactement celui d'avant.
+
+### 43.4 Les vignettes montrent le vrai devis
+
+Chaque carte rend `DocumentDevisClient` — le **même** composant que le document
+envoyé au client et que l'aperçu de l'éditeur — réduit par une transformation
+d'échelle **mesurée** (`ResizeObserver`), les cartes n'ayant pas la même largeur
+selon la taille d'écran. Une image générique dirait à quoi ressemble « Compact »
+en général ; celle-ci dit ce que donnera le bordereau de l'utilisateur, avec ses
+intitulés d'ouvrage et ses montants. Les vignettes portent `aria-hidden` : sept
+devis complets dans l'arbre d'accessibilité noieraient le nom du modèle.
+
+### 43.5 Deux pertes silencieuses corrigées en chemin
+
+**Le modèle hors ligne ne survivait pas au rechargement.** Le chemin sans
+réseau ÉCRIVAIT `documentTemplates` dans `localStorage` — mais rien ne le
+relisait jamais. Un modèle réglé sur un chantier disparaissait au premier
+rafraîchissement, sans message et sans trace dans la galerie. La liste s'amorce
+désormais depuis le cache, et la suppression comme le changement de défaut y
+écrivent aussi.
+
+**Le second modèle volait le défaut au premier.** `modeleDepuisReglages`
+renvoie `par_defaut: true` — juste pour le premier modèle, faux pour tous les
+suivants. En base, le second heurtait l'index unique partiel et l'enregistrement
+échouait sur un message incompréhensible ; hors ligne, il prenait silencieusement
+le défaut, donc **changeait tous les documents émis** sans que personne ne l'ait
+demandé. `seraLePremierModele()` tranche à la création ; le défaut ne bouge plus
+que par le bouton prévu pour ça.
+
+### 43.6 Bancs d'essai
+
+`test_modeles_preetablis` (27 vérifications) mesure chaque modèle **sur la
+propriété qui le définit** dans le DOM du document réduit — remplissage des
+cellules, nombre de colonnes, fond de l'en-tête, bandes de nature, hauteur
+totale — et non sur son libellé. Sept vignettes identiques passeraient un test
+qui se contenterait de compter les cartes ; elles ne passent pas celui-ci.
+Il vérifie aussi qu'un préétabli conserve la couleur de l'organisation, que
+« Utiliser ceci » remplit l'éditeur, et que le document réellement envoyé au
+client prend la mise en page choisie.
+
+`test_editeur_modeles` gagne trois vérifications : la survie d'un modèle hors
+ligne au rechargement, le fait que **créer** un modèle ne change rien aux
+documents émis, et le fait que **désigner** un autre défaut, lui, les change.
+
+**420/420 au vert, 0 régression, 47 suites, 7 étalons conformes.**

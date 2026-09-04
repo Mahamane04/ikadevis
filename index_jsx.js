@@ -7120,7 +7120,12 @@ const CONFIGURATION_MODELE_DEFAUT = {
         orientation: 'portrait',
         margesMm: { haut: 15, bas: 15, gauche: 15, droit: 15 },
         police: 'modern',
-        couleurMarque: '#3B5BDB'
+        couleurMarque: '#3B5BDB',
+        // Les aplats de couleur (bandeau d'en-tête de tableau plein) sortent
+        // gris sale en photocopie noir et blanc — le sort réservé à la plupart
+        // des devis d'appel d'offres. Décoché, le bandeau devient un filet :
+        // même hiérarchie visuelle, lisible une fois photocopié.
+        aplatsColores: true
     },
     entete: {
         alignement: 'left',
@@ -7146,7 +7151,11 @@ const CONFIGURATION_MODELE_DEFAUT = {
         afficherChantier: true
     },
     tableau: {
-        niveauDetail: 'synthese',  // 'synthese' | 'detaille'
+        niveauDetail: 'synthese',  // 'synthese' | 'detaille' | 'recapitulatif'
+        // Densité : un bordereau BTP tient couramment 60 ouvrages sur 8 lots.
+        // À l'interligne de référence il sort sur cinq pages ; resserré, sur
+        // deux, sans qu'aucune ligne ne disparaisse.
+        densite: 'normale',        // 'normale' | 'compacte'
         afficherEnteteLot: true,
         afficherSousTotalLot: true,
         // Désignation et total ne sont volontairement PAS masquables : une
@@ -7200,6 +7209,152 @@ const modeleDepuisReglages = (societe) => {
     configuration.pied.note = societe?.pdfFooterNote || '';
     configuration.tableau.niveauDetail = societe?.clientQuoteTemplate || configuration.tableau.niveauDetail;
     return { nom: 'Modèle par défaut', type_document: 'devis', par_defaut: true, configuration };
+};
+
+// ══ MODÈLES PRÉÉTABLIS ════════════════════════════════════════════════════
+// Étape 4 (2026-09-04). Jusqu'ici « Nouveau modèle » partait toujours du même
+// document : celui déduit des réglages. Autant dire d'une page blanche — il
+// fallait connaître les vingt réglages pour obtenir autre chose.
+//
+// La galerie de Zoho Books range ses 22 modèles en cinq familles, mais ses
+// sept « Standard » ne se distinguent que par le PAYS (Japon, Inde, Sri Lanka,
+// Europe) et sa famille « Vente au détail » vise des imprimantes thermiques.
+// Transposés tels quels ici, on obtiendrait sept documents identiques et
+// quatre inutilisables : la zone OHADA est un seul contexte réglementaire, et
+// un devis de chantier ne sort pas sur un rouleau de trois pouces.
+//
+// Restent les deux axes de Zoho qui portent quelque chose en BTP — la DENSITÉ
+// (leur famille « Feuille de calcul ») et le CARACTÈRE (leur famille
+// « Premium ») — auxquels s'ajoute celui qui n'existe que chez nous : ce que
+// le destinataire a le droit de voir.
+//
+// Chaque modèle part de l'identité de l'organisation (logo, police, couleur)
+// et ne remplace QUE ce qui le définit : on choisit une mise en page, on ne
+// perd pas sa marque.
+const LIBELLE_NIVEAU_DETAIL = { synthese: 'Synthèse', detaille: 'Détaillé', recapitulatif: 'Récapitulatif' };
+
+const MODELES_PREETABLIS = [
+    {
+        id: 'standard',
+        nom: 'Standard',
+        famille: 'Densité',
+        resume: 'Colonnes larges, une ligne aérée par ouvrage, sous-totaux par lot.',
+        quand: 'Un devis de 10 à 20 postes, remis en main propre ou par courriel.',
+        configuration: {}
+    },
+    {
+        id: 'compact',
+        nom: 'Compact',
+        famille: 'Densité',
+        resume: 'Interlignes resserrés — aucune ligne retirée du bordereau.',
+        quand: '40 à 80 ouvrages sur plusieurs lots, à tenir en deux ou trois pages.',
+        configuration: { tableau: { densite: 'compacte' } }
+    },
+    {
+        id: 'recapitulatif',
+        nom: 'Récapitulatif',
+        famille: 'Densité',
+        resume: 'Un montant par lot, les ouvrages masqués.',
+        quand: 'Une offre de principe, ou la page de garde d’un bordereau détaillé.',
+        configuration: { tableau: { niveauDetail: 'recapitulatif' } }
+    },
+    {
+        id: 'sobre',
+        nom: 'Sobre',
+        famille: 'Caractère',
+        resume: 'Noir et gris, aucun aplat de couleur.',
+        quand: 'Les appels d’offres, dont le dossier est reproduit en noir et blanc.',
+        configuration: {
+            general: { couleurMarque: '#1F2933', aplatsColores: false },
+            entete: { alignement: 'left' }
+        }
+    },
+    {
+        id: 'marque',
+        nom: 'Marque',
+        famille: 'Caractère',
+        resume: 'En-tête centré sur le logo, votre couleur en bandeau.',
+        quand: 'Les particuliers, pour qui le devis fait aussi office de carte de visite.',
+        configuration: { entete: { alignement: 'center', tailleLogo: 130 } }
+    },
+    {
+        id: 'sans-prix-unitaire',
+        nom: 'Sans prix unitaires',
+        famille: 'Ce que le client voit',
+        resume: 'Quantité et total par poste ; le prix unitaire est retiré.',
+        quand: 'Un client qui arbitre poste par poste plutôt qu’à l’unité.',
+        configuration: {
+            tableau: { colonnes: {
+                designation:  { largeur: 58 },
+                quantite:     { largeur: 18 },
+                prixUnitaire: { affiche: false },
+                totalHT:      { largeur: 24 }
+            } }
+        }
+    },
+    {
+        id: 'detaille',
+        nom: 'Détaillé fournitures & main-d’œuvre',
+        famille: 'Ce que le client voit',
+        resume: 'Chaque fourniture et chaque main-d’œuvre, au prix de vente.',
+        quand: 'Justifier un chiffrage — sans jamais laisser voir un coût d’achat.',
+        configuration: { tableau: { niveauDetail: 'detaille', densite: 'compacte' } }
+    }
+];
+
+// Le modèle préétabli est un DELTA, pas une configuration complète : il se
+// pose sur celle de l'organisation. Sans quoi choisir « Compact » effacerait
+// au passage le logo, la police et la couleur déjà réglés.
+const appliquerPreetabli = (preetabli, societe) => {
+    const fusion = fusionnerConfiguration(modeleDepuisReglages(societe).configuration);
+    const delta = (preetabli && preetabli.configuration) || {};
+    for (const section of Object.keys(delta)) {
+        if (section === 'tableau') {
+            const { colonnes, ...reste } = delta.tableau;
+            fusion.tableau = { ...fusion.tableau, ...reste };
+            for (const cle of Object.keys(colonnes || {})) {
+                fusion.tableau.colonnes[cle] = { ...fusion.tableau.colonnes[cle], ...colonnes[cle] };
+            }
+        } else {
+            fusion[section] = { ...fusion[section], ...delta[section] };
+        }
+    }
+    return fusion;
+};
+
+// Vignette : le VRAI document, mis à l'échelle. Une image générique dirait à
+// quoi ressemble un modèle en général ; celle-ci dit à quoi ressemblera le
+// devis de l'utilisateur, avec ses intitulés d'ouvrage et ses montants.
+//
+// L'échelle est mesurée plutôt que fixée : les cartes n'ont pas la même
+// largeur selon la taille d'écran, et un facteur en dur déborderait ou
+// laisserait un blanc à droite sur deux points de rupture sur trois.
+const LARGEUR_VIGNETTE = 800;
+const VignetteModele = ({ hauteur = 208, children }) => {
+    const cadre = React.useRef(null);
+    const [echelle, setEchelle] = React.useState(0.32);
+    React.useEffect(() => {
+        const el = cadre.current;
+        if (!el) return;
+        const mesurer = () => setEchelle((el.clientWidth || 256) / LARGEUR_VIGNETTE);
+        mesurer();
+        if (typeof ResizeObserver === 'undefined') return undefined;
+        const observateur = new ResizeObserver(mesurer);
+        observateur.observe(el);
+        return () => observateur.disconnect();
+    }, []);
+    return (
+        // aria-hidden : le document réduit est illisible à cette taille, et le
+        // dupliquer dans l'arbre d'accessibilité noierait le nom du modèle sous
+        // sept devis complets. Le nom et la description portent le sens.
+        <div ref={cadre} className="relative overflow-hidden bg-white" style={{ height: hauteur }} aria-hidden="true">
+            <div className="absolute top-0 left-0"
+                 style={{ width: LARGEUR_VIGNETTE, transformOrigin: 'top left', transform: `scale(${echelle})` }}>
+                {children}
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent"></div>
+        </div>
+    );
 };
 
 // Le thème attendu par DocumentDevisClient, dérivé d'une configuration de
@@ -7281,6 +7436,24 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // (en-tête de lot, sous-total) : le figer à 4 casserait la mise en page dès
     // qu'une colonne est masquée.
     const nbColonnes = 2 + (montrerQuantite ? 1 : 0) + (montrerPrixUnitaire ? 1 : 0);
+    // Densité et aplats ne touchent NI au contenu du bordereau ni aux montants :
+    // les mêmes lignes sortent, resserrées ou non, en couleur ou en filet. Ce
+    // sont les deux réglages qui décident si un devis de 60 ouvrages tient sur
+    // deux pages, et s'il reste lisible une fois photocopié.
+    const compact = cfg.tableau.densite === 'compacte';
+    const padCel      = compact ? 'p-2'         : 'p-3.5';
+    const padCelDet   = compact ? 'p-2'         : 'p-3';
+    const padBande    = compact ? 'px-2 py-1'   : 'px-3.5 py-2';
+    const padBandeDet = compact ? 'px-2 py-1'   : 'px-3 py-2';
+    const padSousCat  = compact ? 'px-2 py-0.5' : 'px-3 py-1.5';
+    // Borné : une valeur aberrante venue d'une configuration enregistrée à la
+    // main ne doit pas produire un logo qui écrase l'en-tête.
+    const tailleLogo = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
+    const aplats = cfg.general.aplatsColores !== false;
+    const classeEnteteTableau = `font-bold uppercase ${aplats ? 'text-white' : 'text-neutral-900'}`;
+    const styleEnteteTableau = aplats
+        ? { backgroundColor: theme.brandColor }
+        : { borderBottom: `2px solid ${theme.brandColor}` };
     // Le libellé vient de la même table que la pastille de la liste : deux
     // vocabulaires pour un même statut créeraient un doute là où il faut une
     // certitude. Un devis accepté ou approuvé ne porte rien : le filigrane
@@ -7335,10 +7508,16 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                         sur la marque du logiciel. */}
                     {(devis.companyInfoSnapshot?.logo || societe.logo) && (
                         <div className={`flex items-center gap-2 mb-2 ${disposition.logo}`}>
+                            {/* `tailleLogo` figurait dans la configuration par défaut
+                                depuis l'étape 1 sans piloter quoi que ce soit — exactement
+                                l'interrupteur sans effet que cet écran s'interdit. Il vaut
+                                un pourcentage de la taille de référence (40 px de haut,
+                                160 px de large) : à 100, le rendu est celui d'avant. */}
                             <img
                                 src={devis.companyInfoSnapshot?.logo || societe.logo}
                                 alt={`Logo ${devis.companyInfoSnapshot?.name || societe.name}`}
-                                className="h-10 max-w-[160px] object-contain"
+                                className="object-contain"
+                                style={{ height: `${(40 * tailleLogo) / 100}px`, maxWidth: `${(160 * tailleLogo) / 100}px` }}
                             />
                         </div>
                     )}
@@ -7416,11 +7595,11 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                         return (
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead>
-                                    <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
-                                        <th className="p-3 rounded-l-lg" style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
-                                        {montrerQuantite && <th className="p-3 text-center" style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
-                                        {montrerPrixUnitaire && <th className="p-3 text-right" style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
-                                        <th className="p-3 text-right rounded-r-lg" style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
+                                    <tr className={classeEnteteTableau} style={styleEnteteTableau}>
+                                        <th className={`${padCelDet} rounded-l-lg`} style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                        {montrerQuantite && <th className={`${padCelDet} text-center`} style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
+                                        {montrerPrixUnitaire && <th className={`${padCelDet} text-right`} style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
+                                        <th className={`${padCelDet} text-right rounded-r-lg`} style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100">
@@ -7436,42 +7615,42 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                         return (
                                             <React.Fragment key={lot.id || li}>
                                                 <tr className="bg-neutral-100">
-                                                    <td colSpan={nbColonnes} className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-700">
+                                                    <td colSpan={nbColonnes} className={`${padBandeDet} font-semibold text-[11px] uppercase tracking-wide text-neutral-700`}>
                                                         {formatLotHeading(lot.lotName, li)}
                                                     </td>
                                                 </tr>
                                                 {!reparties ? (
                                                     <tr>
-                                                        <td className="p-3 font-bold text-neutral-900" colSpan={nbColonnes - 1}>{lot.lotName}</td>
-                                                        <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                        <td className={`${padCelDet} font-bold text-neutral-900`} colSpan={nbColonnes - 1}>{lot.lotName}</td>
+                                                        <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td>
                                                     </tr>
                                                 ) : [...groupes.entries()].map(([cat, lignes]) => (
                                                     <React.Fragment key={cat}>
                                                         <tr className="bg-neutral-50/70">
-                                                            <td colSpan={nbColonnes} className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-neutral-500">
+                                                            <td colSpan={nbColonnes} className={`${padSousCat} font-bold text-[10px] uppercase tracking-wider text-neutral-500`}>
                                                                 {COST_CATEGORY_LABELS[cat] || cat}
                                                             </td>
                                                         </tr>
                                                         {lignes.map((d, di) => (
                                                             <tr key={cat + di}>
-                                                                <td className="p-3 pl-6">
+                                                                <td className={`${padCelDet} pl-6`}>
                                                                     <p className="font-bold text-neutral-900">{d.label}</p>
                                                                     {d.name && d.name !== d.label && (
                                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
                                                                     )}
                                                                 </td>
-                                                                {montrerQuantite && <td className="p-3 text-center font-medium">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>}
-                                                                {montrerPrixUnitaire && <td className="p-3 text-right font-medium">{formatMoney(d.saleUnit, printCurrency)}</td>}
-                                                                <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                                {montrerQuantite && <td className={`${padCelDet} text-center font-medium`}>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>}
+                                                                {montrerPrixUnitaire && <td className={`${padCelDet} text-right font-medium`}>{formatMoney(d.saleUnit, printCurrency)}</td>}
+                                                                <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(d.saleTotal, printCurrency)}</td>
                                                             </tr>
                                                         ))}
                                                     </React.Fragment>
                                                 ))}
                                                 <tr className="bg-neutral-50/60">
-                                                    <td colSpan={nbColonnes - 1} className="px-3 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                    <td colSpan={nbColonnes - 1} className={`${padBandeDet} text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide`}>
                                                         Sous-total Lot {li + 1} HT
                                                     </td>
-                                                    <td className="px-3 py-2 text-right font-semibold text-neutral-800">
+                                                    <td className={`${padBandeDet} text-right font-semibold text-neutral-800`}>
                                                         {formatMoney(ld.netHTConsomme, printCurrency)}
                                                     </td>
                                                 </tr>
@@ -7496,14 +7675,47 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 });
                 const lots = [...lotsMap.values()];
                 const showLotHeaders = lots.length > 1;
+
+                // Récapitulatif : un montant par lot, les ouvrages masqués — une
+                // offre de principe, ou la page de garde d'un bordereau détaillé.
+                // Quantité et prix unitaire ne sortent PAS ici, même si le modèle
+                // les coche : un lot n'a ni l'une ni l'autre, et en afficher une
+                // reviendrait à inventer un chiffre.
+                if (cfg.tableau.niveauDetail === 'recapitulatif') {
+                    return (
+                        <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr className={classeEnteteTableau} style={styleEnteteTableau}>
+                                    <th className={`${padCel} rounded-l-lg`}>Lot</th>
+                                    <th className={`${padCel} text-right rounded-r-lg`} style={{ width: '32%' }}>{colonnes.totalHT.libelle}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                                {lots.map(lot => (
+                                    <tr key={lot.lotCode}>
+                                        <td className={padCel}>
+                                            <p className="font-bold text-neutral-900">{lot.lotName}</p>
+                                            <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">
+                                                {lot.items.length} ouvrage{lot.items.length > 1 ? 's' : ''}
+                                            </p>
+                                        </td>
+                                        <td className={`${padCel} text-right font-bold text-neutral-900`}>
+                                            {formatMoney(lot.items.reduce((somme, it) => somme + (it.sellingTotalHT || 0), 0), printCurrency)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    );
+                }
                 return (
                     <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                            <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
-                                <th className="p-3.5 rounded-l-lg" style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
-                                {montrerQuantite && <th className="p-3.5 text-center" style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
-                                {montrerPrixUnitaire && <th className="p-3.5 text-right" style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
-                                <th className="p-3.5 text-right rounded-r-lg" style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
+                            <tr className={classeEnteteTableau} style={styleEnteteTableau}>
+                                <th className={`${padCel} rounded-l-lg`} style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                {montrerQuantite && <th className={`${padCel} text-center`} style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
+                                {montrerPrixUnitaire && <th className={`${padCel} text-right`} style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
+                                <th className={`${padCel} text-right rounded-r-lg`} style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100">
@@ -7513,30 +7725,30 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                     <React.Fragment key={lot.lotCode}>
                                         {showLotHeaders && cfg.tableau.afficherEnteteLot && (
                                             <tr className="bg-neutral-50">
-                                                <td colSpan={nbColonnes} className="px-3.5 py-2 font-semibold text-[11px] uppercase tracking-wide text-neutral-600">
+                                                <td colSpan={nbColonnes} className={`${padBande} font-semibold text-[11px] uppercase tracking-wide text-neutral-600`}>
                                                     {lot.lotName}
                                                 </td>
                                             </tr>
                                         )}
                                         {lot.items.map(item => (
                                             <tr key={item.id}>
-                                                <td className="p-3.5">
+                                                <td className={padCel}>
                                                     <p className="font-bold text-neutral-900">{item.label}</p>
                                                     {item.dimensionSummary && (
                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
                                                     )}
                                                 </td>
-                                                {montrerQuantite && <td className="p-3.5 text-center font-medium">{item.billedQty.toFixed(2)} {item.unit}</td>}
-                                                {montrerPrixUnitaire && <td className="p-3.5 text-right font-medium">{formatMoney(item.sellingUnitHT, printCurrency)}</td>}
-                                                <td className="p-3.5 text-right font-bold text-neutral-900">{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                                {montrerQuantite && <td className={`${padCel} text-center font-medium`}>{item.billedQty.toFixed(2)} {item.unit}</td>}
+                                                {montrerPrixUnitaire && <td className={`${padCel} text-right font-medium`}>{formatMoney(item.sellingUnitHT, printCurrency)}</td>}
+                                                <td className={`${padCel} text-right font-bold text-neutral-900`}>{formatMoney(item.sellingTotalHT, printCurrency)}</td>
                                             </tr>
                                         ))}
                                         {showLotHeaders && cfg.tableau.afficherSousTotalLot && (
                                             <tr className="bg-neutral-50/60">
-                                                <td colSpan={nbColonnes - 1} className="px-3.5 py-2 text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide">
+                                                <td colSpan={nbColonnes - 1} className={`${padBande} text-right font-bold text-neutral-500 text-[11px] uppercase tracking-wide`}>
                                                     Sous-total Lot {lot.lotCode} HT
                                                 </td>
-                                                <td className="px-3.5 py-2 text-right font-semibold text-neutral-800">
+                                                <td className={`${padBande} text-right font-semibold text-neutral-800`}>
                                                     {formatMoney(lotSubtotal, printCurrency)}
                                                 </td>
                                             </tr>
@@ -8069,11 +8281,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // `modeles` est la liste chargée depuis Supabase ; `modeleEnEdition` est la
     // copie de travail. On édite une COPIE et non la liste : fermer sans
     // enregistrer doit tout rendre, y compris après vingt réglages changés.
-    const [modelesDocument, setModelesDocument] = useState([]);
+    // Le chemin hors ligne ÉCRIVAIT `documentTemplates` dans localStorage sans
+    // que rien ne le relise jamais : un modèle réglé sur un chantier, sans
+    // réseau, disparaissait au premier rechargement de la page — sans message,
+    // et sans que la galerie garde la moindre trace de son passage. La liste
+    // s'amorce donc depuis le cache ; pour un compte connecté, la lecture
+    // serveur la remplace quelques instants plus tard, comme pour les clients
+    // et les chantiers.
+    const [modelesDocument, setModelesDocument] = useState(() => LS.get('documentTemplates', currentUserId) || []);
     const [editeurModele, setEditeurModele] = useState(null);
     const [sectionEditeur, setSectionEditeur] = useState('general');
     const [enregistrementModele, setEnregistrementModele] = useState(false);
     const [galerieModeles, setGalerieModeles] = useState(false);
+    const [catalogueModeles, setCatalogueModeles] = useState(false);
 
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
@@ -10160,11 +10380,35 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // qu'il n'y en a qu'un.
     const ouvrirEditeurModele = () => setGalerieModeles(true);
 
+    // Un seul modèle par défaut par type, garanti par un index unique partiel.
+    // `modeleDepuisReglages` renvoie toujours par_defaut:true — pratique pour
+    // le premier modèle, refusé par la base dès le second (violation d'unicité,
+    // sur une action dont l'utilisateur ne pouvait pas deviner la cause). Le
+    // drapeau se décide donc ici : premier modèle de ce type, ou pas.
+    const seraLePremierModele = (type = 'devis') =>
+        modelesDocument.filter(m => (m.type_document || 'devis') === type).length === 0;
+
     const editerModele = (modele) => {
         setEditeurModele(modele
             ? { ...modele, configuration: fusionnerConfiguration(modele.configuration) }
-            : modeleDepuisReglages(companyInfo));
+            : { ...modeleDepuisReglages(companyInfo), nom: 'Nouveau modèle', par_defaut: seraLePremierModele('devis') });
         setSectionEditeur('general');
+        setGalerieModeles(false);
+        setCatalogueModeles(false);
+    };
+
+    // Partir d'un modèle préétabli plutôt que d'un document nu. Rien n'est
+    // écrit tant que l'utilisateur n'enregistre pas : le préétabli remplit
+    // l'éditeur, il ne crée pas de ligne.
+    const utiliserPreetabli = (preetabli) => {
+        setEditeurModele({
+            nom: preetabli.nom,
+            type_document: 'devis',
+            par_defaut: seraLePremierModele('devis'),
+            configuration: appliquerPreetabli(preetabli, companyInfo)
+        });
+        setSectionEditeur('general');
+        setCatalogueModeles(false);
         setGalerieModeles(false);
     };
 
@@ -10180,12 +10424,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         });
         setSectionEditeur('general');
         setGalerieModeles(false);
+        setCatalogueModeles(false);
     };
 
     const definirModeleParDefaut = async (modele) => {
         const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
         if (!estCloud || !estUuid(modele.id)) {
-            setModelesDocument(l => l.map(m => ({ ...m, par_defaut: m.id === modele.id })));
+            setModelesDocument(l => {
+                const liste = l.map(m => ({ ...m, par_defaut: m.id === modele.id }));
+                LS.set('documentTemplates', liste, currentUserId);
+                return liste;
+            });
             showToast(`« ${modele.nom} » est le modèle par défaut`);
             return;
         }
@@ -10216,7 +10465,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             const { error } = await supabaseClient.from('document_templates').delete().eq('id', modele.id);
             if (error) { showToast(`Suppression impossible : ${error.message}`, 'error'); return; }
         }
-        setModelesDocument(l => l.filter(m => m.id !== modele.id));
+        setModelesDocument(l => {
+            const liste = l.filter(m => m.id !== modele.id);
+            LS.set('documentTemplates', liste, currentUserId);
+            return liste;
+        });
         showToast(`Modèle « ${modele.nom} » supprimé`);
     };
 
@@ -10275,7 +10528,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     ? [...autres.map(m => (m.type_document === enregistre.type_document ? { ...m, par_defaut: false } : m)), enregistre]
                     : [...autres, enregistre];
                 setModelesDocument(liste);
-                LS.set('documentTemplates', liste, sbUser ? sbUser.id : 'guest');
+                LS.set('documentTemplates', liste, currentUserId);
                 showToast('Modèle enregistré');
                 setEditeurModele(null);
                 // Revenir à la galerie, comme sur le chemin cloud : enregistrer
@@ -18801,7 +19054,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {modelesDocument.filter(m => m.type_document === 'devis').length || 'Aucun'} modèle{modelesDocument.filter(m => m.type_document === 'devis').length > 1 ? 's' : ''} · le modèle par défaut s’applique aux nouveaux devis
                             </p>
                         </div>
-                        <button type="button" onClick={() => editerModele(null)}
+                        <button type="button" onClick={() => setCatalogueModeles(true)}
                             disabled={isReadOnlyDueToDowngrade}
                             className="btn-primary py-2 px-4 text-xs font-bold disabled:opacity-50">
                             <i className="fa-solid fa-plus mr-1.5"></i> Nouveau modèle
@@ -18834,7 +19087,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             <dl className="text-[11px] text-neutral-600 space-y-1">
                                                 <div className="flex justify-between gap-2">
                                                     <dt className="text-neutral-500">Détail</dt>
-                                                    <dd className="font-semibold">{cfgM.tableau.niveauDetail === 'detaille' ? 'Détaillé' : 'Synthèse'}</dd>
+                                                    <dd className="font-semibold">{LIBELLE_NIVEAU_DETAIL[cfgM.tableau.niveauDetail] || 'Synthèse'}</dd>
+                                                </div>
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Densité</dt>
+                                                    <dd className="font-semibold">{cfgM.tableau.densite === 'compacte' ? 'Compacte' : 'Normale'}</dd>
                                                 </div>
                                                 <div className="flex justify-between gap-2">
                                                     <dt className="text-neutral-500">Colonnes</dt>
@@ -18898,10 +19155,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         Créez un modèle pour la régler finement, ou en tenir plusieurs — un pour
                                         les appels d’offres, un pour les particuliers.
                                     </p>
-                                    <button type="button" onClick={() => editerModele(null)}
+                                    <button type="button" onClick={() => setCatalogueModeles(true)}
                                         disabled={isReadOnlyDueToDowngrade}
                                         className="btn-primary mt-4 py-2 px-4 text-xs font-bold disabled:opacity-50">
-                                        Créer un premier modèle
+                                        Choisir un modèle
                                     </button>
                                 </div>
                             )}
@@ -18909,6 +19166,115 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 </div>
             )}
+
+            {/* ══ CATALOGUE DE MODÈLES PRÉÉTABLIS ══════════════════════════════
+                Étape 4 (2026-09-04). S'intercale entre « Nouveau modèle » et
+                l'éditeur : on choisit une mise en page qui ressemble déjà à ce
+                qu'on veut, puis on l'ajuste.
+
+                Les vignettes rendent le VRAI dernier devis — même composant que
+                le document et que l'aperçu de l'éditeur, réduit. Une image
+                générique dirait à quoi ressemble « Compact » en général ;
+                celle-ci dit ce que donnera le bordereau de l'utilisateur, avec
+                ses intitulés d'ouvrage et ses montants. */}
+            {catalogueModeles && (() => {
+                const devisVignette = savedQuotes[0] || null;
+                const familles = [...new Set(MODELES_PREETABLIS.map(m => m.famille))];
+                return (
+                    <div className="fixed inset-0 z-[145] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Choisir un modèle">
+                        <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-base font-bold text-neutral-900">Choisir un modèle</h2>
+                                <p className="text-[11px] text-neutral-500">
+                                    Chacun part de votre logo, votre police et votre couleur — et ne change
+                                    que ce qui le définit. Tout reste modifiable ensuite.
+                                </p>
+                            </div>
+                            <button type="button" onClick={() => setCatalogueModeles(false)}
+                                className="btn-secondary py-2 px-3 text-xs font-bold" aria-label="Fermer le catalogue de modèles">
+                                Fermer
+                            </button>
+                        </div>
+
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
+                            <div className="mx-auto max-w-5xl space-y-8">
+                                {!devisVignette && (
+                                    <p className="app-card p-4 text-[11px] text-neutral-600 leading-relaxed">
+                                        <i className="fa-solid fa-circle-info mr-1.5 text-neutral-400"></i>
+                                        Les aperçus montreront votre propre devis dès qu’un premier sera
+                                        enregistré. En attendant, chaque modèle est décrit par ce qu’il change.
+                                    </p>
+                                )}
+
+                                {familles.map(famille => (
+                                    <section key={famille}>
+                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">{famille}</h3>
+                                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                            {MODELES_PREETABLIS.filter(m => m.famille === famille).map(pre => {
+                                                const cfgP = appliquerPreetabli(pre, companyInfo);
+                                                return (
+                                                    <article key={pre.id} className="app-card p-0 overflow-hidden flex flex-col">
+                                                        {devisVignette ? (
+                                                            <VignetteModele>
+                                                                <DocumentDevisClient
+                                                                    devis={devisVignette}
+                                                                    societe={{ ...companyInfo, logo: cfgP.entete.afficherLogo ? companyInfo.logo : '' }}
+                                                                    theme={themeDepuisConfiguration(cfgP)}
+                                                                    disposition={getPdfHeaderLayout(cfgP.entete.alignement)}
+                                                                    gabarit={cfgP.tableau.niveauDetail}
+                                                                    modeDemo={estModeDemo}
+                                                                    configuration={cfgP}
+                                                                />
+                                                            </VignetteModele>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center bg-neutral-100" style={{ height: 208 }} aria-hidden="true">
+                                                                <i className="fa-solid fa-file-lines text-3xl text-neutral-300"></i>
+                                                            </div>
+                                                        )}
+                                                        <div className="p-4 flex-1 flex flex-col gap-1.5 border-t border-neutral-200">
+                                                            <h4 className="text-sm font-bold text-neutral-900 break-words">{pre.nom}</h4>
+                                                            <p className="text-[11px] text-neutral-600 leading-relaxed">{pre.resume}</p>
+                                                            <p className="text-[11px] text-neutral-500 leading-relaxed italic">{pre.quand}</p>
+                                                            {/* Le bouton est poussé en bas : les descriptions n'ont pas
+                                                                la même longueur, et sans cela les « Utiliser ceci » d'une
+                                                                même rangée ne s'alignaient pas. */}
+                                                            <div className="mt-auto pt-3">
+                                                                <button type="button" onClick={() => utiliserPreetabli(pre)}
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    className="btn-primary btn-dialogue w-full disabled:opacity-50"
+                                                                    aria-label={`Utiliser le modèle ${pre.nom}`}>
+                                                                    Utiliser ceci
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </article>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                ))}
+
+                                {/* Le chemin d'avant reste ouvert : partir de ses propres
+                                    réglages, sans mise en page imposée. */}
+                                <section className="app-card p-5 flex flex-wrap items-center gap-4">
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-sm font-bold text-neutral-900">Partir de mes réglages</h3>
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed mt-0.5">
+                                            Le document tel qu’il sort aujourd’hui, sans mise en page imposée.
+                                            À régler section par section.
+                                        </p>
+                                    </div>
+                                    <button type="button" onClick={() => editerModele(null)}
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        className="btn-secondary btn-dialogue disabled:opacity-50">
+                                        Repartir de zéro
+                                    </button>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* ══ ÉDITEUR DE MODÈLES DE DOCUMENT ═══════════════════════════════
                 Étape 1 (2026-09-03). Écran plein : rail de sections à gauche,
@@ -19059,6 +19425,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     className="app-input py-2 text-sm font-mono" />
                                             </div>
                                         </label>
+                                        {Bascule({ section: 'general', cle: 'aplatsColores', libelle: 'Aplats de couleur',
+                                            aide: 'Décoché, le bandeau du tableau devient un filet. Un dossier d’appel d’offres est presque toujours photocopié en noir et blanc, où un aplat sort gris sale.' })}
                                         <p className="text-[11px] text-neutral-500 leading-relaxed pt-2 border-t border-neutral-100 mt-2">
                                             Format A4 portrait. Les marges et l’orientation paysage arrivent avec les modèles multiples.
                                         </p>
@@ -19081,6 +19449,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </div>
                                         </div>
                                         {Bascule({ section: 'entete', cle: 'afficherLogo', libelle: 'Afficher le logo', aide: companyInfo.logo ? null : "Aucun logo n’est chargé dans les paramètres de l’entreprise." })}
+                                        {c.entete.afficherLogo && (
+                                            <label className="block py-2 pl-6">
+                                                <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                                    <span>Taille du logo</span>
+                                                    <span className="font-mono text-neutral-700">{c.entete.tailleLogo || 100} %</span>
+                                                </span>
+                                                <input
+                                                    type="range" min="50" max="200" step="5"
+                                                    value={c.entete.tailleLogo || 100}
+                                                    onChange={(e) => majModele('entete', 'tailleLogo', Number(e.target.value))}
+                                                    aria-label="Taille du logo en pourcentage"
+                                                    className="w-full accent-brand-600"
+                                                />
+                                            </label>
+                                        )}
                                         {Bascule({ section: 'entete', cle: 'afficherNomEntreprise', libelle: 'Afficher le nom et la baseline' })}
                                         {Bascule({ section: 'entete', cle: 'afficherAdresse', libelle: 'Afficher l’adresse' })}
                                         {Bascule({ section: 'entete', cle: 'afficherMentionsLegales', libelle: 'Afficher NIF et RCCM', aide: 'Mentions obligatoires sur une facture en zone OHADA.' })}
@@ -19103,9 +19486,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <h3 className="text-sm font-bold text-neutral-900 mb-3">Tableau des ouvrages</h3>
                                         <div className="py-2">
                                             <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Niveau de détail</span>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 gap-2">
                                                 {[{ id: 'synthese', l: 'Synthèse', d: 'Une ligne par ouvrage' },
-                                                  { id: 'detaille', l: 'Détaillé', d: 'Fournitures et main-d’œuvre' }].map(o => (
+                                                  { id: 'detaille', l: 'Détaillé', d: 'Fournitures et main-d’œuvre, au prix de vente' },
+                                                  { id: 'recapitulatif', l: 'Récapitulatif', d: 'Un montant par lot, ouvrages masqués' }].map(o => (
                                                     <button key={o.id} type="button"
                                                         onClick={() => majModele('tableau', 'niveauDetail', o.id)}
                                                         className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${c.tableau.niveauDetail === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
@@ -19114,6 +19498,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     </button>
                                                 ))}
                                             </div>
+                                        </div>
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Densité</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {[{ id: 'normale',  l: 'Normale',  d: '10 à 20 ouvrages' },
+                                                  { id: 'compacte', l: 'Compacte', d: '40 à 80 ouvrages' }].map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('tableau', 'densite', o.id)}
+                                                        className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${(c.tableau.densite || 'normale') === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                                        <span className="block text-[12px] font-bold text-neutral-800">{o.l}</span>
+                                                        <span className="block text-[10px] text-neutral-500 leading-tight mt-0.5">{o.d}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-neutral-500 leading-snug mt-1.5">
+                                                La densité resserre les interlignes ; aucune ligne n’est retirée du bordereau.
+                                            </p>
                                         </div>
                                         {Bascule({ section: 'tableau', cle: 'afficherEnteteLot', libelle: 'Afficher l’en-tête de chaque lot' })}
                                         {Bascule({ section: 'tableau', cle: 'afficherSousTotalLot', libelle: 'Afficher le sous-total par lot' })}

@@ -19,11 +19,14 @@
 // Ce que le banc ne couvre pas, et qui est volontaire : les réglages absents de
 // l'étape 1 (titres, masquage des blocs, colonnes du tableau). Ils ne sont pas
 // exposés comme des interrupteurs sans effet — chaque section le dit en clair.
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { launchApp, enterGuestMode } from './lib/harness.mjs';
 
 const wait = (ms = 900) => new Promise((r) => setTimeout(r, ms));
-const SEL = '[role="dialog"][aria-label*="modèle"]';
+// Viser « Éditeur » et non « modèle » : depuis l'étape 4, le catalogue de
+// modèles préétablis s'intercale entre la galerie et l'éditeur, et son
+// aria-label « Choisir un modèle » répondait au même sélecteur.
+const SEL = '[role="dialog"][aria-label*="Éditeur de modèle"]';
 
 const cliquer = (page, motif) => page.evaluate((t) => {
     const b = [...document.querySelectorAll('button')]
@@ -59,6 +62,22 @@ export async function run() {
 
         // Depuis l'étape 3, ce bouton ouvre la GALERIE : atterrir directement
         // dans un modèle cacherait les autres. On y entre par « Nouveau ».
+        // Étape 4 : « Nouveau modèle » ouvre le CATALOGUE de préétablis, pas
+        // directement l'éditeur. « Repartir de zéro » y reproduit l'ancien
+        // chemin — le document tel qu'il sort des réglages, sans mise en page
+        // imposée — que le reste de ce banc suppose.
+        const passerParLeCatalogue = async () => {
+            const clique = await page.evaluate(() => {
+                const c = document.querySelector('[role="dialog"][aria-label="Choisir un modèle"]');
+                if (!c) return false;
+                const b = [...c.querySelectorAll('button')].find((x) => /Repartir de zéro/.test(x.textContent || ''));
+                if (b) { b.click(); return true; }
+                return false;
+            });
+            await wait(1800);
+            return clique;
+        };
+
         const entrerDansLEditeur = async () => {
             const dejaOuvert = await page.evaluate((sel) => !!document.querySelector(sel), SEL);
             if (dejaOuvert) return true;
@@ -66,11 +85,12 @@ export async function run() {
                 const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
                 if (!g) return false;
                 const b = [...g.querySelectorAll('button')]
-                    .find((x) => /Nouveau modèle|Créer un premier modèle/.test(x.textContent || ''));
+                    .find((x) => /Nouveau modèle|Choisir un modèle|Créer un premier modèle/.test(x.textContent || ''));
                 if (b) { b.click(); return true; }
                 return false;
             });
-            await wait(2000);
+            await wait(1800);
+            await passerParLeCatalogue();
             return clique;
         };
         ok('La galerie mène à l’éditeur', await entrerDansLEditeur());
@@ -138,6 +158,14 @@ export async function run() {
         await wait(1700);
         await cliquer(page, 'Documents');
         await wait(1700);
+        // Charger un logo AVANT d'ouvrir l'éditeur : `afficherLogo` est calculé
+        // à l'ouverture depuis les réglages de l'entreprise. Chargé après, le
+        // modèle en cours resterait sur « pas de logo ».
+        const champLogo = await page.$('input[type="file"]');
+        if (champLogo) {
+            await champLogo.uploadFile(fileURLToPath(new URL('./fixtures/logo_test.png', import.meta.url)));
+            await wait(2000);
+        }
         await cliquer(page, 'Éditeur de modèles');
         await wait(2200);
         await entrerDansLEditeur();
@@ -208,6 +236,47 @@ export async function run() {
         ok(`Le titre saisi apparaît dans le document — « ${saisie.apercu} »`,
             saisie.apercu === 'DEVIS COMMERCIAL MODIFIÉ');
 
+        // ── La taille du logo : un réglage qui ne pilotait rien ───────────
+        // `tailleLogo` figurait dans la configuration par défaut depuis
+        // l'étape 1 sans être ni exposé ni lu — le document rendait le logo à
+        // une taille fixe. Ce banc protège les deux bouts : le contrôle existe
+        // dans l'éditeur, et il déplace réellement le logo du document.
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /En-tête/.test(x.innerText));
+            if (b) b.click();
+        }, SEL);
+        await wait(1200);
+        const logo = await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const img = d.querySelector('[data-zone-impression] img');
+            const curseur = [...d.querySelectorAll('input[type="range"]')]
+                .find((x) => /Taille du logo/i.test(x.getAttribute('aria-label') || ''));
+            return {
+                logoRendu: !!img,
+                hauteur: img ? Math.round(img.getBoundingClientRect().height) : 0,
+                curseur: !!curseur
+            };
+        }, SEL);
+        ok('Un logo chargé apparaît dans le document', logo.logoRendu);
+        ok('Le curseur de taille du logo est proposé', logo.curseur);
+
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const r = [...d.querySelectorAll('input[type="range"]')]
+                .find((x) => /Taille du logo/i.test(x.getAttribute('aria-label') || ''));
+            if (!r) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(r, '200');
+            r.dispatchEvent(new Event('input', { bubbles: true }));
+        }, SEL);
+        await wait(1000);
+        const logoAgrandi = await page.evaluate((sel) => {
+            const img = document.querySelector(sel + ' [data-zone-impression] img');
+            return img ? Math.round(img.getBoundingClientRect().height) : 0;
+        }, SEL);
+        ok(`Le curseur agrandit réellement le logo — ${logo.hauteur}px → ${logoAgrandi}px`,
+            logo.hauteur > 0 && logoAgrandi > logo.hauteur);
+
         // ── Étape 3 : galerie et filigrane de statut ──────────────────────
         await page.evaluate((sel) => {
             const d = document.querySelector(sel);
@@ -271,6 +340,14 @@ export async function run() {
         ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
             brouillon.present && brouillon.libelle === 'BROUILLON');
 
+        // Le chemin hors ligne écrivait `documentTemplates` dans localStorage
+        // sans que rien ne le relise : le modèle réglé sans réseau disparaissait
+        // au premier rechargement, en silence. La page vient d'être rechargée —
+        // le document doit encore porter la couleur enregistrée.
+        const apresRechargement = await couleurTitreDocument(page, false);
+        ok(`Un modèle enregistré hors ligne survit au rechargement — ${apresRechargement}`,
+            apresRechargement === 'rgb(15, 118, 110)');
+
         // ── Plusieurs modèles coexistent, un seul par défaut ──────────────
         // La première version du chemin hors ligne remplaçait la liste entière
         // par le modèle en cours : créer un second écrasait le premier, sans
@@ -287,12 +364,13 @@ export async function run() {
                 const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
                 if (!g) return;
                 const b = [...g.querySelectorAll('button')]
-                    .find((x) => /Nouveau modèle|Créer un premier modèle/.test(x.textContent || ''));
+                    .find((x) => /Nouveau modèle|Choisir un modèle|Créer un premier modèle/.test(x.textContent || ''));
                 if (b) b.click();
             });
-            await wait(2000);
+            await wait(1800);
+            await passerParLeCatalogue();
             await page.evaluate(({ nom, couleur }) => {
-                const d = document.querySelector('[role="dialog"][aria-label*="modèle"]');
+                const d = document.querySelector('[role="dialog"][aria-label*="Éditeur de modèle"]');
                 if (!d) return;
                 const set = (el, v) => {
                     if (!el) return;
@@ -304,7 +382,7 @@ export async function run() {
             }, { nom, couleur });
             await wait(1100);
             await page.evaluate(() => {
-                const d = document.querySelector('[role="dialog"][aria-label*="modèle"]');
+                const d = document.querySelector('[role="dialog"][aria-label*="Éditeur de modèle"]');
                 if (!d) return;
                 const b = [...d.querySelectorAll('button')].find((x) => /^Enregistrer$/.test(x.textContent.trim()));
                 if (b) b.click();
@@ -313,7 +391,7 @@ export async function run() {
         };
 
         await creerModele('Devis standard', '#2f3fa8');
-        await creerModele('Appel d’offres', '#0f766e');
+        await creerModele('Appel d’offres', '#b45309');
 
         const parc = await page.evaluate(() => {
             const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
@@ -325,8 +403,8 @@ export async function run() {
             };
         });
         ok('Enregistrer ramène à la galerie, y compris hors ligne', parc.galerie);
-        ok(`Deux modèles coexistent — ${JSON.stringify(parc.modeles)}`,
-            (parc.modeles || []).length === 2);
+        ok(`Trois modèles coexistent — ${JSON.stringify(parc.modeles)}`,
+            (parc.modeles || []).length === 3);
         ok(`Un seul modèle porte le badge « par défaut » — ${parc.nbParDefaut}`, parc.nbParDefaut === 1);
 
         // ── Supprimer un modèle rend la mise en page d'avant ──────────────
@@ -361,13 +439,34 @@ export async function run() {
 
         await fermerGalerie();
         const avecModele = await couleurDuDocumentReel();
-        ok(`Le document suit le modèle par défaut — ${avecModele}`, avecModele === 'rgb(15, 118, 110)');
+        // Créer un modèle ne doit RIEN changer aux documents émis : le premier
+        // enregistré porte le défaut, les suivants attendent qu'on le leur
+        // donne. `modeleDepuisReglages` renvoyait par_defaut:true pour tous —
+        // en base, le second heurtait l'index unique ; hors ligne, il volait
+        // silencieusement le défaut au premier.
+        ok(`Créer un modèle ne change pas les documents émis — ${avecModele}`,
+            avecModele === 'rgb(15, 118, 110)');
+
+        await cliquer(page, 'Paramètres du Compte'); await wait(1700);
+        await cliquer(page, 'Documents'); await wait(1700);
+        await cliquer(page, 'Éditeur de modèles'); await wait(2000);
+        await page.evaluate(() => {
+            const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            const b = g && [...g.querySelectorAll('button')]
+                .find((x) => /^Utiliser Appel d’offres par défaut$/.test(x.getAttribute('aria-label') || ''));
+            if (b) b.click();
+        });
+        await wait(1600);
+        await fermerGalerie();
+        const apresBascule = await couleurDuDocumentReel();
+        ok(`Désigner un autre modèle par défaut change le document — ${apresBascule}`,
+            apresBascule === 'rgb(180, 83, 9)');
 
         await cliquer(page, 'Paramètres du Compte'); await wait(1700);
         await cliquer(page, 'Documents'); await wait(1700);
         await cliquer(page, 'Éditeur de modèles'); await wait(2000);
         // Supprimer TOUS les modèles pour revenir à l'état sans modèle.
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 6; i++) {
             const reste = await page.evaluate(() => {
                 const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
                 if (!g) return false;
