@@ -429,7 +429,13 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     }
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    // Format et orientation viennent du modèle (2026-09-04). Tout le calcul en
+    // aval part de `pdf.internal.pageSize` : la pagination, les marges et la
+    // position du numéro s'adaptent sans une ligne de plus.
+    const FORMATS = { A4: 'a4', A5: 'a5', LETTRE: 'letter' };
+    const format = FORMATS[String(options.formatPapier || 'A4').toUpperCase()] || 'a4';
+    const orientation = String(options.orientation || 'portrait') === 'paysage' ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ unit: 'mm', format, orientation });
     const pageL = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
 

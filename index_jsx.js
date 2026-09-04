@@ -7116,10 +7116,12 @@ const normalizePdfBrandColor = (value) => /^#[0-9A-Fa-f]{6}$/.test(String(value 
 // c'est la seule façon d'introduire cette table sans changer un seul devis.
 const CONFIGURATION_MODELE_DEFAUT = {
     general: {
-        // A4 portrait : la lettre US n'existe pas en zone OHADA, et jsPDF est
-        // instancié en portrait. Ces deux-là restent en dur — une clé de
-        // configuration qui ne pilote rien vaut moins que pas de clé du tout.
-        format: 'A4',
+        // Format et orientation, réellement branchés depuis le 2026-09-04 :
+        // jsPDF les reçoit, et toute la pagination en découle. A4 par défaut —
+        // la lettre US n'a pas cours en zone OHADA, mais un sous-traitant qui
+        // travaille pour un donneur d'ordre américain en a besoin.
+        formatPapier: 'A4',        // 'A4' | 'A5' | 'Lettre'
+        orientation: 'portrait',   // 'portrait' | 'paysage'
         // Marges de PAGE, pas de contenu : elles pilotent la place que le
         // document occupe sur la feuille A4 (jsPDF), pas le rembourrage du
         // bloc à l'écran. 8 mm reproduit EXACTEMENT la constante qui était
@@ -7155,7 +7157,15 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // Fond du document. Vide = blanc. Un ivoire très pâle adoucit un long
         // bordereau à l'écran ; en impression il consomme de l'encre sur toute
         // la page, ce que l'aide du réglage dit en clair.
-        couleurFond: ''
+        couleurFond: '',
+        // Couleur des ÉTIQUETTES — « CLIENT », « DÉSIGNATION CHANTIER »,
+        // « QUANTITÉ »… Séparée de l'encre du corps, comme chez Zoho : c'est
+        // le contraste entre les deux qui structure la lecture d'un document.
+        couleurEtiquettes: '',
+        // Image de fond : papier à en-tête pré-imprimé, filigrane, tampon.
+        // Stockée en data-URI dans la configuration, comme le logo.
+        imageFond: '',
+        positionImageFond: 'centre'   // 'centre' | 'haut' | 'bas' | 'couvrir' | 'mosaique'
     },
     entete: {
         alignement: 'left',
@@ -7515,6 +7525,21 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     const respirationSousLot = espaceSousLot > 0 ? { paddingBottom: `${espaceSousLot}px` } : undefined;
     const rayon = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
     const fondDocument = (cfg.general.couleurFond || '').trim();
+    const etiquettes = (cfg.general.couleurEtiquettes || '').trim();
+    // Image de fond : papier à en-tête, filigrane, tampon. Cinq positions,
+    // traduites en propriétés CSS — « couvrir » remplit la page quitte à
+    // rogner, « mosaïque » répète, les trois autres posent l'image une fois.
+    const POSITIONS_FOND = {
+        centre:   { backgroundPosition: 'center center', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        haut:     { backgroundPosition: 'center top',    backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        bas:      { backgroundPosition: 'center bottom', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        couvrir:  { backgroundPosition: 'center center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover' },
+        mosaique: { backgroundPosition: 'left top',      backgroundRepeat: 'repeat',    backgroundSize: 'auto' }
+    };
+    const imageFond = (cfg.general.imageFond || '').trim();
+    const styleImageFond = imageFond
+        ? { backgroundImage: `url(${imageFond})`, ...(POSITIONS_FOND[cfg.general.positionImageFond] || POSITIONS_FOND.centre) }
+        : null;
     // Mise en gras dans la mention de pied de page : `**libellé**` devient
     // <strong>. Ce n'est pas l'éditeur enrichi de Zoho, et je ne le fais pas
     // passer pour tel — c'est la convention Markdown, elle se tape au clavier,
@@ -7572,15 +7597,18 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         : (societe.echeancier || []);
     return (
         <div
-            className={`saved-quote-document document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
+            className={`saved-quote-document document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
             data-format-numero={cfg.pied.formatNumeroPage || ''}
             data-numero-document={devis.number || ''}
-            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined,
-                     backgroundColor: fondDocument || undefined }}
+            data-format-papier={cfg.general.formatPapier || 'A4'}
+            data-orientation={cfg.general.orientation || 'portrait'}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte,
+                     '--encre-doc': encre || undefined, '--etiquettes-doc': etiquettes || undefined,
+                     backgroundColor: fondDocument || undefined, ...(styleImageFond || {}) }}
         >
             {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
                 préremplis d'une identité d'entreprise complète et crédible
@@ -10774,6 +10802,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Une modification ne touche qu'une clé d'une section. On recompose l'objet
     // plutôt que de muter : React ne redessinerait pas l'aperçu autrement, et
     // l'aperçu continu est tout l'intérêt de cet écran.
+    // Même compression que le logo d'entreprise : une photo de 4 Mo partirait
+    // sinon telle quelle dans le jsonb du modèle, à chaque lecture de chaque
+    // devis. `e.target.value = ''` permet de recharger deux fois le même
+    // fichier — sans quoi le second choix ne déclencherait aucun `change`.
+    const chargerImageFond = async (e) => {
+        const fichier = e.target.files?.[0];
+        e.target.value = '';
+        if (!fichier) return;
+        try {
+            // 1200 px et non les 480 du logo : cette image couvre une page A4
+            // entière, à 480 elle sortirait floue sur le PDF.
+            const dataUrl = await compressImageToDataUrl(fichier, 1200, 0.8);
+            majModele('general', 'imageFond', dataUrl);
+        } catch (err) {
+            showToast(err.message || "Impossible de traiter cette image.", 'error');
+        }
+    };
+
     const majMarge = (cote, valeur) => setEditeurModele(m => m && ({
         ...m,
         configuration: {
@@ -14391,6 +14437,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return {
             marges,
             numeroterPages: element.getAttribute('data-numeroter-pages') === '1',
+            formatPapier: element.getAttribute('data-format-papier') || 'A4',
+            orientation: element.getAttribute('data-orientation') || 'portrait',
             positionNumeroPage: element.getAttribute('data-position-numero') || 'centre',
             formatNumeroPage: element.getAttribute('data-format-numero') || '',
             numeroDocument: element.getAttribute('data-numero-document') || ''
@@ -19713,11 +19761,37 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <dt className="text-neutral-500">S’applique à</dt>
                                                     <dd className="font-semibold text-neutral-800">Devis et factures</dd>
                                                 </div>
-                                                <div className="flex justify-between gap-2">
-                                                    <dt className="text-neutral-500">Format</dt>
-                                                    <dd className="font-semibold text-neutral-800">A4 portrait</dd>
-                                                </div>
                                             </dl>
+                                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Taille du papier</span>
+                                                    <div className="grid grid-cols-3 gap-1">
+                                                        {['A4', 'A5', 'Lettre'].map(f => (
+                                                            <button key={f} type="button"
+                                                                onClick={() => majModele('general', 'formatPapier', f)}
+                                                                className={`rounded-lg border px-1 py-1.5 text-[11px] font-bold transition-colors ${(c.general.formatPapier || 'A4') === f ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-white'}`}>
+                                                                {f}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Orientation</span>
+                                                    <div className="grid grid-cols-2 gap-1">
+                                                        {[{ id: 'portrait', l: 'Portrait' }, { id: 'paysage', l: 'Paysage' }].map(o => (
+                                                            <button key={o.id} type="button"
+                                                                onClick={() => majModele('general', 'orientation', o.id)}
+                                                                className={`rounded-lg border px-1 py-1.5 text-[11px] font-bold transition-colors ${(c.general.orientation || 'portrait') === o.id ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-white'}`}>
+                                                                {o.l}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] text-neutral-500 leading-snug mt-2">
+                                                Le format et l’orientation s’appliquent au PDF téléchargé. L’aperçu
+                                                ci-contre reste en colonne : il montre le contenu, pas le pliage des pages.
+                                            </p>
                                         </div>
 
                                         <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-1">Police et couleurs</p>
@@ -19771,6 +19845,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </label>
 
                                         <label className="block py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Couleur des étiquettes</span>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" value={c.general.couleurEtiquettes || '#5f6d80'}
+                                                    onChange={(e) => majModele('general', 'couleurEtiquettes', e.target.value)}
+                                                    aria-label="Couleur des étiquettes du document"
+                                                    className="w-11 h-9 rounded-lg border border-neutral-200 cursor-pointer bg-white" />
+                                                <input type="text" value={c.general.couleurEtiquettes || ''}
+                                                    onChange={(e) => majModele('general', 'couleurEtiquettes', e.target.value)}
+                                                    placeholder="par défaut"
+                                                    className="app-input py-2 text-sm font-mono" />
+                                                {c.general.couleurEtiquettes && (
+                                                    <button type="button" onClick={() => majModele('general', 'couleurEtiquettes', '')}
+                                                        className="btn-secondary btn-dialogue" aria-label="Revenir à la couleur d’étiquette par défaut">
+                                                        Défaut
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span className="block text-[11px] text-neutral-500 leading-snug mt-1.5">
+                                                « CLIENT », « DÉSIGNATION CHANTIER », « QUANTITÉ »… C’est le contraste
+                                                entre l’étiquette et sa valeur qui structure la lecture.
+                                            </span>
+                                        </label>
+
+                                        <label className="block py-2">
                                             <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Couleur d’arrière-plan</span>
                                             <div className="flex items-center gap-2">
                                                 <input type="color" value={c.general.couleurFond || '#ffffff'}
@@ -19811,6 +19909,60 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 monter aère une proposition de quelques postes.
                                             </span>
                                         </label>
+
+                                        {/* Image d'arrière-plan : papier à en-tête pré-imprimé,
+                                            filigrane, tampon. Stockée en data-URI dans la
+                                            configuration, comme le logo — et compressée par la
+                                            même fonction, sans quoi une photo de 4 Mo partirait
+                                            telle quelle dans le jsonb du modèle. */}
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Image d’arrière-plan</span>
+                                            {c.general.imageFond ? (
+                                                <div className="flex items-center gap-3">
+                                                    <span className="w-16 h-16 rounded-lg border border-neutral-200 bg-neutral-50 bg-center bg-contain bg-no-repeat shrink-0"
+                                                          style={{ backgroundImage: `url(${c.general.imageFond})` }} aria-hidden="true"></span>
+                                                    <div className="min-w-0 flex-1 flex flex-wrap gap-1.5">
+                                                        <label className="btn-secondary btn-dialogue cursor-pointer">
+                                                            Remplacer
+                                                            <input type="file" accept="image/*" className="hidden"
+                                                                aria-label="Remplacer l’image d’arrière-plan"
+                                                                onChange={(e) => chargerImageFond(e)} />
+                                                        </label>
+                                                        <button type="button" onClick={() => majModele('general', 'imageFond', '')}
+                                                            className="btn-secondary btn-dialogue text-red-600 border-red-200"
+                                                            aria-label="Retirer l’image d’arrière-plan">
+                                                            Retirer
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <label className="btn-secondary btn-dialogue cursor-pointer w-full justify-center">
+                                                    <i className="fa-solid fa-image mr-1.5"></i> Choisir une image
+                                                    <input type="file" accept="image/*" className="hidden"
+                                                        aria-label="Choisir une image d’arrière-plan"
+                                                        onChange={(e) => chargerImageFond(e)} />
+                                                </label>
+                                            )}
+                                            {c.general.imageFond && (
+                                                <div className="mt-2">
+                                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Position de l’image</span>
+                                                    <div className="grid grid-cols-3 gap-1.5">
+                                                        {[{ id: 'centre', l: 'Centre' }, { id: 'haut', l: 'Haut' }, { id: 'bas', l: 'Bas' },
+                                                          { id: 'couvrir', l: 'Couvrir' }, { id: 'mosaique', l: 'Mosaïque' }].map(o => (
+                                                            <button key={o.id} type="button"
+                                                                onClick={() => majModele('general', 'positionImageFond', o.id)}
+                                                                className={`rounded-lg border px-1 py-1.5 text-[11px] font-bold transition-colors ${(c.general.positionImageFond || 'centre') === o.id ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}>
+                                                                {o.l}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <p className="text-[11px] text-neutral-500 leading-snug mt-1.5">
+                                                Papier à en-tête, filigrane, tampon. L’image passe DERRIÈRE le texte —
+                                                choisissez-la très pâle, sinon le bordereau devient illisible.
+                                            </p>
+                                        </div>
 
                                         <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-4 mt-3 border-t border-neutral-100">Mise en page</p>
                                         <label className="block py-2">

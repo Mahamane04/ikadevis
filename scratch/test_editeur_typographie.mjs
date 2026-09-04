@@ -19,7 +19,7 @@
 //
 //  4. Les marges existent dans le PDF, donc l'aperçu doit les montrer : sans
 //     cadre, on les réglerait à l'aveugle.
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { launchApp, enterGuestMode } from './lib/harness.mjs';
 
 const wait = (ms = 900) => new Promise((r) => setTimeout(r, ms));
@@ -74,6 +74,13 @@ const typographie = (page, racine) => page.evaluate((sel) => {
             return { largeur: Math.round(r.width), part: r.width / zr.width, position: getComputedStyle(t).position };
         })(),
         fond: getComputedStyle(z).backgroundColor,
+        imageFond: getComputedStyle(z).backgroundImage,
+        positionFond: getComputedStyle(z).backgroundSize,
+        etiquette: (() => {
+            const e = [...z.querySelectorAll('.text-neutral-500')][0];
+            return e ? getComputedStyle(e).color : null;
+        })(),
+        papier: { format: z.getAttribute('data-format-papier'), orientation: z.getAttribute('data-orientation') },
         piedGras: (() => {
             const p = [...z.querySelectorAll('div')].find((d) => /whitespace-pre-line/.test(d.className || ''));
             return p ? { gras: p.querySelectorAll('strong').length, aligne: getComputedStyle(p).textAlign,
@@ -417,6 +424,64 @@ export async function run() {
         const apresFond = await typographie(page, ED);
         ok(`L’arrière-plan du document se règle — ${avantFond.fond} → ${apresFond.fond}`,
             apresFond.fond === 'rgb(253, 246, 227)' && apresFond.fond !== avantFond.fond);
+        // ── Couleur des étiquettes, séparée de l'encre du corps ───────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const champ = [...d.querySelectorAll('input[type="color"]')]
+                .find((x) => /étiquettes/i.test(x.getAttribute('aria-label') || ''));
+            if (!champ) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(champ, '#0b7285');
+            champ.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const avecEtiquettes = await typographie(page, ED);
+        ok(`Les étiquettes se colorent indépendamment du corps — ${avantFond.etiquette} → ${avecEtiquettes.etiquette}`,
+            avecEtiquettes.etiquette === 'rgb(11, 114, 133)'
+            && avecEtiquettes.couleurForte !== avecEtiquettes.etiquette);
+
+        // ── Format et orientation, réellement transmis ────────────────────
+        ok(`Le document part en A4 portrait — ${avecEtiquettes.papier.format} ${avecEtiquettes.papier.orientation}`,
+            avecEtiquettes.papier.format === 'A4' && avecEtiquettes.papier.orientation === 'portrait');
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const a5 = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'A5');
+            if (a5) a5.click();
+            const p = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Paysage');
+            if (p) p.click();
+        }, ED);
+        await wait(900);
+        const autrePapier = (await typographie(page, ED)).papier;
+        ok(`Format et orientation voyagent vers le PDF — ${autrePapier.format} ${autrePapier.orientation}`,
+            autrePapier.format === 'A5' && autrePapier.orientation === 'paysage');
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const a4 = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'A4');
+            if (a4) a4.click();
+            const p = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Portrait');
+            if (p) p.click();
+        }, ED);
+        await wait(700);
+
+        // ── Image d'arrière-plan ──────────────────────────────────────────
+        ok('Aucune image de fond par défaut',
+            (await typographie(page, ED)).imageFond === 'none');
+        const champImage = await page.$(`${ED} input[type="file"]`);
+        if (champImage) {
+            await champImage.uploadFile(fileURLToPath(new URL('./fixtures/logo_test.png', import.meta.url)));
+            await wait(2200);
+        }
+        const avecImage = await typographie(page, ED);
+        ok(`L’image d’arrière-plan se pose derrière le document — ${String(avecImage.imageFond).slice(0, 24)}…`,
+            /^url\("data:image/.test(avecImage.imageFond || ''));
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Mosaïque');
+            if (b) b.click();
+        }, ED);
+        await wait(800);
+        ok('Sa position se règle — mosaïque répète le motif',
+            (await typographie(page, ED)).positionFond === 'auto');
+
         ok('Les propriétés du modèle sont annoncées dans Général',
             await page.evaluate((sel) => /Propriétés du modèle/.test(document.querySelector(sel).textContent || ''), ED));
 

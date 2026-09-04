@@ -3402,3 +3402,68 @@ erreur, aucun avertissement, juste trois vérifications rouges qui accusaient le
 code applicatif. Renommée `numeroPage`.
 
 **476/476 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 📏 51. Parité Zoho sur l'onglet « Général » (2026-09-04)
+
+Relevé directement dans le Zoho Books de l'utilisateur, éditeur de modèle,
+onglet Général ouvert. Trois groupes : Propriétés du modèle, Police,
+Arrière-plan.
+
+### 51.1 L'écart constaté
+
+| Zoho | Avant | Après |
+|---|---|---|
+| Nom du modèle | ✅ (barre du haut) | ✅ |
+| Taille du papier — A5 / A4 / Lettre US | ❌ A4 en dur | ✅ **A4 / A5 / Lettre** |
+| Orientation — Portrait / Paysage | ❌ portrait en dur | ✅ **Portrait / Paysage** |
+| Marges, quatre côtés | ✅ en mm (Zoho : pouces) | ✅ |
+| Talon de paiement en PDF | ❌ | ❌ **assumé** |
+| Police du PDF | ✅ 4 familles | ✅ |
+| Couleur d'étiquette | ❌ | ✅ **`couleurEtiquettes`** |
+| Couleur de police | ✅ `couleurTexte` | ✅ |
+| Taille de police | ~ en % (Zoho : points) | ~ |
+| Image d'arrière-plan + position | ❌ | ✅ **`imageFond` + 5 positions** |
+| Couleur d'arrière-plan | ✅ | ✅ |
+
+### 51.2 Ce qui a été branché
+
+**Format et orientation.** `formatPapier` et `orientation` étaient déclarés puis
+supprimés au § 45 faute de câblage — ils reviennent, cette fois réellement
+transmis à jsPDF. Tout le calcul en aval part de `pdf.internal.pageSize` : la
+pagination, les marges et la position du numéro s'adaptent sans une ligne de
+plus. La Lettre US n'a pas cours en zone OHADA, mais un sous-traitant qui
+travaille pour un donneur d'ordre américain en a besoin.
+
+> L'aperçu de l'éditeur reste en colonne : il montre le contenu, pas le pliage
+> des pages. L'écran le dit, plutôt que de laisser croire à un rendu paginé.
+
+**Couleur des étiquettes**, séparée de l'encre du corps comme chez Zoho.
+`.document-encre` repeint les textes forts (900/800/700), `.document-etiquettes`
+les intitulés secondaires (600/500). C'est le contraste entre les deux qui
+structure la lecture ; les confondre revenait à n'avoir qu'un seul niveau.
+
+**Image d'arrière-plan** — papier à en-tête pré-imprimé, filigrane, tampon —
+avec cinq positions (centre, haut, bas, couvrir, mosaïque). Stockée en data-URI
+dans la configuration, comme le logo, et compressée par la même fonction mais à
+**1200 px** au lieu des 480 du logo : cette image couvre une page A4 entière, à
+480 elle sortirait floue sur le PDF.
+
+### 51.3 Ce qui reste volontairement absent
+
+**Le talon de paiement** (« Afficher le Talon de paiement en PDF »). C'est un
+coupon détachable de virement bancaire, propre aux factures nord-américaines et
+indiennes. Un devis BTP en zone OHADA porte déjà son cadre « Bon pour accord »
+et ses coordonnées de règlement ; ajouter un talon serait copier une case, pas
+répondre à un besoin.
+
+**La taille de police en points.** Le réglage existe, en pourcentage (80–130 %).
+Passer aux points obligerait à convertir les modèles déjà enregistrés pour un
+gain nul : 100 % est plus parlant que « 12 pt » quand toutes les tailles du
+document sont relatives entre elles.
+
+**L'éditeur enrichi WYSIWYG** du pied de page (§ 50.2), toujours remplacé par
+la convention `**gras**`.
+
+**482/482 au vert, 0 régression, 49 suites, 7 étalons conformes.**
