@@ -3042,4 +3042,108 @@ le nettoyage du fragment `#settings/` rattaché à l'état plutôt qu'au bouton
 sur 25 tabulations, vérifie la restitution du menu par le bouton **et** par un
 autre chemin de sortie, et refait le tout à 390 px de large.
 
+
 **431/431 au vert, 0 régression, 48 suites, 7 étalons conformes.**
+
+---
+
+## 🔍 45. Audit de l'éditeur de modèles : quatre réglages morts (2026-09-04)
+
+Demande de l'utilisateur : « teste l'éditeur de modèle pdf il y a plusieurs
+améliorations constatées à faire (comme changer la police, les couleurs et la
+taille) ».
+
+### 45.1 Ce que l'audit a trouvé
+
+Quatre clés de configuration n'apparaissaient **qu'une seule fois** dans tout
+le code — dans la déclaration du défaut. Jamais lues, jamais exposées :
+
+| Clé | Verdict |
+|---|---|
+| `general.margesMm` | Déclarée à 15 mm ; le PDF utilisait une constante de 8 mm enfouie dans `telechargerElementEnPdf` |
+| `general.orientation` | jsPDF est instancié en portrait en dur |
+| `pied.afficherNumeroPage` | Aucune numérotation nulle part |
+| `document.titreEtude` | Jamais lu |
+
+L'écran promettait « les marges et l'orientation paysage arrivent avec les
+modèles multiples ». Les modèles multiples étaient là depuis l'étape 3 ; pas
+elles.
+
+Deux clés sont **supprimées** plutôt que branchées : `orientation` (jsPDF est
+en portrait, et le paysage demanderait de reprendre toute la découpe en pages)
+et `titreEtude` (l'étude interne ne passe pas par ce composant). Une clé qui
+ne pilote rien vaut moins que pas de clé du tout.
+
+### 45.2 Trois réglages nouveaux
+
+**Taille du texte** (`general.echelleTexte`, 80–130 %). Le manque le plus net :
+un bordereau de 80 lignes et une proposition de six postes sortaient au même
+corps, sans aucun contournement.
+
+> ⚠️ **Piège rencontré, et c'est LE point de ce chantier.** Première version
+> écrite en `em` : `.document-echelle .text-xs { font-size: 0.75em }`. Or les
+> classes s'imbriquent — le tableau porte `text-xs`, la bande d'en-tête de lot
+> qu'il contient porte `text-[11px]`. Deux `em` l'un dans l'autre, et cette
+> bande sortait à **8,25 px au lieu de 11** (0,6875 × 12). Les `rem` de
+> Tailwind ne se composent pas ; des `em` si.
+> Correctif : une **variable CSS** déclarée sur le document
+> (`--corps-doc: calc(16px * var(--echelle-doc))`), lue à l'identique à toute
+> profondeur. `test_editeur_typographie` vérifie que le rapport bande/tableau
+> reste 11/12 à 80 %, 100 % et 130 % — c'est ce rapport, pas les valeurs
+> absolues, qui distingue une variable d'un `em`.
+
+**Encre du document** (`general.couleurTexte`, vide = inchangé). Ne repeint que
+les textes forts — intitulés, montants, totaux. Les gris secondaires restent
+gris : les repeindre aussi permettrait de produire un document illisible en un
+clic, un gris clair sur blanc par exemple.
+
+**Marges de page** (`general.margesMm`, 0–40 mm par côté). Ce sont les marges
+du **papier**, pas le rembourrage du bloc à l'écran : elles pilotent la place
+que le document occupe sur la feuille A4 dans jsPDF. Le défaut passe de 15 à
+**8 mm** — la valeur qui était réellement appliquée. Les marges voyagent sur
+l'élément (`data-marges-mm`) plutôt qu'en argument, parce que
+`telechargerDocument` télécharge « ce qui est visible » sans savoir s'il s'agit
+d'un devis, d'une facture ou d'une étude : un document qui ne porte pas
+l'attribut retombe sur les valeurs d'avant.
+
+**Numérotation des pages**, enfin branchée — écrite après coup dans jsPDF,
+quand le nombre total est connu (« Page 2 / 5 » ne peut pas s'écrire avant
+d'avoir posé la cinquième). **Décochée par défaut**, délibérément : cochée,
+chaque devis déjà enregistré verrait un pied de page apparaître au prochain
+téléchargement, la configuration figée dans son instantané héritant du nouveau
+défaut. Un document émis ne change pas d'apparence parce qu'on a livré une
+fonctionnalité.
+
+### 45.3 Voir avant de croire
+
+**Aperçu PDF dans l'éditeur.** Vérifier une couleur demandait d'enregistrer le
+modèle, de le passer par défaut, d'ouvrir un devis, puis de télécharger.
+Quatre étapes. Le PDF part maintenant de l'éditeur, sans rien enregistrer.
+
+**L'aperçu de l'éditeur montre le cadre des marges.** Elles n'existent que dans
+le PDF ; sans cadre, on les réglerait à l'aveugle. Exprimées en pourcentage de
+la largeur — la page A4 fait 210 mm de large, et un pourcentage vertical se
+résout lui aussi sur la largeur en CSS, ce qui rend les quatre côtés justes
+avec une seule règle.
+
+**Vignettes dans la galerie**, comme le catalogue : le vrai document en
+réduction, plus un bouton « Aperçu PDF » qui l'ouvre en plein format avec
+téléchargement. Les quatre lignes de texte (Détail/Densité/Colonnes/Police)
+deviennent une ligne de résumé sous la vignette.
+
+**Vignettes dans la liste des factures.** A demandé d'extraire `DocumentFacture`
+du panneau de détail — 106 lignes, même motif que `DocumentDevisClient` six
+jours plus tôt : la vignette, l'aperçu et le panneau appellent tous le même
+rendu, sans quoi ils finiraient par diverger.
+
+> Un **brouillon** de facture n'a pas de numéro légal : il ne porte pas
+> `data-zone-impression` et ne peut pas sortir en PDF. Le bouton de
+> téléchargement de l'aperçu le dit (« Brouillon — non téléchargeable ») au
+> lieu d'échouer sur un « document introuvable » qui n'expliquerait rien.
+
+> L'aperçu passe son élément **explicitement** à `telechargerElementPdf` :
+> `zoneImpressionVisible` prend le PREMIER document visible du DOM, et l'aperçu
+> s'ouvre par-dessus un panneau qui en contient déjà un — on aurait téléchargé
+> le mauvais document.
+
+**450/450 au vert, 0 régression, 49 suites, 7 étalons conformes.**

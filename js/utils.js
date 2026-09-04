@@ -242,7 +242,11 @@ function nomFichierSur(base) {
 
 // Génère le PDF A4 depuis un élément du DOM et déclenche le téléchargement.
 // Découpe en plusieurs pages si le document dépasse une hauteur A4.
-async function telechargerElementEnPdf(element, nomFichier) {
+// `options` (2026-09-04) — jusqu'ici les marges de page étaient une constante
+// de 8 mm enfouie ici, et la numérotation n'existait pas. Les deux sont
+// désormais des réglages de modèle. Les valeurs par défaut REPRODUISENT le
+// comportement d'avant : un appel sans options sort exactement le même PDF.
+async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     if (!element) throw new Error("Document introuvable à l'écran.");
     await chargerLibsPdf();
 
@@ -428,28 +432,58 @@ async function telechargerElementEnPdf(element, nomFichier) {
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const pageL = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const marge = 8;
-    const imgL = pageL - marge * 2;
+
+    // Marges bornées : au-delà de 40 mm il ne resterait plus de place pour le
+    // bordereau, et une valeur négative ferait sortir l'image de la page.
+    const borner = (valeur, defaut) => {
+        const n = Number(valeur);
+        return Number.isFinite(n) ? Math.max(0, Math.min(40, n)) : defaut;
+    };
+    const m = options.marges || {};
+    const mHaut = borner(m.haut, 8);
+    const mBas = borner(m.bas, 8);
+    const mGauche = borner(m.gauche, 8);
+    const mDroit = borner(m.droit, 8);
+
+    const imgL = pageL - mGauche - mDroit;
+    const hauteurUtile = pageH - mHaut - mBas;
     const imgH = (canvas.height * imgL) / canvas.width;
 
-    if (![pageL, pageH, imgL, imgH].every(Number.isFinite) || imgL <= 0 || imgH <= 0) {
+    if (![pageL, pageH, imgL, imgH, hauteurUtile].every(Number.isFinite)
+        || imgL <= 0 || imgH <= 0 || hauteurUtile <= 0) {
         throw new Error("Les dimensions du document PDF sont invalides. Réessayez après avoir rouvert le document.");
     }
 
     const image = canvas.toDataURL('image/jpeg', 0.92);
     let restant = imgH;
-    let position = marge;
+    let position = mHaut;
 
-    pdf.addImage(image, 'JPEG', marge, position, imgL, imgH);
-    restant -= (pageH - marge * 2);
+    pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
+    restant -= hauteurUtile;
 
     // Pages suivantes : on décale l'image vers le haut, la zone visible de la
     // page suivante correspondant à la suite du document.
     while (restant > 0) {
-        position = marge - (imgH - restant);
+        position = mHaut - (imgH - restant);
         pdf.addPage();
-        pdf.addImage(image, 'JPEG', marge, position, imgL, imgH);
-        restant -= (pageH - marge * 2);
+        pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
+        restant -= hauteurUtile;
+    }
+
+    // Numérotation : écrite APRÈS coup, quand le nombre total de pages est
+    // connu — « Page 2 / 5 » ne peut pas s'écrire avant d'avoir posé la
+    // cinquième. Le numéro se pose dans la marge basse ; si elle est trop
+    // mince pour l'accueillir, on le remonte pour qu'il reste sur la page
+    // plutôt que de déborder hors du papier.
+    if (options.numeroterPages) {
+        const total = pdf.internal.getNumberOfPages();
+        const y = Math.min(pageH - 4, pageH - mBas / 2 + 1);
+        pdf.setFontSize(8);
+        pdf.setTextColor(130, 130, 130);
+        for (let page = 1; page <= total; page++) {
+            pdf.setPage(page);
+            pdf.text(`Page ${page} / ${total}`, pageL / 2, y, { align: 'center' });
+        }
     }
 
     pdf.save(`${nomFichierSur(nomFichier)}.pdf`);

@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904d">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904e">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260904d">
+    <link rel="stylesheet" href="tailwind.css?v=20260904e">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -256,6 +256,45 @@
            Un seul menu à la fois : le bouton de sortie redevient vrai, et il
            n'y a plus de navigation qui refuse de dire où l'on est. */
         .settings-page-shell { left: 0; }
+
+        /* ── Échelle du texte du document (2026-09-04) ────────────────────
+           Régler `font-size` sur le document ne suffisait pas : les classes
+           Tailwind utilisées à l'intérieur sont en `rem` (relatives à la
+           RACINE du document, pas au parent) ou en pixels absolus. Elles
+           ignoraient donc l'échelle.
+           On redéclare ici, et seulement à l'intérieur du document, les six
+           tailles qu'il emploie — en `em`, donc relatives au conteneur. Les
+           hauteurs de ligne suivent, sans quoi un texte réduit garderait
+           l'interligne de sa taille d'origine. À 100 %, chaque valeur retombe
+           exactement sur celle de Tailwind : le document ne bouge pas d'un
+           pixel tant qu'on ne touche pas au réglage.
+           ⚠️ Les tailles sont exprimées à partir d'une VARIABLE, pas en `em`.
+           La première version utilisait `em` et se composait : le tableau porte
+           `text-xs`, et la bande d'en-tête de lot qu'il contient porte
+           `text-[11px]`. Deux niveaux d'`em` l'un dans l'autre — 0.6875 × 12 px
+           — et cette bande sortait à 8,25 px au lieu de 11. Une variable
+           déclarée sur le document se lit à l'identique à toute profondeur :
+           elle ne se compose jamais. */
+        .document-echelle {
+            --corps-doc: calc(16px * var(--echelle-doc, 1));
+            font-size: var(--corps-doc);
+        }
+        .document-echelle .text-\[10px\] { font-size: calc(var(--corps-doc) * 0.625); }
+        .document-echelle .text-\[11px\] { font-size: calc(var(--corps-doc) * 0.6875); }
+        .document-echelle .text-xs   { font-size: calc(var(--corps-doc) * 0.75);  line-height: calc(var(--corps-doc) * 1); }
+        .document-echelle .text-sm   { font-size: calc(var(--corps-doc) * 0.875); line-height: calc(var(--corps-doc) * 1.25); }
+        .document-echelle .text-base { font-size: var(--corps-doc);               line-height: calc(var(--corps-doc) * 1.5); }
+        .document-echelle .text-2xl  { font-size: calc(var(--corps-doc) * 1.5);   line-height: calc(var(--corps-doc) * 2); }
+
+        /* ── Encre du document ───────────────────────────────────────────
+           Ne touche QUE les textes forts — intitulés d'ouvrage, montants,
+           totaux. Les gris secondaires (500, 600) restent gris : les repeindre
+           aussi permettrait de produire un document illisible en un clic, un
+           gris clair sur blanc par exemple. La classe n'est posée que si une
+           couleur est choisie ; sans elle, rien ne change. */
+        .document-encre .text-neutral-900,
+        .document-encre .text-neutral-800,
+        .document-encre .text-neutral-700 { color: var(--encre-doc); }
         .sidebar-section-label {
             padding: 0 14px; margin-bottom: 6px;
             font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -877,10 +916,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260904d"></script>
-    <script src="js/utils.js?v=20260904d"></script>
-    <script src="js/quote-templates.js?v=20260904d"></script>
-    <script src="app.compiled.js?v=20260904d"></script>
+    <script src="js/calc-engine.js?v=20260904e"></script>
+    <script src="js/utils.js?v=20260904e"></script>
+    <script src="js/quote-templates.js?v=20260904e"></script>
+    <script src="app.compiled.js?v=20260904e"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

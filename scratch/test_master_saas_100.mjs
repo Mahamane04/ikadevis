@@ -52,6 +52,7 @@ import * as referentielHorsLigne from './test_referentiel_hors_ligne.mjs';
 import * as editeurModeles from './test_editeur_modeles.mjs';
 import * as modelesPreetablis from './test_modeles_preetablis.mjs';
 import * as reglagesPleinEcran from './test_reglages_plein_ecran.mjs';
+import * as editeurTypographie from './test_editeur_typographie.mjs';
 import * as countableMaterialWaste from './test_countable_material_waste.mjs';
 import * as packRoundingFloatEpsilon from './test_pack_rounding_float_epsilon.mjs';
 import * as goldB from './test_gold_standard_b_carrelage.mjs';
@@ -102,6 +103,7 @@ const SUITES = [
     { name: 'Éditeur de modèles : aperçu continu et effet réel', mod: editeurModeles, expectedToFail: false },
     { name: 'Modèles préétablis : un catalogue, sept documents différents', mod: modelesPreetablis, expectedToFail: false },
     { name: 'Paramètres en plein écran : un seul menu à la fois', mod: reglagesPleinEcran, expectedToFail: false },
+    { name: 'Éditeur : taille du texte, encre, marges et aperçu PDF', mod: editeurTypographie, expectedToFail: false },
     { name: 'Fix F1 — perte applicable aux matières dénombrables, arrondie à l\'unité', mod: countableMaterialWaste, expectedToFail: false },
     { name: 'Fix F2 — arrondi conditionnement insensible au bruit flottant', mod: packRoundingFloatEpsilon, expectedToFail: false },
     { name: 'Étalon B — Carrelage Sol (tolérance zéro)', mod: goldB, expectedToFail: false },

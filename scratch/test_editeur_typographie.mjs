@@ -1,0 +1,251 @@
+// Banc d'essai — taille du texte, encre, marges et aperçu PDF (2026-09-04).
+//
+// L'éditeur déclarait quatre réglages qui ne pilotaient rien (marges,
+// orientation, numéro de page, titre d'étude) et n'offrait AUCUN contrôle de
+// taille — un bordereau de 80 lignes et une proposition de 6 postes sortaient
+// au même corps. Ce banc protège les quatre points qui comptent :
+//
+//  1. À 100 %, le document ne bouge pas d'un pixel. C'est la condition pour
+//     livrer ce réglage sans retoucher les devis déjà émis.
+//
+//  2. Les tailles ne se COMPOSENT pas. Première version écrite en `em` : le
+//     tableau porte `text-xs`, la bande d'en-tête de lot qu'il contient porte
+//     `text-[11px]`, et deux `em` imbriqués la faisaient sortir à 8,25 px au
+//     lieu de 11. Le rapport entre les deux doit rester constant à toutes les
+//     échelles — c'est ce qui distingue une variable d'un `em`.
+//
+//  3. L'encre ne repeint que les textes forts. Repeindre aussi les gris
+//     secondaires permettrait de produire un document illisible en un clic.
+//
+//  4. Les marges existent dans le PDF, donc l'aperçu doit les montrer : sans
+//     cadre, on les réglerait à l'aveugle.
+import { pathToFileURL } from 'node:url';
+import { launchApp, enterGuestMode } from './lib/harness.mjs';
+
+const wait = (ms = 900) => new Promise((r) => setTimeout(r, ms));
+const ED = '[role="dialog"][aria-label*="Éditeur de modèle"]';
+const GAL = '[role="dialog"][aria-label*="Modèles"]';
+
+const cliquer = (page, motif) => page.evaluate((t) => {
+    const b = [...document.querySelectorAll('button')]
+        .filter((x) => x.getBoundingClientRect().width > 0)
+        .find((x) => new RegExp(t, 'i').test(x.textContent || ''));
+    if (b) b.click();
+    return !!b;
+}, motif);
+
+const typographie = (page, racine) => page.evaluate((sel) => {
+    const hote = sel ? document.querySelector(sel) : document;
+    const z = hote && hote.querySelector('[data-zone-impression]');
+    if (!z) return null;
+    const px = (el) => (el ? parseFloat(getComputedStyle(el).fontSize) : null);
+    const couleur = (el) => (el ? getComputedStyle(el).color : null);
+    const cellules = [...z.querySelectorAll('table tbody td')];
+    return {
+        titre: px(z.querySelector('h2')),
+        tableau: px(z.querySelector('table')),
+        bandeLot: px(cellules.find((t) => t.hasAttribute('colspan'))),
+        cellule: px(cellules.find((t) => !t.hasAttribute('colspan'))),
+        mentions: px([...z.querySelectorAll('p')].find((p) => /NIF:/.test(p.textContent || ''))),
+        couleurForte: couleur([...z.querySelectorAll('.text-neutral-900')][0]),
+        couleurFaible: couleur([...z.querySelectorAll('.text-neutral-500')][0]),
+        margesAttribut: z.getAttribute('data-marges-mm'),
+        numerotation: z.getAttribute('data-numeroter-pages'),
+        cadreHaut: z.parentElement ? getComputedStyle(z.parentElement).paddingTop : null
+    };
+}, racine || null);
+
+export async function run() {
+    const results = [];
+    const ok = (label, cond, detail = '') => results.push({ label, pass: !!cond, detail });
+    const proche = (a, b, tol = 0.6) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tol;
+
+    const { page, close } = await launchApp();
+    try {
+        await page.setViewport({ width: 1600, height: 1000 });
+        await enterGuestMode(page, { demo: true });
+        await wait(2400);
+
+        // ── Le document tel qu'il sort aujourd'hui, sans aucun modèle ─────
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('aside button')]
+                .find((x) => (x.textContent || '').trim().startsWith('Mes devis'));
+            if (b) b.click();
+        });
+        await wait(1800);
+        await page.evaluate(() => { const tr = document.querySelector('tbody tr'); if (tr) tr.click(); });
+        await wait(2500);
+        const reference = await typographie(page, null);
+
+        ok(`Sans modèle, la typographie est celle d’avant — titre ${reference.titre}px, tableau ${reference.tableau}px, bande ${reference.bandeLot}px`,
+            proche(reference.titre, 24) && proche(reference.tableau, 12)
+            && proche(reference.bandeLot, 11) && proche(reference.mentions, 11));
+        ok(`Le document annonce ses marges de page — ${reference.margesAttribut}`,
+            /"haut":8/.test(reference.margesAttribut || ''));
+        ok('Aucune numérotation par défaut : un devis déjà émis ne change pas d’apparence',
+            reference.numerotation === null);
+
+        // ── Dans l'éditeur ────────────────────────────────────────────────
+        await cliquer(page, 'Paramètres du Compte'); await wait(1700);
+        await cliquer(page, 'Documents'); await wait(1700);
+        await cliquer(page, 'Éditeur de modèles'); await wait(2200);
+        await page.evaluate((sel) => {
+            const g = document.querySelector(sel);
+            const b = g && [...g.querySelectorAll('button')]
+                .find((x) => /Nouveau modèle|Choisir un modèle|Créer un premier/.test(x.textContent || ''));
+            if (b) b.click();
+        }, GAL);
+        await wait(2000);
+        await page.evaluate(() => {
+            const c = document.querySelector('[role="dialog"][aria-label="Choisir un modèle"]');
+            const b = c && [...c.querySelectorAll('button')].find((x) => /Repartir de zéro/.test(x.textContent || ''));
+            if (b) b.click();
+        });
+        await wait(2000);
+
+        const cent = await typographie(page, ED);
+        ok(`À 100 %, l’aperçu reproduit le document de référence — ${cent.titre}/${cent.tableau}/${cent.bandeLot}`,
+            proche(cent.titre, reference.titre) && proche(cent.tableau, reference.tableau)
+            && proche(cent.bandeLot, reference.bandeLot));
+
+        const reglerEchelle = async (valeur) => {
+            await page.evaluate((v) => {
+                const d = document.querySelector('[role="dialog"][aria-label*="Éditeur de modèle"]');
+                const r = [...d.querySelectorAll('input[type="range"]')]
+                    .find((x) => /Taille du texte/i.test(x.getAttribute('aria-label') || ''));
+                if (!r) return;
+                Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(r, String(v));
+                r.dispatchEvent(new Event('input', { bubbles: true }));
+            }, valeur);
+            await wait(900);
+            return typographie(page, ED);
+        };
+
+        ok('Le curseur de taille du texte est proposé',
+            await page.evaluate((sel) => [...document.querySelector(sel).querySelectorAll('input[type="range"]')]
+                .some((x) => /Taille du texte/i.test(x.getAttribute('aria-label') || '')), ED));
+
+        const grand = await reglerEchelle(130);
+        ok(`130 % agrandit tout le document — titre ${cent.titre} → ${grand.titre}px, tableau ${cent.tableau} → ${grand.tableau}px`,
+            proche(grand.titre, cent.titre * 1.3) && proche(grand.tableau, cent.tableau * 1.3));
+
+        const petit = await reglerEchelle(80);
+        ok(`80 % le resserre — tableau ${cent.tableau} → ${petit.tableau}px`,
+            proche(petit.tableau, cent.tableau * 0.8));
+
+        // LE point de régression : en `em`, la bande d'en-tête de lot héritait
+        // deux fois de l'échelle et sortait à 8,25 px au lieu de 11.
+        const rapport = (t) => t.bandeLot / t.tableau;
+        ok(`Les tailles ne se composent pas — rapport bande/tableau ${rapport(cent).toFixed(4)} · ${rapport(grand).toFixed(4)} · ${rapport(petit).toFixed(4)}`,
+            Math.abs(rapport(cent) - rapport(grand)) < 0.02 && Math.abs(rapport(cent) - rapport(petit)) < 0.02
+            && Math.abs(rapport(cent) - 11 / 12) < 0.02);
+
+        await reglerEchelle(100);
+
+        // ── L'encre ───────────────────────────────────────────────────────
+        const avantEncre = await typographie(page, ED);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const champ = [...d.querySelectorAll('input[type="color"]')]
+                .find((x) => /Couleur du texte/i.test(x.getAttribute('aria-label') || ''));
+            if (!champ) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(champ, '#7c2d12');
+            champ.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const apresEncre = await typographie(page, ED);
+        ok(`L’encre repeint les textes forts — ${avantEncre.couleurForte} → ${apresEncre.couleurForte}`,
+            apresEncre.couleurForte === 'rgb(124, 45, 18)');
+        ok(`…et laisse les mentions secondaires en gris — ${apresEncre.couleurFaible}`,
+            apresEncre.couleurFaible === avantEncre.couleurFaible);
+
+        // ── Les marges ────────────────────────────────────────────────────
+        const cadreAvant = parseFloat(avantEncre.cadreHaut);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const champ = [...d.querySelectorAll('input[type="number"]')]
+                .find((x) => /Marge haut/i.test(x.getAttribute('aria-label') || ''));
+            if (!champ) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(champ, '30');
+            champ.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const apresMarge = await typographie(page, ED);
+        ok(`L’aperçu montre le cadre des marges — ${cadreAvant}px → ${parseFloat(apresMarge.cadreHaut)}px`,
+            parseFloat(apresMarge.cadreHaut) > cadreAvant * 2);
+        ok(`Le document emporte ses marges vers le PDF — ${apresMarge.margesAttribut}`,
+            /"haut":30/.test(apresMarge.margesAttribut || ''));
+
+        // ── La numérotation ───────────────────────────────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Pied de page/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1200);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const l = [...d.querySelectorAll('label')].find((x) => /Numéroter les pages/.test(x.textContent || ''));
+            const cb = l && l.querySelector('input[type="checkbox"]');
+            if (cb) cb.click();
+        }, ED);
+        await wait(900);
+        ok('Cocher « Numéroter les pages » se transmet au PDF',
+            (await typographie(page, ED)).numerotation === '1');
+
+        // ── L'aperçu PDF ──────────────────────────────────────────────────
+        ok('L’éditeur propose un aperçu PDF sans obliger à enregistrer',
+            await page.evaluate((sel) => [...document.querySelector(sel).querySelectorAll('button')]
+                .some((b) => /Aperçu PDF/.test(b.textContent || '')), ED));
+
+        // ── La galerie : vignette et aperçu ───────────────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => /^Enregistrer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        }, ED);
+        await wait(2600);
+        const galerie = await page.evaluate((sel) => {
+            const g = document.querySelector(sel);
+            if (!g) return { ouverte: false };
+            const carte = g.querySelector('.app-card');
+            return {
+                ouverte: true,
+                vignette: !!(carte && carte.querySelector('[data-zone-impression]')),
+                apercu: !!(carte && [...carte.querySelectorAll('button')].some((b) => /Aperçu PDF/.test(b.textContent || '')))
+            };
+        }, GAL);
+        ok('La galerie montre le document en vignette, plus une liste de réglages', galerie.vignette);
+        ok('Chaque modèle offre son aperçu PDF', galerie.apercu);
+
+        await page.evaluate((sel) => {
+            const g = document.querySelector(sel);
+            const b = [...g.querySelectorAll('button')].find((x) => /Aperçu PDF/.test(x.textContent || ''));
+            if (b) b.click();
+        }, GAL);
+        await wait(1800);
+        const overlay = await page.evaluate(() => {
+            const o = document.querySelector('[role="dialog"][aria-label^="Aperçu PDF"]');
+            if (!o) return { ouvert: false };
+            return {
+                ouvert: true,
+                document: !!o.querySelector('[data-zone-impression]'),
+                telecharger: [...o.querySelectorAll('button')].some((b) => /Télécharger le PDF/.test(b.textContent || '')),
+                margesAnnoncees: /mm/.test(o.innerText)
+            };
+        });
+        ok('L’aperçu s’ouvre en plein format', overlay.ouvert && overlay.document);
+        ok('Il propose le téléchargement du PDF', overlay.telecharger);
+        ok('Il annonce les marges appliquées', overlay.margesAnnoncees);
+    } finally {
+        await close();
+    }
+
+    return results;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+    const results = await run();
+    for (const r of results) console.log(`  ${r.pass ? '✅' : '❌'} ${r.label}${r.detail ? ' — ' + r.detail : ''}`);
+    process.exit(results.every((r) => r.pass) ? 0 : 1);
+}

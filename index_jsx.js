@@ -7116,10 +7116,25 @@ const normalizePdfBrandColor = (value) => /^#[0-9A-Fa-f]{6}$/.test(String(value 
 // c'est la seule façon d'introduire cette table sans changer un seul devis.
 const CONFIGURATION_MODELE_DEFAUT = {
     general: {
-        format: 'A4',              // seul format retenu : la lettre US n'existe pas en zone OHADA
-        orientation: 'portrait',
-        margesMm: { haut: 15, bas: 15, gauche: 15, droit: 15 },
+        // A4 portrait : la lettre US n'existe pas en zone OHADA, et jsPDF est
+        // instancié en portrait. Ces deux-là restent en dur — une clé de
+        // configuration qui ne pilote rien vaut moins que pas de clé du tout.
+        format: 'A4',
+        // Marges de PAGE, pas de contenu : elles pilotent la place que le
+        // document occupe sur la feuille A4 (jsPDF), pas le rembourrage du
+        // bloc à l'écran. 8 mm reproduit EXACTEMENT la constante qui était
+        // enfouie dans telechargerElementEnPdf jusqu'au 2026-09-04.
+        margesMm: { haut: 8, bas: 8, gauche: 8, droit: 8 },
         police: 'modern',
+        // Échelle du texte, en pourcentage. 100 = le document d'aujourd'hui,
+        // au caractère près. Un bordereau de 80 lignes gagne à descendre, une
+        // proposition de six postes à monter.
+        echelleTexte: 100,
+        // Encre du document : vide = les gris actuels, inchangés. Renseignée,
+        // elle remplace la couleur des textes FORTS (intitulés, montants,
+        // totaux) sans toucher aux gris secondaires — sans quoi on pourrait
+        // produire un document illisible en un clic.
+        couleurTexte: '',
         couleurMarque: '#3B5BDB',
         // Les aplats de couleur (bandeau d'en-tête de tableau plein) sortent
         // gris sale en photocopie noir et blanc — le sort réservé à la plupart
@@ -7137,7 +7152,12 @@ const CONFIGURATION_MODELE_DEFAUT = {
     },
     pied: {
         note: '',
-        afficherNumeroPage: true
+        // Décoché par défaut, et c'est délibéré : coché, chaque devis DÉJÀ
+        // enregistré verrait un pied de page apparaître au prochain
+        // téléchargement — la configuration figée dans l'instantané n'a pas
+        // cette clé et hériterait du défaut. Un document émis ne change pas
+        // d'apparence parce qu'on a livré une fonctionnalité.
+        afficherNumeroPage: false
     },
     document: {
         // Filigrane de statut : un devis en brouillon qui circule pour un devis
@@ -7146,7 +7166,6 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // que l'erreur qu'il évite coûte plus cher que la gêne visuelle.
         afficherStatut: true,
         titreDevis: 'DEVIS COMMERCIAL',
-        titreEtude: 'ÉTUDE DE PRIX',
         afficherValidite: true,
         afficherChantier: true
     },
@@ -7188,6 +7207,10 @@ const fusionnerConfiguration = (configuration) => {
     // `colonnes` est le seul sous-arbre : une fusion de surface remplacerait le
     // groupe entier, et une colonne ajoutée plus tard n'aurait pas de défaut
     // dans les modèles déjà enregistrés — elle sortirait sans libellé.
+    sortie.general.margesMm = {
+        ...CONFIGURATION_MODELE_DEFAUT.general.margesMm,
+        ...(((configuration || {}).general || {}).margesMm || {})
+    };
     const defColonnes = CONFIGURATION_MODELE_DEFAUT.tableau.colonnes;
     const enregistrees = ((configuration || {}).tableau || {}).colonnes || {};
     sortie.tableau.colonnes = {};
@@ -7449,6 +7472,10 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // Borné : une valeur aberrante venue d'une configuration enregistrée à la
     // main ne doit pas produire un logo qui écrase l'en-tête.
     const tailleLogo = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
+    // Bornée elle aussi : sous 80 % le bordereau devient illisible, au-delà de
+    // 130 % il déborde de la colonne des montants.
+    const echelleTexte = Math.max(80, Math.min(130, Number(cfg.general.echelleTexte) || 100)) / 100;
+    const encre = (cfg.general.couleurTexte || '').trim();
     const aplats = cfg.general.aplatsColores !== false;
     const classeEnteteTableau = `font-bold uppercase ${aplats ? 'text-white' : 'text-neutral-900'}`;
     const styleEnteteTableau = aplats
@@ -7470,7 +7497,13 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         ? devis.companyInfoSnapshot.echeancier
         : (societe.echeancier || []);
     return (
-        <div className={`saved-quote-document w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${modeDemo ? 'document-demo' : ''}`} data-zone-impression="1" style={{ fontFamily: theme.fontFamily }}>
+        <div
+            className={`saved-quote-document document-echelle w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 break-words print:border-0 print:p-0 ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
+            data-zone-impression="1"
+            data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
+            data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined }}
+        >
             {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
                 préremplis d'une identité d'entreprise complète et crédible
                 (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
@@ -7868,6 +7901,125 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     );
 };
 
+
+// ══ DOCUMENT FACTURE — rendu unique, partagé ══════════════════════════════
+// Extrait le 2026-09-04 du panneau « Factures », sans changer une ligne du
+// rendu : seules les variables de fermeture sont devenues des propriétés.
+//
+// Même motif que DocumentDevisClient six jours plus tôt : les vignettes de la
+// liste et l'aperçu plein format doivent montrer LE document, pas une seconde
+// mise en page qui finirait par diverger de celle qu'on envoie au client.
+//
+// `ci` reste le nom de l'instantané d'entreprise figé dans la facture — celui
+// qui fait foi, la facture étant un document légal immuable une fois émise.
+const DocumentFacture = ({ facture, ci, theme, disposition, devise }) => (
+        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" data-zone-impression={facture.statut === 'draft' ? undefined : '1'} style={{ fontFamily: theme.fontFamily }}>
+            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
+                <div className={disposition.company}>
+                    {ci.logo && (
+                        <div className={`flex mb-2 ${disposition.logo}`}>
+                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain" />
+                        </div>
+                    )}
+                    <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
+                    <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
+                    <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
+                    <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
+                    <p className="text-[11px] text-neutral-500">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
+                </div>
+                <div className={disposition.document}>
+                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>Facture</h2>
+                    <p className="text-sm font-bold text-neutral-800 mt-1">
+                        {facture.numero ? `N° : ${facture.numero}` : 'Brouillon (non numéroté)'}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                        {facture.dateEmission
+                            ? `Émise le ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}`
+                            : 'Non émise'}
+                    </p>
+                    {facture.devisNumero && (
+                        <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {facture.devisNumero}</p>
+                    )}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                <div>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
+                    <p className="font-semibold text-neutral-900 text-base">{facture.clientName}</p>
+                </div>
+                <div>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Désignation chantier</p>
+                    <p className="font-bold text-neutral-800">{facture.projectRef}</p>
+                </div>
+            </div>
+
+            <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
+                        <th className="p-3 rounded-l-lg">Désignation</th>
+                        <th className="p-3 text-center">Quantité</th>
+                        <th className="p-3 text-right">Prix Unitaire HT</th>
+                        <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                    {(facture.lignes || []).map((l, i) => (
+                        <tr key={i}>
+                            <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
+                            <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                            <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, devise)}</td>
+                            <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, devise)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+
+            <div className="flex justify-end pt-4 border-t border-neutral-200">
+                <div className="w-72 space-y-2 text-xs">
+                    <div className="flex justify-between font-bold text-neutral-800 text-sm">
+                        <span>Total HT :</span>
+                        <span>{formatMoney(facture.totalHT, devise)}</span>
+                    </div>
+                    {facture.tauxTva === 0 ? (
+                        <div className="text-neutral-500">
+                            <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
+                            {ci.vatExemptionNote && (
+                                <p className="text-[10px] text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex justify-between text-neutral-500">
+                            <span>TVA ({facture.tauxTva}%) :</span>
+                            <span>+{formatMoney(facture.totalTva, devise)}</span>
+                        </div>
+                    )}
+                    {facture.deduitTTC > 0 && (
+                        <div className="flex justify-between text-neutral-500">
+                            <span>Acomptes déjà facturés :</span>
+                            <span>-{formatMoney(facture.deduitTTC, devise)}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
+                        <span>NET À PAYER :</span>
+                        <span>{formatMoney(facture.netAPayerTTC, devise)}</span>
+                    </div>
+                </div>
+            </div>
+
+            {(ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift) && (
+                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
+                    <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
+                    <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
+                </div>
+            )}
+            {ci.pdfFooterNote && (
+                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
+                    {ci.pdfFooterNote}
+                </div>
+            )}
+        </div>
+);
 
 function App({ supabaseSession, supabaseClient, onSignOut }) {
     const sbUser = supabaseSession ? supabaseSession.user : null;
@@ -8294,6 +8446,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [enregistrementModele, setEnregistrementModele] = useState(false);
     const [galerieModeles, setGalerieModeles] = useState(false);
     const [catalogueModeles, setCatalogueModeles] = useState(false);
+    const [apercuDocument, setApercuDocument] = useState(null);
+    const refApercuDocument = React.useRef(null);
+    const refApercuEditeur = React.useRef(null);
+    // Les marges sont en millimètres sur une page A4 de 210 mm de large.
+    // Exprimées en pourcentage de la largeur, elles restent justes quelle que
+    // soit la taille d'affichage — y compris en haut et en bas, un pourcentage
+    // vertical se résolvant lui aussi sur la largeur en CSS.
+    const margeEnPourcent = (mm) => `${(Math.max(0, Math.min(40, Number(mm) || 0)) / 210) * 100}%`;
 
     // Remonté par QuoteWorkspace — sert à garder la déconnexion.
     const [devisNonEnregistre, setDevisNonEnregistre] = useState(false);
@@ -10476,6 +10636,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Une modification ne touche qu'une clé d'une section. On recompose l'objet
     // plutôt que de muter : React ne redessinerait pas l'aperçu autrement, et
     // l'aperçu continu est tout l'intérêt de cet écran.
+    const majMarge = (cote, valeur) => setEditeurModele(m => m && ({
+        ...m,
+        configuration: {
+            ...m.configuration,
+            general: {
+                ...m.configuration.general,
+                margesMm: { ...(m.configuration.general.margesMm || {}), [cote]: valeur }
+            }
+        }
+    }));
+
     const majColonne = (colonne, cle, valeur) => setEditeurModele(m => m && ({
         ...m,
         configuration: {
@@ -14070,12 +14241,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         });
     };
 
-    const telechargerDocument = async (nomFichier, cle) => {
-        const cible = zoneImpressionVisible();
-        if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return; }
+    // Les marges de page et la numérotation voyagent sur l'élément lui-même
+    // (data-marges-mm, data-numeroter-pages) plutôt qu'en argument : cette
+    // fonction télécharge « ce qui est visible » sans savoir s'il s'agit d'un
+    // devis, d'une facture ou d'une étude de prix. Un document qui ne porte
+    // pas ces attributs retombe sur les valeurs d'avant, sans rien changer.
+    const optionsPdfDe = (element) => {
+        let marges;
+        try { marges = JSON.parse(element.getAttribute('data-marges-mm') || 'null') || undefined; }
+        catch (e) { marges = undefined; }
+        return { marges, numeroterPages: element.getAttribute('data-numeroter-pages') === '1' };
+    };
+
+    // Deux façons de désigner la cible, un seul chemin ensuite. L'aperçu passe
+    // l'élément explicitement : `zoneImpressionVisible` prend le PREMIER
+    // document visible du DOM, et l'aperçu s'ouvre par-dessus un panneau qui
+    // en contient déjà un — on aurait téléchargé le mauvais document.
+    const telechargerElementPdf = async (cible, nomFichier, cle) => {
+        if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return false; }
         setPdfEnCours(cle);
         try {
-            await telechargerElementEnPdf(cible, nomFichier);
+            await telechargerElementEnPdf(cible, nomFichier, optionsPdfDe(cible));
             // Audit UX (2026-09-02) — c'est LE moment où le manque se fait
             // sentir : l'utilisateur tient son devis, et il porte un filigrane
             // de démonstration. Rien, jusqu'ici, ne lui disait quoi faire de
@@ -14097,6 +14283,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         } finally {
             setPdfEnCours(null);
         }
+    };
+
+    const telechargerDocument = (nomFichier, cle) =>
+        telechargerElementPdf(zoneImpressionVisible(), nomFichier, cle);
+
+    // Le document d'une facture, monté une seule fois : la vignette de la liste,
+    // l'aperçu plein format et le panneau de détail appellent tous celui-ci.
+    // L'instantané figé dans la facture fait foi — une facture émise est un
+    // document légal immuable, elle ne doit pas changer d'apparence parce que
+    // l'entreprise a modifié son logo depuis.
+    const documentDeLaFacture = (facture) => {
+        if (!facture) return null;
+        const ci = facture.companyInfoSnapshot || companyInfo;
+        const theme = resolvePdfDocumentTheme(facture.companyInfoSnapshot, companyInfo);
+        return (
+            <DocumentFacture
+                facture={facture}
+                ci={ci}
+                theme={theme}
+                disposition={getPdfHeaderLayout(theme.headerAlignment)}
+                devise={facture.companyInfoSnapshot?.currency || companyInfo.currency}
+            />
+        );
     };
 
     // ══ FACTURES (2026-08-20, § 30) ═══════════════════════════════════════
@@ -14276,17 +14485,38 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             const st = libelleStatut[f.statut] || libelleStatut.draft;
                             const isActive = !!(activeInvoice && activeInvoice.id === f.id);
                             return (
-                                <button key={f.id} onClick={() => setViewingInvoice(f)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${isActive ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Voir la facture de ${f.clientName}`}>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs font-bold text-brand-600 truncate">{f.numero || 'Brouillon'}</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${st.classe}`}>{st.texte}</span>
+                                <div key={f.id} className={`rounded-xl border-2 transition-all duration-200 bg-white overflow-hidden ${isActive ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
+                                    {/* La vignette montre le haut du document : logo, couleur,
+                                        titre, client. C'est ce qui permet de reconnaître une
+                                        facture dans une liste sans l'ouvrir une par une. */}
+                                    <VignetteModele hauteur={112}>{documentDeLaFacture(f)}</VignetteModele>
+                                    <button onClick={() => setViewingInvoice(f)}
+                                        className="w-full flex flex-col gap-1 p-3.5 text-left"
+                                        aria-label={`Voir la facture de ${f.clientName}`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-brand-600 truncate">{f.numero || 'Brouillon'}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${st.classe}`}>{st.texte}</span>
+                                        </div>
+                                        <p className="font-bold text-neutral-900 text-sm truncate">{f.clientName}</p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] text-neutral-500 truncate">{f.projectRef}</span>
+                                            <span className="text-xs font-bold text-neutral-800 shrink-0">{formatMoney(f.totalTTC, cur)}</span>
+                                        </div>
+                                    </button>
+                                    <div className="px-3.5 pb-3 -mt-1">
+                                        <button type="button"
+                                            onClick={() => setApercuDocument({
+                                                titre: `Facture ${f.numero || '(brouillon)'} — ${f.clientName}`,
+                                                nomFichier: `Facture-${f.numero || 'brouillon'}`,
+                                                telechargeable: f.statut !== 'draft',
+                                                contenu: documentDeLaFacture(f)
+                                            })}
+                                            className="btn-secondary btn-dialogue w-full text-brand-700 border-brand-200"
+                                            aria-label={`Aperçu PDF de la facture de ${f.clientName}`}>
+                                            <i className="fa-solid fa-file-pdf mr-1.5"></i> Aperçu PDF
+                                        </button>
                                     </div>
-                                    <p className="font-bold text-neutral-900 text-sm truncate">{f.clientName}</p>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[11px] text-neutral-500 truncate">{f.projectRef}</span>
-                                        <span className="text-xs font-bold text-neutral-800 shrink-0">{formatMoney(f.totalTTC, cur)}</span>
-                                    </div>
-                                </button>
+                                </div>
                             );
                         })}
                         {visibleInvoices.length === 0 && (
@@ -14315,10 +14545,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <p className="text-sm font-bold text-neutral-600">Sélectionnez une facture pour l'afficher</p>
                         </div>
                     ) : (() => {
-                        const cur2 = activeInvoice.companyInfoSnapshot?.currency || companyInfo.currency;
-                        const ci = activeInvoice.companyInfoSnapshot || companyInfo;
-                        const invoiceDocumentTheme = resolvePdfDocumentTheme(activeInvoice.companyInfoSnapshot, companyInfo);
-                        const invoiceHeaderLayout = getPdfHeaderLayout(invoiceDocumentTheme.headerAlignment);
                         const estBrouillon = activeInvoice.statut === 'draft';
                         return (
                         <div className="app-card flex flex-col">
@@ -14444,112 +14670,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 )}
 
-                                <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" data-zone-impression={estBrouillon ? undefined : '1'} style={{ fontFamily: invoiceDocumentTheme.fontFamily }}>
-                                    <div className={`${invoiceHeaderLayout.wrapper} border-b border-neutral-200 pb-6`}>
-                                        <div className={invoiceHeaderLayout.company}>
-                                            {ci.logo && (
-                                                <div className={`flex mb-2 ${invoiceHeaderLayout.logo}`}>
-                                                    <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain" />
-                                                </div>
-                                            )}
-                                            <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
-                                            <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
-                                            <p className="text-[11px] text-neutral-500">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
-                                        </div>
-                                        <div className={invoiceHeaderLayout.document}>
-                                            <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: invoiceDocumentTheme.brandColor }}>Facture</h2>
-                                            <p className="text-sm font-bold text-neutral-800 mt-1">
-                                                {activeInvoice.numero ? `N° : ${activeInvoice.numero}` : 'Brouillon (non numéroté)'}
-                                            </p>
-                                            <p className="text-xs text-neutral-500">
-                                                {activeInvoice.dateEmission
-                                                    ? `Émise le ${new Date(activeInvoice.dateEmission).toLocaleDateString('fr-FR')}`
-                                                    : 'Non émise'}
-                                            </p>
-                                            {activeInvoice.devisNumero && (
-                                                <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {activeInvoice.devisNumero}</p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
-                                            <p className="font-semibold text-neutral-900 text-base">{activeInvoice.clientName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Désignation chantier</p>
-                                            <p className="font-bold text-neutral-800">{activeInvoice.projectRef}</p>
-                                        </div>
-                                    </div>
-
-                                    <table className="w-full text-left text-xs border-collapse">
-                                        <thead>
-                                            <tr className="text-white font-bold uppercase" style={{ backgroundColor: invoiceDocumentTheme.brandColor }}>
-                                                <th className="p-3 rounded-l-lg">Désignation</th>
-                                                <th className="p-3 text-center">Quantité</th>
-                                                <th className="p-3 text-right">Prix Unitaire HT</th>
-                                                <th className="p-3 text-right rounded-r-lg">Total HT</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-neutral-100">
-                                            {(activeInvoice.lignes || []).map((l, i) => (
-                                                <tr key={i}>
-                                                    <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
-                                                    <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
-                                                    <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, cur2)}</td>
-                                                    <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, cur2)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-
-                                    <div className="flex justify-end pt-4 border-t border-neutral-200">
-                                        <div className="w-72 space-y-2 text-xs">
-                                            <div className="flex justify-between font-bold text-neutral-800 text-sm">
-                                                <span>Total HT :</span>
-                                                <span>{formatMoney(activeInvoice.totalHT, cur2)}</span>
-                                            </div>
-                                            {activeInvoice.tauxTva === 0 ? (
-                                                <div className="text-neutral-500">
-                                                    <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
-                                                    {ci.vatExemptionNote && (
-                                                        <p className="text-[10px] text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="flex justify-between text-neutral-500">
-                                                    <span>TVA ({activeInvoice.tauxTva}%) :</span>
-                                                    <span>+{formatMoney(activeInvoice.totalTva, cur2)}</span>
-                                                </div>
-                                            )}
-                                            {activeInvoice.deduitTTC > 0 && (
-                                                <div className="flex justify-between text-neutral-500">
-                                                    <span>Acomptes déjà facturés :</span>
-                                                    <span>-{formatMoney(activeInvoice.deduitTTC, cur2)}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
-                                                <span>NET À PAYER :</span>
-                                                <span>{formatMoney(activeInvoice.netAPayerTTC, cur2)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {(ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift) && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
-                                            <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: invoiceDocumentTheme.brandColor }}></i>Coordonnées de règlement</p>
-                                            <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
-                                        </div>
-                                    )}
-                                    {ci.pdfFooterNote && (
-                                        <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
-                                            {ci.pdfFooterNote}
-                                        </div>
-                                    )}
-                                </div>
+                                {documentDeLaFacture(activeInvoice)}
                             </div>
                         </div>
                         );
@@ -19090,10 +19211,31 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 const colonnesVisibles = 2
                                     + (cfgM.tableau.colonnes.quantite.affiche !== false ? 1 : 0)
                                     + (cfgM.tableau.colonnes.prixUnitaire.affiche !== false ? 1 : 0);
+                                // Le document de la vignette et celui de l'aperçu sont le
+                                // MÊME appel : ce qu'on voit en petit est ce qui sortira en PDF.
+                                const devisVignette = savedQuotes[0] || null;
+                                const documentDuModele = devisVignette ? (
+                                    <DocumentDevisClient
+                                        devis={devisVignette}
+                                        societe={{ ...companyInfo, logo: cfgM.entete.afficherLogo ? companyInfo.logo : '' }}
+                                        theme={themeDepuisConfiguration(cfgM)}
+                                        disposition={getPdfHeaderLayout(cfgM.entete.alignement)}
+                                        gabarit={cfgM.tableau.niveauDetail}
+                                        modeDemo={estModeDemo}
+                                        configuration={cfgM}
+                                    />
+                                ) : null;
                                 return (
                                     <div key={modele.id} className="app-card p-0 overflow-hidden flex flex-col">
-                                        <div className="h-2" style={{ backgroundColor: cfgM.general.couleurMarque }}></div>
-                                        <div className="p-4 flex-1 flex flex-col gap-3">
+                                        {documentDuModele ? (
+                                            <VignetteModele hauteur={190}>{documentDuModele}</VignetteModele>
+                                        ) : (
+                                            <div className="flex items-center justify-center bg-neutral-100" style={{ height: 190 }} aria-hidden="true">
+                                                <i className="fa-solid fa-file-lines text-3xl text-neutral-300"></i>
+                                            </div>
+                                        )}
+                                        <div className="h-1" style={{ backgroundColor: cfgM.general.couleurMarque }}></div>
+                                        <div className="p-4 flex-1 flex flex-col gap-2">
                                             <div className="flex items-start gap-2">
                                                 <h3 className="text-sm font-bold text-neutral-900 min-w-0 flex-1 break-words">{modele.nom}</h3>
                                                 {modele.par_defaut && (
@@ -19102,25 +19244,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <dl className="text-[11px] text-neutral-600 space-y-1">
-                                                <div className="flex justify-between gap-2">
-                                                    <dt className="text-neutral-500">Détail</dt>
-                                                    <dd className="font-semibold">{LIBELLE_NIVEAU_DETAIL[cfgM.tableau.niveauDetail] || 'Synthèse'}</dd>
-                                                </div>
-                                                <div className="flex justify-between gap-2">
-                                                    <dt className="text-neutral-500">Densité</dt>
-                                                    <dd className="font-semibold">{cfgM.tableau.densite === 'compacte' ? 'Compacte' : 'Normale'}</dd>
-                                                </div>
-                                                <div className="flex justify-between gap-2">
-                                                    <dt className="text-neutral-500">Colonnes</dt>
-                                                    <dd className="font-semibold">{colonnesVisibles} sur 4</dd>
-                                                </div>
-                                                <div className="flex justify-between gap-2">
-                                                    <dt className="text-neutral-500">Police</dt>
-                                                    <dd className="font-semibold">{(PDF_FONT_OPTIONS.find(o => o.id === cfgM.general.police) || {}).label || cfgM.general.police}</dd>
-                                                </div>
-                                            </dl>
+                                            <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                                {LIBELLE_NIVEAU_DETAIL[cfgM.tableau.niveauDetail] || 'Synthèse'}
+                                                {' · '}{cfgM.tableau.densite === 'compacte' ? 'compacte' : 'normale'}
+                                                {' · '}{colonnesVisibles} colonnes
+                                                {' · '}{(PDF_FONT_OPTIONS.find(o => o.id === cfgM.general.police) || {}).label || cfgM.general.police}
+                                                {cfgM.general.echelleTexte !== 100 ? ` · ${cfgM.general.echelleTexte} %` : ''}
+                                            </p>
                                             <div className="mt-auto pt-2 flex flex-wrap items-center gap-1.5">
+                                                {documentDuModele && (
+                                                    <button type="button"
+                                                        onClick={() => setApercuDocument({
+                                                            titre: modele.nom,
+                                                            nomFichier: `Apercu-${modele.nom}`,
+                                                            marges: cfgM.general.margesMm,
+                                                            contenu: documentDuModele
+                                                        })}
+                                                        className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
+                                                        aria-label={`Aperçu PDF du modèle ${modele.nom}`}>
+                                                        <i className="fa-solid fa-file-pdf mr-1.5"></i> Aperçu PDF
+                                                    </button>
+                                                )}
                                                 <button type="button" onClick={() => editerModele(modele)}
                                                     className="btn-secondary btn-dialogue" aria-label={`Modifier le modèle ${modele.nom}`}>
                                                     Modifier
@@ -19184,6 +19328,61 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 </div>
             )}
+
+            {/* ══ APERÇU PDF PLEIN FORMAT ══════════════════════════════════════
+                2026-09-04. Pour voir à quoi ressemblait un modèle il fallait
+                l'enregistrer, le passer par défaut, ouvrir un devis, puis
+                télécharger — quatre étapes pour vérifier une couleur.
+
+                Le cadre blanc reproduit les MARGES DE LA PAGE : le PDF place le
+                document à l'intérieur de ces marges, l'aperçu doit donc les
+                montrer, sans quoi régler une marge se ferait à l'aveugle. */}
+            {apercuDocument && (() => {
+                const m = apercuDocument.marges || { haut: 8, bas: 8, gauche: 8, droit: 8 };
+                const pc = margeEnPourcent;
+                return (
+                    <div className="fixed inset-0 z-[150] bg-neutral-900/70 backdrop-blur-sm flex flex-col"
+                         role="dialog" aria-modal="true" aria-label={`Aperçu PDF — ${apercuDocument.titre}`}>
+                        <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-sm font-bold text-neutral-900 truncate">Aperçu PDF — {apercuDocument.titre}</h2>
+                                <p className="text-[11px] text-neutral-500">
+                                    {apercuDocument.marges ? `Marges ${m.haut}/${m.bas}/${m.gauche}/${m.droit} mm · ` : ''}A4 portrait
+                                </p>
+                            </div>
+                            {/* Un brouillon de facture n'a pas de numéro légal : il ne
+                                porte pas `data-zone-impression` et ne peut pas sortir en
+                                PDF. Le bouton le dit, plutôt que d'échouer sur un
+                                « document introuvable » qui n'expliquerait rien. */}
+                            <button type="button"
+                                onClick={() => telechargerElementPdf(
+                                    refApercuDocument.current && refApercuDocument.current.querySelector('[data-zone-impression]'),
+                                    apercuDocument.nomFichier, 'apercu')}
+                                disabled={pdfEnCours === 'apercu' || apercuDocument.telechargeable === false}
+                                title={apercuDocument.telechargeable === false
+                                    ? 'Un brouillon n’a pas encore de numéro : émettez la facture pour la télécharger.'
+                                    : undefined}
+                                className="btn-primary btn-dialogue disabled:opacity-60">
+                                <i className={`fa-solid ${pdfEnCours === 'apercu' ? 'fa-spinner fa-spin' : 'fa-file-pdf'} mr-1.5`}></i>
+                                {pdfEnCours === 'apercu' ? 'Génération…'
+                                    : apercuDocument.telechargeable === false ? 'Brouillon — non téléchargeable'
+                                    : 'Télécharger le PDF'}
+                            </button>
+                            <button type="button" onClick={() => setApercuDocument(null)}
+                                className="btn-secondary btn-dialogue" aria-label="Fermer l’aperçu PDF">
+                                Fermer
+                            </button>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-8">
+                            <div ref={refApercuDocument} className="mx-auto bg-white rounded-sm shadow-2xl"
+                                 style={{ maxWidth: 860, paddingTop: pc(m.haut), paddingBottom: pc(m.bas),
+                                          paddingLeft: pc(m.gauche), paddingRight: pc(m.droit) }}>
+                                {apercuDocument.contenu}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* ══ CATALOGUE DE MODÈLES PRÉÉTABLIS ══════════════════════════════
                 Étape 4 (2026-09-04). S'intercale entre « Nouveau modèle » et
@@ -19313,6 +19512,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // avec de vrais intitulés d'ouvrage et de vrais montants.
                 const devisApercu = savedQuotes[0] || null;
                 const societeApercu = { ...companyInfo, logo: c.entete.afficherLogo ? companyInfo.logo : '' };
+                // Le titre de l'aperçu annonce les marges ; le cadre les montre.
+                // Sans cela, régler une marge se ferait entièrement à l'aveugle :
+                // elles n'existent que dans le PDF.
 
                 // ⚠️ Ces deux fabriques sont APPELÉES ({Bascule({...})}) et non
                 // écrites comme des balises (<Bascule .../>).
@@ -19375,6 +19577,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     className="app-input py-1.5 text-sm font-bold max-w-xs"
                                 />
                             </div>
+                            {/* Vérifier une couleur, une densité ou une marge demandait
+                                jusqu'ici d'enregistrer le modèle, de le passer par défaut,
+                                d'ouvrir un devis puis de télécharger. Le PDF part d'ici,
+                                sans rien enregistrer. */}
+                            <button
+                                type="button"
+                                onClick={() => telechargerElementPdf(
+                                    refApercuEditeur.current && refApercuEditeur.current.querySelector('[data-zone-impression]'),
+                                    `Apercu-${editeurModele.nom || 'modele'}`, 'apercu-editeur')}
+                                disabled={!devisApercu || pdfEnCours === 'apercu-editeur'}
+                                title={devisApercu ? 'Génère et télécharge le PDF de ce modèle, sans l’enregistrer' : 'Aucun devis à mettre en page'}
+                                className="btn-secondary py-2 px-4 text-xs font-bold disabled:opacity-50"
+                            >
+                                <i className={`fa-solid ${pdfEnCours === 'apercu-editeur' ? 'fa-spinner fa-spin' : 'fa-file-pdf'} mr-1.5`}></i>
+                                {pdfEnCours === 'apercu-editeur' ? 'Génération…' : 'Aperçu PDF'}
+                            </button>
                             <button
                                 type="button"
                                 onClick={enregistrerModele}
@@ -19443,10 +19661,77 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     className="app-input py-2 text-sm font-mono" />
                                             </div>
                                         </label>
+                                        <label className="block py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Couleur du texte</span>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" value={c.general.couleurTexte || '#171717'}
+                                                    onChange={(e) => majModele('general', 'couleurTexte', e.target.value)}
+                                                    aria-label="Couleur du texte du document"
+                                                    className="w-11 h-9 rounded-lg border border-neutral-200 cursor-pointer bg-white" />
+                                                <input type="text" value={c.general.couleurTexte || ''}
+                                                    onChange={(e) => majModele('general', 'couleurTexte', e.target.value)}
+                                                    placeholder="par défaut"
+                                                    className="app-input py-2 text-sm font-mono" />
+                                                {c.general.couleurTexte && (
+                                                    <button type="button" onClick={() => majModele('general', 'couleurTexte', '')}
+                                                        className="btn-secondary btn-dialogue" aria-label="Revenir à la couleur de texte par défaut">
+                                                        Défaut
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span className="block text-[11px] text-neutral-500 leading-snug mt-1.5">
+                                                N’affecte que les textes forts — intitulés, montants, totaux. Les
+                                                mentions secondaires restent grises, pour qu’aucun réglage ne puisse
+                                                rendre le document illisible.
+                                            </span>
+                                        </label>
+
+                                        <label className="block py-2">
+                                            <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                                <span>Taille du texte</span>
+                                                <span className="font-mono text-neutral-700">{c.general.echelleTexte || 100} %</span>
+                                            </span>
+                                            <input
+                                                type="range" min="80" max="130" step="5"
+                                                value={c.general.echelleTexte || 100}
+                                                onChange={(e) => majModele('general', 'echelleTexte', Number(e.target.value))}
+                                                aria-label="Taille du texte du document en pourcentage"
+                                                className="w-full accent-brand-600"
+                                            />
+                                            <span className="block text-[11px] text-neutral-500 leading-snug mt-1">
+                                                Agit sur tout le document. Descendre fait tenir un long bordereau ;
+                                                monter aère une proposition de quelques postes.
+                                            </span>
+                                        </label>
+
                                         {Bascule({ section: 'general', cle: 'aplatsColores', libelle: 'Aplats de couleur',
                                             aide: 'Décoché, le bandeau du tableau devient un filet. Un dossier d’appel d’offres est presque toujours photocopié en noir et blanc, où un aplat sort gris sale.' })}
-                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-2 border-t border-neutral-100 mt-2">
-                                            Format A4 portrait. Les marges et l’orientation paysage arrivent avec les modèles multiples.
+
+                                        <div className="pt-3 mt-2 border-t border-neutral-100">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-2">Marges de la page (mm)</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {[{ cle: 'haut', l: 'Haut' }, { cle: 'bas', l: 'Bas' },
+                                                  { cle: 'gauche', l: 'Gauche' }, { cle: 'droit', l: 'Droite' }].map(cote => (
+                                                    <label key={cote.cle} className="flex items-center gap-2 rounded-lg border border-neutral-200 px-2.5 py-1.5">
+                                                        <span className="text-[11px] font-semibold text-neutral-600 w-12 shrink-0">{cote.l}</span>
+                                                        <input
+                                                            type="number" min="0" max="40"
+                                                            value={(c.general.margesMm || {})[cote.cle] ?? 8}
+                                                            onChange={(e) => majMarge(cote.cle, Math.max(0, Math.min(40, Number(e.target.value) || 0)))}
+                                                            aria-label={`Marge ${cote.l.toLowerCase()} en millimètres`}
+                                                            className="app-input py-1 text-[12px] min-w-0"
+                                                        />
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <p className="text-[11px] text-neutral-500 leading-snug mt-2">
+                                                Marges du papier A4, pas du bloc à l’écran : elles décident de la place
+                                                que le document occupe sur la feuille. L’aperçu en montre le cadre.
+                                            </p>
+                                        </div>
+
+                                        <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
+                                            Format A4 portrait — le seul retenu en zone OHADA.
                                         </p>
                                     </div>
                                 )}
@@ -19615,9 +19900,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 className="app-input py-2 text-sm resize-y"
                                             />
                                         </label>
+                                        {Bascule({ section: 'pied', cle: 'afficherNumeroPage', libelle: 'Numéroter les pages',
+                                            aide: '« Page 2 / 5 » dans la marge basse du PDF. N’apparaît pas dans l’aperçu ci-contre : à l’écran le document est d’un seul tenant, il n’a pas de pages.' })}
                                         <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
-                                            Cette mention s’imprime en bas de chaque document. La numérotation des
-                                            pages arrive à l’étape suivante.
+                                            Cette mention s’imprime en bas de chaque document.
                                         </p>
                                     </div>
                                 )}
@@ -19630,7 +19916,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         Aperçu {devisApercu ? `— ${devisApercu.number}` : ''}
                                     </p>
                                     {devisApercu ? (
-                                        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+                                        <div ref={refApercuEditeur}
+                                             className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden"
+                                             style={{ paddingTop: margeEnPourcent(c.general.margesMm.haut),
+                                                      paddingBottom: margeEnPourcent(c.general.margesMm.bas),
+                                                      paddingLeft: margeEnPourcent(c.general.margesMm.gauche),
+                                                      paddingRight: margeEnPourcent(c.general.margesMm.droit) }}>
                                             <DocumentDevisClient
                                                 devis={devisApercu}
                                                 societe={societeApercu}
