@@ -404,6 +404,51 @@ export async function run() {
         ok(`La bande de lot se décolle de ses lignes — ${avantSousLot.espaceLot1} → ${apresSousLot} sous la bande`,
             parseFloat(apresSousLot) >= 24);
 
+        // ── Tout encadrement du document a son interrupteur ───────────────
+        // Demandé : « le rectangle doit être optionnel, éditable — je voudrais
+        // avoir les moyens de l'afficher ou pas ». Le bloc CLIENT / DÉSIGNATION
+        // CHANTIER était le seul rectangle du document sans aucun réglage.
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Document/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1200);
+        const blocClient = (sel) => page.evaluate((s2) => {
+            const z = document.querySelector(s2).querySelector('[data-zone-impression]');
+            const etiquette = [...z.querySelectorAll('p')].find((p) => p.textContent.trim() === 'CLIENT');
+            if (!etiquette) return { present: false };
+            const boite = etiquette.parentElement.parentElement;
+            const st = getComputedStyle(boite);
+            return { present: true, bordure: st.borderTopWidth, fond: st.backgroundColor };
+        }, sel);
+
+        const avecCadreClient = await blocClient(ED);
+        ok(`Le bloc client est encadré par défaut — bordure ${avecCadreClient.bordure}`,
+            avecCadreClient.present && parseFloat(avecCadreClient.bordure) > 0);
+
+        const basculer = async (libelle) => {
+            await page.evaluate(({ sel, libelle }) => {
+                const d = document.querySelector(sel);
+                const l = [...d.querySelectorAll('label')].find((x) => new RegExp(`^${libelle}`).test((x.textContent || '').trim()));
+                const cb = l && l.querySelector('input[type="checkbox"]');
+                if (cb) cb.click();
+            }, { sel: ED, libelle });
+            await wait(900);
+        };
+
+        await basculer('L’encadrer');
+        const sansCadreClient = await blocClient(ED);
+        ok(`Décoché, le rectangle disparaît mais l’information reste — bordure ${sansCadreClient.bordure}`,
+            sansCadreClient.present && parseFloat(sansCadreClient.bordure) === 0);
+
+        await basculer('Afficher le bloc client');
+        ok('Le bloc entier peut être retiré', (await blocClient(ED)).present === false);
+        await basculer('Afficher le bloc client');
+        await basculer('L’encadrer');
+        ok('…et revient tel qu’il était',
+            parseFloat((await blocClient(ED)).bordure) > 0);
+
         // ── Général : l'arrière-plan, qui manquait ────────────────────────
         await page.evaluate((sel) => {
             const d = document.querySelector(sel);

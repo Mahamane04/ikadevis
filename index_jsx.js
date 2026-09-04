@@ -7199,7 +7199,16 @@ const CONFIGURATION_MODELE_DEFAUT = {
         afficherStatut: true,
         titreDevis: 'DEVIS COMMERCIAL',
         afficherValidite: true,
-        afficherChantier: true
+        afficherChantier: true,
+        // Le rectangle gris qui entoure CLIENT / DÉSIGNATION CHANTIER. Deux
+        // niveaux, parce que ce sont deux besoins : le retirer entièrement, ou
+        // n'enlever que son cadre et garder l'information à plat.
+        afficherBlocClient: true,
+        encadrerBlocClient: true,
+        // Le bloc ambre « Notes & Remarques ». Il n'apparaît que si le devis
+        // porte des notes — mais quand il apparaît, rien ne permettait de le
+        // retirer du document client.
+        afficherNotes: true
     },
     tableau: {
         niveauDetail: 'synthese',  // 'synthese' | 'detaille' | 'recapitulatif'
@@ -7825,20 +7834,23 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 border border-neutral-200" style={{ borderRadius: rayon }}>
-                <div>
-                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
-                    <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
+            {cfg.document.afficherBlocClient !== false && (
+                <div className={`grid grid-cols-2 gap-6 ${cfg.document.encadrerBlocClient !== false ? 'bg-neutral-50 p-4 border border-neutral-200' : ''}`}
+                     style={cfg.document.encadrerBlocClient !== false ? { borderRadius: rayon } : undefined}>
+                    <div>
+                        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
+                        <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
+                    </div>
+                    <div>
+                        {cfg.document.afficherChantier && (<>
+                            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
+                            <p className="font-bold text-neutral-800">{devis.projectRef}</p>
+                        </>)}
+                    </div>
                 </div>
-                <div>
-                    {cfg.document.afficherChantier && (<>
-                        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">DÉSIGNATION CHANTIER</p>
-                        <p className="font-bold text-neutral-800">{devis.projectRef}</p>
-                    </>)}
-                </div>
-            </div>
+            )}
 
-            {devis.notes && (
+            {devis.notes && cfg.document.afficherNotes !== false && (
                 <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900">
                     <p className="font-bold text-[10px] uppercase text-amber-700 tracking-wider mb-1"><i className="fa-solid fa-note-sticky mr-1"></i>Notes & Remarques :</p>
                     <p className="whitespace-pre-line">{devis.notes}</p>
@@ -8176,6 +8188,8 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const echelleTexte = Math.max(80, Math.min(130, Number(cfg.general.echelleTexte) || 100)) / 100;
     const encre = (cfg.general.couleurTexte || '').trim();
     const aplats = cfg.general.aplatsColores !== false;
+    const texteDuPiedFacture = cfg.pied.note || ci.pdfFooterNote || '';
+    const ALIGNEMENTS_PIED_FACTURE = { left: 'text-left', center: 'text-center', right: 'text-right' };
     return (
         <div
             className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''}`}
@@ -8185,6 +8199,11 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
             data-format-numero={cfg.pied.formatNumeroPage || ''}
             data-numero-document={facture.numero || ''}
+            data-format-papier={cfg.general.formatPapier || 'A4'}
+            data-orientation={cfg.general.orientation || 'portrait'}
+            data-pied-texte={texteDuPiedFacture.replace(/\*\*/g, '')}
+            data-pied-alignement={cfg.pied.alignement || 'left'}
+            data-entete-courant={[ci.name, facture.numero].filter(Boolean).join(' — ')}
             style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined,
                      backgroundColor: (cfg.general.couleurFond || '').trim() || undefined }}
         >
@@ -8288,9 +8307,15 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
                 </div>
             )}
-            {ci.pdfFooterNote && (
-                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
-                    {ci.pdfFooterNote}
+            {/* Même traitement que le devis : la mention de pied est du MOBILIER
+                de page, pas du contenu. `data-hors-pdf` la retire de la capture,
+                `data-pied-en-flux` la masque dans un aperçu paginé, et jsPDF la
+                réécrit au bas de chaque page. Une facture et un devis émis le
+                même jour ne doivent pas se présenter différemment. */}
+            {texteDuPiedFacture && (
+                <div data-hors-pdf="1" data-pied-en-flux="1"
+                     className={`pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line ${ALIGNEMENTS_PIED_FACTURE[cfg.pied.alignement] || 'text-left'}`}>
+                    {texteDuPiedFacture.replace(/\*\*/g, '')}
                 </div>
             )}
         </div>
@@ -20205,6 +20230,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             aide: 'Un bandeau « Brouillon » ou « À vérifier ». Rien sur un devis accepté.' })}
                                         {Bascule({ section: 'document', cle: 'afficherValidite', libelle: 'Afficher la durée de validité' })}
                                         {Bascule({ section: 'document', cle: 'afficherChantier', libelle: 'Afficher la désignation du chantier' })}
+
+                                        <div className="pt-3 mt-2 border-t border-neutral-100">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Encadrements</span>
+                                            {Bascule({ section: 'document', cle: 'afficherBlocClient', libelle: 'Afficher le bloc client / chantier',
+                                                aide: 'Le rectangle gris qui porte le nom du client et la désignation du chantier, sous l’en-tête.' })}
+                                            {c.document.afficherBlocClient !== false && (
+                                                <div className="pl-6">
+                                                    {Bascule({ section: 'document', cle: 'encadrerBlocClient', libelle: 'L’encadrer',
+                                                        aide: 'Décoché, l’information reste — à plat, sans fond gris ni bordure.' })}
+                                                </div>
+                                            )}
+                                            {Bascule({ section: 'document', cle: 'afficherNotes', libelle: 'Afficher les notes du devis',
+                                                aide: 'Le bloc ambre « Notes & Remarques ». N’apparaît que si le devis en porte.' })}
+                                        </div>
                                     </div>
                                 )}
 

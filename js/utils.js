@@ -473,7 +473,6 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
         throw new Error("Les dimensions du document PDF sont invalides. Réessayez après avoir rouvert le document.");
     }
 
-    const image = canvas.toDataURL('image/jpeg', 0.92);
 
     // ── Mobilier de page (2026-09-04) ────────────────────────────────────
     // Signalé sur un PDF réel : la mention de pied de page flottait au milieu
@@ -515,19 +514,53 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     const hauteurContenu = Math.max(1, hauteurUtile - bandePied - bandeEntete);
     const hautContenu = mHaut + bandeEntete;
 
-    let restant = imgH;
-    let position = hautContenu;
+    // ── Découpage par tranches (2026-09-04) ──────────────────────────────
+    // La version précédente posait l'image ENTIÈRE sur chaque page, décalée
+    // vers le haut. jsPDF ne la rogne qu'au bord du papier, jamais à la zone de
+    // contenu : chaque page débordait donc dans sa marge basse ET dans la bande
+    // réservée au pied.
+    //
+    // Conséquence mesurée sur A4, marges 10/10/15/15 : la page affichait le
+    // document jusqu'à 280 mm alors que la suivante reprenait à 260 mm — soit
+    // 20 mm de contenu IMPRIMÉ DEUX FOIS, et le texte du pied écrit par-dessus.
+    // Signalé sur un PDF réel : le bloc des totaux apparaissait sur les deux
+    // pages.
+    //
+    // Le défaut était ancien — l'image débordait déjà de 8 mm dans la marge —
+    // mais invisible tant que ce débordement tombait dans du blanc. Réserver
+    // les bandes de mobilier l'a porté à 20 mm et a posé du texte dessus.
+    //
+    // Réserver dans le calcul ne sert à rien si le rendu ne respecte pas la
+    // réservation : chaque page reçoit désormais SA tranche, découpée du
+    // canevas source. Pas de `pdf.clip()` — l'API existe dans le jsPDF embarqué,
+    // mais le découpage de canevas ne dépend d'aucune primitive graphique et se
+    // comporte donc identiquement partout.
+    const pxParMm = canvas.width / imgL;
+    const trancheHautPx = Math.max(1, Math.round(hauteurContenu * pxParMm));
+    const nbTranches = Math.max(1, Math.ceil(canvas.height / trancheHautPx));
 
-    pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
-    restant -= hauteurContenu;
+    for (let index = 0; index < nbTranches; index++) {
+        const sy = index * trancheHautPx;
+        const sh = Math.min(trancheHautPx, canvas.height - sy);
+        if (sh <= 0) break;
+        const tranche = document.createElement('canvas');
+        tranche.width = canvas.width;
+        tranche.height = sh;
+        const ctx = tranche.getContext('2d');
+        // Le JPEG n'a pas de couche alpha : sans fond posé d'abord, un arrondi
+        // de tranche sortirait en noir. Le canevas source porte déjà la couleur
+        // de fond du document, la tranche la recouvre intégralement.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tranche.width, tranche.height);
+        ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
 
-    // Pages suivantes : on décale l'image vers le haut, la zone visible de la
-    // page suivante correspondant à la suite du document.
-    while (restant > 0) {
-        position = hautContenu - (imgH - restant);
-        pdf.addPage();
-        pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
-        restant -= hauteurContenu;
+        if (index > 0) pdf.addPage();
+        pdf.addImage(tranche.toDataURL('image/jpeg', 0.92), 'JPEG',
+                     mGauche, hautContenu, imgL, sh / pxParMm);
+        // Libéré aussitôt : un bordereau de huit pages tiendrait sinon huit
+        // canevas pleine largeur en mémoire, ce qui compte sur un téléphone.
+        tranche.width = 0;
+        tranche.height = 0;
     }
 
     // Le mobilier s'écrit après coup, sur toutes les pages posées. L'image

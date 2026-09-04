@@ -582,6 +582,48 @@ export async function run() {
         // l'organisation sans aucune mise en page.
         ok('Le Standard implicite ne peut pas être supprimé', apresSuppressions.supprimable === false);
 
+        // 2026-09-04 — « Le rectangle doit être optionnel, je voudrais avoir les
+        // moyens de l'afficher ou pas » : le cadre extérieur du document, celui
+        // qui s'imprime sur le PDF. Le réglage existait (§ 46) mais n'était
+        // vérifié que sur l'aperçu de l'éditeur. Ce qui compte est son effet sur
+        // le document RÉEL — c'est lui que la génération du PDF capture.
+        const cadreDuDocumentReel = () => page.evaluate(() => {
+            const z = document.querySelector('[data-zone-impression]');
+            const s = getComputedStyle(z);
+            return { bordure: parseFloat(s.borderTopWidth), rayon: parseFloat(s.borderTopLeftRadius) };
+        });
+        const avecCadreReel = await cadreDuDocumentReel();
+        ok(`Le document réel est encadré par défaut — ${avecCadreReel.bordure}px, rayon ${avecCadreReel.rayon}px`,
+            avecCadreReel.bordure > 0 && avecCadreReel.rayon > 0);
+
+        await cliquer(page, 'Paramètres du Compte'); await wait(1700);
+        await cliquer(page, 'Documents'); await wait(1700);
+        await cliquer(page, 'Éditeur de modèles'); await wait(2000);
+        await page.evaluate(() => {
+            const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            const b = g && [...g.querySelectorAll('button')].find((x) => /Modifier/.test(x.textContent || ''));
+            if (b) b.click();
+        });
+        await wait(2400);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const l = [...d.querySelectorAll('label')].find((x) => /^Encadrer le document/.test((x.textContent || '').trim()));
+            const cb = l && l.querySelector('input[type="checkbox"]');
+            if (cb) cb.click();
+        }, SEL);
+        await wait(900);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => /^Enregistrer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        }, SEL);
+        await wait(2600);
+        await fermerGalerie();
+        await couleurDuDocumentReel();
+        const sansCadreReel = await cadreDuDocumentReel();
+        ok(`Décoché, il disparaît du document envoyé au client — ${sansCadreReel.bordure}px, rayon ${sansCadreReel.rayon}px`,
+            sansCadreReel.bordure === 0 && sansCadreReel.rayon === 0);
+
         await fermerGalerie();
         const sansModele = await couleurDuDocumentReel();
         ok(`Revenu au Standard implicite, le document reprend la couleur de l’organisation — ${sansModele}`,

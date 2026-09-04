@@ -3636,3 +3636,118 @@ lui doit rester visible à l'écran.
 > explicites (`data-bande-page`).
 
 **492/492 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## ⬜ 55. Chaque encadrement du document a son interrupteur (2026-09-04)
+
+> « Le rectangle présent sur l'image doit être optionnel, éditable — je voudrais
+> avoir les moyens de l'afficher ou pas ! »
+
+Deux PDF joints, aucune annotation. Plutôt que de deviner, l'inventaire des
+encadrements du document a été fait dans le code :
+
+| Encadrement | Réglage |
+|---|---|
+| Cadre extérieur du document | `general.cadreDocument` ✅ (§ 46) |
+| Bandeau d'en-tête du tableau | `general.aplatsColores` ✅ |
+| Bloc Échéancier | `totaux.afficherEcheancier` ✅ |
+| Cadre « Bon pour accord » | `totaux.afficherSignature` ✅ |
+| **Bloc CLIENT / DÉSIGNATION CHANTIER** | **aucun** ❌ |
+| **Bloc « Notes & Remarques »** | **aucun** ❌ |
+
+Le bloc CLIENT / CHANTIER — le rectangle gris sous l'en-tête — était le seul
+visible sur le PDF fourni à n'avoir aucun réglage. C'est donc lui, sauf erreur.
+Les deux manquants sont comblés.
+
+### 55.1 Deux niveaux pour le bloc client
+
+`document.afficherBlocClient` retire le bloc entier ;
+`document.encadrerBlocClient` n'enlève que le cadre et le fond, l'information
+restant à plat. Ce sont deux besoins distincts : « je ne veux pas de ce
+rectangle » et « je ne veux pas de cette section ». Un seul interrupteur aurait
+forcé à choisir entre perdre le nom du client et garder la boîte grise.
+
+`document.afficherNotes` retire le bloc ambre « Notes & Remarques », qui
+n'apparaît que si le devis en porte — mais rien ne permettait alors de
+l'écarter du document client.
+
+Tous par défaut à `true` : aucun document existant ne change.
+
+---
+
+## ✂️ 56. Le PDF imprimait 20 mm de contenu deux fois (2026-09-04)
+
+Signalé sur un PDF réel : le bloc « Net HT Client / TVA / TOTAL TTC »
+apparaissait **deux fois** — en bas de la page 1, sous le texte du pied, puis en
+haut de la page 2.
+
+### 56.1 La cause
+
+L'image du document n'était **jamais découpée**. `addImage` posait l'image
+entière sur chaque page, simplement décalée vers le haut ; jsPDF ne la rogne
+qu'au bord du papier, jamais à la zone de contenu.
+
+Arithmétique exacte, A4, marges 10/10/15/15 :
+
+| | |
+|---|---|
+| Hauteur utile | 277,0 mm |
+| Hauteur de contenu réservée | 260,0 mm (277 − 10 pied − 7 en-tête) |
+| Ce que la page 1 **affichait** | 0 → **280,0 mm** |
+| Ce que la page 2 **reprenait** | à 260,0 mm |
+| **Contenu dupliqué** | **20,0 mm** |
+
+Le texte du pied, écrit à 281,6 mm, tombait donc sur ce débordement.
+
+> Le défaut était **ancien** — l'image débordait déjà de 8 mm dans la marge
+> basse — mais invisible tant que ce débordement tombait dans du blanc. Réserver
+> les bandes de mobilier (§ 54) l'a porté à 20 mm et a posé du texte dessus.
+> **Réserver dans le calcul ne sert à rien si le rendu ne respecte pas la
+> réservation.**
+
+### 56.2 Le correctif : une tranche par page
+
+Chaque page reçoit sa propre tranche, découpée du canevas source par
+`drawImage(source, 0, sy, w, sh, …)`. Chaque tranche est libérée après usage —
+un bordereau de huit pages garderait sinon huit canevas pleine largeur en
+mémoire, ce qui compte sur un téléphone.
+
+`pdf.clip()` a été écarté : l'API existe pourtant dans le jsPDF 2.1.1 embarqué
+(vérifié), mais le découpage de canevas ne dépend d'aucune primitive graphique
+et se comporte donc identiquement partout — et le chemin PDF vient d'être
+stabilisé après une panne difficile à reproduire.
+
+Le JPEG n'ayant pas de couche alpha, chaque tranche est peinte en blanc avant
+report : un arrondi de tranche sortirait sinon en noir.
+
+### 56.3 Appliqué à tous les documents
+
+Le découpage vit dans `telechargerElementEnPdf` : devis, facture et étude de
+prix en bénéficient sans un caractère de plus.
+
+La **facture** est en outre alignée sur le devis — sa mention de pied devient
+elle aussi du mobilier de page, avec les mêmes attributs de format,
+d'orientation, d'alignement et d'en-tête courant. Une facture et un devis émis
+le même jour ne doivent pas se présenter différemment.
+
+### 56.4 Le banc mesure ce que le code demande à jsPDF
+
+`test_pdf_pagination` n'ouvre pas le PDF produit — il **instrumente jsPDF** et
+enregistre les appels `addImage`, `addPage` et `text`. C'est la mesure qui
+sépare les deux implémentations :
+
+| | Avant | Après |
+|---|---|---|
+| Images | une seule, hauteur du document entier | une par page |
+| Ordonnée | décroissante, négative dès la page 2 | **constante** |
+| Tranches | recouvrantes | **[264, 183] mm — partition** |
+| Pied | 281,6 mm, sur le contenu | **284 mm, sous un contenu qui s'arrête à 279** |
+
+> Piège d'instrumentation, pour mémoire : le bundle UMD de jsPDF assigne
+> `window.jspdf = {}` **avant** de le remplir. Un intercepteur posé sur
+> l'assignation n'habillait donc qu'un objet vide, et le banc mesurait zéro
+> appel. Les bibliothèques sont chargées explicitement par le banc, puis
+> `jsPDF` est remplacé une fois l'objet peuplé.
+
+**507/507 au vert, 0 régression, 50 suites, 7 étalons conformes.**
