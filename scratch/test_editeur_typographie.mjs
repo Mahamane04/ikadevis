@@ -330,6 +330,80 @@ export async function run() {
         ok('L’aperçu s’ouvre en plein format', overlay.ouvert && overlay.document);
         ok('Il propose le téléchargement du PDF', overlay.telecharger);
         ok('Il annonce les marges appliquées', overlay.margesAnnoncees);
+
+        // ── Un seul endroit règle la mise en page ─────────────────────────
+        // Signalé en production : un modèle réglé en noir à 85 % sortait un PDF
+        // bleu à 100 %. Deux écrans réclamaient la même chose — l'éditeur, et
+        // « Identité visuelle du PDF » dans les Paramètres — et un seul
+        // décidait, sans que rien ne le dise.
+        await page.evaluate(() => {
+            const o = document.querySelector('[role="dialog"][aria-label^="Aperçu PDF"]');
+            const b = o && [...o.querySelectorAll('button')].find((x) => /^Fermer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        });
+        await wait(1000);
+        await page.evaluate((sel) => {
+            const g = document.querySelector(sel);
+            const b = g && [...g.querySelectorAll('button')].find((x) => /^Fermer$/.test(x.textContent.trim()));
+            if (b) b.click();
+        }, GAL);
+        await wait(1400);
+        const reglages = await page.evaluate(() => {
+            const p = document.querySelector('.settings-page-shell');
+            if (!p) return { ouvert: false };
+            return {
+                ouvert: true,
+                doublons: p.querySelectorAll('input[type="color"]').length,
+                promesse: /Identité visuelle du PDF/.test(p.innerText),
+                renvoi: [...p.querySelectorAll('button')].some((b) => /Éditeur de modèles/.test(b.textContent || ''))
+            };
+        });
+        ok('Les Paramètres n’offrent plus de couleur de document en double',
+            reglages.ouvert && reglages.doublons === 0);
+        ok('…ni la promesse « Identité visuelle du PDF » qui ne tenait plus',
+            reglages.promesse === false);
+        ok('Ils renvoient à l’éditeur, seul endroit qui décide', reglages.renvoi);
+
+        // ── La facture suit le même modèle que le devis ───────────────────
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')]
+                .find((x) => /Retour à l’application|Retour à l'application/.test(x.textContent || ''));
+            if (b) b.click();
+        });
+        await wait(1600);
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('aside button')]
+                .find((x) => (x.textContent || '').trim().startsWith('Factures'));
+            if (b) b.click();
+        });
+        await wait(1800);
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')]
+                .find((x) => /Créer une facture depuis un devis/.test(x.getAttribute('aria-label') || ''));
+            if (b) b.click();
+        });
+        await wait(1400);
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find((x) => /DEV-/.test(x.textContent || ''));
+            if (b) b.click();
+        });
+        await wait(2600);
+        const facture = await page.evaluate(() => {
+            const docs = [...document.querySelectorAll('.document-echelle')];
+            const z = docs[docs.length - 1];
+            if (!z) return null;
+            const th = z.querySelector('table thead tr');
+            return {
+                trouvee: true,
+                echelle: getComputedStyle(z).fontSize,
+                bandeau: th ? getComputedStyle(th).backgroundColor : null,
+                cadre: getComputedStyle(z).borderTopWidth
+            };
+        });
+        // Le modèle enregistré plus haut porte encre brune, 100 % et cadre
+        // décoché : la facture doit le refléter comme le devis.
+        ok(`La facture lit le modèle actif — cadre ${facture && facture.cadre}`,
+            !!facture && parseFloat(facture.cadre) === 0);
     } finally {
         await close();
     }

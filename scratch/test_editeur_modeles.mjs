@@ -483,15 +483,30 @@ export async function run() {
             });
             await wait(2400);
         }
-        const plusAucunModele = await page.evaluate(() => {
+        // 2026-09-04 — La galerie n'est plus jamais vide : toute organisation
+        // part du préétabli « Standard », implicite tant qu'aucun modèle n'est
+        // enregistré. Supprimer les modèles enregistrés y ramène, au lieu de
+        // laisser un écran sans rien et un document sans mise en page.
+        const apresSuppressions = await page.evaluate(() => {
             const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
-            return g ? [...g.querySelectorAll('h3')].length === 0 : null;
+            if (!g) return null;
+            const titres = [...g.querySelectorAll('h3')].map((h) => h.textContent.trim());
+            return {
+                titres,
+                supprimable: [...g.querySelectorAll('button')]
+                    .some((b) => /^Supprimer le modèle /.test(b.getAttribute('aria-label') || ''))
+            };
         });
-        ok('Tous les modèles peuvent être supprimés, y compris celui par défaut', plusAucunModele === true);
+        ok(`Tous les modèles enregistrés peuvent être supprimés — il reste ${JSON.stringify(apresSuppressions.titres)}`,
+            apresSuppressions && apresSuppressions.titres.length === 1
+            && apresSuppressions.titres[0] === 'Standard');
+        // Le Standard implicite n'existe pas en base : le supprimer laisserait
+        // l'organisation sans aucune mise en page.
+        ok('Le Standard implicite ne peut pas être supprimé', apresSuppressions.supprimable === false);
 
         await fermerGalerie();
         const sansModele = await couleurDuDocumentReel();
-        ok(`Sans modèle, le document reprend la mise en page d’avant — ${sansModele}`,
+        ok(`Revenu au Standard implicite, le document reprend la couleur de l’organisation — ${sansModele}`,
             sansModele === 'rgb(59, 91, 219)');
     } finally {
         await close();

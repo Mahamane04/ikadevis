@@ -3195,4 +3195,69 @@ coûte plus cher que la gêne visuelle. Le décocher est l'affaire d'un clic, et
 c'est un choix qui appartient à l'utilisateur, pas un défaut à changer pour
 tout le monde.
 
+
 **455/455 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## ⚖️ 47. Deux sources de vérité pour une même mise en page (2026-09-04)
+
+Signalé en production, PDF à l'appui : « il y a un conflit ». Le modèle
+« Standard » était réglé en **noir `#171717`, texte à 85 %** ; le PDF sortait en
+**bleu `#3B5BDB`, texte à 100 %**.
+
+### 47.1 La cause, et elle n'était pas un bug
+
+Le modèle n'était pas ignoré par erreur — il était **délibérément écarté** :
+
+```js
+const aUnStyleFige = snap && (snap.brandColor || snap.pdfFont || …);
+if (aUnStyleFige) return fusionnerConfiguration(modeleDepuisReglages(snap).configuration);
+```
+
+Les six devis de l'organisation dataient d'**avant** les modèles. Chacun portait
+dans son instantané la couleur, la police et l'alignement du jour de son
+enregistrement. La règle protégeait un devis déjà envoyé au client — mais sur un
+brouillon elle rendait l'éditeur inutilisable, et **rien à l'écran ne le disait**.
+
+S'y ajoutait un doublon franc : le bloc **« Identité visuelle du PDF »** des
+Paramètres annonçait « appliquée aux devis et factures : titre, tableau et
+en-tête ». Faux depuis que le document lit le modèle. Deux écrans réclamaient le
+même réglage, un seul décidait.
+
+### 47.2 Ce qui a été décidé
+
+**Le modèle actif s'applique à tous les devis**, y compris ceux enregistrés
+avant lui. Choix explicite de l'utilisateur, contre la règle précédente.
+Contrepartie assumée : un devis re-téléchargé après un changement de modèle ne
+ressemble plus à celui reçu par le client. Les **montants**, eux, restent figés
+dans le devis — seule la mise en page suit.
+
+**Toute organisation part du préétabli « Standard »**, implicite tant qu'aucun
+modèle n'est enregistré. La galerie n'est donc jamais vide, et personne ne
+travaille sans mise en page. Ce Standard implicite s'amorce sur l'identité déjà
+enregistrée (logo, police, couleur) : une organisation qui avait choisi ses
+couleurs les retrouve telles quelles. Il ne peut pas être supprimé — il n'existe
+pas en base, et le retirer laisserait l'organisation sans rien.
+
+**Le bloc « Identité visuelle du PDF » est retiré des Paramètres.** La mise en
+page a un seul endroit : l'éditeur. Les colonnes `brand_color`, `pdf_font` et
+`pdf_header_alignment` restent en base — elles amorcent le Standard implicite.
+
+**La facture lit le même modèle que le devis.** Elle suivait `company_settings`
+pendant que le devis suivait le modèle : c'était la seconde moitié du même
+conflit, et l'écran des Paramètres promettait déjà « devis **et** factures ».
+Son identité légale et ses montants restent, eux, ceux de son instantané — une
+facture émise est immuable sur le fond.
+
+### 47.3 Ce que le PDF a aussi confirmé
+
+Le rectangle gris arrondi imprimé autour du document, corrigé le même jour
+(§ 46.1) : on le voit sur le PDF fourni, coins arrondis compris.
+
+> Reste un repli documenté, volontairement conservé : la note de pied de page.
+> `cfg.pied.note || snapshot.pdfFooterNote || societe.pdfFooterNote` — le modèle
+> gagne s'il en porte une, sinon celle des Paramètres s'applique. Ce n'est pas
+> un doublon qui ment : les deux champs sont annoncés pour ce qu'ils font.
+
+**460/460 au vert, 0 régression, 49 suites, 7 étalons conformes.**

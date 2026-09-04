@@ -7932,8 +7932,23 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
 //
 // `ci` reste le nom de l'instantané d'entreprise figé dans la facture — celui
 // qui fait foi, la facture étant un document légal immuable une fois émise.
-const DocumentFacture = ({ facture, ci, theme, disposition, devise }) => (
-        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-6 print:border-0 print:p-0" data-zone-impression={facture.statut === 'draft' ? undefined : '1'} style={{ fontFamily: theme.fontFamily }}>
+const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuration }) => {
+    // 2026-09-04 — La facture suivait `company_settings` pendant que le devis
+    // suivait le modèle : deux sources de vérité pour une même identité
+    // visuelle, alors que l'écran des Paramètres annonçait « appliquée aux
+    // devis ET aux factures ». Elle lit désormais le même modèle.
+    const cfg = fusionnerConfiguration(configuration);
+    const echelleTexte = Math.max(80, Math.min(130, Number(cfg.general.echelleTexte) || 100)) / 100;
+    const encre = (cfg.general.couleurTexte || '').trim();
+    const aplats = cfg.general.aplatsColores !== false;
+    return (
+        <div
+            className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''}`}
+            data-zone-impression={facture.statut === 'draft' ? undefined : '1'}
+            data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
+            data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined }}
+        >
             <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
                 <div className={disposition.company}>
                     {ci.logo && (
@@ -7976,7 +7991,8 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise }) => (
 
             <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                    <tr className="text-white font-bold uppercase" style={{ backgroundColor: theme.brandColor }}>
+                    <tr className={`font-bold uppercase ${aplats ? 'text-white' : 'text-neutral-900'}`}
+                        style={aplats ? { backgroundColor: theme.brandColor } : { borderBottom: `2px solid ${theme.brandColor}` }}>
                         <th className="p-3 rounded-l-lg">Désignation</th>
                         <th className="p-3 text-center">Quantité</th>
                         <th className="p-3 text-right">Prix Unitaire HT</th>
@@ -8039,7 +8055,8 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise }) => (
                 </div>
             )}
         </div>
-);
+    );
+};
 
 function App({ supabaseSession, supabaseClient, onSignOut }) {
     const sbUser = supabaseSession ? supabaseSession.user : null;
@@ -9485,11 +9502,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // défaut de l'organisation, ou, tant qu'aucun n'est enregistré, celle
     // dérivée des réglages actuels — ce qui garantit qu'introduire les modèles
     // ne change aucun document tant que personne n'ouvre l'éditeur.
+    // Le modèle implicite d'une organisation qui n'en a créé aucun : le
+    // préétabli « Standard », posé sur son identité (logo, police, couleur).
+    // Personne ne travaille plus sans modèle — c'est ce qui permet de retirer
+    // les réglages de mise en page des Paramètres sans priver quiconque.
+    const modeleImplicite = React.useMemo(() => ({
+        id: 'implicite-standard',
+        nom: MODELES_PREETABLIS[0].nom,
+        type_document: 'devis',
+        par_defaut: true,
+        implicite: true,
+        configuration: appliquerPreetabli(MODELES_PREETABLIS[0], companyInfo)
+    }), [companyInfo]);
+
+    // Les modèles de MISE EN PAGE tels que la galerie doit les montrer : ceux
+    // qui sont enregistrés, ou le Standard implicite s'il n'y en a aucun.
+    // (`modelesDevis`, sans qualificatif, désigne déjà les modèles de chiffrage
+    // — des ouvrages pré-remplis, une tout autre fonctionnalité.)
+    const modelesMiseEnPage = React.useMemo(() => {
+        const enregistres = modelesDocument.filter(m => (m.type_document || 'devis') === 'devis');
+        return enregistres.length > 0 ? enregistres : [modeleImplicite];
+    }, [modelesDocument, modeleImplicite]);
+
     const configurationActive = React.useMemo(() => {
-        const m = modelesDocument.find(x => x.type_document === 'devis' && x.par_defaut)
-            || modelesDocument.find(x => x.type_document === 'devis');
-        return fusionnerConfiguration(m ? m.configuration : modeleDepuisReglages(companyInfo).configuration);
-    }, [modelesDocument, companyInfo]);
+        const m = modelesMiseEnPage.find(x => x.par_defaut) || modelesMiseEnPage[0];
+        return fusionnerConfiguration(m ? m.configuration : modeleImplicite.configuration);
+    }, [modelesMiseEnPage, modeleImplicite]);
 
     // Celle qui s'applique à UN devis donné. Un devis porte la configuration
     // figée au moment de son enregistrement : rouvrir dans deux ans un devis
@@ -9497,20 +9535,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // modèle d'aujourd'hui. C'est la même règle que pour l'identité de
     // l'entreprise, déjà figée dans companyInfoSnapshot — on s'y range plutôt
     // que d'inventer un second mécanisme de gel.
-    const configurationDuDevis = (devis) => {
-        const gelee = devis?.companyInfoSnapshot?.templateConfiguration;
-        if (gelee) return fusionnerConfiguration(gelee);
-        // Devis enregistré AVANT les modèles : sa mise en page était figée
-        // dans l'instantané de l'entreprise (couleur, police, alignement,
-        // note de pied, niveau de détail). On la reconstruit à partir de là.
-        // Sans ce chemin, rouvrir un vieux devis lui appliquerait le modèle
-        // d'aujourd'hui — exactement ce que le gel doit empêcher.
-        const snap = devis?.companyInfoSnapshot;
-        const aUnStyleFige = snap && (snap.brandColor || snap.pdfFont || snap.pdfHeaderAlignment
-            || snap.pdfFooterNote || snap.clientQuoteTemplate);
-        if (aUnStyleFige) return fusionnerConfiguration(modeleDepuisReglages(snap).configuration);
-        return configurationActive;
-    };
+    // 2026-09-04 — Le modèle actif s'applique à TOUS les devis, y compris ceux
+    // enregistrés avant son existence. Choix explicite de l'utilisateur, contre
+    // la règle précédente.
+    //
+    // Cette règle gelait la mise en page dans l'instantané de chaque devis :
+    // couleur, police, alignement du jour de l'enregistrement. Elle protégeait
+    // un devis déjà envoyé — mais sur un brouillon elle rendait l'éditeur
+    // inutilisable. Constaté en production : un modèle réglé en noir à 85 %
+    // sortait un PDF bleu à 100 %, parce que les six devis de l'organisation
+    // dataient d'avant les modèles. Rien à l'écran ne disait pourquoi.
+    //
+    // Contrepartie assumée : un devis re-téléchargé après un changement de
+    // modèle ne ressemble plus à celui reçu par le client. Les MONTANTS, eux,
+    // restent figés dans le devis — seule la mise en page suit.
+    //
+    // `companyInfoSnapshot.templateConfiguration` continue d'être écrit à
+    // l'enregistrement : c'est une trace de ce qui était en vigueur, utile si
+    // l'on veut un jour rétablir un gel au cas par cas.
+    const configurationDuDevis = () => configurationActive;
 
     const [materials, setMaterials] = useState(() => {
         let loaded = loadLocalData('materials', initialMaterials);
@@ -10570,7 +10613,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const editerModele = (modele) => {
         setEditeurModele(modele
-            ? { ...modele, configuration: fusionnerConfiguration(modele.configuration) }
+            // Le Standard implicite porte un identifiant factice : le retirer
+            // pour que l'enregistrement INSÈRE une vraie ligne au lieu de
+            // tenter une mise à jour sur une clé qui n'existe pas.
+            ? { ...modele, id: modele.implicite ? undefined : modele.id, implicite: undefined,
+                configuration: fusionnerConfiguration(modele.configuration) }
             : { ...modeleDepuisReglages(companyInfo), nom: 'Nouveau modèle', par_defaut: seraLePremierModele('devis') });
         setSectionEditeur('general');
         setGalerieModeles(false);
@@ -14316,14 +14363,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const documentDeLaFacture = (facture) => {
         if (!facture) return null;
         const ci = facture.companyInfoSnapshot || companyInfo;
-        const theme = resolvePdfDocumentTheme(facture.companyInfoSnapshot, companyInfo);
+        // Le thème vient du MODÈLE ACTIF, comme pour le devis — plus de
+        // `resolvePdfDocumentTheme(instantané)` qui figeait la facture sur les
+        // réglages du jour de son émission pendant que le devis, lui, suivait
+        // le modèle. Les MONTANTS et l'identité légale restent, eux, ceux de
+        // l'instantané : une facture émise est immuable sur le fond.
+        const theme = themeDepuisConfiguration(configurationActive);
         return (
             <DocumentFacture
                 facture={facture}
                 ci={ci}
                 theme={theme}
-                disposition={getPdfHeaderLayout(theme.headerAlignment)}
+                disposition={getPdfHeaderLayout(configurationActive.entete.alignement)}
                 devise={facture.companyInfoSnapshot?.currency || companyInfo.currency}
+                configuration={configurationActive}
             />
         );
     };
@@ -14734,7 +14787,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // ce qui rendait la suppression d'un modèle incapable de défaire
                 // ce qu'il avait appliqué. Le modèle est maintenant lu
                 // directement, et le report a disparu.
-                const configurationDocument = configurationDuDevis(viewingSavedQuote);
+                const configurationDocument = configurationDuDevis();
                 const quoteDocumentTheme = themeDepuisConfiguration(configurationDocument);
                 const quoteHeaderLayout = getPdfHeaderLayout(configurationDocument.entete.alignement);
                 const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
@@ -17862,136 +17915,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         )}
                         {accountSettingsTab === 'documents' && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-6">
-                                {/* Identité visuelle : réglages appliqués au document lui-même, pas à
-                                    l'interface ikadevis. La carte d'aperçu permet de vérifier les trois
-                                    choix ensemble sans ouvrir ni télécharger un PDF. */}
+                                {/* 2026-09-04 — Cette section portait « Identité visuelle du PDF »
+                                    (couleur, police, disposition de l'en-tête) et annonçait
+                                    « appliquée aux devis et factures ». C'était devenu FAUX : depuis
+                                    que le document lit le modèle, ces trois réglages ne pilotaient
+                                    plus rien dès qu'un modèle existait. Deux écrans réclamaient la
+                                    même chose, un seul décidait, et rien ne le disait.
+
+                                    Signalé en production : un modèle réglé en noir à 85 % sortait un
+                                    PDF bleu à 100 %. Les contrôles sont retirés ; la mise en page a
+                                    désormais UN seul endroit, l'éditeur de modèles — qui n'est jamais
+                                    vide, toute organisation partant du préétabli « Standard ».
+
+                                    Les colonnes brandColor / pdf_font / pdf_header_alignment restent
+                                    en base : elles amorcent ce Standard implicite, de sorte qu'une
+                                    organisation qui avait déjà choisi ses couleurs les retrouve. */}
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
-                                    <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
-                                        <div>
-                                            <p className="app-label mb-1">Identité visuelle du PDF</p>
-                                            <p className="text-xs text-neutral-500">Appliquée aux devis et factures : titre, tableau et en-tête.</p>
-                                        </div>
-                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
-                                            <i className="fa-solid fa-file-pdf text-red-500"></i> Aperçu inclus
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                        <div>
-                                            <label htmlFor="company_pdf_brand_color" className="app-label">Couleur principale</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    id="company_pdf_brand_color"
-                                                    type="color"
-                                                    disabled={isReadOnlyDueToDowngrade}
-                                                    className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-neutral-200 bg-white p-1 disabled:cursor-not-allowed"
-                                                    value={normalizePdfBrandColor(companyInfo.brandColor)}
-                                                    onChange={e => updateCompanyInfo({ ...companyInfo, brandColor: e.target.value.toUpperCase() })}
-                                                    aria-label="Couleur principale du PDF"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    disabled={isReadOnlyDueToDowngrade}
-                                                    className="app-input font-mono font-semibold uppercase"
-                                                    maxLength="7"
-                                                    value={companyInfo.brandColor || PDF_BRAND_COLOR_DEFAULT}
-                                                    onChange={e => updateCompanyInfo({ ...companyInfo, brandColor: e.target.value.toUpperCase() })}
-                                                    onBlur={() => {
-                                                        if (!/^#[0-9A-Fa-f]{6}$/.test(String(companyInfo.brandColor || '').trim())) {
-                                                            updateCompanyInfo({ ...companyInfo, brandColor: PDF_BRAND_COLOR_DEFAULT });
-                                                            showToast('Couleur invalide : la couleur par défaut a été restaurée.', 'error');
-                                                        }
-                                                    }}
-                                                    aria-label="Code hexadécimal de la couleur principale"
-                                                />
-                                            </div>
-                                            <div className="flex flex-wrap gap-2 mt-3" aria-label="Couleurs de marque suggérées">
-                                                {[
-                                                    { value: '#3B5BDB', label: 'Bleu' },
-                                                    { value: '#0F766E', label: 'Sarcelle' },
-                                                    { value: '#A16207', label: 'Ocre' },
-                                                    { value: '#9F1239', label: 'Bordeaux' },
-                                                    { value: '#475569', label: 'Ardoise' }
-                                                ].map(color => {
-                                                    const active = normalizePdfBrandColor(companyInfo.brandColor) === color.value;
-                                                    return (
-                                                        <button
-                                                            key={color.value}
-                                                            type="button"
-                                                            disabled={isReadOnlyDueToDowngrade}
-                                                            onClick={() => updateCompanyInfo({ ...companyInfo, brandColor: color.value })}
-                                                            className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500 ${active ? 'border-neutral-900' : 'border-white shadow-sm'}`}
-                                                            style={{ backgroundColor: color.value }}
-                                                            title={color.label}
-                                                            aria-label={`Utiliser ${color.label}`}
-                                                            aria-pressed={active}
-                                                        />
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <span className="app-label">Police du document</span>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {PDF_FONT_OPTIONS.map(option => {
-                                                    const active = (companyInfo.pdfFont || 'modern') === option.id;
-                                                    return (
-                                                        <label key={option.id} className={`rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${active ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 bg-white hover:bg-neutral-50'} ${isReadOnlyDueToDowngrade ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                            <span className="flex items-start gap-2">
-                                                                <input
-                                                                    type="radio"
-                                                                    name="pdfFont"
-                                                                    className="mt-0.5 w-4 h-4 accent-brand-600"
-                                                                    disabled={isReadOnlyDueToDowngrade}
-                                                                    checked={active}
-                                                                    onChange={() => updateCompanyInfo({ ...companyInfo, pdfFont: option.id })}
-                                                                />
-                                                                <span className="min-w-0">
-                                                                    <span className="block text-xs font-bold text-neutral-800" style={{ fontFamily: option.family }}>{option.label}</span>
-                                                                    <span className="block text-[10px] leading-4 text-neutral-500 mt-0.5">{option.description}</span>
-                                                                </span>
-                                                            </span>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-5 mt-5 border-t border-neutral-100">
-                                        <span className="app-label">Disposition de l'en-tête</span>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                            {PDF_HEADER_ALIGNMENTS.map(option => {
-                                                const active = (companyInfo.pdfHeaderAlignment || 'left') === option.id;
-                                                return (
-                                                    <label key={option.id} className={`rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${active ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 bg-white hover:bg-neutral-50'} ${isReadOnlyDueToDowngrade ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                        <span className="flex items-start gap-2">
-                                                            <input
-                                                                type="radio"
-                                                                name="pdfHeaderAlignment"
-                                                                className="mt-0.5 w-4 h-4 accent-brand-600"
-                                                                disabled={isReadOnlyDueToDowngrade}
-                                                                checked={active}
-                                                                onChange={() => updateCompanyInfo({ ...companyInfo, pdfHeaderAlignment: option.id })}
-                                                            />
-                                                            <span>
-                                                                <span className="block text-xs font-bold text-neutral-800">{option.label}</span>
-                                                                <span className="block text-[10px] leading-4 text-neutral-500 mt-0.5">{option.description}</span>
-                                                            </span>
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Entrée de l'éditeur de modèles (étape 1, 2026-09-03).
-                                        Les réglages ci-dessus restent en place : ils pilotent
-                                        toujours le document tant qu'aucun modèle n'est
-                                        enregistré. L'éditeur part d'ailleurs de ces valeurs —
-                                        ouvrir puis enregistrer sans rien toucher ne change
-                                        strictement rien au document. */}
+                                    <p className="app-label mb-1">Mise en page des documents</p>
+                                    <p className="text-xs text-neutral-500 leading-relaxed">
+                                        Couleur, police, en-tête, tableau, marges et pied de page se règlent
+                                        dans l’éditeur de modèles — un seul endroit, avec l’aperçu de votre
+                                        vrai devis à côté. Le modèle par défaut s’applique à vos devis
+                                        <strong> et à vos factures</strong>.
+                                    </p>
                                     <button
                                         type="button"
                                         onClick={ouvrirEditeurModele}
@@ -18004,28 +17950,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <span className="min-w-0 flex-1">
                                             <span className="block text-[13px] font-bold text-neutral-900">Éditeur de modèles</span>
                                             <span className="block text-[11px] text-neutral-600 leading-snug mt-0.5">
-                                                Régler l’en-tête, les titres, le tableau et le pied de page, avec l’aperçu de votre devis à côté.
+                                                Régler l’en-tête, les titres, le tableau, les marges et le pied de page,
+                                                avec l’aperçu de votre devis à côté.
                                             </span>
                                         </span>
                                         <i className="fa-solid fa-arrow-right text-neutral-400 text-xs shrink-0"></i>
                                     </button>
-
-                                    {(() => {
-                                        const previewTheme = resolvePdfDocumentTheme(companyInfo, companyInfo);
-                                        const previewLayout = getPdfHeaderLayout(previewTheme.headerAlignment);
-                                        return (
-                                            <div className="mt-5 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden" style={{ fontFamily: previewTheme.fontFamily }}>
-                                                <div className={`${previewLayout.wrapper} px-4 py-3 border-t-4 border-neutral-100`} style={{ borderTopColor: previewTheme.brandColor }}>
-                                                    <div className={`text-[10px] text-neutral-500 ${previewLayout.company}`}>
-                                                        <span className="block font-bold text-neutral-800">{companyInfo.name || 'Votre entreprise'}</span>
-                                                        <span>Coordonnées de l'entreprise</span>
-                                                    </div>
-                                                    <div className={`text-[11px] font-bold uppercase tracking-wide ${previewLayout.document}`} style={{ color: previewTheme.brandColor }}>Devis</div>
-                                                </div>
-                                                <div className="mx-4 mb-3 h-5 rounded-sm" style={{ backgroundColor: previewTheme.brandColor }}></div>
-                                            </div>
-                                        );
-                                    })()}
                                 </section>
 
                                 <div>
@@ -19210,7 +19140,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="min-w-0 flex-1">
                             <h2 className="text-base font-bold text-neutral-900">Modèles de devis</h2>
                             <p className="text-[11px] text-neutral-500">
-                                {modelesDocument.filter(m => m.type_document === 'devis').length || 'Aucun'} modèle{modelesDocument.filter(m => m.type_document === 'devis').length > 1 ? 's' : ''} · le modèle par défaut s’applique aux nouveaux devis
+                                {modelesMiseEnPage.length} modèle{modelesMiseEnPage.length > 1 ? 's' : ''} · le modèle par défaut s’applique à tous vos devis
                             </p>
                         </div>
                         <button type="button" onClick={() => setCatalogueModeles(true)}
@@ -19226,7 +19156,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
                         <div className="mx-auto max-w-4xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {modelesDocument.filter(m => m.type_document === 'devis').map(modele => {
+                            {modelesMiseEnPage.map(modele => {
                                 const cfgM = fusionnerConfiguration(modele.configuration);
                                 const colonnesVisibles = 2
                                     + (cfgM.tableau.colonnes.quantite.affiche !== false ? 1 : 0)
@@ -19293,7 +19223,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     className="btn-secondary btn-dialogue" aria-label={`Dupliquer le modèle ${modele.nom}`}>
                                                     Dupliquer
                                                 </button>
-                                                {!modele.par_defaut && (
+                                                {!modele.par_defaut && !modele.implicite && (
                                                     <button type="button" onClick={() => definirModeleParDefaut(modele)}
                                                         className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
                                                         aria-label={`Utiliser ${modele.nom} par défaut`}>
@@ -19306,14 +19236,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     retiré du tout. On ne pouvait que le modifier, sans jamais
                                                     revenir à l'état d'avant.
                                                     Supprimer le défaut est donc permis ; la confirmation dit
-                                                    alors ce qui se passe ensuite. */}
+                                                    alors ce qui se passe ensuite.
+                                                    Le Standard implicite, lui, n'existe pas en base : il n'y a
+                                                    rien à supprimer, et le retirer laisserait l'organisation
+                                                    sans aucune mise en page. */}
+                                                {!modele.implicite && (
                                                 <button type="button"
                                                     onClick={() => setConfirmDialog({
                                                         isOpen: true,
                                                         title: 'Supprimer ce modèle ?',
                                                         message: modele.par_defaut
-                                                            ? `« ${modele.nom} » est le modèle par défaut.\n\nAprès suppression, vos nouveaux devis reprennent la mise en page issue de vos réglages d’entreprise. Les devis déjà enregistrés ne changent pas : chacun porte la sienne, figée.`
-                                                            : `« ${modele.nom} » sera retiré.\n\nLes devis déjà enregistrés ne changent pas : chacun porte sa mise en page figée.`,
+                                                            ? `« ${modele.nom} » est le modèle par défaut.\n\nAprès suppression, tous vos devis reprennent le modèle « Standard ».`
+                                                            : `« ${modele.nom} » sera retiré.\n\nVos devis continuent de suivre le modèle par défaut.`,
                                                         confirmLabel: 'Supprimer',
                                                         isDanger: true,
                                                         onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
@@ -19322,26 +19256,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     aria-label={`Supprimer le modèle ${modele.nom}`}>
                                                     Supprimer
                                                 </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })}
 
-                            {modelesDocument.filter(m => m.type_document === 'devis').length === 0 && (
-                                <div className="sm:col-span-2 lg:col-span-3 app-card p-8 text-center">
-                                    <i className="fa-solid fa-pen-ruler text-3xl text-neutral-300 mb-3"></i>
-                                    <p className="text-sm font-bold text-neutral-800">Aucun modèle enregistré</p>
-                                    <p className="text-xs text-neutral-500 mt-1 max-w-md mx-auto leading-relaxed">
-                                        Vos devis utilisent la mise en page issue de vos réglages d’entreprise.
-                                        Créez un modèle pour la régler finement, ou en tenir plusieurs — un pour
-                                        les appels d’offres, un pour les particuliers.
+                            {modelesMiseEnPage.length === 1 && modelesMiseEnPage[0].implicite && (
+                                <div className="sm:col-span-1 lg:col-span-2 app-card p-6 flex flex-col justify-center">
+                                    <p className="text-sm font-bold text-neutral-800">Vous partez de « Standard »</p>
+                                    <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                                        C’est le modèle appliqué à tous vos devis tant que vous n’en réglez pas
+                                        d’autre. Modifiez-le, ou tenez-en plusieurs — un pour les appels d’offres,
+                                        un pour les particuliers.
                                     </p>
-                                    <button type="button" onClick={() => setCatalogueModeles(true)}
-                                        disabled={isReadOnlyDueToDowngrade}
-                                        className="btn-primary mt-4 py-2 px-4 text-xs font-bold disabled:opacity-50">
-                                        Choisir un modèle
-                                    </button>
+                                    <div className="mt-4">
+                                        <button type="button" onClick={() => setCatalogueModeles(true)}
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            className="btn-primary btn-dialogue disabled:opacity-50">
+                                            Choisir un autre modèle
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
