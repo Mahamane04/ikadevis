@@ -7644,9 +7644,12 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     </div>
                 ) : null;
             })()}
-            {(devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote) && (
+            {/* La note vient du modèle. Le repli sur l'instantané puis sur les
+                réglages couvre les devis enregistrés avant les modèles, dont la
+                note était figée là. */}
+            {(cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote) && (
                 <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
-                    {devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote}
+                    {cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote}
                 </div>
             )}
         </div>
@@ -9094,8 +9097,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // modèle d'aujourd'hui. C'est la même règle que pour l'identité de
     // l'entreprise, déjà figée dans companyInfoSnapshot — on s'y range plutôt
     // que d'inventer un second mécanisme de gel.
-    const configurationDuDevis = (devis) =>
-        fusionnerConfiguration(devis?.companyInfoSnapshot?.templateConfiguration || configurationActive);
+    const configurationDuDevis = (devis) => {
+        const gelee = devis?.companyInfoSnapshot?.templateConfiguration;
+        if (gelee) return fusionnerConfiguration(gelee);
+        // Devis enregistré AVANT les modèles : sa mise en page était figée
+        // dans l'instantané de l'entreprise (couleur, police, alignement,
+        // note de pied, niveau de détail). On la reconstruit à partir de là.
+        // Sans ce chemin, rouvrir un vieux devis lui appliquerait le modèle
+        // d'aujourd'hui — exactement ce que le gel doit empêcher.
+        const snap = devis?.companyInfoSnapshot;
+        const aUnStyleFige = snap && (snap.brandColor || snap.pdfFont || snap.pdfHeaderAlignment
+            || snap.pdfFooterNote || snap.clientQuoteTemplate);
+        if (aUnStyleFige) return fusionnerConfiguration(modeleDepuisReglages(snap).configuration);
+        return configurationActive;
+    };
 
     const [materials, setMaterials] = useState(() => {
         let loaded = loadLocalData('materials', initialMaterials);
@@ -10227,35 +10242,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         configuration: { ...m.configuration, [section]: { ...m.configuration[section], [cle]: valeur } }
     }));
 
-    // Appliquer le modèle aux réglages que le DOCUMENT lit réellement.
+    // Le report vers company_settings a été RETIRÉ le 2026-09-04.
     //
-    // Transition assumée, et à retirer à l'étape 2 : aujourd'hui le rendu lit
-    // `companyInfo` (police, couleur, alignement, note de pied, niveau de
-    // détail). Le modèle est le nouvel enregistrement, mais tant que le
-    // document ne le lit pas, enregistrer un modèle sans reporter ces valeurs
-    // ne changerait RIEN au document — l'éditeur mentirait à l'utilisateur.
+    // Il existait pour que l'éditeur ait un effet réel tant que le document
+    // lisait les réglages de l'entreprise. Il allait dans un seul sens, et
+    // c'était son défaut : supprimer un modèle ne défaisait pas ce qu'il avait
+    // écrit — constaté sur un compte réel, où la couleur d'un modèle de test
+    // supprimé était restée en place.
     //
-    // Le report va dans un seul sens, modèle → réglages : il n'y a donc pas
-    // deux sources de vérité qui divergent, mais une source et sa projection.
-    // À l'étape 2, le document lira le modèle et ce report disparaîtra.
-    const appliquerModeleAuxReglages = (configuration) => {
-        const c = fusionnerConfiguration(configuration);
-        updateCompanyInfo({
-            ...companyInfo,
-            pdfFont: c.general.police,
-            brandColor: c.general.couleurMarque,
-            pdfHeaderAlignment: c.entete.alignement,
-            pdfFooterNote: c.pied.note,
-            clientQuoteTemplate: c.tableau.niveauDetail,
-            logo: c.entete.afficherLogo ? companyInfo.logo : ''
-        });
-    };
+    // Le document lit maintenant le modèle directement. Rien à reporter, rien
+    // à défaire : retirer un modèle rend bien la mise en page d'avant.
 
     const enregistrerModele = async () => {
         if (!editeurModele) return;
         setEnregistrementModele(true);
         try {
-            appliquerModeleAuxReglages(editeurModele.configuration);
             const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
             if (!estCloud) {
                 // Hors ligne, le modèle vit dans le navigateur comme le reste du
@@ -14333,8 +14334,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     nif: snap.nif || companyInfo.nif,
                     rccm: snap.rccm || companyInfo.rccm
                 };
-                const quoteDocumentTheme = resolvePdfDocumentTheme(snap, companyInfo);
-                const quoteHeaderLayout = getPdfHeaderLayout(quoteDocumentTheme.headerAlignment);
+                // Le thème vient désormais du MODÈLE du devis, plus de
+                // company_settings. C'était la dernière dette de la série :
+                // l'éditeur écrivait dans les réglages pour avoir un effet réel,
+                // ce qui rendait la suppression d'un modèle incapable de défaire
+                // ce qu'il avait appliqué. Le modèle est maintenant lu
+                // directement, et le report a disparu.
+                const configurationDocument = configurationDuDevis(viewingSavedQuote);
+                const quoteDocumentTheme = themeDepuisConfiguration(configurationDocument);
+                const quoteHeaderLayout = getPdfHeaderLayout(configurationDocument.entete.alignement);
                 const missingLegal = getMissingLegalFields(effectiveCompanyInfo);
                 // F5 — Même logique de repli que l'identité légale ci-dessus :
                 // priorité à l'instantané pris avec CE devis, retour à
@@ -14361,7 +14369,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
                 // Choix ponctuel s'il y en a un, sinon le défaut réglé dans
                 // Paramètres → Documents & PDF.
-                const clientTemplate = clientDetailOverride || companyInfo.clientQuoteTemplate || 'synthese';
+                // L'utilisateur peut basculer Synthèse/Détaillé à l'écran sans
+                // toucher au modèle : son choix ponctuel prime, le modèle donne
+                // la valeur de départ.
+                const clientTemplate = clientDetailOverride || configurationDocument.tableau.niveauDetail || 'synthese';
                 const linkedInvoice = invoices.find(invoice => String(invoice.devisId) === String(viewingSavedQuote.id)) || null;
                 const convertirEnFacture = async () => {
                     if (linkedInvoice) {
@@ -14831,7 +14842,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     disposition={quoteHeaderLayout}
                                     gabarit={clientTemplate}
                                     modeDemo={estModeDemo}
-                                    configuration={configurationDuDevis(viewingSavedQuote)}
+                                    configuration={configurationDocument}
                                 />
                             ) : (
                                 <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">

@@ -328,6 +328,72 @@ export async function run() {
         ok(`Deux modèles coexistent — ${JSON.stringify(parc.modeles)}`,
             (parc.modeles || []).length === 2);
         ok(`Un seul modèle porte le badge « par défaut » — ${parc.nbParDefaut}`, parc.nbParDefaut === 1);
+
+        // ── Supprimer un modèle rend la mise en page d'avant ──────────────
+        // Jusqu'au 2026-09-04, l'éditeur reportait ses valeurs dans les
+        // réglages de l'entreprise pour avoir un effet réel. Le report allait
+        // dans un seul sens : supprimer un modèle ne défaisait pas ce qu'il
+        // avait écrit. Constaté sur un compte réel — la couleur d'un modèle de
+        // test supprimé était restée en place, et les documents avec.
+        //
+        // Le document lit maintenant le modèle directement. Ce banc protège le
+        // cycle complet : sans modèle → avec → sans, et la couleur doit revenir.
+        const couleurDuDocumentReel = async () => {
+            await page.evaluate(() => {
+                const b = [...document.querySelectorAll('aside button')].find((x) => (x.textContent || '').trim().startsWith('Mes devis'));
+                if (b) b.click();
+            });
+            await wait(1800);
+            await page.evaluate(() => { const tr = document.querySelector('tbody tr'); if (tr) tr.click(); });
+            await wait(2400);
+            return couleurTitreDocument(page, false);
+        };
+
+        const fermerGalerie = async () => {
+            await page.evaluate(() => {
+                const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+                if (!g) return;
+                const b = [...g.querySelectorAll('button')].find((x) => /^Fermer$/.test(x.textContent.trim()));
+                if (b) b.click();
+            });
+            await wait(1400);
+        };
+
+        await fermerGalerie();
+        const avecModele = await couleurDuDocumentReel();
+        ok(`Le document suit le modèle par défaut — ${avecModele}`, avecModele === 'rgb(15, 118, 110)');
+
+        await cliquer(page, 'Paramètres du Compte'); await wait(1700);
+        await cliquer(page, 'Documents'); await wait(1700);
+        await cliquer(page, 'Éditeur de modèles'); await wait(2000);
+        // Supprimer TOUS les modèles pour revenir à l'état sans modèle.
+        for (let i = 0; i < 3; i++) {
+            const reste = await page.evaluate(() => {
+                const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+                if (!g) return false;
+                const b = [...g.querySelectorAll('button')].find((x) => /^Supprimer le modèle /.test(x.getAttribute('aria-label') || ''));
+                if (b) { b.click(); return true; }
+                return false;
+            });
+            if (!reste) break;
+            await wait(1200);
+            await page.evaluate(() => {
+                const d = [...document.querySelectorAll('[role="dialog"]')].filter((x) => x.getBoundingClientRect().width > 0).pop();
+                const c = d && [...d.querySelectorAll('button')].find((x) => /^Supprimer$/.test(x.textContent.trim()));
+                if (c) c.click();
+            });
+            await wait(2400);
+        }
+        const plusAucunModele = await page.evaluate(() => {
+            const g = document.querySelector('[role="dialog"][aria-label*="Modèles"]');
+            return g ? [...g.querySelectorAll('h3')].length === 0 : null;
+        });
+        ok('Tous les modèles peuvent être supprimés, y compris celui par défaut', plusAucunModele === true);
+
+        await fermerGalerie();
+        const sansModele = await couleurDuDocumentReel();
+        ok(`Sans modèle, le document reprend la mise en page d’avant — ${sansModele}`,
+            sansModele === 'rgb(59, 91, 219)');
     } finally {
         await close();
     }
