@@ -3261,3 +3261,44 @@ Le rectangle gris arrondi imprimé autour du document, corrigé le même jour
 > un doublon qui ment : les deux champs sont annoncés pour ce qu'ils font.
 
 **460/460 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 🏷️ 48. « Le brouillon fait quoi sur le PDF ? » (2026-09-04)
+
+Question posée sur capture, croix rouge et point d'interrogation sur le
+bandeau. J'avais d'abord répondu que le réglage existait
+(Document → « Afficher le statut du devis ») et qu'il restait coché à dessein.
+**C'était une réponse incomplète, et la justification ne tenait pas.**
+
+### 48.1 Pourquoi tous les devis étaient « brouillon »
+
+Un devis naît `status: 'draft'`. Le seul endroit où changer cet état était une
+**pastille dans l'écran Chiffrage**, posée à côté des flèches Annuler /
+Rétablir. Or c'est depuis « Mes devis » qu'on imprime, télécharge et envoie —
+et rien n'y proposait le statut.
+
+Conséquence mécanique : personne ne quittait jamais l'état « brouillon », et le
+tampon s'imprimait sur **100 % des documents envoyés aux clients**. Un tampon
+posé partout n'alerte plus personne — il fait juste passer chaque devis pour
+inachevé aux yeux du client.
+
+La justification que j'avais donnée — « il protège contre l'envoi d'un
+brouillon pour un devis ferme » — suppose un état que l'utilisateur gère. Il ne
+pouvait pas le gérer depuis l'écran d'envoi.
+
+### 48.2 Deux corrections
+
+**Le statut se règle depuis « Mes devis »**, à côté du nom du client, là où l'on
+télécharge et où l'on envoie. Le brouillon redevient un état qu'on quitte.
+
+**Le tampon ne s'imprime plus que pour ce qui alerte** — `draft` et
+`to_verify`. La règle précédente n'excluait que « accepté » et « approuvé » :
+un devis marqué **« Prêt »** ou **« Envoyé »** sortait tamponné « PRÊT » /
+« ENVOYÉ », ce qui n'avertit de rien et n'a aucun sens sur le document reçu par
+le client.
+
+Le réglage « Afficher le statut du devis » reste coché par défaut — mais il
+porte enfin ce qu'il promet, et se décoche en un clic.
+
+**462/462 au vert, 0 régression, 49 suites, 7 étalons conformes.**

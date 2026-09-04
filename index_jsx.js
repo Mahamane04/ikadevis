@@ -7504,8 +7504,18 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // certitude. Un devis accepté ou approuvé ne porte rien : le filigrane
     // sert à alerter, pas à décorer.
     const [libelleStatut] = statutDevis(devis.status);
+    // La règle excluait « accepté » et « approuvé ». Conséquence non voulue :
+    // un devis marqué « Prêt » ou « Envoyé » sortait tamponné « PRÊT » /
+    // « ENVOYÉ » — un tampon qui n'alerte de rien et qui, sur le document reçu
+    // par le client, ne veut rien dire. Signalé en production (2026-09-04) :
+    // « le brouillon fait quoi sur le PDF ? ».
+    //
+    // Le tampon ne se justifie que pour les deux états qui disent « ce document
+    // n'est PAS prêt à partir » : brouillon, et à vérifier. Dès qu'on marque un
+    // devis « Prêt », il n'a plus rien à déclarer.
+    const STATUTS_A_TAMPONNER = ['draft', 'review', 'to_verify'];
     const statutADeclarer = cfg.document.afficherStatut
-        && devis.status && devis.status !== 'accepted' && devis.status !== 'approved';
+        && devis.status && STATUTS_A_TAMPONNER.includes(devis.status);
     // L'échéancier suit la même règle que partout ailleurs : celui figé dans le
     // devis fait foi, celui de l'entreprise ne sert que de repli. Il est calculé
     // ICI et non passé en propriété, pour que le composant reste autonome — un
@@ -14912,9 +14922,36 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     })()}
                                 </div>
 
-                                <div className="mt-3 min-w-0">
-                                    <h3 className="font-semibold text-neutral-900 text-lg leading-tight break-words">{viewingSavedQuote.clientName}</h3>
-                                    <p className="text-xs text-neutral-500 mt-1 break-words">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                                <div className="mt-3 min-w-0 flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <h3 className="font-semibold text-neutral-900 text-lg leading-tight break-words">{viewingSavedQuote.clientName}</h3>
+                                        <p className="text-xs text-neutral-500 mt-1 break-words">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                                    </div>
+                                    {/* Le statut ne se changeait que depuis Chiffrage, sur une
+                                        pastille posée à côté des flèches Annuler / Rétablir. Or
+                                        c'est ICI qu'on télécharge et qu'on envoie — et un devis
+                                        naît « brouillon ». Résultat : tous les devis restaient
+                                        brouillons, et le tampon « BROUILLON » s'imprimait sur
+                                        100 % des documents envoyés aux clients. Un tampon posé
+                                        partout n'alerte plus personne. */}
+                                    <label className="shrink-0">
+                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
+                                        <select
+                                            value={viewingSavedQuote.status || 'draft'}
+                                            onChange={(e) => {
+                                                const maj = { ...viewingSavedQuote, status: e.target.value };
+                                                setViewingSavedQuote(maj);
+                                                updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                            }}
+                                            aria-label="Statut du devis"
+                                            className="app-select py-1.5 px-2 text-xs font-semibold"
+                                        >
+                                            {[['draft', 'Brouillon'], ['to_verify', 'À vérifier'], ['ready', 'Prêt'],
+                                              ['sent', 'Envoyé'], ['accepted', 'Accepté']].map(([v, l]) => (
+                                                <option key={v} value={v}>{l}</option>
+                                            ))}
+                                        </select>
+                                    </label>
                                 </div>
 
                                 <div className="saved-quote-top-actions mt-3 flex flex-wrap items-center gap-2">

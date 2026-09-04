@@ -340,6 +340,28 @@ export async function run() {
         ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
             brouillon.present && brouillon.libelle === 'BROUILLON');
 
+        // 2026-09-04 — Le statut ne se changeait que depuis Chiffrage, sur une
+        // pastille posée près des flèches Annuler / Rétablir. C'est pourtant
+        // ICI qu'on télécharge et qu'on envoie, et un devis naît « brouillon » :
+        // tous les devis le restaient, et le tampon s'imprimait sur 100 % des
+        // documents envoyés aux clients.
+        const selecteurStatut = await page.evaluate(() =>
+            !!document.querySelector('select[aria-label="Statut du devis"]'));
+        ok('Le statut se change depuis l’écran d’où l’on envoie', selecteurStatut);
+
+        await page.evaluate(() => {
+            const sel = document.querySelector('select[aria-label="Statut du devis"]');
+            if (!sel) return;
+            Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(sel, 'ready');
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        await wait(1400);
+        const pret = await tampon(page);
+        // Le tampon excluait « accepté » et « approuvé » seulement : un devis
+        // marqué « Prêt » sortait tamponné « PRÊT », ce qui n'alerte de rien.
+        ok(`Un devis marqué « Prêt » ne porte plus aucun tampon — ${pret.libelle || 'aucun'}`,
+            pret.present === false);
+
         // Le chemin hors ligne écrivait `documentTemplates` dans localStorage
         // sans que rien ne le relise : le modèle réglé sans réseau disparaissait
         // au premier rechargement, en silence. La page vient d'être rechargée —
