@@ -453,7 +453,7 @@ export async function run() {
             const titre = [...d.querySelectorAll('p')]
                 .find((x) => /^Aperçu\b/.test((x.textContent || '').trim()));
             return {
-                traits: d.querySelectorAll('.border-dashed').length,
+                traits: d.querySelectorAll('[data-bande-page]').length,
                 entete: titre ? titre.textContent.trim() : ''
             };
         }, ED);
@@ -529,6 +529,34 @@ export async function run() {
         }, ED);
         await wait(900);
         const pied = await typographie(page, ED);
+        // ── Le pied de page est du MOBILIER, pas du contenu ───────────────
+        // Signalé sur un PDF réel : la mention flottait au milieu de la feuille,
+        // là où le bordereau s'arrêtait. « Le bas de page doit rester sur le bas
+        // de page selon le format choisi, de manière automatique. »
+        const mobilier = await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const z = d.querySelector('[data-zone-impression]');
+            const enFlux = z.querySelector('[data-pied-en-flux]');
+            // `data-bande-page` et non `.border-dashed` : le cadre « Bon pour
+            // accord » du document porte lui aussi des tirets, et le sélecteur
+            // large l'attrapait en premier.
+            const bandes = [...d.querySelectorAll('[data-bande-page]')];
+            return {
+                horsCapture: !!(enFlux && enFlux.hasAttribute('data-hors-pdf')),
+                masqueEnApercu: enFlux ? getComputedStyle(enFlux).display : null,
+                bandes: bandes.length,
+                texteBande: bandes.length ? bandes[0].innerText.trim().slice(0, 60) : '',
+                attribut: (z.getAttribute('data-pied-texte') || '').slice(0, 40)
+            };
+        }, ED);
+        ok('La mention de pied est retirée de la capture PDF', mobilier.horsCapture);
+        ok(`…et masquée en fin de flux dans l’aperçu paginé — display=${mobilier.masqueEnApercu}`,
+            mobilier.masqueEnApercu === 'none');
+        ok(`Elle est dessinée dans la bande de chaque page — ${mobilier.bandes} bande(s)`,
+            mobilier.bandes >= 1 && /Adresse|NIF|RCCM/.test(mobilier.texteBande));
+        ok(`Elle voyage vers le PDF sans ses astérisques — « ${mobilier.attribut} »`,
+            mobilier.attribut.length > 0 && !/\*\*/.test(mobilier.attribut));
+
         ok(`Le pied de page met en gras ce qui est entre astérisques — ${pied.piedGras && pied.piedGras.gras} passage(s)`,
             !!pied.piedGras && pied.piedGras.gras === 2
             && !/\*\*/.test(pied.piedGras.texte));

@@ -7419,7 +7419,13 @@ const dimensionsPapier = (format, orientation) => {
 // la capture est mise à l'échelle de la largeur utile de la page, puis
 // découpée par tranches de la hauteur utile. Une tranche de papier = une
 // tranche d'aperçu. Changer d'orientation rapproche visiblement les coupures.
-const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, format, children }) => {
+// Les mêmes constantes que js/utils.js — l'aperçu doit réserver exactement les
+// bandes que le PDF réserve, sans quoi les coupures montrées seraient fausses.
+const BANDE_PIED_MM = 10;
+const BANDE_ENTETE_MM = 7;
+
+const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, format,
+                        pied, piedAlignement, entete, children }) => {
     const cadre = React.useRef(null);
     const [mesure, setMesure] = React.useState({ largeur: 0, hauteur: 0 });
     React.useEffect(() => {
@@ -7441,44 +7447,75 @@ const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, forma
     const bord = { haut: pc(marges.haut), bas: pc(marges.bas), gauche: pc(marges.gauche), droit: pc(marges.droit) };
     // Hauteur utile d'une page, exprimée dans l'échelle de l'aperçu : la
     // largeur dessinée représente la largeur du papier.
-    const hauteurUtilePx = mesure.largeur > 0
-        ? mesure.largeur * ((hauteurMm - (Number(marges.haut) || 0) - (Number(marges.bas) || 0)) / largeurMm)
-        : 0;
+    const parMm = mesure.largeur > 0 ? mesure.largeur / largeurMm : 0;
+    const utileMm = hauteurMm - (Number(marges.haut) || 0) - (Number(marges.bas) || 0);
+    // Le pied et l'en-tête courant sont du MOBILIER : leur bande est retirée de
+    // la hauteur utile avant le découpage, exactement comme dans le PDF.
+    const bandePiedMm = pied ? BANDE_PIED_MM : 0;
+    const hauteurSansEnteteMm = Math.max(1, utileMm - bandePiedMm);
+    const hauteurUtilePx = parMm * Math.max(1, utileMm - bandePiedMm);
     const debutContenu = mesure.largeur * bord.haut / 100;
     const hauteurContenu = Math.max(0, mesure.hauteur - debutContenu - (mesure.largeur * bord.bas / 100));
-    const nbPages = hauteurUtilePx > 0 ? Math.max(1, Math.ceil(hauteurContenu / hauteurUtilePx)) : 1;
-    const coupures = [];
-    for (let i = 1; i < nbPages && i < 40; i++) coupures.push(debutContenu + i * hauteurUtilePx);
+    // Deux passes, comme dans le PDF : l'en-tête courant n'existe que si le
+    // document déborde, et sa bande change à son tour le nombre de pages.
+    const pagesSansEntete = hauteurUtilePx > 0 ? Math.max(1, Math.ceil(hauteurContenu / hauteurUtilePx)) : 1;
+    const bandeEnteteMm = (entete && pagesSansEntete > 1) ? BANDE_ENTETE_MM : 0;
+    const hauteurFinalePx = parMm * Math.max(1, utileMm - bandePiedMm - bandeEnteteMm);
+    const nbPages = hauteurFinalePx > 0 ? Math.max(1, Math.ceil(hauteurContenu / hauteurFinalePx)) : 1;
+    const alignPied = piedAlignement === 'center' ? 'center' : piedAlignement === 'right' ? 'right' : 'left';
     const alignementNumero = position === 'gauche' ? 'left' : position === 'droite' ? 'right' : 'center';
 
     return (
-        <div ref={cadre} className="relative bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden"
+        // `apercu-pagine` masque la mention de pied EN FLUX : dans un aperçu
+        // paginé elle est déjà dessinée dans la bande de chaque page, et
+        // l'afficher aussi en fin de document la montrerait deux fois. Le
+        // ruban de statut, lui, reste visible — d'où un marqueur distinct de
+        // `data-hors-pdf`, que les deux partagent.
+        <div ref={cadre} className="apercu-pagine relative bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden"
              style={{ paddingTop: `${bord.haut}%`, paddingBottom: `${bord.bas}%`,
                       paddingLeft: `${bord.gauche}%`, paddingRight: `${bord.droit}%` }}>
             {children}
             {/* Repères d'aperçu : jamais capturés, ils vivent hors de
-                `[data-zone-impression]` que vise la génération du PDF. */}
-            {coupures.map((y, i) => (
-                <div key={i} className="absolute inset-x-0 pointer-events-none" style={{ top: y }} aria-hidden="true">
-                    <div className="border-t border-dashed border-neutral-300"></div>
-                    <div className="flex justify-between px-2 pt-0.5">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-                            Page {i + 2}
-                        </span>
+                `[data-zone-impression]` que vise la génération du PDF.
+
+                Une bande blanche matérialise, à chaque fin de page, l'espace que
+                le PDF RÉSERVE au mobilier — pied de page et numéro. L'aperçu est
+                continu, il n'a pas de gouttière entre les feuilles ; la bande la
+                dessine par-dessus, à sa hauteur réelle, et montre ce qui s'y
+                imprime. C'est cette réservation qui empêche une ligne du
+                bordereau de passer sous la mention légale. */}
+            {Array.from({ length: Math.min(nbPages, 40) }, (_, i) => {
+                const bas = debutContenu + (i + 1) * hauteurFinalePx;
+                const hauteurBande = Math.max(parMm * bandePiedMm, 16);
+                const dernier = i === nbPages - 1;
+                return (
+                    <div key={`f${i}`} data-bande-page={i + 1}
+                         className="absolute inset-x-0 pointer-events-none" aria-hidden="true"
+                         style={{ top: bas, height: hauteurBande }}>
+                        <div className="h-full bg-white/95 border-t border-dashed border-neutral-300 px-3 flex flex-col justify-center">
+                            {pied && (
+                                <span className="text-[8px] leading-tight text-neutral-400 whitespace-pre-line block"
+                                      style={{ textAlign: alignPied }}>
+                                    {String(pied).replace(/\*\*/g, '')}
+                                </span>
+                            )}
+                            {numeroter && (
+                                <span className="text-[8px] text-neutral-400 block" style={{ textAlign: alignementNumero }}>
+                                    {String(format || 'Page {page} / {total}')
+                                        .replace(/\{page\}/gi, String(i + 1))
+                                        .replace(/\{total\}/gi, String(nbPages))
+                                        .replace(/\{document\}/gi, '…')}
+                                </span>
+                            )}
+                        </div>
+                        {!dernier && (
+                            <span className="absolute right-2 -bottom-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                                Page {i + 2}
+                            </span>
+                        )}
                     </div>
-                </div>
-            ))}
-            {numeroter && hauteurUtilePx > 0 && Array.from({ length: Math.min(nbPages, 40) }, (_, i) => (
-                <div key={`n${i}`} className="absolute inset-x-0 pointer-events-none px-2" aria-hidden="true"
-                     style={{ top: debutContenu + (i + 1) * hauteurUtilePx - 14, textAlign: alignementNumero }}>
-                    <span className="text-[9px] text-neutral-400">
-                        {String(format || 'Page {page} / {total}')
-                            .replace(/\{page\}/gi, String(i + 1))
-                            .replace(/\{total\}/gi, String(nbPages))
-                            .replace(/\{document\}/gi, '…')}
-                    </span>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
@@ -7635,6 +7672,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     const enGras = (texte) => String(texte || '').split(/\*\*/).map((part, i) =>
         i % 2 === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={i}>{part}</React.Fragment>);
     const ALIGNEMENT_PIED = { left: 'text-left', center: 'text-center', right: 'text-right' };
+    const texteDuPied = cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote || '';
     const coinsGauche = { borderTopLeftRadius: rayon, borderBottomLeftRadius: rayon };
     const coinsDroite = { borderTopRightRadius: rayon, borderBottomRightRadius: rayon };
     const separateurs = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
@@ -7689,6 +7727,9 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
             data-format-numero={cfg.pied.formatNumeroPage || ''}
             data-numero-document={devis.number || ''}
+            data-pied-texte={texteDuPied.replace(/\*\*/g, '')}
+            data-pied-alignement={cfg.pied.alignement || 'left'}
+            data-entete-courant={[devis.companyInfoSnapshot?.name || societe.name, devis.number].filter(Boolean).join(' — ')}
             data-format-papier={cfg.general.formatPapier || 'A4'}
             data-orientation={cfg.general.orientation || 'portrait'}
             style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte,
@@ -8096,9 +8137,19 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
             {/* La note vient du modèle. Le repli sur l'instantané puis sur les
                 réglages couvre les devis enregistrés avant les modèles, dont la
                 note était figée là. */}
-            {(cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote) && (
-                <div className={`pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line ${ALIGNEMENT_PIED[cfg.pied.alignement] || 'text-left'}`}>
-                    {enGras(cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote)}
+            {/* 2026-09-04 — La mention de pied de page était du CONTENU : elle se
+                posait là où le bordereau s'arrêtait, donc au milieu de la feuille
+                sur un devis court. Signalé sur un PDF réel : « le bas de page doit
+                rester sur le bas de page selon le format choisi ».
+
+                Elle reste affichée ici — c'est bien la fin du document à l'écran —
+                mais porte `data-hors-pdf` : la capture l'ignore, et jsPDF la
+                réécrit au bas de CHAQUE page, à une position calculée depuis le
+                format réel. Sans ce marquage elle sortirait deux fois. */}
+            {texteDuPied && (
+                <div data-hors-pdf="1" data-pied-en-flux="1"
+                     className={`pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line ${ALIGNEMENT_PIED[cfg.pied.alignement] || 'text-left'}`}>
+                    {enGras(texteDuPied)}
                 </div>
             )}
         </div>
@@ -14530,7 +14581,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             orientation: element.getAttribute('data-orientation') || 'portrait',
             positionNumeroPage: element.getAttribute('data-position-numero') || 'centre',
             formatNumeroPage: element.getAttribute('data-format-numero') || '',
-            numeroDocument: element.getAttribute('data-numero-document') || ''
+            numeroDocument: element.getAttribute('data-numero-document') || '',
+            piedTexte: element.getAttribute('data-pied-texte') || '',
+            piedAlignement: element.getAttribute('data-pied-alignement') || 'left',
+            enteteTexte: element.getAttribute('data-entete-courant') || ''
         };
     };
 
@@ -20420,6 +20474,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 numeroter={!!c.pied.afficherNumeroPage}
                                                 position={c.pied.positionNumeroPage}
                                                 format={c.pied.formatNumeroPage}
+                                                pied={c.pied.note || companyInfo.pdfFooterNote || ''}
+                                                piedAlignement={c.pied.alignement}
+                                                entete={[companyInfo.name, devisApercu && devisApercu.number].filter(Boolean).join(' — ')}
                                             >
                                                 <DocumentDevisClient
                                                     devis={devisApercu}

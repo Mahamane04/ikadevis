@@ -3569,3 +3569,70 @@ Les repères vivent **hors de `[data-zone-impression]`** : la génération du PD
 vise le document, elle ne les voit pas.
 
 **488/488 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 🧱 54. Le pied de page devient du mobilier de page (2026-09-04)
+
+Signalé sur un PDF réel (DEV-2026-027), annotation à l'appui :
+
+> « Le bas de page doit rester sur le bas de page selon le format choisi de
+> manière automatique, comme aussi l'en-tête. »
+
+Sur ce PDF d'une page, la mention légale — adresse, NIF, RCCM, banque —
+s'imprimait **au milieu de la feuille**, juste après la fin du bordereau, avec
+un grand vide blanc en dessous et le numéro de page tout en bas. Elle se
+comportait comme du contenu parce qu'elle en était : un bloc dans le flux du
+document, capturé avec le reste.
+
+### 54.1 Contenu → mobilier
+
+La mention cesse d'être capturée. `data-hors-pdf` la retire du clone, et jsPDF
+la **réécrit au bas de chaque page**, à une position calculée depuis le format
+réel — d'où le « de manière automatique » : changer de A4 à A5 ou passer en
+paysage déplace le pied avec la feuille, sans rien à régler.
+
+Un **en-tête courant** (raison sociale — numéro du devis, avec filet) apparaît
+sur les pages 2 et suivantes, qui n'en portaient aucun. Il n'est réservé que si
+le document déborde d'une page : un devis d'une seule page sort exactement comme
+avant.
+
+### 54.2 Les bandes sont RÉSERVÉES, pas superposées
+
+C'est le point qui rend le correctif sûr. Les hauteurs de mobilier sont retirées
+de la hauteur utile **avant** le découpage :
+
+```
+hauteurContenu = pageH − margeHaut − margeBas − bandePied − bandeEntête
+```
+
+Sans cette réservation, la dernière ligne du bordereau passerait sous la mention
+légale. Le calcul se fait en deux passes, l'en-tête courant n'existant que si le
+document déborde — et sa bande changeant à son tour le nombre de pages.
+
+Les bandes sont des **constantes partagées** (10 mm pour le pied, 7 mm pour
+l'en-tête), identiques dans `js/utils.js` et dans `ApercuPagine`. Une hauteur
+proportionnelle au nombre de lignes aurait été plus fine, mais l'aperçu ne peut
+pas reproduire le retour à la ligne de jsPDF : une valeur commune garantit que
+les coupures montrées à l'écran sont celles du PDF.
+
+### 54.3 L'aperçu montre la réservation
+
+Une bande blanche matérialise, à chaque fin de page, l'espace réservé au
+mobilier, et y dessine ce qui s'y imprimera. L'aperçu étant continu, il n'a pas
+de gouttière entre les feuilles ; la bande la dessine par-dessus, à sa hauteur
+réelle.
+
+La mention en flux est masquée dans l'aperçu paginé (`data-pied-en-flux`), sans
+quoi elle apparaîtrait deux fois — une fois dans la bande, une fois en fin de
+document. Marqueur distinct de `data-hors-pdf`, que le ruban de statut partage :
+lui doit rester visible à l'écran.
+
+> **Deux pièges de banc d'essai, dans la même passe.** `.border-dashed`
+> attrapait le cadre « Bon pour accord » du document avant les bandes de page ;
+> et une recherche de texte sur « Aperçu » attrapait le bouton « Aperçu PDF » de
+> la barre du haut au lieu du titre. Les deux ont produit des vérifications
+> rouges qui accusaient un code correct. Sélecteurs remplacés par des marqueurs
+> explicites (`data-bande-page`).
+
+**492/492 au vert, 0 régression, 49 suites, 7 étalons conformes.**

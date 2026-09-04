@@ -474,19 +474,87 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     }
 
     const image = canvas.toDataURL('image/jpeg', 0.92);
+
+    // ── Mobilier de page (2026-09-04) ────────────────────────────────────
+    // Signalé sur un PDF réel : la mention de pied de page flottait au milieu
+    // de la feuille, là où le contenu s'arrêtait. « Le bas de page doit rester
+    // sur le bas de page selon le format choisi, de manière automatique, comme
+    // aussi l'en-tête. »
+    //
+    // Elle cesse donc d'être du CONTENU capturé pour devenir du MOBILIER :
+    // écrite par jsPDF au bas de CHAQUE page, à une position calculée depuis le
+    // format réel. Le document, lui, est retiré de la capture par
+    // `data-hors-pdf` — sans quoi il sortirait deux fois.
+    //
+    // La bande qui l'accueille est RÉSERVÉE avant le découpage, et retirée de
+    // la hauteur utile : c'est la seule façon de garantir qu'aucune ligne du
+    // bordereau ne passe dessous.
+    const piedTexte = String(options.piedTexte || '').trim();
+    const alignementPied = { center: 'center', right: 'right' }[options.piedAlignement] || 'left';
+    pdf.setFontSize(7);
+    const lignesPied = piedTexte ? pdf.splitTextToSize(piedTexte, imgL).slice(0, 3) : [];
+    const hauteurLignePied = 2.6;
+    // Bande CONSTANTE plutôt que proportionnelle au nombre de lignes : l'aperçu
+    // de l'éditeur doit réserver exactement la même, et il ne peut pas
+    // reproduire le retour à la ligne de jsPDF. Une valeur commune aux deux
+    // garantit que les coupures montrées à l'écran sont celles du PDF.
+    // 10 mm tiennent trois lignes à 7 pt.
+    const BANDE_PIED_MM = 10;
+    const bandePied = lignesPied.length ? BANDE_PIED_MM : 0;
+
+    // En-tête courant : sur un document d'une seule page, l'en-tête complet du
+    // devis suffit. Au-delà, les pages suivantes n'en portaient aucun. On
+    // réserve donc une bande — mais SEULEMENT si le document déborde, pour
+    // qu'un devis d'une page sorte exactement comme avant.
+    const enteteTexte = String(options.enteteTexte || '').trim();
+    const hauteurSansEntete = Math.max(1, hauteurUtile - bandePied);
+    const plusieursPages = imgH > hauteurSansEntete;
+    const BANDE_ENTETE_MM = 7;
+    const bandeEntete = (enteteTexte && plusieursPages) ? BANDE_ENTETE_MM : 0;
+
+    const hauteurContenu = Math.max(1, hauteurUtile - bandePied - bandeEntete);
+    const hautContenu = mHaut + bandeEntete;
+
     let restant = imgH;
-    let position = mHaut;
+    let position = hautContenu;
 
     pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
-    restant -= hauteurUtile;
+    restant -= hauteurContenu;
 
     // Pages suivantes : on décale l'image vers le haut, la zone visible de la
     // page suivante correspondant à la suite du document.
     while (restant > 0) {
-        position = mHaut - (imgH - restant);
+        position = hautContenu - (imgH - restant);
         pdf.addPage();
         pdf.addImage(image, 'JPEG', mGauche, position, imgL, imgH);
-        restant -= hauteurUtile;
+        restant -= hauteurContenu;
+    }
+
+    // Le mobilier s'écrit après coup, sur toutes les pages posées. L'image
+    // ayant été découpée en tranches de `hauteurContenu`, la bande basse est
+    // libre : rien ne peut s'y superposer.
+    const totalPages = pdf.internal.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page++) {
+        pdf.setPage(page);
+        if (bandeEntete && page > 1) {
+            pdf.setFontSize(7.5);
+            pdf.setTextColor(140, 140, 140);
+            pdf.text(enteteTexte, mGauche, mHaut + 3.5);
+            pdf.setDrawColor(225, 225, 225);
+            pdf.line(mGauche, mHaut + 5, pageL - mDroit, mHaut + 5);
+        }
+        if (lignesPied.length) {
+            pdf.setFontSize(7);
+            pdf.setTextColor(120, 120, 120);
+            const xPied = alignementPied === 'center' ? pageL / 2
+                : alignementPied === 'right' ? pageL - mDroit : mGauche;
+            // Le bloc se cale sur le BAS de la zone utile, pas sur la fin du
+            // contenu : c'est tout l'objet du correctif.
+            const basZone = pageH - mBas;
+            lignesPied.forEach((ligne, i) => {
+                pdf.text(ligne, xPied, basZone - bandePied + 2 + (i + 1) * hauteurLignePied, { align: alignementPied });
+            });
+        }
     }
 
     // Numérotation : écrite APRÈS coup, quand le nombre total de pages est
@@ -496,7 +564,7 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     // plutôt que de déborder hors du papier.
     if (options.numeroterPages) {
         const total = pdf.internal.getNumberOfPages();
-        const y = Math.min(pageH - 4, pageH - mBas / 2 + 1);
+        const y = Math.min(pageH - 3, pageH - mBas / 2 + 1);
         // Position et format viennent du modèle. Les jetons sont remplacés par
         // page ; un format vide retombe sur « Page n / N » plutôt que de poser
         // une ligne muette au bas de chaque feuille.
