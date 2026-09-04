@@ -7151,7 +7151,11 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // Arrondi des angles du tableau et des blocs, en pixels. 8 reproduit le
         // `rounded-lg` d'aujourd'hui ; 0 donne un document strictement carré,
         // que certains donneurs d'ordre préfèrent.
-        rayonCoins: 8
+        rayonCoins: 8,
+        // Fond du document. Vide = blanc. Un ivoire très pâle adoucit un long
+        // bordereau à l'écran ; en impression il consomme de l'encre sur toute
+        // la page, ce que l'aide du réglage dit en clair.
+        couleurFond: ''
     },
     entete: {
         alignement: 'left',
@@ -7168,7 +7172,14 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // téléchargement — la configuration figée dans l'instantané n'a pas
         // cette clé et hériterait du défaut. Un document émis ne change pas
         // d'apparence parce qu'on a livré une fonctionnalité.
-        afficherNumeroPage: false
+        afficherNumeroPage: false,
+        // Alignement de la mention de pied de page. À gauche comme aujourd'hui.
+        alignement: 'left',        // 'left' | 'center' | 'right'
+        // Numérotation : position et format, à la manière de Zoho Books. Les
+        // jetons sont volontairement en accolades simples — `{page}` se tape,
+        // `${CurrentPageNumber}` se recopie.
+        positionNumeroPage: 'centre',   // 'gauche' | 'centre' | 'droite'
+        formatNumeroPage: 'Page {page} / {total}'
     },
     document: {
         // Filigrane de statut : un devis en brouillon qui circule pour un devis
@@ -7503,6 +7514,17 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     const espaceSousLot = Math.max(0, Math.min(24, Number(cfg.tableau.espaceSousLot) || 0));
     const respirationSousLot = espaceSousLot > 0 ? { paddingBottom: `${espaceSousLot}px` } : undefined;
     const rayon = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
+    const fondDocument = (cfg.general.couleurFond || '').trim();
+    // Mise en gras dans la mention de pied de page : `**libellé**` devient
+    // <strong>. Ce n'est pas l'éditeur enrichi de Zoho, et je ne le fais pas
+    // passer pour tel — c'est la convention Markdown, elle se tape au clavier,
+    // et elle couvre le besoin réel : mettre « Adresse: », « NIF: », « RCCM: »
+    // en gras devant leur valeur. Aucun HTML de l'utilisateur n'est injecté :
+    // seul `**…**` est reconnu, tout le reste reste du texte, ce qui écarte
+    // d'emblée toute balise arbitraire.
+    const enGras = (texte) => String(texte || '').split(/\*\*/).map((part, i) =>
+        i % 2 === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={i}>{part}</React.Fragment>);
+    const ALIGNEMENT_PIED = { left: 'text-left', center: 'text-center', right: 'text-right' };
     const coinsGauche = { borderTopLeftRadius: rayon, borderBottomLeftRadius: rayon };
     const coinsDroite = { borderTopRightRadius: rayon, borderBottomRightRadius: rayon };
     const separateurs = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
@@ -7554,7 +7576,11 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
-            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined }}
+            data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
+            data-format-numero={cfg.pied.formatNumeroPage || ''}
+            data-numero-document={devis.number || ''}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined,
+                     backgroundColor: fondDocument || undefined }}
         >
             {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
                 préremplis d'une identité d'entreprise complète et crédible
@@ -7954,8 +7980,8 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 réglages couvre les devis enregistrés avant les modèles, dont la
                 note était figée là. */}
             {(cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote) && (
-                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line">
-                    {cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote}
+                <div className={`pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line ${ALIGNEMENT_PIED[cfg.pied.alignement] || 'text-left'}`}>
+                    {enGras(cfg.pied.note || devis.companyInfoSnapshot?.pdfFooterNote || societe.pdfFooterNote)}
                 </div>
             )}
         </div>
@@ -7988,7 +8014,11 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
             data-zone-impression={facture.statut === 'draft' ? undefined : '1'}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
-            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined }}
+            data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
+            data-format-numero={cfg.pied.formatNumeroPage || ''}
+            data-numero-document={facture.numero || ''}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined,
+                     backgroundColor: (cfg.general.couleurFond || '').trim() || undefined }}
         >
             <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
                 <div className={disposition.company}>
@@ -14358,7 +14388,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         let marges;
         try { marges = JSON.parse(element.getAttribute('data-marges-mm') || 'null') || undefined; }
         catch (e) { marges = undefined; }
-        return { marges, numeroterPages: element.getAttribute('data-numeroter-pages') === '1' };
+        return {
+            marges,
+            numeroterPages: element.getAttribute('data-numeroter-pages') === '1',
+            positionNumeroPage: element.getAttribute('data-position-numero') || 'centre',
+            formatNumeroPage: element.getAttribute('data-format-numero') || '',
+            numeroDocument: element.getAttribute('data-numero-document') || ''
+        };
     };
 
     // Deux façons de désigner la cible, un seul chemin ensuite. L'aperçu passe
@@ -19661,6 +19697,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {sectionEditeur === 'general' && (
                                     <div className="space-y-1">
                                         <h3 className="text-sm font-bold text-neutral-900 mb-3">Général</h3>
+
+                                        {/* Propriétés du modèle. Le nom se saisit dans la barre du
+                                            haut — le répéter ici créerait deux champs pour une même
+                                            valeur, exactement le doublon qu'on vient de retirer des
+                                            Paramètres. */}
+                                        <div className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-3 mb-3">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Propriétés du modèle</span>
+                                            <dl className="text-[11px] text-neutral-600 space-y-0.5">
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Nom</dt>
+                                                    <dd className="font-semibold text-neutral-800 truncate">{editeurModele.nom || '(sans nom)'}</dd>
+                                                </div>
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">S’applique à</dt>
+                                                    <dd className="font-semibold text-neutral-800">Devis et factures</dd>
+                                                </div>
+                                                <div className="flex justify-between gap-2">
+                                                    <dt className="text-neutral-500">Format</dt>
+                                                    <dd className="font-semibold text-neutral-800">A4 portrait</dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-1">Police et couleurs</p>
                                         <div className="py-2">
                                             <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Police du document</span>
                                             <div className="grid grid-cols-2 gap-2">
@@ -19711,6 +19771,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </label>
 
                                         <label className="block py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Couleur d’arrière-plan</span>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" value={c.general.couleurFond || '#ffffff'}
+                                                    onChange={(e) => majModele('general', 'couleurFond', e.target.value)}
+                                                    aria-label="Couleur d’arrière-plan du document"
+                                                    className="w-11 h-9 rounded-lg border border-neutral-200 cursor-pointer bg-white" />
+                                                <input type="text" value={c.general.couleurFond || ''}
+                                                    onChange={(e) => majModele('general', 'couleurFond', e.target.value)}
+                                                    placeholder="blanc"
+                                                    className="app-input py-2 text-sm font-mono" />
+                                                {c.general.couleurFond && (
+                                                    <button type="button" onClick={() => majModele('general', 'couleurFond', '')}
+                                                        className="btn-secondary btn-dialogue" aria-label="Revenir au fond blanc">
+                                                        Blanc
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span className="block text-[11px] text-neutral-500 leading-snug mt-1.5">
+                                                Un ivoire très pâle adoucit un long bordereau à l’écran. À l’impression,
+                                                un fond couvre toute la feuille et consomme de l’encre.
+                                            </span>
+                                        </label>
+
+                                        <label className="block py-2">
                                             <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
                                                 <span>Taille du texte</span>
                                                 <span className="font-mono text-neutral-700">{c.general.echelleTexte || 100} %</span>
@@ -19728,6 +19812,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </span>
                                         </label>
 
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-4 mt-3 border-t border-neutral-100">Mise en page</p>
                                         <label className="block py-2">
                                             <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
                                                 <span>Arrondi des angles</span>
@@ -20000,8 +20085,72 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 className="app-input py-2 text-sm resize-y"
                                             />
                                         </label>
-                                        {Bascule({ section: 'pied', cle: 'afficherNumeroPage', libelle: 'Numéroter les pages',
-                                            aide: '« Page 2 / 5 » dans la marge basse du PDF. N’apparaît pas dans l’aperçu ci-contre : à l’écran le document est d’un seul tenant, il n’a pas de pages.' })}
+                                        <p className="text-[11px] text-neutral-500 leading-snug mt-1.5">
+                                            Entourez un libellé de <code className="font-mono bg-neutral-100 px-1 rounded">**deux astérisques**</code>
+                                            {' '}pour le mettre en gras — « **NIF:** 08 1128894f ». Rien d’autre n’est
+                                            interprété : aucune balise ne peut se glisser dans le document.
+                                        </p>
+
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Alignement de la mention</span>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[{ id: 'left', l: 'À gauche' }, { id: 'center', l: 'Centré' }, { id: 'right', l: 'À droite' }].map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('pied', 'alignement', o.id)}
+                                                        className={`rounded-lg border px-2 py-2 text-[11px] font-bold transition-colors ${(c.pied.alignement || 'left') === o.id ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}>
+                                                        {o.l}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-3 mt-2 border-t border-neutral-100">
+                                            {Bascule({ section: 'pied', cle: 'afficherNumeroPage', libelle: 'Numéroter les pages',
+                                                aide: 'Écrit dans la marge basse du PDF. N’apparaît pas dans l’aperçu ci-contre : à l’écran le document est d’un seul tenant, il n’a pas de pages.' })}
+
+                                            {c.pied.afficherNumeroPage && (<>
+                                                <div className="py-2 pl-6">
+                                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Position du numéro</span>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {[{ id: 'gauche', l: 'Gauche' }, { id: 'centre', l: 'Centre' }, { id: 'droite', l: 'Droite' }].map(o => (
+                                                            <button key={o.id} type="button"
+                                                                onClick={() => majModele('pied', 'positionNumeroPage', o.id)}
+                                                                className={`rounded-lg border px-2 py-2 text-[11px] font-bold transition-colors ${(c.pied.positionNumeroPage || 'centre') === o.id ? 'border-brand-400 bg-brand-50/60 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}>
+                                                                {o.l}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <label className="block py-2 pl-6">
+                                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Format du numéro</span>
+                                                    <input
+                                                        type="text"
+                                                        value={c.pied.formatNumeroPage || ''}
+                                                        onChange={(e) => majModele('pied', 'formatNumeroPage', e.target.value)}
+                                                        placeholder="Page {page} / {total}"
+                                                        aria-label="Format du numéro de page"
+                                                        className="app-input py-2 text-sm font-mono"
+                                                    />
+                                                    <span className="flex flex-wrap gap-1.5 mt-2">
+                                                        {['Page {page} / {total}', '{page} / {total}', '{page}', '{document} — page {page}']
+                                                            .map(modele => (
+                                                            <button key={modele} type="button"
+                                                                onClick={() => majModele('pied', 'formatNumeroPage', modele)}
+                                                                className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-[10px] font-mono text-neutral-600 hover:bg-neutral-50">
+                                                                {modele}
+                                                            </button>
+                                                        ))}
+                                                    </span>
+                                                    <span className="block text-[10px] text-neutral-500 leading-snug mt-2">
+                                                        Jetons disponibles : <code className="font-mono">{'{page}'}</code> la page en cours,
+                                                        {' '}<code className="font-mono">{'{total}'}</code> le nombre de pages,
+                                                        {' '}<code className="font-mono">{'{document}'}</code> le numéro du devis ou de la facture.
+                                                    </span>
+                                                </label>
+                                            </>)}
+                                        </div>
+
                                         <p className="text-[11px] text-neutral-500 leading-relaxed pt-3 border-t border-neutral-100 mt-3">
                                             Cette mention s’imprime en bas de chaque document.
                                         </p>

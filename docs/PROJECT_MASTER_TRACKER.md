@@ -3349,3 +3349,56 @@ règle désormais sur trois axes distincts : **dans** la ligne, **entre** les
 lots, et **sous** l'en-tête de lot.
 
 **469/469 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 🧾 50. Parité Zoho sur le pied de page, et la section Général complétée (2026-09-04)
+
+Demande sur capture : « ajoute les options comme sur Zoho », puis « vérifie la
+partie du paramètre Général : propriété modèle, police, arrière-plan d'abord ».
+
+### 50.1 Général — ce qui manquait
+
+La section empilait dix contrôles sans hiérarchie. Elle est découpée en trois
+groupes — **Propriétés du modèle** (nom, portée, format, en lecture seule : le
+nom se saisit dans la barre du haut, le répéter recréerait le doublon qu'on
+vient de retirer des Paramètres), **Police et couleurs**, **Mise en page**.
+
+Un seul réglage manquait vraiment, et c'est celui que l'utilisateur nomme :
+`general.couleurFond`. Vide = blanc. L'aide dit ce qu'elle coûte : à l'écran un
+ivoire pâle adoucit un long bordereau, à l'impression un fond couvre toute la
+feuille.
+
+### 50.2 Pied de page — la parité Zoho
+
+| Réglage | Équivalent Zoho |
+|---|---|
+| `pied.alignement` — gauche / centré / droite | Alignement du contenu |
+| `pied.positionNumeroPage` — gauche / centre / droite | « Position du numéro de page » |
+| `pied.formatNumeroPage` avec jetons + formats prédéfinis | « Format de numéro de page » |
+| Gras `**…**` dans la mention | L'éditeur enrichi (partiellement) |
+
+Les jetons sont **`{page}`**, **`{total}`**, **`{document}`** — accolades
+simples plutôt que les `${CurrentPageNumber}` de Zoho : `{page}` se tape,
+`${CurrentPageNumber}` se recopie. Quatre formats prédéfinis sont proposés en
+un clic. Position et format voyagent vers le PDF sur l'élément
+(`data-position-numero`, `data-format-numero`, `data-numero-document`), comme
+les marges.
+
+> **Ce qui n'est PAS fait, et je ne le fais pas passer pour fait :** l'éditeur
+> enrichi WYSIWYG de Zoho (gras, italique, souligné, barré, couleur, surlignage,
+> taille au caractère). Le pied de page accepte `**gras**` — convention
+> Markdown, qui se tape au clavier et couvre le besoin visible sur la capture :
+> mettre « Adresse: », « NIF: », « RCCM: » en gras devant leur valeur. Seul
+> `**…**` est reconnu ; tout le reste demeure du texte, ce qui écarte d'emblée
+> l'injection d'une balise arbitraire dans le document.
+
+### 50.3 Un piège de banc d'essai, pour mémoire
+
+La mesure a d'abord rendu `undefined` sur toute la numérotation : **deux clés
+`numerotation` dans le même littéral d'objet**, la seconde — un simple booléen
+hérité d'une passe précédente — écrasant silencieusement la première. Aucune
+erreur, aucun avertissement, juste trois vérifications rouges qui accusaient le
+code applicatif. Renommée `numeroPage`.
+
+**476/476 au vert, 0 régression, 49 suites, 7 étalons conformes.**

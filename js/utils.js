@@ -478,11 +478,21 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     if (options.numeroterPages) {
         const total = pdf.internal.getNumberOfPages();
         const y = Math.min(pageH - 4, pageH - mBas / 2 + 1);
+        // Position et format viennent du modèle. Les jetons sont remplacés par
+        // page ; un format vide retombe sur « Page n / N » plutôt que de poser
+        // une ligne muette au bas de chaque feuille.
+        const alignement = { gauche: 'left', droite: 'right' }[options.positionNumeroPage] || 'center';
+        const x = alignement === 'left' ? mGauche : alignement === 'right' ? pageL - mDroit : pageL / 2;
+        const modele = String(options.formatNumeroPage || '').trim() || 'Page {page} / {total}';
         pdf.setFontSize(8);
         pdf.setTextColor(130, 130, 130);
         for (let page = 1; page <= total; page++) {
             pdf.setPage(page);
-            pdf.text(`Page ${page} / ${total}`, pageL / 2, y, { align: 'center' });
+            const texte = modele
+                .replace(/\{page\}/gi, String(page))
+                .replace(/\{total\}/gi, String(total))
+                .replace(/\{document\}/gi, String(options.numeroDocument || ''));
+            pdf.text(texte, x, y, { align: alignement });
         }
     }
 

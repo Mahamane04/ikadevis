@@ -73,6 +73,18 @@ const typographie = (page, racine) => page.evaluate((sel) => {
             const zr = z.getBoundingClientRect();
             return { largeur: Math.round(r.width), part: r.width / zr.width, position: getComputedStyle(t).position };
         })(),
+        fond: getComputedStyle(z).backgroundColor,
+        piedGras: (() => {
+            const p = [...z.querySelectorAll('div')].find((d) => /whitespace-pre-line/.test(d.className || ''));
+            return p ? { gras: p.querySelectorAll('strong').length, aligne: getComputedStyle(p).textAlign,
+                         texte: p.innerText.trim().slice(0, 60) } : null;
+        })(),
+        numeroPage: {
+            actif: z.getAttribute('data-numeroter-pages'),
+            position: z.getAttribute('data-position-numero'),
+            format: z.getAttribute('data-format-numero'),
+            document: z.getAttribute('data-numero-document')
+        },
         rayonEntete: (() => {
             const th = z.querySelector('table thead th');
             return th ? getComputedStyle(th).borderTopLeftRadius : null;
@@ -384,6 +396,77 @@ export async function run() {
         }, ED);
         ok(`La bande de lot se décolle de ses lignes — ${avantSousLot.espaceLot1} → ${apresSousLot} sous la bande`,
             parseFloat(apresSousLot) >= 24);
+
+        // ── Général : l'arrière-plan, qui manquait ────────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Général/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1100);
+        const avantFond = await typographie(page, ED);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const champ = [...d.querySelectorAll('input[type="color"]')]
+                .find((x) => /arrière-plan/i.test(x.getAttribute('aria-label') || ''));
+            if (!champ) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(champ, '#fdf6e3');
+            champ.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const apresFond = await typographie(page, ED);
+        ok(`L’arrière-plan du document se règle — ${avantFond.fond} → ${apresFond.fond}`,
+            apresFond.fond === 'rgb(253, 246, 227)' && apresFond.fond !== avantFond.fond);
+        ok('Les propriétés du modèle sont annoncées dans Général',
+            await page.evaluate((sel) => /Propriétés du modèle/.test(document.querySelector(sel).textContent || ''), ED));
+
+        // ── Pied de page : gras, alignement, numérotation ─────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Pied de page/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1100);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const t = d.querySelector('textarea');
+            if (!t) return;
+            Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+                .call(t, '**NIF:** 08 1128894f **RCCM:** MA.BKO215A');
+            t.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const pied = await typographie(page, ED);
+        ok(`Le pied de page met en gras ce qui est entre astérisques — ${pied.piedGras && pied.piedGras.gras} passage(s)`,
+            !!pied.piedGras && pied.piedGras.gras === 2
+            && !/\*\*/.test(pied.piedGras.texte));
+
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Centré');
+            if (b) b.click();
+        }, ED);
+        await wait(900);
+        ok('La mention de pied de page s’aligne',
+            (await typographie(page, ED)).piedGras.aligne === 'center');
+
+        const numAvant = (await typographie(page, ED)).numeroPage;
+        ok(`La numérotation part au centre, format « Page {page} / {total} » — ${numAvant.position} · ${numAvant.format}`,
+            numAvant.position === 'centre' && numAvant.format === 'Page {page} / {total}');
+
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Droite');
+            if (b) b.click();
+            const f = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === '{document} — page {page}');
+            if (f) f.click();
+        }, ED);
+        await wait(900);
+        const numApres = (await typographie(page, ED)).numeroPage;
+        ok(`Position et format voyagent vers le PDF — ${numApres.position} · ${numApres.format}`,
+            numApres.position === 'droite' && numApres.format === '{document} — page {page}');
+        ok(`Le numéro du document accompagne le jeton {document} — ${numApres.document}`,
+            !!numApres.document && /DEV-/.test(numApres.document));
 
         // ── L'aperçu PDF ──────────────────────────────────────────────────
         ok('L’éditeur propose un aperçu PDF sans obliger à enregistrer',
