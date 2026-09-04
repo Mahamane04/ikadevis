@@ -7398,6 +7398,91 @@ const appliquerPreetabli = (preetabli, societe) => {
 // L'échelle est mesurée plutôt que fixée : les cartes n'ont pas la même
 // largeur selon la taille d'écran, et un facteur en dur déborderait ou
 // laisserait un blanc à droite sur deux points de rupture sur trois.
+// Dimensions en millimètres, portrait. L'orientation les échange.
+const DIMENSIONS_PAPIER = { A4: [210, 297], A5: [148, 210], Lettre: [216, 279] };
+const dimensionsPapier = (format, orientation) => {
+    const [l, h] = DIMENSIONS_PAPIER[format] || DIMENSIONS_PAPIER.A4;
+    return orientation === 'paysage' ? { largeurMm: h, hauteurMm: l } : { largeurMm: l, hauteurMm: h };
+};
+
+// ══ APERÇU PAGINÉ ═════════════════════════════════════════════════════════
+// 2026-09-04, signalé : « la page ne se rafraîchit pas lorsqu'on change de
+// format, il y a aussi pas mal de réglages qui ne sont pas instantanément
+// visibles à l'écran ».
+//
+// C'était vrai, et c'est le défaut que cet écran s'interdit partout ailleurs :
+// format, orientation et numérotation ne changeaient RIEN à l'aperçu. L'écran
+// s'en excusait en petits caractères — « l'aperçu reste en colonne » — au lieu
+// de montrer.
+//
+// Il montre désormais les coupures de page, à la même géométrie que le PDF :
+// la capture est mise à l'échelle de la largeur utile de la page, puis
+// découpée par tranches de la hauteur utile. Une tranche de papier = une
+// tranche d'aperçu. Changer d'orientation rapproche visiblement les coupures.
+const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, format, children }) => {
+    const cadre = React.useRef(null);
+    const [mesure, setMesure] = React.useState({ largeur: 0, hauteur: 0 });
+    React.useEffect(() => {
+        const el = cadre.current;
+        if (!el) return undefined;
+        const prendre = () => setMesure({ largeur: el.clientWidth, hauteur: el.scrollHeight });
+        prendre();
+        if (typeof ResizeObserver === 'undefined') return undefined;
+        const observateur = new ResizeObserver(prendre);
+        observateur.observe(el);
+        // Le document change de hauteur sans que le cadre change de taille —
+        // une densité, une échelle, une colonne masquée. On observe donc aussi
+        // son contenu, sinon les coupures resteraient là où elles étaient.
+        if (el.firstElementChild) observateur.observe(el.firstElementChild);
+        return () => observateur.disconnect();
+    }, [children, largeurMm, hauteurMm, marges]);
+
+    const pc = (mm) => (Math.max(0, Math.min(40, Number(mm) || 0)) / largeurMm) * 100;
+    const bord = { haut: pc(marges.haut), bas: pc(marges.bas), gauche: pc(marges.gauche), droit: pc(marges.droit) };
+    // Hauteur utile d'une page, exprimée dans l'échelle de l'aperçu : la
+    // largeur dessinée représente la largeur du papier.
+    const hauteurUtilePx = mesure.largeur > 0
+        ? mesure.largeur * ((hauteurMm - (Number(marges.haut) || 0) - (Number(marges.bas) || 0)) / largeurMm)
+        : 0;
+    const debutContenu = mesure.largeur * bord.haut / 100;
+    const hauteurContenu = Math.max(0, mesure.hauteur - debutContenu - (mesure.largeur * bord.bas / 100));
+    const nbPages = hauteurUtilePx > 0 ? Math.max(1, Math.ceil(hauteurContenu / hauteurUtilePx)) : 1;
+    const coupures = [];
+    for (let i = 1; i < nbPages && i < 40; i++) coupures.push(debutContenu + i * hauteurUtilePx);
+    const alignementNumero = position === 'gauche' ? 'left' : position === 'droite' ? 'right' : 'center';
+
+    return (
+        <div ref={cadre} className="relative bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden"
+             style={{ paddingTop: `${bord.haut}%`, paddingBottom: `${bord.bas}%`,
+                      paddingLeft: `${bord.gauche}%`, paddingRight: `${bord.droit}%` }}>
+            {children}
+            {/* Repères d'aperçu : jamais capturés, ils vivent hors de
+                `[data-zone-impression]` que vise la génération du PDF. */}
+            {coupures.map((y, i) => (
+                <div key={i} className="absolute inset-x-0 pointer-events-none" style={{ top: y }} aria-hidden="true">
+                    <div className="border-t border-dashed border-neutral-300"></div>
+                    <div className="flex justify-between px-2 pt-0.5">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                            Page {i + 2}
+                        </span>
+                    </div>
+                </div>
+            ))}
+            {numeroter && hauteurUtilePx > 0 && Array.from({ length: Math.min(nbPages, 40) }, (_, i) => (
+                <div key={`n${i}`} className="absolute inset-x-0 pointer-events-none px-2" aria-hidden="true"
+                     style={{ top: debutContenu + (i + 1) * hauteurUtilePx - 14, textAlign: alignementNumero }}>
+                    <span className="text-[9px] text-neutral-400">
+                        {String(format || 'Page {page} / {total}')
+                            .replace(/\{page\}/gi, String(i + 1))
+                            .replace(/\{total\}/gi, String(nbPages))
+                            .replace(/\{document\}/gi, '…')}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 const LARGEUR_VIGNETTE = 800;
 const VignetteModele = ({ hauteur = 208, children }) => {
     const cadre = React.useRef(null);
@@ -19624,6 +19709,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // avec de vrais intitulés d'ouvrage et de vrais montants.
                 const devisApercu = savedQuotes[0] || null;
                 const societeApercu = { ...companyInfo, logo: c.entete.afficherLogo ? companyInfo.logo : '' };
+                const papierApercu = dimensionsPapier(c.general.formatPapier, c.general.orientation);
                 // Le titre de l'aperçu annonce les marges ; le cadre les montre.
                 // Sans cela, régler une marge se ferait entièrement à l'aveugle :
                 // elles n'existent que dans le PDF.
@@ -19793,8 +19879,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 </div>
                                             </div>
                                             <p className="text-[10px] text-neutral-500 leading-snug mt-2">
-                                                Le format et l’orientation s’appliquent au PDF téléchargé. L’aperçu
-                                                ci-contre reste en colonne : il montre le contenu, pas le pliage des pages.
+                                                L’aperçu marque les coupures de page à la même échelle que le PDF :
+                                                en paysage, elles se rapprochent.
                                             </p>
                                         </div>
 
@@ -20262,7 +20348,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                                         <div className="pt-3 mt-2 border-t border-neutral-100">
                                             {Bascule({ section: 'pied', cle: 'afficherNumeroPage', libelle: 'Numéroter les pages',
-                                                aide: 'Écrit dans la marge basse du PDF. N’apparaît pas dans l’aperçu ci-contre : à l’écran le document est d’un seul tenant, il n’a pas de pages.' })}
+                                                aide: 'Écrit dans la marge basse de chaque page. L’aperçu le place au bas de chaque coupure, à la position choisie.' })}
 
                                             {c.pied.afficherNumeroPage && (<>
                                                 <div className="py-2 pl-6">
@@ -20314,28 +20400,37 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 )}
                             </div>
 
-                            {/* Aperçu réel, continu */}
+                            {/* Aperçu réel, continu, ET paginé : les coupures de page
+                                suivent le format et l'orientation choisis, à la même
+                                géométrie que le PDF. */}
                             <div className="flex-1 min-w-0 overflow-auto custom-scroll bg-neutral-100 p-6">
                                 <div className="mx-auto" style={{ maxWidth: '820px' }}>
                                     <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
-                                        Aperçu {devisApercu ? `— ${devisApercu.number}` : ''}
+                                        Aperçu {devisApercu ? `— ${devisApercu.number} ` : ' '}
+                                        <span className="ml-2 font-semibold normal-case tracking-normal text-neutral-400">
+                                            {c.general.formatPapier || 'A4'} {(c.general.orientation || 'portrait') === 'paysage' ? 'paysage' : 'portrait'}
+                                        </span>
                                     </p>
                                     {devisApercu ? (
-                                        <div ref={refApercuEditeur}
-                                             className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden"
-                                             style={{ paddingTop: margeEnPourcent(c.general.margesMm.haut),
-                                                      paddingBottom: margeEnPourcent(c.general.margesMm.bas),
-                                                      paddingLeft: margeEnPourcent(c.general.margesMm.gauche),
-                                                      paddingRight: margeEnPourcent(c.general.margesMm.droit) }}>
-                                            <DocumentDevisClient
-                                                devis={devisApercu}
-                                                societe={societeApercu}
-                                                theme={themeApercu}
-                                                disposition={dispositionApercu}
-                                                gabarit={c.tableau.niveauDetail}
-                                                modeDemo={estModeDemo}
-                                                configuration={c}
-                                            />
+                                        <div ref={refApercuEditeur}>
+                                            <ApercuPagine
+                                                largeurMm={papierApercu.largeurMm}
+                                                hauteurMm={papierApercu.hauteurMm}
+                                                marges={c.general.margesMm}
+                                                numeroter={!!c.pied.afficherNumeroPage}
+                                                position={c.pied.positionNumeroPage}
+                                                format={c.pied.formatNumeroPage}
+                                            >
+                                                <DocumentDevisClient
+                                                    devis={devisApercu}
+                                                    societe={societeApercu}
+                                                    theme={themeApercu}
+                                                    disposition={dispositionApercu}
+                                                    gabarit={c.tableau.niveauDetail}
+                                                    modeDemo={estModeDemo}
+                                                    configuration={c}
+                                                />
+                                            </ApercuPagine>
                                         </div>
                                     ) : (
                                         <div className="bg-white rounded-2xl border border-neutral-200 p-10 text-center">

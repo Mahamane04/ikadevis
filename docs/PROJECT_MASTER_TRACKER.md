@@ -3517,3 +3517,55 @@ soit exactement les -45° de Zoho), le rognage, le marquage, **le fait que le
 clone de capture ne garde rien**, et la présence de la règle d'impression.
 
 **486/486 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 📄 53. L'aperçu se repagine (2026-09-04)
+
+> « La page ne se rafraîchit pas lorsqu'on change de format, il y a aussi pas
+> mal de réglages qui ne sont pas instantanément visibles à l'écran. »
+
+C'était vrai, et c'est exactement le défaut que cet écran s'interdit partout
+ailleurs. Trois réglages ne changeaient **rien** à l'aperçu :
+
+- **Format du papier** (A4 / A5 / Lettre)
+- **Orientation** (portrait / paysage)
+- **Numérotation des pages** (activation, position, format)
+
+Et l'écran s'en excusait en petits caractères — « l'aperçu ci-contre reste en
+colonne : il montre le contenu, pas le pliage des pages » — au lieu de montrer.
+Une note d'excuse ne remplace pas un aperçu.
+
+### 53.1 Ce qu'il montre désormais
+
+`ApercuPagine` dessine les **coupures de page**, à la même géométrie que le PDF :
+la capture est mise à l'échelle de la largeur utile de la page, puis découpée
+par tranches de la hauteur utile. Une tranche de papier = une tranche d'aperçu.
+
+```
+hauteurUtilePx = largeurDessinée × (hauteurMm − margeHaut − margeBas) / largeurMm
+```
+
+Mesuré sur le devis de démonstration : **2 coupures en A4 portrait, 3 en
+paysage** — la page étant moins haute, elles se rapprochent. Les numéros de page
+se posent au bas de chaque coupure, à la position et au format choisis.
+
+Le titre de l'aperçu annonce aussi « A4 portrait » ou « A5 paysage », pour que
+le réglage ait un écho immédiat même avant de faire défiler.
+
+### 53.2 Deux points de mise en œuvre
+
+**A4 et A5 donnent le même découpage, et c'est juste.** La série A conserve son
+rapport (1:√2) : à largeur dessinée égale, une page A5 contient exactement
+autant de document qu'une A4. Seule la taille physique change. Lettre US
+(216×279, rapport 1,29) coupe visiblement plus tôt.
+
+**Le `ResizeObserver` écoute le cadre ET son contenu.** Le document change de
+hauteur sans que le cadre change de taille — une densité, une échelle, une
+colonne masquée. N'observer que le cadre laissait les coupures là où elles
+étaient, ce qui aurait reproduit le défaut signalé sous une autre forme.
+
+Les repères vivent **hors de `[data-zone-impression]`** : la génération du PDF
+vise le document, elle ne les voit pas.
+
+**488/488 au vert, 0 régression, 49 suites, 7 étalons conformes.**

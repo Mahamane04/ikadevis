@@ -439,6 +439,28 @@ export async function run() {
             avecEtiquettes.etiquette === 'rgb(11, 114, 133)'
             && avecEtiquettes.couleurForte !== avecEtiquettes.etiquette);
 
+        // ── L'aperçu se repagine ──────────────────────────────────────────
+        // Signalé : « la page ne se rafraîchit pas lorsqu'on change de format,
+        // il y a aussi pas mal de réglages qui ne sont pas instantanément
+        // visibles à l'écran ». C'était vrai : format, orientation et
+        // numérotation ne changeaient RIEN à l'aperçu, et l'écran s'en
+        // excusait en petits caractères au lieu de montrer.
+        // Le titre de l'aperçu, et non le bouton « Aperçu PDF » de la barre du
+        // haut : une recherche sur le texte les confondait, et faisait échouer
+        // la mesure sur un défaut qui n'existait pas.
+        const coupures = () => page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const titre = [...d.querySelectorAll('p')]
+                .find((x) => /^Aperçu\b/.test((x.textContent || '').trim()));
+            return {
+                traits: d.querySelectorAll('.border-dashed').length,
+                entete: titre ? titre.textContent.trim() : ''
+            };
+        }, ED);
+        const portrait = await coupures();
+        ok(`L’aperçu marque les coupures de page — ${portrait.traits} coupure(s), « ${portrait.entete.trim()} »`,
+            portrait.traits >= 1 && /portrait/i.test(portrait.entete));
+
         // ── Format et orientation, réellement transmis ────────────────────
         ok(`Le document part en A4 portrait — ${avecEtiquettes.papier.format} ${avecEtiquettes.papier.orientation}`,
             avecEtiquettes.papier.format === 'A4' && avecEtiquettes.papier.orientation === 'portrait');
@@ -453,6 +475,11 @@ export async function run() {
         const autrePapier = (await typographie(page, ED)).papier;
         ok(`Format et orientation voyagent vers le PDF — ${autrePapier.format} ${autrePapier.orientation}`,
             autrePapier.format === 'A5' && autrePapier.orientation === 'paysage');
+        // En paysage la page est moins haute : les coupures se rapprochent, et
+        // il y en a donc davantage pour un même document.
+        const paysage = await coupures();
+        ok(`En paysage, les coupures se rapprochent — ${portrait.traits} → ${paysage.traits}`,
+            paysage.traits > portrait.traits && /paysage/i.test(paysage.entete));
         await page.evaluate((sel) => {
             const d = document.querySelector(sel);
             const a4 = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'A4');
