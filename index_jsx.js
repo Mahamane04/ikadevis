@@ -8189,10 +8189,33 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const encre = (cfg.general.couleurTexte || '').trim();
     const aplats = cfg.general.aplatsColores !== false;
     const texteDuPiedFacture = cfg.pied.note || ci.pdfFooterNote || '';
+    // 2026-09-04 — La facture lisait le modèle du devis depuis le § 47, mais
+    // n'en appliquait que quatorze réglages sur vingt : étiquettes, image de
+    // fond, arrondi, taille du logo, densité et séparateurs restaient sourds.
+    // Un même modèle par défaut doit produire deux documents cohérents.
+    const etiquettesFacture = (cfg.general.couleurEtiquettes || '').trim();
+    const tailleLogoFacture = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
+    const rayonFacture = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
+    const densiteFacture = ['aeree', 'normale', 'compacte'].includes(cfg.tableau.densite) ? cfg.tableau.densite : 'normale';
+    const padFacture = densiteFacture === 'aeree' ? 'p-4' : densiteFacture === 'compacte' ? 'p-2' : 'p-3';
+    const separateursFacture = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
+    const corpsFacture = separateursFacture === 'lignes' ? 'divide-y divide-neutral-100' : '';
+    const fondLigneFacture = (rang) => (separateursFacture === 'zebre' && rang % 2 === 1 ? { backgroundColor: '#f8fafc' } : undefined);
+    const POSITIONS_FOND_FACTURE = {
+        centre:   { backgroundPosition: 'center center', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        haut:     { backgroundPosition: 'center top',    backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        bas:      { backgroundPosition: 'center bottom', backgroundRepeat: 'no-repeat', backgroundSize: 'contain' },
+        couvrir:  { backgroundPosition: 'center center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover' },
+        mosaique: { backgroundPosition: 'left top',      backgroundRepeat: 'repeat',    backgroundSize: 'auto' }
+    };
+    const imageFondFacture = (cfg.general.imageFond || '').trim();
+    const styleImageFondFacture = imageFondFacture
+        ? { backgroundImage: `url(${imageFondFacture})`, ...(POSITIONS_FOND_FACTURE[cfg.general.positionImageFond] || POSITIONS_FOND_FACTURE.centre) }
+        : null;
     const ALIGNEMENTS_PIED_FACTURE = { left: 'text-left', center: 'text-center', right: 'text-right' };
     return (
         <div
-            className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''}`}
+            className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
             data-zone-impression={facture.statut === 'draft' ? undefined : '1'}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -8204,14 +8227,17 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
             data-pied-texte={texteDuPiedFacture.replace(/\*\*/g, '')}
             data-pied-alignement={cfg.pied.alignement || 'left'}
             data-entete-courant={[ci.name, facture.numero].filter(Boolean).join(' — ')}
-            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte, '--encre-doc': encre || undefined,
-                     backgroundColor: (cfg.general.couleurFond || '').trim() || undefined }}
+            style={{ fontFamily: theme.fontFamily, '--echelle-doc': echelleTexte,
+                     '--encre-doc': encre || undefined, '--etiquettes-doc': etiquettesFacture || undefined,
+                     backgroundColor: (cfg.general.couleurFond || '').trim() || undefined,
+                     ...(styleImageFondFacture || {}) }}
         >
             <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
                 <div className={disposition.company}>
                     {ci.logo && (
                         <div className={`flex mb-2 ${disposition.logo}`}>
-                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="h-10 max-w-[160px] object-contain" />
+                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="object-contain"
+                                 style={{ height: `${(40 * tailleLogoFacture) / 100}px`, maxWidth: `${(160 * tailleLogoFacture) / 100}px` }} />
                         </div>
                     )}
                     <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
@@ -8236,7 +8262,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 border border-neutral-200" style={{ borderRadius: rayonFacture }}>
                 <div>
                     <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
                     <p className="font-semibold text-neutral-900 text-base">{facture.clientName}</p>
@@ -8251,19 +8277,19 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 <thead>
                     <tr className={`font-bold uppercase ${aplats ? 'text-white' : 'text-neutral-900'}`}
                         style={aplats ? { backgroundColor: theme.brandColor } : { borderBottom: `2px solid ${theme.brandColor}` }}>
-                        <th className="p-3 rounded-l-lg">Désignation</th>
-                        <th className="p-3 text-center">Quantité</th>
-                        <th className="p-3 text-right">Prix Unitaire HT</th>
-                        <th className="p-3 text-right rounded-r-lg">Total HT</th>
+                        <th className={padFacture} style={{ borderTopLeftRadius: rayonFacture, borderBottomLeftRadius: rayonFacture }}>Désignation</th>
+                        <th className={`${padFacture} text-center`}>Quantité</th>
+                        <th className={`${padFacture} text-right`}>Prix Unitaire HT</th>
+                        <th className={`${padFacture} text-right`} style={{ borderTopRightRadius: rayonFacture, borderBottomRightRadius: rayonFacture }}>Total HT</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className={corpsFacture}>
                     {(facture.lignes || []).map((l, i) => (
-                        <tr key={i}>
-                            <td className="p-3 font-bold text-neutral-900">{l.designation}</td>
-                            <td className="p-3 text-center font-medium">{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
-                            <td className="p-3 text-right font-medium">{formatMoney(l.prixUnitaireHT, devise)}</td>
-                            <td className="p-3 text-right font-bold text-neutral-900">{formatMoney(l.totalHT, devise)}</td>
+                        <tr key={i} style={fondLigneFacture(i)}>
+                            <td className={`${padFacture} font-bold text-neutral-900`}>{l.designation}</td>
+                            <td className={`${padFacture} text-center font-medium`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                            <td className={`${padFacture} text-right font-medium`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
+                            <td className={`${padFacture} text-right font-bold text-neutral-900`}>{formatMoney(l.totalHT, devise)}</td>
                         </tr>
                     ))}
                 </tbody>

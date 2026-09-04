@@ -3816,3 +3816,45 @@ recherche, et aucune n'est déplacée vers le bas.
 > géométrie que le moindre réglage ferait bouger.
 
 **511/511 au vert, 0 régression, 50 suites, 7 étalons conformes.**
+
+---
+
+## 🧩 58. Devis et facture : le même modèle, réellement (2026-09-04)
+
+> « Il faut que le devis, le template et la facture suivent le même modèle par
+> défaut. »
+
+La facture **lisait** déjà le modèle du devis depuis le § 47 — mais elle n'en
+appliquait que **quatorze réglages sur vingt**. Six restaient sourds :
+
+| Réglage | Devis | Facture (avant) |
+|---|---|---|
+| `general.couleurEtiquettes` | ✅ | ❌ |
+| `general.imageFond` + position | ✅ | ❌ |
+| `general.rayonCoins` | ✅ | ❌ |
+| `entete.tailleLogo` | ✅ | ❌ |
+| `tableau.densite` | ✅ | ❌ |
+| `tableau.separateurs` (dont zébrure) | ✅ | ❌ |
+
+Lire le même modèle ne suffit pas : il faut l'appliquer entièrement, sans quoi
+deux documents émis le même jour avec le même modèle se présentent
+différemment — et l'utilisateur règle sans comprendre pourquoi la moitié seule
+suit.
+
+`document.titreDevis` reste évidemment propre au devis : une facture s'intitule
+« Facture ».
+
+### 58.1 Le banc compare les deux rendus, propriété par propriété
+
+Plutôt que de vérifier réglage par réglage — ce qui aurait fatalement oublié le
+prochain ajout — le contrôle prend l'**empreinte calculée** des deux documents
+et exige qu'elles coïncident sur neuf propriétés : police, corps, cadre, fond,
+encre, étiquettes, arrondi d'en-tête, remplissage de cellule et présence des
+filets.
+
+Un réglage ajouté au devis et oublié dans la facture fera rougir ce contrôle
+sans qu'on ait à y penser.
+
+**Résultat : aucun écart sur les neuf.**
+
+**512/512 au vert, 0 régression, 50 suites, 7 étalons conformes.**

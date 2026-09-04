@@ -751,6 +751,52 @@ export async function run() {
         // décoché : la facture doit le refléter comme le devis.
         ok(`La facture lit le modèle actif — cadre ${facture && facture.cadre}`,
             !!facture && parseFloat(facture.cadre) === 0);
+
+        // ── PARITÉ devis / facture ────────────────────────────────────────
+        // Demandé : « il faut que le devis et la facture suivent le même modèle
+        // par défaut ». La facture lisait bien le modèle du devis, mais n'en
+        // appliquait que quatorze réglages sur vingt — étiquettes, image de
+        // fond, arrondi, taille du logo, densité et séparateurs restaient
+        // sourds. Un même modèle doit produire deux documents cohérents.
+        const empreinte = (sel) => page.evaluate((s2) => {
+            const z = s2 ? document.querySelector(s2) : document.querySelector('[data-zone-impression]');
+            if (!z) return null;
+            const st = getComputedStyle(z);
+            const th = z.querySelector('table thead th');
+            const td = [...z.querySelectorAll('table tbody td')].find((t) => !t.hasAttribute('colspan'));
+            const tb = z.querySelector('table tbody');
+            const fort = z.querySelector('.text-neutral-900');
+            const faible = z.querySelector('.text-neutral-500');
+            return {
+                police: st.fontFamily.split(',')[0].trim(),
+                corps: st.fontSize,
+                cadre: st.borderTopWidth,
+                fond: st.backgroundColor,
+                encre: fort ? getComputedStyle(fort).color : null,
+                etiquette: faible ? getComputedStyle(faible).color : null,
+                rayonEntete: th ? getComputedStyle(th).borderTopLeftRadius : null,
+                padCellule: td ? getComputedStyle(td).paddingTop : null,
+                filets: tb ? tb.className.includes('divide-y') : null
+            };
+        }, sel);
+
+        const empreinteFacture = await empreinte(null);
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('aside button')]
+                .find((x) => (x.textContent || '').trim().startsWith('Mes devis'));
+            if (b) b.click();
+        });
+        await wait(1800);
+        await page.evaluate(() => { const tr = document.querySelector('tbody tr'); if (tr) tr.click(); });
+        await wait(2500);
+        const empreinteDevis = await empreinte(null);
+
+        const compare = (cle) => empreinteDevis && empreinteFacture
+            && String(empreinteDevis[cle]) === String(empreinteFacture[cle]);
+        const ecarts = ['police', 'corps', 'cadre', 'fond', 'encre', 'etiquette',
+                        'rayonEntete', 'padCellule', 'filets'].filter((c) => !compare(c));
+        ok(`Devis et facture rendent le même modèle — ${ecarts.length ? 'écarts : ' + ecarts.join(', ') : 'aucun écart sur 9 propriétés'}`,
+            ecarts.length === 0);
     } finally {
         await close();
     }
