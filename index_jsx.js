@@ -18844,27 +18844,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     Dupliquer
                                                 </button>
                                                 {!modele.par_defaut && (
-                                                    <>
-                                                        <button type="button" onClick={() => definirModeleParDefaut(modele)}
-                                                            className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
-                                                            aria-label={`Utiliser ${modele.nom} par défaut`}>
-                                                            Par défaut
-                                                        </button>
-                                                        <button type="button"
-                                                            onClick={() => setConfirmDialog({
-                                                                isOpen: true,
-                                                                title: 'Supprimer ce modèle ?',
-                                                                message: `« ${modele.nom} » sera retiré.\n\nLes devis déjà enregistrés ne changent pas : chacun porte sa mise en page figée.`,
-                                                                confirmLabel: 'Supprimer',
-                                                                isDanger: true,
-                                                                onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
-                                                            })}
-                                                            className="btn-secondary btn-dialogue text-red-600 border-red-200 hover:bg-red-50"
-                                                            aria-label={`Supprimer le modèle ${modele.nom}`}>
-                                                            Supprimer
-                                                        </button>
-                                                    </>
+                                                    <button type="button" onClick={() => definirModeleParDefaut(modele)}
+                                                        className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
+                                                        aria-label={`Utiliser ${modele.nom} par défaut`}>
+                                                        Par défaut
+                                                    </button>
                                                 )}
+                                                {/* La suppression était réservée aux modèles NON par défaut.
+                                                    Conséquence non voulue : un modèle créé par erreur et devenu
+                                                    le défaut — le premier l'est toujours — ne pouvait plus être
+                                                    retiré du tout. On ne pouvait que le modifier, sans jamais
+                                                    revenir à l'état d'avant.
+                                                    Supprimer le défaut est donc permis ; la confirmation dit
+                                                    alors ce qui se passe ensuite. */}
+                                                <button type="button"
+                                                    onClick={() => setConfirmDialog({
+                                                        isOpen: true,
+                                                        title: 'Supprimer ce modèle ?',
+                                                        message: modele.par_defaut
+                                                            ? `« ${modele.nom} » est le modèle par défaut.\n\nAprès suppression, vos nouveaux devis reprennent la mise en page issue de vos réglages d’entreprise. Les devis déjà enregistrés ne changent pas : chacun porte la sienne, figée.`
+                                                            : `« ${modele.nom} » sera retiré.\n\nLes devis déjà enregistrés ne changent pas : chacun porte sa mise en page figée.`,
+                                                        confirmLabel: 'Supprimer',
+                                                        isDanger: true,
+                                                        onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
+                                                    })}
+                                                    className="btn-secondary btn-dialogue text-red-600 border-red-200 hover:bg-red-50"
+                                                    aria-label={`Supprimer le modèle ${modele.nom}`}>
+                                                    Supprimer
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
