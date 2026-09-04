@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904k">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904l">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260904k">
+    <link rel="stylesheet" href="tailwind.css?v=20260904l">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -303,6 +303,32 @@
            qui structure la lecture d'un document. */
         .document-etiquettes .text-neutral-600,
         .document-etiquettes .text-neutral-500 { color: var(--etiquettes-doc); }
+
+        /* ── Ruban de statut ──────────────────────────────────────────────
+           Géométrie relevée dans Zoho Books (2026-09-04) : un carré de 96 px
+           posé au coin, `overflow:hidden`, contenant une bande tournée de -45°
+           qui déborde et se fait rogner en ruban. Gris neutre #94a5a6, texte
+           blanc — la couleur de marque n'a rien à faire ici : c'est un repère
+           interne, pas un élément du document.
+           Il ne sort NI à l'impression NI dans le PDF : `data-hors-pdf` le
+           retire du clone de capture (voir js/utils.js), la media query le
+           retire du papier. */
+        .ruban-statut {
+            position: absolute; top: -4px; left: -4px;
+            width: 92px; height: 92px; overflow: hidden;
+            pointer-events: none; user-select: none;
+        }
+        .ruban-statut > span {
+            position: relative; display: block;
+            top: 22px; left: -30px; width: 132px;
+            transform: rotate(-45deg);
+            padding: 3px 0; text-align: center;
+            font-size: 10px; line-height: 1.6; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #ffffff; background: #94a5a6;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+        @media print { .ruban-statut { display: none !important; } }
         .sidebar-section-label {
             padding: 0 14px; margin-bottom: 6px;
             font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -924,10 +950,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260904k"></script>
-    <script src="js/utils.js?v=20260904k"></script>
-    <script src="js/quote-templates.js?v=20260904k"></script>
-    <script src="app.compiled.js?v=20260904k"></script>
+    <script src="js/calc-engine.js?v=20260904l"></script>
+    <script src="js/utils.js?v=20260904l"></script>
+    <script src="js/quote-templates.js?v=20260904l"></script>
+    <script src="app.compiled.js?v=20260904l"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

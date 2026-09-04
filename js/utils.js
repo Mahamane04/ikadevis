@@ -309,6 +309,10 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     // Le forçage de la largeur A4 s'applique aussi au repli : sans lui, la
     // seconde tentative produit le PDF comprimé décrit plus haut.
     const forcerMiseEnPageA4 = (docClone) => {
+        // Les deux repli passent par `onclone` et non par le bac à sable : le
+        // retrait des éléments hors PDF doit donc être fait ici aussi, sans
+        // quoi le ruban de statut reviendrait dès qu'on emprunte ce chemin.
+        docClone.querySelectorAll('[data-hors-pdf]').forEach((n) => n.remove());
         const cible = docClone.querySelector('[data-pdf-cible]');
         if (!cible) return;
         cible.style.width = LARGEUR_CAPTURE + 'px';
@@ -353,6 +357,15 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
             'overflow:visible', 'pointer-events:none'
         ].join(';');
         const copie = element.cloneNode(true);
+        // 2026-09-04 — Ce qui est marqué `data-hors-pdf` disparaît de la copie.
+        // Le ruban de statut est une commodité d'ÉCRAN : il ne doit sortir ni
+        // à l'impression ni dans le PDF exporté — c'est ainsi que Zoho Books
+        // procède, et c'est ce qu'on attend d'un document envoyé au client.
+        // `print:hidden` ne suffisait pas : html2canvas rend le DOM tel quel et
+        // ignore les media queries. La suppression sur le clone ne dépend
+        // d'aucun comportement de bibliothèque ; l'attribut
+        // `data-html2canvas-ignore` posé en plus n'est qu'une ceinture.
+        copie.querySelectorAll('[data-hors-pdf]').forEach((n) => n.remove());
         copie.style.width = LARGEUR_CAPTURE + 'px';
         copie.style.maxWidth = 'none';
         copie.style.height = 'auto';

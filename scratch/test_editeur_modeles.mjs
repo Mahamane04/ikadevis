@@ -313,17 +313,29 @@ export async function run() {
         // voir ça ». Il est devenu un tag d'angle, hors du flux et absent du
         // papier. On mesure donc sa PART de largeur : un bandeau prenait toute
         // la colonne, un tag en prend quelques pour cent.
+        // 2026-09-04 — Le tampon était un bandeau pleine largeur encadré de
+        // tirets, posé entre l'en-tête et le bloc client. Signalé sur capture :
+        // « enlève-moi ce badge, ce n'est pas professionnel pour le client de
+        // voir ça ». Il est devenu un RUBAN d'angle, repris de Zoho Books :
+        // carré rogné au coin, bande tournée de -45°, gris neutre.
+        //
+        // Ce qui compte le plus ne se voit pas à l'écran : le ruban porte
+        // `data-hors-pdf`, qui le fait retirer du clone de capture. Le PDF
+        // envoyé au client n'en garde aucune trace.
         const tampon = (page) => page.evaluate(() => {
             const z = document.querySelector('[data-zone-impression]');
-            const t = z && [...z.querySelectorAll('div')]
-                .find((d) => /^Statut du document/.test(d.getAttribute('aria-label') || ''));
+            const t = z && z.querySelector('.ruban-statut');
             if (!t) return { present: false, libelle: null };
             const r = t.getBoundingClientRect();
+            const bande = t.querySelector('span');
             return {
                 present: true,
                 libelle: t.innerText.trim(),
                 part: r.width / z.getBoundingClientRect().width,
-                position: getComputedStyle(t).position
+                position: getComputedStyle(t).position,
+                rogne: getComputedStyle(t).overflow,
+                rotation: bande ? getComputedStyle(bande).transform : null,
+                horsPdf: t.hasAttribute('data-hors-pdf')
             };
         });
 
@@ -353,8 +365,36 @@ export async function run() {
         const brouillon = await tampon(page);
         ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
             brouillon.present && brouillon.libelle === 'BROUILLON');
-        ok(`…en tag d’angle et non en bandeau — ${Math.round(brouillon.part * 100)} % de la largeur`,
-            brouillon.part < 0.25 && brouillon.position === 'absolute');
+        ok(`…en ruban d’angle et non en bandeau — ${Math.round(brouillon.part * 100)} % de la largeur`,
+            brouillon.part < 0.25 && brouillon.position === 'absolute' && brouillon.rogne === 'hidden');
+        // matrix(0.707107, -0.707107, …) = rotation de -45°, la diagonale de Zoho.
+        ok(`La bande est tournée en diagonale — ${brouillon.rotation}`,
+            /^matrix\(0\.7071/.test(brouillon.rotation || ''));
+
+        // LE point de la demande : « sur Zoho le badge n'apparaît pas en
+        // exportant le PDF ni en l'imprimant ». On vérifie les deux chemins de
+        // suppression plutôt que le résultat du PDF, qu'un banc ne peut pas
+        // ouvrir : le marquage `data-hors-pdf`, et le fait que le clone de
+        // capture le retire réellement.
+        ok('Le ruban est marqué hors PDF', brouillon.horsPdf === true);
+        const survitAuClone = await page.evaluate(() => {
+            const z = document.querySelector('[data-zone-impression]');
+            const copie = z.cloneNode(true);
+            copie.querySelectorAll('[data-hors-pdf]').forEach((n) => n.remove());
+            return {
+                avant: z.querySelectorAll('.ruban-statut').length,
+                apres: copie.querySelectorAll('.ruban-statut').length
+            };
+        });
+        ok(`Le clone de capture ne le garde pas — ${survitAuClone.avant} → ${survitAuClone.apres}`,
+            survitAuClone.avant === 1 && survitAuClone.apres === 0);
+        ok('…et il est retiré du papier à l’impression',
+            await page.evaluate(() => [...document.styleSheets].some((f) => {
+                try {
+                    return [...f.cssRules].some((r) => r.media && /print/.test(r.media.mediaText)
+                        && [...(r.cssRules || [])].some((x) => /ruban-statut/.test(x.selectorText || '')));
+                } catch (e) { return false; }
+            })));
 
         // 2026-09-04 — Le statut ne se changeait que depuis Chiffrage, sur une
         // pastille posée près des flèches Annuler / Rétablir. C'est pourtant

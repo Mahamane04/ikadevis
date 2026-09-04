@@ -7679,19 +7679,23 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 </div>
             </div>
 
-            {/* 2026-09-04 — C'était un bandeau pleine largeur, encadré de tirets,
-                posé entre l'en-tête et le bloc client. Signalé : « enlève-moi ce
-                badge, ce n'est pas professionnel pour le client de voir ça ».
-                Il devient un TAG d'angle, en haut à gauche, discret et hors du
-                flux — il ne pousse plus rien. `print:hidden` le retire du
-                papier : sur une feuille imprimée, il n'a rien à faire. */}
+            {/* Ruban de statut — géométrie relevée dans Zoho Books le 2026-09-04,
+                sur demande : « tu vois le badge brouillon comment il est placé…
+                sur Zoho le badge n'apparaît pas en exportant le PDF ni en
+                l'imprimant ».
+
+                Deux propriétés, et la seconde est la plus importante :
+                — la FORME : un ruban en diagonale au coin haut-gauche, gris
+                  neutre, plutôt qu'un bandeau qui traverse le document ;
+                — l'ABSENCE du document livré : `data-hors-pdf` le fait retirer
+                  du clone de capture (js/utils.js), et la media query print le
+                  retire du papier. `print:hidden` seul ne suffisait pas —
+                  html2canvas rend le DOM tel quel et ignore les media queries,
+                  si bien que le ruban partait dans le PDF envoyé au client. */}
             {statutADeclarer && (
-                <div
-                    className="absolute top-1.5 left-1.5 text-[8px] font-bold uppercase tracking-[0.2em] leading-none pointer-events-none select-none print:hidden"
-                    style={{ color: theme.brandColor, opacity: 0.45 }}
-                    aria-label={`Statut du document : ${libelleStatut}`}
-                >
-                    {libelleStatut}
+                <div className="ruban-statut" data-hors-pdf="1" data-html2canvas-ignore="true"
+                     aria-label={`Statut du document : ${libelleStatut}`}>
+                    <span>{libelleStatut}</span>
                 </div>
             )}
 

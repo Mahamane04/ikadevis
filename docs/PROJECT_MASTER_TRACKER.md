@@ -3467,3 +3467,53 @@ document sont relatives entre elles.
 la convention `**gras**`.
 
 **482/482 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 🎗️ 52. Le ruban de statut, relevé sur Zoho et retiré du PDF (2026-09-04)
+
+> « Tu vois le badge brouillon comment il est placé… sur Zoho le badge
+> n'apparaît pas en exportant le PDF ni en l'imprimant. »
+
+Deux choses, et la seconde est de loin la plus importante.
+
+### 52.1 La forme, relevée dans le DOM de Zoho
+
+Mesurée en direct sur `books.zoho.com`, pas reconstituée à vue :
+
+| | Zoho `.ribbon` / `.ribbon-inner` |
+|---|---|
+| Conteneur | `position:absolute; top:-5px; left:-5px; 96×94; overflow:hidden` |
+| Bande | `top:24px; left:-31px; transform:rotate(-45deg)` |
+| Couleurs | fond `rgb(148,165,166)`, texte blanc, 13 px |
+
+C'est l'`overflow:hidden` du carré qui transforme la bande tournée en ruban :
+elle déborde, le carré la rogne. Repris tel quel, à 92 px et 10 px de texte.
+
+Le gris neutre remplace la couleur de marque que portait le tag précédent :
+c'est un **repère interne**, pas un élément du document. La couleur de marque
+n'a rien à y faire.
+
+### 52.2 Le point qui comptait : absent du document livré
+
+Le tag précédent portait `print:hidden`. Cela couvrait l'impression navigateur —
+**pas le PDF**. html2canvas rend le DOM tel quel et ignore les media queries :
+le badge partait donc dans le fichier envoyé au client, exactement ce qu'il
+fallait éviter.
+
+`data-hors-pdf` est désormais retiré **du clone de capture**, sur les trois
+chemins de génération :
+
+1. le bac à sable (`copie.querySelectorAll('[data-hors-pdf]').forEach(n => n.remove())`) ;
+2. les deux replis, via `onclone` — sans quoi le ruban serait revenu dès qu'on
+   emprunte ce chemin ;
+3. `@media print` pour le papier.
+
+`data-html2canvas-ignore` est posé en plus, mais n'est qu'une ceinture : la
+suppression sur le clone ne dépend d'aucun comportement de bibliothèque.
+
+`test_editeur_modeles` vérifie la géométrie (`matrix(0.707107, -0.707107, …)`,
+soit exactement les -45° de Zoho), le rognage, le marquage, **le fait que le
+clone de capture ne garde rien**, et la présence de la règle d'impression.
+
+**486/486 au vert, 0 régression, 49 suites, 7 étalons conformes.**
