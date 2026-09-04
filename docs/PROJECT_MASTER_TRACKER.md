@@ -3751,3 +3751,68 @@ sépare les deux implémentations :
 > `jsPDF` est remplacé une fois l'objet peuplé.
 
 **507/507 au vert, 0 régression, 50 suites, 7 étalons conformes.**
+
+---
+
+## 📐 57. La coupure de page ne tranche plus une ligne (2026-09-04)
+
+Signalé juste après le correctif du recouvrement (§ 56) : « une coupure de la
+tête de TVA ». Le recouvrement avait disparu, mais le trait de coupure tombait
+**au milieu de la ligne « TVA : Exonéré »** — moitié haute sur la page 1, moitié
+basse sur la page 2.
+
+C'est le défaut inhérent au découpage d'un raster à hauteur fixe : rien ne dit
+ce qu'il y a à cette hauteur.
+
+### 57.1 Le critère : l'uniformité, pas la blancheur
+
+`chercherCoupureSure` remonte depuis la coupure théorique jusqu'à la première
+**ligne de pixels uniforme**. Une ligne traversant des lettres ne l'est jamais ;
+un interligne, une bande de couleur ou une ligne zébrée le sont.
+
+> Chercher du **blanc** aurait été le réflexe, et aurait échoué dès que les
+> lignes alternées sont activées (§ 49) : la zébrure ne laisse aucun interligne
+> blanc entre deux ouvrages, les fonds se touchent. L'uniformité couvre les
+> deux cas.
+
+Les bords sont écartés du test sur 2 % de la largeur : quand le document porte
+son cadre, un pixel de bordure à gauche et à droite rendrait **toute** ligne non
+uniforme, et la recherche ne trouverait jamais rien.
+
+Fenêtre de remontée : 8 % de la page, bornée à 24 mm. Au-delà on gaspillerait du
+papier pour éviter une coupure ; en deçà, un grand bloc sans interligne ne
+trouverait aucun point sûr. Si rien n'est trouvé, la coupure reste où elle
+était — mieux vaut une ligne coupée qu'une page à moitié vide.
+
+### 57.2 Les coupures se calculent de proche en proche
+
+Reculer une coupure décale toutes les suivantes. Un multiple fixe de la hauteur
+de contenu ne saurait pas le faire : la boucle avance donc curseur par curseur,
+avec un garde-fou contre une tranche vide — une recherche qui remonterait avant
+le curseur produirait une boucle sans fin.
+
+Le canevas peut être **teinté** par une image externe, auquel cas `getImageData`
+lève. On coupe alors où l'on peut plutôt que d'échouer la génération.
+
+### 57.3 Ce que le banc prouve, et ce qu'il ne prouve pas
+
+Trois contrôles unitaires sur un canevas fabriqué — une barre interrompue aux
+lignes 100–110, coupure théorique à 105 :
+
+| Cas | Attendu | Obtenu |
+|---|---|---|
+| Coupure en plein texte, fenêtre 30 | remonte à 100 | **100** |
+| Fenêtre trop courte (2) | ne bouge pas | **105** |
+| Coupure déjà sûre | ne bouge pas | **200** |
+
+Plus un contrôle d'intégration : chaque coupure de page est bien passée à la
+recherche, et aucune n'est déplacée vers le bas.
+
+> **Ce que le banc ne prouve pas** : sur le devis de démonstration, la coupure
+> théorique tombait déjà sur une ligne uniforme — **0 déplacement**. Le
+> mécanisme est donc prouvé par le contrôle unitaire et par son branchement,
+> pas par un déplacement observé sur un document réel. Construire un document
+> dont la coupure tombe à coup sûr dans du texte demanderait de figer une
+> géométrie que le moindre réglage ferait bouger.
+
+**511/511 au vert, 0 régression, 50 suites, 7 étalons conformes.**

@@ -246,6 +246,50 @@ function nomFichierSur(base) {
 // de 8 mm enfouie ici, et la numérotation n'existait pas. Les deux sont
 // désormais des réglages de modèle. Les valeurs par défaut REPRODUISENT le
 // comportement d'avant : un appel sans options sort exactement le même PDF.
+// Cherche, EN REMONTANT depuis une coupure théorique, la première ligne de
+// pixels où trancher sans couper un texte en deux.
+//
+// Signalé sur un PDF réel (2026-09-04) : « une coupure de la tête de TVA ».
+// Découper un canevas à une hauteur fixe ne tient aucun compte de ce qu'il y a
+// à cette hauteur — le trait tombait au milieu d'une ligne de texte, dont la
+// moitié haute finissait sur une page et la moitié basse sur la suivante.
+//
+// Le critère est l'UNIFORMITÉ de la ligne de pixels, pas sa blancheur : une
+// ligne traversant des lettres n'est jamais uniforme, alors qu'un interligne,
+// une bande de couleur ou une ligne zébrée le sont. Chercher du blanc aurait
+// échoué dès que les lignes alternées sont activées, celles-ci ne laissant
+// aucun interligne blanc entre deux ouvrages.
+//
+// Les bords sont écartés du test : quand le document porte son cadre, un pixel
+// de bordure à gauche et à droite rendrait TOUTE ligne non uniforme.
+function chercherCoupureSure(canvas, yCandidat, fenetre) {
+    const hauteurBande = Math.min(fenetre, yCandidat);
+    if (hauteurBande < 2 || yCandidat >= canvas.height) return yCandidat;
+    const inset = Math.max(3, Math.round(canvas.width * 0.02));
+    const largeur = canvas.width - inset * 2;
+    if (largeur < 10) return yCandidat;
+    let data;
+    try {
+        data = canvas.getContext('2d')
+            .getImageData(inset, yCandidat - hauteurBande, largeur, hauteurBande).data;
+    } catch (e) {
+        // Canevas teinté par une image externe : on ne peut pas lire les
+        // pixels. On coupe alors où l'on peut, plutôt que d'échouer.
+        return yCandidat;
+    }
+    for (let ligne = hauteurBande - 1; ligne >= 0; ligne--) {
+        const base = ligne * largeur * 4;
+        const r = data[base], v = data[base + 1], b = data[base + 2];
+        let uniforme = true;
+        for (let x = 1; x < largeur; x++) {
+            const i = base + x * 4;
+            if (data[i] !== r || data[i + 1] !== v || data[i + 2] !== b) { uniforme = false; break; }
+        }
+        if (uniforme) return yCandidat - hauteurBande + ligne + 1;
+    }
+    return yCandidat;
+}
+
 async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     if (!element) throw new Error("Document introuvable à l'écran.");
     await chargerLibsPdf();
@@ -537,11 +581,27 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     // comporte donc identiquement partout.
     const pxParMm = canvas.width / imgL;
     const trancheHautPx = Math.max(1, Math.round(hauteurContenu * pxParMm));
-    const nbTranches = Math.max(1, Math.ceil(canvas.height / trancheHautPx));
+    // Fenêtre de remontée : jusqu'à 8 % de la page, borné à 24 mm. Au-delà on
+    // gaspillerait trop de papier pour éviter une coupure ; en deçà, un grand
+    // bloc sans interligne ne trouverait aucun point sûr.
+    const fenetreCoupure = Math.max(12, Math.min(Math.round(24 * pxParMm), Math.round(trancheHautPx * 0.08)));
 
-    for (let index = 0; index < nbTranches; index++) {
-        const sy = index * trancheHautPx;
-        const sh = Math.min(trancheHautPx, canvas.height - sy);
+    // Les coupures sont calculées de proche en proche : reculer l'une décale
+    // toutes les suivantes, ce qu'un multiple fixe ne saurait pas faire.
+    const tranches = [];
+    let curseur = 0;
+    while (curseur < canvas.height && tranches.length < 60) {
+        let fin = Math.min(curseur + trancheHautPx, canvas.height);
+        if (fin < canvas.height) fin = chercherCoupureSure(canvas, fin, fenetreCoupure);
+        // Garde-fou : une recherche qui remonterait avant le curseur ferait
+        // une tranche vide, donc une boucle sans fin.
+        if (fin <= curseur) fin = Math.min(curseur + trancheHautPx, canvas.height);
+        tranches.push({ sy: curseur, sh: fin - curseur });
+        curseur = fin;
+    }
+
+    for (let index = 0; index < tranches.length; index++) {
+        const { sy, sh } = tranches[index];
         if (sh <= 0) break;
         const tranche = document.createElement('canvas');
         tranche.width = canvas.width;

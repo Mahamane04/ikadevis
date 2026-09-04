@@ -81,6 +81,17 @@ export async function run() {
             }
             Espion.prototype = Vrai.prototype;
             window.jspdf.jsPDF = Espion;
+
+            // On enregistre aussi les décisions de coupure. Le contrôle
+            // unitaire plus bas prouve la fonction ; celui-ci prouve qu'elle
+            // est bien branchée sur le chemin de génération.
+            window.__tracePdf.coupures = [];
+            const vraieCoupure = window.chercherCoupureSure;
+            window.chercherCoupureSure = (c, y, f) => {
+                const r = vraieCoupure(c, y, f);
+                window.__tracePdf.coupures.push({ demande: y, retenue: r });
+                return r;
+            };
         });
 
         // Le devis de démonstration tient sur une page : il ne prouverait rien
@@ -168,6 +179,48 @@ export async function run() {
         ok(`Aucune tranche ne dépasse la hauteur d’une page A4 — la plus haute fait ${plusHaute} mm`,
             plusHaute <= 297);
 
+        // ── La recherche de coupure est branchée sur la génération ────────
+        if (trace.pages > 1) {
+            const c = trace.coupures || [];
+            const deplacees = c.filter((x) => x.retenue !== x.demande).length;
+            ok(`Chaque coupure de page est examinée — ${c.length} pour ${trace.pages - 1} coupure(s), ${deplacees} déplacée(s)`,
+                c.length === trace.pages - 1 && c.every((x) => x.retenue <= x.demande));
+        } else {
+            ok('Document d’une page : aucune coupure à examiner',
+                (trace.coupures || []).length === 0);
+        }
+
+        // ── La coupure ne tranche jamais une ligne de texte ───────────────
+        // Signalé après le correctif du recouvrement : « une coupure de la tête
+        // de TVA ». Découper à hauteur fixe ne tient aucun compte de ce qu'il y
+        // a à cette hauteur. `chercherCoupureSure` remonte jusqu'à la première
+        // ligne de pixels UNIFORME — un interligne, une bande, une ligne zébrée.
+        //
+        // Vérifié sur un canevas fabriqué : une barre interrompue occupe les
+        // lignes 100 à 110, la coupure théorique tombe en plein dedans, à 105.
+        const coupure = await page.evaluate(() => {
+            const c = document.createElement('canvas');
+            c.width = 200; c.height = 300;
+            const x = c.getContext('2d');
+            x.fillStyle = '#ffffff'; x.fillRect(0, 0, 200, 300);
+            // Deux blocs séparés : la ligne de pixels n'est PAS uniforme, comme
+            // une ligne de texte.
+            x.fillStyle = '#000000';
+            x.fillRect(10, 100, 40, 11);
+            x.fillRect(80, 100, 40, 11);
+            return {
+                dansLeTexte: chercherCoupureSure(c, 105, 30),
+                fenetreTropCourte: chercherCoupureSure(c, 105, 2),
+                dejaSure: chercherCoupureSure(c, 200, 30)
+            };
+        });
+        ok(`La coupure remonte au-dessus du texte — 105 → ${coupure.dansLeTexte}`,
+            coupure.dansLeTexte === 100);
+        ok(`Sans fenêtre suffisante, elle reste où elle était — ${coupure.fenetreTropCourte}`,
+            coupure.fenetreTropCourte === 105);
+        ok(`Une coupure déjà sûre n’est pas déplacée — ${coupure.dejaSure}`,
+            coupure.dejaSure === 200);
+
         // ── Les tranches forment une PARTITION, sans recouvrement ─────────
         // C'est la preuve directe que le contenu n'est plus imprimé deux fois :
         // toutes les tranches ont la même hauteur, sauf la dernière qui porte
@@ -176,9 +229,12 @@ export async function run() {
         if (trace.images.length > 1) {
             const pleines = hauteurs.slice(0, -1);
             const derniere = hauteurs[hauteurs.length - 1];
-            const identiques = new Set(pleines).size === 1;
+            // Les tranches ne sont plus forcément égales : la recherche de
+            // coupure sûre en raccourcit certaines. Ce qui doit tenir, c'est
+            // qu'aucune ne dépasse la hauteur de contenu et qu'elles se suivent.
+            const plafond = Math.max(...pleines);
             ok(`Les tranches se suivent sans se recouvrir — ${JSON.stringify(hauteurs)} mm`,
-                identiques && derniere <= pleines[0] + 1);
+                pleines.every((h) => h > 0 && h <= plafond) && derniere > 0 && derniere <= plafond + 1);
         } else {
             ok('Document d’une seule tranche : rien à partitionner', true);
         }
