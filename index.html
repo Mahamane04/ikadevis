@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904c">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260904d">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260904c">
+    <link rel="stylesheet" href="tailwind.css?v=20260904d">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -241,16 +241,21 @@
         }
         .sidebar-shell { width: var(--sidebar-width); background-color: var(--sidebar-bg); }
         .sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); background-color: var(--sidebar-bg); }
-        /* Page Paramètres : elle remplace la modale historique. Sur ordinateur,
-           le menu principal reste visible ; sur mobile, les réglages occupent
-           tout l'écran afin de préserver une zone de travail confortable. */
+        /* Page Paramètres : elle remplace la modale historique, et occupe TOUT
+           l'écran — y compris sur ordinateur (2026-09-04).
+
+           Elle laissait auparavant le menu principal visible à sa gauche, pour
+           permettre un retour direct vers Chantiers ou Mes devis. L'écran
+           disait alors trois choses contradictoires : le bouton annonçait
+           « Retour à l'application » alors que l'application était toujours
+           là ; le menu de gauche n'allumait AUCUN élément pendant tout le
+           séjour dans les réglages, puisque la surbrillance vient de
+           `activeView === id` et qu'aucun élément ne porte l'identifiant
+           `settings` ; et son bouton « Paramètres du Compte » menait à l'écran
+           déjà ouvert, sans le dire.
+           Un seul menu à la fois : le bouton de sortie redevient vrai, et il
+           n'y a plus de navigation qui refuse de dire où l'on est. */
         .settings-page-shell { left: 0; }
-        @media (min-width: 768px) {
-            .settings-page-shell { left: var(--sidebar-collapsed-width); }
-        }
-        @media (min-width: 1024px) {
-            .settings-page-shell { left: var(--sidebar-width); }
-        }
         .sidebar-section-label {
             padding: 0 14px; margin-bottom: 6px;
             font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -872,10 +877,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260904c"></script>
-    <script src="js/utils.js?v=20260904c"></script>
-    <script src="js/quote-templates.js?v=20260904c"></script>
-    <script src="app.compiled.js?v=20260904c"></script>
+    <script src="js/calc-engine.js?v=20260904d"></script>
+    <script src="js/utils.js?v=20260904d"></script>
+    <script src="js/quote-templates.js?v=20260904d"></script>
+    <script src="app.compiled.js?v=20260904d"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

@@ -2993,3 +2993,53 @@ ligne au rechargement, le fait que **créer** un modèle ne change rien aux
 documents émis, et le fait que **désigner** un autre défaut, lui, les change.
 
 **420/420 au vert, 0 régression, 47 suites, 7 étalons conformes.**
+
+---
+
+## 🪟 44. Paramètres : deux menus qui se contredisaient (2026-09-04)
+
+Signalé par l'utilisateur sur son compte réel, capture à l'appui : « pourquoi
+affiche 2 menu ici quand on clique sur setting ? »
+
+Les deux menus étaient **voulus** — la feuille de style le disait :
+`.settings-page-shell { left: var(--sidebar-width) }` au-delà de 1024 px, pour
+garder un retour direct vers Chantiers ou Mes devis. Mais l'écran envoyait
+trois signaux contradictoires :
+
+1. le bouton annonçait **« Retour à l'application »** alors que l'application
+   restait affichée juste à côté ;
+2. le menu de gauche **n'allumait aucun élément** pendant tout le séjour dans
+   les réglages : la surbrillance vient de `activeView === id`, `activeView`
+   vaut `'settings'`, et aucun élément de la barre ne porte cet identifiant.
+   Une navigation qui refuse de dire où l'on est ;
+3. son bouton « Paramètres du Compte » menait à l'écran **déjà ouvert**, sans
+   le signaler.
+
+Le nombre de menus n'était pas le problème — c'est que le second ne situait
+pas l'utilisateur et que le premier prétendait qu'il était ailleurs.
+
+**Retenu : un seul menu à la fois.** `left: 0` à toutes les largeurs, comme
+l'éditeur de modèles et le catalogue. Le bouton de sortie redevient vrai. Le
+coût assumé : revenir à Mes devis demande deux clics au lieu d'un.
+
+### 44.1 Couvrir n'est pas retirer
+
+Le vrai risque de ce changement n'est pas visuel. La barre latérale reste dans
+le document derrière la page : atteignable à la tabulation, lue par un lecteur
+d'écran. Un utilisateur au clavier parcourrait un menu qu'il ne voit pas.
+
+Les trois navigations principales (barre 1024 px+, rail 768–1023 px, barre du
+bas mobile) portent donc `data-nav-principale` et reçoivent `inert` tant que
+`activeView === 'settings'`. L'attribut est posé **impérativement** : React 18
+ne connaît pas `inert` et le passer en propriété booléenne y déclenche un
+avertissement. Le retrait est inconditionnel, pour que rien ne reste figé si
+l'on quitte les réglages autrement que par le bouton — même raisonnement que
+le nettoyage du fragment `#settings/` rattaché à l'état plutôt qu'au bouton
+(§ 40).
+
+`test_reglages_plein_ecran` mesure ce qui occupe réellement le pixel
+(`elementFromPoint`, pas une comparaison de positions), compte les évasions
+sur 25 tabulations, vérifie la restitution du menu par le bouton **et** par un
+autre chemin de sortie, et refait le tout à 390 px de large.
+
+**431/431 au vert, 0 régression, 48 suites, 7 étalons conformes.**

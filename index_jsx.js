@@ -17099,6 +17099,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [activeView]);
 
+    // Depuis le 2026-09-04, la page Paramètres couvre TOUT l'écran, barre
+    // latérale comprise. Couvrir n'est pas retirer : la navigation reste dans
+    // le document, donc atteignable à la tabulation et lue par un lecteur
+    // d'écran — l'utilisateur au clavier se retrouverait à parcourir un menu
+    // qu'il ne voit pas, derrière la page ouverte.
+    //
+    // `inert` posé impérativement plutôt qu'en propriété JSX : React 18 ne
+    // connaît pas cet attribut, et le passer en booléen y déclenche un
+    // avertissement. Le retrait est inconditionnel pour que rien ne reste
+    // figé si l'on quitte les réglages autrement que par le bouton.
+    useEffect(() => {
+        const navigations = document.querySelectorAll('[data-nav-principale]');
+        navigations.forEach((element) => {
+            if (activeView === 'settings') element.setAttribute('inert', '');
+            else element.removeAttribute('inert');
+        });
+    }, [activeView]);
+
     return (
         <div className="mobile-app-shell flex h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
             {/* SKIP LINK ACCESSIBLE POUR NAVIGATION CLAVIER / LECTEURS D'ÉCRAN */}
@@ -17110,7 +17128,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             </a>
 
             {/* SIDEBAR DESKTOP (≥ 1024px) */}
-            <aside className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
+            <aside data-nav-principale="1" className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
                 <div className="p-4 flex flex-col gap-3 border-b border-neutral-100 shrink-0">
                     <div className="flex items-center justify-between">
                         <LogoSVG className="h-8 w-auto text-brand-500" />
@@ -17184,7 +17202,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
             {/* RAIL TABLETTE REPLIÉ (768–1023px) — icônes seules + tooltip au survol,
                 mêmes items/handlers que la sidebar desktop, rien de nouveau côté logique. */}
-            <aside className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4">
+            <aside data-nav-principale="1" className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4">
                 {/* Repère visuel de marque au format icône seule (rail replié trop
                     étroit pour le logo complet ikadevis + baseline) */}
                 <IconeSVG className="h-7 w-7 text-brand-500" />
@@ -17361,7 +17379,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </main>
 
                 {/* BOTTOM BAR MOBILE (< 768px) — tablette/desktop ont le rail/la sidebar persistants */}
-                <nav className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
+                <nav data-nav-principale="1" className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
                     <NavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} />
                     <NavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
                     <NavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} />
