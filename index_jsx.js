@@ -8188,6 +8188,14 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const echelleTexte = Math.max(80, Math.min(130, Number(cfg.general.echelleTexte) || 100)) / 100;
     const encre = (cfg.general.couleurTexte || '').trim();
     const aplats = cfg.general.aplatsColores !== false;
+    // 2026-09-04 — `data-zone-impression` était absent sur un brouillon, ce qui
+    // le rendait impossible à télécharger comme à imprimer : « il n'a pas encore
+    // de numéro légal ». L'intention était juste, la conséquence non — la carte
+    // du brouillon proposait « Aperçu PDF » et le bouton de téléchargement y
+    // était inerte, alors qu'un devis en brouillon se télécharge sans
+    // difficulté. Le brouillon est donc capturable ; c'est le DOCUMENT qui porte
+    // la mise en garde, sous son titre : « Brouillon (non numéroté) — Non
+    // émise », et le nom du fichier la répète.
     const texteDuPiedFacture = cfg.pied.note || ci.pdfFooterNote || '';
     // 2026-09-04 — La facture lisait le modèle du devis depuis le § 47, mais
     // n'en appliquait que quatorze réglages sur vingt : étiquettes, image de
@@ -8197,7 +8205,12 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const tailleLogoFacture = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
     const rayonFacture = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
     const densiteFacture = ['aeree', 'normale', 'compacte'].includes(cfg.tableau.densite) ? cfg.tableau.densite : 'normale';
-    const padFacture = densiteFacture === 'aeree' ? 'p-4' : densiteFacture === 'compacte' ? 'p-2' : 'p-3';
+    // L'échelle de la SYNTHÈSE, pas celle du détaillé : une facture est une
+    // liste à plat, sans regroupement par nature. Prendre l'échelle du gabarit
+    // détaillé donnait 12 px là où le devis en donne 14 — deux documents issus
+    // du même modèle qui ne respiraient pas pareil. Écart relevé par le
+    // contrôle de parité, pas à l'œil.
+    const padFacture = densiteFacture === 'aeree' ? 'p-5' : densiteFacture === 'compacte' ? 'p-2' : 'p-3.5';
     const separateursFacture = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
     const corpsFacture = separateursFacture === 'lignes' ? 'divide-y divide-neutral-100' : '';
     const fondLigneFacture = (rang) => (separateursFacture === 'zebre' && rang % 2 === 1 ? { backgroundColor: '#f8fafc' } : undefined);
@@ -8216,7 +8229,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     return (
         <div
             className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
-            data-zone-impression={facture.statut === 'draft' ? undefined : '1'}
+            data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
@@ -14899,8 +14912,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <button type="button"
                                             onClick={() => setApercuDocument({
                                                 titre: `Facture ${f.numero || '(brouillon)'} — ${f.clientName}`,
-                                                nomFichier: `Facture-${f.numero || 'brouillon'}`,
-                                                telechargeable: f.statut !== 'draft',
+                                                nomFichier: f.numero ? `Facture-${f.numero}` : `Brouillon-facture-${f.clientName}`,
                                                 contenu: documentDeLaFacture(f)
                                             })}
                                             className="btn-secondary btn-dialogue w-full text-brand-700 border-brand-200"
@@ -14972,6 +14984,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
                                             >
                                                 <i className="fa-solid fa-paper-plane"></i> Émettre
+                                            </button>
+                                            {/* Le libellé dit « brouillon », pas « facture » : le
+                                                fichier obtenu n'est pas une pièce comptable, et le
+                                                nom du fichier le répète. */}
+                                            <button
+                                                onClick={() => telechargerDocument(
+                                                    `Brouillon facture ${activeInvoice.clientName}`,
+                                                    'facture'
+                                                )}
+                                                disabled={pdfEnCours === 'facture'}
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold disabled:opacity-60"
+                                                title="Télécharger ce brouillon en PDF — il porte la mention « non numéroté »"
+                                                aria-label="Télécharger le brouillon de facture en PDF"
+                                            >
+                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} mr-1.5`}></i>
+                                                {pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le brouillon'}
                                             </button>
                                             <button
                                                 disabled={isReadOnlyDueToDowngrade}
@@ -19660,15 +19688,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 onClick={() => telechargerElementPdf(
                                     refApercuDocument.current && refApercuDocument.current.querySelector('[data-zone-impression]'),
                                     apercuDocument.nomFichier, 'apercu')}
-                                disabled={pdfEnCours === 'apercu' || apercuDocument.telechargeable === false}
-                                title={apercuDocument.telechargeable === false
-                                    ? 'Un brouillon n’a pas encore de numéro : émettez la facture pour la télécharger.'
-                                    : undefined}
+                                disabled={pdfEnCours === 'apercu'}
                                 className="btn-primary btn-dialogue disabled:opacity-60">
                                 <i className={`fa-solid ${pdfEnCours === 'apercu' ? 'fa-spinner fa-spin' : 'fa-file-pdf'} mr-1.5`}></i>
-                                {pdfEnCours === 'apercu' ? 'Génération…'
-                                    : apercuDocument.telechargeable === false ? 'Brouillon — non téléchargeable'
-                                    : 'Télécharger le PDF'}
+                                {pdfEnCours === 'apercu' ? 'Génération…' : 'Télécharger le PDF'}
                             </button>
                             <button type="button" onClick={() => setApercuDocument(null)}
                                 className="btn-secondary btn-dialogue" aria-label="Fermer l’aperçu PDF">

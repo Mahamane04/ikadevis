@@ -3857,4 +3857,35 @@ sans qu'on ait à y penser.
 
 **Résultat : aucun écart sur les neuf.**
 
-**512/512 au vert, 0 régression, 50 suites, 7 étalons conformes.**
+### 58.2 Un brouillon de facture se télécharge aussi
+
+> « Il n'y a pas de bouton pour télécharger la facture en PDF. »
+
+Le bouton existait — mais seulement pour une facture **émise**. Sur un
+brouillon, `data-zone-impression` était volontairement absent : « il n'a pas
+encore de numéro légal ». L'intention était juste, la conséquence non :
+
+- la carte du brouillon proposait **« Aperçu PDF »**, donc promettait un fichier
+  qu'on ne pouvait pas obtenir ;
+- le bouton de téléchargement de l'aperçu s'y affichait **inerte** ;
+- et un **devis** en brouillon, lui, se télécharge sans difficulté — deux
+  documents, deux règles, sans raison lisible.
+
+Le brouillon est donc capturable. Ce qui rend l'ouverture acceptable, c'est que
+**le document se dénonce lui-même** : « Brouillon (non numéroté) — Non émise »
+sous son titre. Le libellé du bouton dit « Télécharger le brouillon », et le nom
+du fichier est `Brouillon-facture-<client>` — trois rappels avant que le fichier
+n'existe.
+
+### 58.3 Un écart trouvé par le contrôle de parité lui-même
+
+En posant ce contrôle, il a immédiatement rougi sur `padCellule` : j'avais donné
+à la facture l'échelle de remplissage du gabarit **détaillé** (p-4/p-3/p-2)
+alors qu'une facture est une liste à plat — l'équivalent d'une **synthèse**
+(p-5/p-3.5/p-2). Douze pixels là où le devis en donne quatorze : deux documents
+issus du même modèle qui ne respiraient pas pareil.
+
+Écart relevé par la mesure, pas à l'œil. C'est exactement ce pour quoi ce
+contrôle a été écrit.
+
+**515/515 au vert, 0 régression, 50 suites, 7 étalons conformes.**

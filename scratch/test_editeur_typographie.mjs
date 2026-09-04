@@ -780,6 +780,29 @@ export async function run() {
             };
         }, sel);
 
+        // ── Un brouillon de facture se télécharge aussi ───────────────────
+        // Signalé : « il n'y a pas de bouton pour télécharger la facture en
+        // PDF ». Le bouton existait pour une facture émise, pas pour un
+        // brouillon — alors que la carte du brouillon proposait « Aperçu PDF »,
+        // promettant un fichier qu'on ne pouvait pas obtenir, et qu'un devis en
+        // brouillon se télécharge sans difficulté.
+        const brouillonFacture = await page.evaluate(() => {
+            const z = document.querySelector('[data-zone-impression]');
+            const bouton = [...document.querySelectorAll('button')]
+                .find((b) => /Télécharger le brouillon/.test(b.textContent || ''));
+            return {
+                capturable: !!z,
+                bouton: !!bouton,
+                inerte: bouton ? bouton.disabled : null,
+                mentionDansLeDocument: z ? /non numérot/i.test(z.innerText) : false
+            };
+        });
+        ok('Un brouillon de facture est capturable pour le PDF', brouillonFacture.capturable);
+        ok('Le téléchargement lui est proposé', brouillonFacture.bouton && brouillonFacture.inerte === false);
+        // Ce qui rend l'ouverture acceptable : le document se dénonce lui-même.
+        ok('…et le document porte la mention « non numéroté »',
+            brouillonFacture.mentionDansLeDocument);
+
         const empreinteFacture = await empreinte(null);
         await page.evaluate(() => {
             const b = [...document.querySelectorAll('aside button')]
