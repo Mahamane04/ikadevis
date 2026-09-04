@@ -7147,7 +7147,11 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // arrondi autour de tout le devis. Le `print:border-0` déjà présent
         // dans les classes dit bien l'intention d'origine ; il ne s'applique
         // qu'à l'impression navigateur, jamais à la capture.
-        cadreDocument: true
+        cadreDocument: true,
+        // Arrondi des angles du tableau et des blocs, en pixels. 8 reproduit le
+        // `rounded-lg` d'aujourd'hui ; 0 donne un document strictement carré,
+        // que certains donneurs d'ordre préfèrent.
+        rayonCoins: 8
     },
     entete: {
         alignement: 'left',
@@ -7187,6 +7191,15 @@ const CONFIGURATION_MODELE_DEFAUT = {
         // liste continue et un document où l'œil trouve ses sections. Nul par
         // défaut : le document d'aujourd'hui n'en a pas.
         espaceLots: 0,
+        // Respiration SOUS la bande d'en-tête de lot, avant ses lignes. Les
+        // bandes « LOT 1 » et « FOURNITURES & MATÉRIAUX » se touchaient, et
+        // touchaient la première ligne : trois niveaux empilés sans un blanc.
+        espaceSousLot: 0,
+        // Séparation des lignes d'ouvrage : filets fins (aujourd'hui), rien du
+        // tout, ou lignes alternées — celles-ci font une vraie différence sur
+        // un bordereau de soixante lignes, où l'œil perd sa ligne en traversant
+        // vers la colonne des montants.
+        separateurs: 'lignes',   // 'lignes' | 'aucun' | 'zebre'
         afficherEnteteLot: true,
         afficherSousTotalLot: true,
         // Désignation et total ne sont volontairement PAS masquables : une
@@ -7487,6 +7500,17 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
     // eux, il ne décolle pas le tableau de son en-tête.
     const espaceLots = Math.max(0, Math.min(40, Number(cfg.tableau.espaceLots) || 0));
     const respirationLot = (index) => (index > 0 && espaceLots > 0 ? { paddingTop: `${espaceLots}px` } : undefined);
+    const espaceSousLot = Math.max(0, Math.min(24, Number(cfg.tableau.espaceSousLot) || 0));
+    const respirationSousLot = espaceSousLot > 0 ? { paddingBottom: `${espaceSousLot}px` } : undefined;
+    const rayon = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
+    const coinsGauche = { borderTopLeftRadius: rayon, borderBottomLeftRadius: rayon };
+    const coinsDroite = { borderTopRightRadius: rayon, borderBottomRightRadius: rayon };
+    const separateurs = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
+    const classeCorps = separateurs === 'lignes' ? 'divide-y divide-neutral-100' : '';
+    // Zébrure : comptée en JS plutôt qu'en `nth-child`, les bandes de lot et de
+    // nature étant elles aussi des <tr> — un sélecteur CSS les rayerait avec
+    // les lignes d'ouvrage et décalerait l'alternance à chaque lot.
+    const fondLigne = (rang) => (separateurs === 'zebre' && rang % 2 === 1 ? { backgroundColor: '#f8fafc' } : undefined);
     // Borné : une valeur aberrante venue d'une configuration enregistrée à la
     // main ne doit pas produire un logo qui écrase l'en-tête.
     const tailleLogo = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
@@ -7526,7 +7550,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         : (societe.echeancier || []);
     return (
         <div
-            className={`saved-quote-document document-echelle w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
+            className={`saved-quote-document document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -7601,17 +7625,23 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 </div>
             </div>
 
+            {/* 2026-09-04 — C'était un bandeau pleine largeur, encadré de tirets,
+                posé entre l'en-tête et le bloc client. Signalé : « enlève-moi ce
+                badge, ce n'est pas professionnel pour le client de voir ça ».
+                Il devient un TAG d'angle, en haut à gauche, discret et hors du
+                flux — il ne pousse plus rien. `print:hidden` le retire du
+                papier : sur une feuille imprimée, il n'a rien à faire. */}
             {statutADeclarer && (
-                <div className="flex items-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5"
-                     style={{ borderColor: theme.brandColor }}>
-                    <i className="fa-solid fa-stamp text-sm" style={{ color: theme.brandColor }}></i>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.brandColor }}>
-                        {libelleStatut}
-                    </span>
+                <div
+                    className="absolute top-1.5 left-1.5 text-[8px] font-bold uppercase tracking-[0.2em] leading-none pointer-events-none select-none print:hidden"
+                    style={{ color: theme.brandColor, opacity: 0.45 }}
+                    aria-label={`Statut du document : ${libelleStatut}`}
+                >
+                    {libelleStatut}
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 border border-neutral-200" style={{ borderRadius: rayon }}>
                 <div>
                     <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
                     <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
@@ -7641,6 +7671,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 général juste en dessous. */}
             {(() => {
                 const printCurrency = devis.companyInfoSnapshot?.currency || societe.currency;
+                let rangLigne = 0;
 
                 // 2026-08-20 — Gabarit « détaillé » : chaque fourniture et
                 // main-d'œuvre, au prix de VENTE (distributeLotSalePrice répartit
@@ -7657,13 +7688,13 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead>
                                     <tr className={classeEnteteTableau} style={styleEnteteTableau}>
-                                        <th className={`${padCelDet} rounded-l-lg`} style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                        <th className={padCelDet} style={{ width: colonnes.designation.largeur + '%', ...coinsGauche }}>{colonnes.designation.libelle}</th>
                                         {montrerQuantite && <th className={`${padCelDet} text-center`} style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
                                         {montrerPrixUnitaire && <th className={`${padCelDet} text-right`} style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
-                                        <th className={`${padCelDet} text-right rounded-r-lg`} style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
+                                        <th className={`${padCelDet} text-right`} style={{ width: colonnes.totalHT.largeur + '%', ...coinsDroite }}>{colonnes.totalHT.libelle}</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-neutral-100">
+                                <tbody className={classeCorps}>
                                     {detLots.map((lot, li) => {
                                         const ld = lot.quoteData || {};
                                         const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
@@ -7676,7 +7707,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                         return (
                                             <React.Fragment key={lot.id || li}>
                                                 <tr className="bg-neutral-100">
-                                                    <td colSpan={nbColonnes} style={respirationLot(li)} data-entete-lot={li}
+                                                    <td colSpan={nbColonnes} style={{ ...respirationLot(li), ...respirationSousLot }} data-entete-lot={li}
                                                         className={`${padBandeDet} font-semibold text-[11px] uppercase tracking-wide text-neutral-700`}>
                                                         {formatLotHeading(lot.lotName, li)}
                                                     </td>
@@ -7694,7 +7725,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                             </td>
                                                         </tr>
                                                         {lignes.map((d, di) => (
-                                                            <tr key={cat + di}>
+                                                            <tr key={cat + di} style={fondLigne(rangLigne++)}>
                                                                 <td className={`${padCelDet} pl-6`}>
                                                                     <p className="font-bold text-neutral-900">{d.label}</p>
                                                                     {d.name && d.name !== d.label && (
@@ -7748,11 +7779,11 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                         <table className="w-full text-left text-xs border-collapse">
                             <thead>
                                 <tr className={classeEnteteTableau} style={styleEnteteTableau}>
-                                    <th className={`${padCel} rounded-l-lg`}>Lot</th>
-                                    <th className={`${padCel} text-right rounded-r-lg`} style={{ width: '32%' }}>{colonnes.totalHT.libelle}</th>
+                                    <th className={padCel} style={coinsGauche}>Lot</th>
+                                    <th className={`${padCel} text-right`} style={{ width: '32%', ...coinsDroite }}>{colonnes.totalHT.libelle}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-neutral-100">
+                            <tbody className={classeCorps}>
                                 {lots.map(lot => (
                                     <tr key={lot.lotCode}>
                                         <td className={padCel}>
@@ -7774,27 +7805,27 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     <table className="w-full text-left text-xs border-collapse">
                         <thead>
                             <tr className={classeEnteteTableau} style={styleEnteteTableau}>
-                                <th className={`${padCel} rounded-l-lg`} style={{ width: colonnes.designation.largeur + '%' }}>{colonnes.designation.libelle}</th>
+                                <th className={padCel} style={{ width: colonnes.designation.largeur + '%', ...coinsGauche }}>{colonnes.designation.libelle}</th>
                                 {montrerQuantite && <th className={`${padCel} text-center`} style={{ width: colonnes.quantite.largeur + '%' }}>{colonnes.quantite.libelle}</th>}
                                 {montrerPrixUnitaire && <th className={`${padCel} text-right`} style={{ width: colonnes.prixUnitaire.largeur + '%' }}>{colonnes.prixUnitaire.libelle}</th>}
-                                <th className={`${padCel} text-right rounded-r-lg`} style={{ width: colonnes.totalHT.largeur + '%' }}>{colonnes.totalHT.libelle}</th>
+                                <th className={`${padCel} text-right`} style={{ width: colonnes.totalHT.largeur + '%', ...coinsDroite }}>{colonnes.totalHT.libelle}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-100">
+                        <tbody className={classeCorps}>
                             {lots.map((lot, li) => {
                                 const lotSubtotal = lot.items.reduce((sum, it) => sum + (it.sellingTotalHT || 0), 0);
                                 return (
                                     <React.Fragment key={lot.lotCode}>
                                         {showLotHeaders && cfg.tableau.afficherEnteteLot && (
                                             <tr className="bg-neutral-50">
-                                                <td colSpan={nbColonnes} style={respirationLot(li)} data-entete-lot={li}
+                                                <td colSpan={nbColonnes} style={{ ...respirationLot(li), ...respirationSousLot }} data-entete-lot={li}
                                                     className={`${padBande} font-semibold text-[11px] uppercase tracking-wide text-neutral-600`}>
                                                     {lot.lotName}
                                                 </td>
                                             </tr>
                                         )}
                                         {lot.items.map(item => (
-                                            <tr key={item.id}>
+                                            <tr key={item.id} style={fondLigne(rangLigne++)}>
                                                 <td className={padCel}>
                                                     <p className="font-bold text-neutral-900">{item.label}</p>
                                                     {item.dimensionSummary && (
@@ -19697,6 +19728,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </span>
                                         </label>
 
+                                        <label className="block py-2">
+                                            <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                                <span>Arrondi des angles</span>
+                                                <span className="font-mono text-neutral-700">{c.general.rayonCoins ?? 8} px</span>
+                                            </span>
+                                            <input
+                                                type="range" min="0" max="16" step="1"
+                                                value={c.general.rayonCoins ?? 8}
+                                                onChange={(e) => majModele('general', 'rayonCoins', Number(e.target.value))}
+                                                aria-label="Arrondi des angles en pixels"
+                                                className="w-full accent-brand-600"
+                                            />
+                                            <span className="block text-[11px] text-neutral-500 leading-snug mt-1">
+                                                Angles du bandeau de tableau et du bloc client. À 0, le document
+                                                est strictement carré.
+                                            </span>
+                                        </label>
                                         {Bascule({ section: 'general', cle: 'cadreDocument', libelle: 'Encadrer le document',
                                             aide: 'Le liseré gris arrondi autour du contenu. Utile à l’écran pour détacher la feuille du fond ; décoché, il disparaît aussi du PDF, où il s’imprimait comme un rectangle autour de tout le devis.' })}
                                         {Bascule({ section: 'general', cle: 'aplatsColores', libelle: 'Aplats de couleur',
@@ -19833,6 +19881,44 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 sépare un bordereau de huit lots d’une longue liste continue.
                                             </span>
                                         </label>
+                                        <label className="block py-2">
+                                            <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+                                                <span>Espace sous l’en-tête de lot</span>
+                                                <span className="font-mono text-neutral-700">{c.tableau.espaceSousLot || 0} px</span>
+                                            </span>
+                                            <input
+                                                type="range" min="0" max="24" step="2"
+                                                value={c.tableau.espaceSousLot || 0}
+                                                onChange={(e) => majModele('tableau', 'espaceSousLot', Number(e.target.value))}
+                                                aria-label="Espace sous l’en-tête de lot en pixels"
+                                                className="w-full accent-brand-600"
+                                            />
+                                            <span className="block text-[10px] text-neutral-500 leading-snug mt-1">
+                                                Décolle la bande du lot de ses lignes. Sans lui, « LOT 1 »,
+                                                « Fournitures » et le premier ouvrage se touchent.
+                                            </span>
+                                        </label>
+
+                                        <div className="py-2">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Séparation des lignes</span>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[{ id: 'lignes', l: 'Filets',   d: 'un trait fin' },
+                                                  { id: 'zebre',  l: 'Alternée', d: 'une ligne sur deux' },
+                                                  { id: 'aucun',  l: 'Aucune',   d: 'rien du tout' }].map(o => (
+                                                    <button key={o.id} type="button"
+                                                        onClick={() => majModele('tableau', 'separateurs', o.id)}
+                                                        className={`rounded-lg border px-2 py-2 text-left transition-colors ${(c.tableau.separateurs || 'lignes') === o.id ? 'border-brand-400 bg-brand-50/60' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                                        <span className="block text-[12px] font-bold text-neutral-800">{o.l}</span>
+                                                        <span className="block text-[10px] text-neutral-500 leading-tight mt-0.5">{o.d}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-neutral-500 leading-snug mt-1.5">
+                                                Sur un bordereau de soixante lignes, l’alternance évite de perdre
+                                                sa ligne en allant vers la colonne des montants.
+                                            </p>
+                                        </div>
+
                                         {Bascule({ section: 'tableau', cle: 'afficherEnteteLot', libelle: 'Afficher l’en-tête de chaque lot' })}
                                         {Bascule({ section: 'tableau', cle: 'afficherSousTotalLot', libelle: 'Afficher le sous-total par lot' })}
 

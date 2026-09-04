@@ -62,6 +62,30 @@ const typographie = (page, racine) => page.evaluate((sel) => {
             const b = z.querySelector('[data-entete-lot="1"]');
             return b ? getComputedStyle(b).paddingTop : null;
         })(),
+        // Le tampon de statut : bandeau pleine largeur avant le 2026-09-04,
+        // tag d'angle discret depuis. On mesure sa LARGEUR : un bandeau occupe
+        // toute la colonne, un tag quelques dizaines de pixels.
+        tagStatut: (() => {
+            const t = [...z.querySelectorAll('div')]
+                .find((d) => /^Statut du document/.test(d.getAttribute('aria-label') || ''));
+            if (!t) return null;
+            const r = t.getBoundingClientRect();
+            const zr = z.getBoundingClientRect();
+            return { largeur: Math.round(r.width), part: r.width / zr.width, position: getComputedStyle(t).position };
+        })(),
+        rayonEntete: (() => {
+            const th = z.querySelector('table thead th');
+            return th ? getComputedStyle(th).borderTopLeftRadius : null;
+        })(),
+        separateurs: (() => {
+            const tb = z.querySelector('table tbody');
+            if (!tb) return null;
+            const lignes = [...tb.querySelectorAll('tr')].filter((t) => !t.querySelector('td[colspan]'));
+            return {
+                filets: tb.className.includes('divide-y'),
+                fonds: [...new Set(lignes.slice(0, 6).map((t) => getComputedStyle(t).backgroundColor))].length
+            };
+        })(),
         celluleHaut: (() => {
             const td = [...z.querySelectorAll('table tbody td')].find((t) => !t.hasAttribute('colspan'));
             return td ? getComputedStyle(td).paddingTop : null;
@@ -285,6 +309,81 @@ export async function run() {
         // l'espace sépare les lots entre eux, il n'ouvre pas le tableau.
         ok(`Le premier lot reste collé à l’en-tête — ${apresEspace.espaceLot1}`,
             apresEspace.espaceLot1 === avantEspace.espaceLot1);
+
+        // Le tag de statut se vérifie dans test_editeur_modeles : c'est là
+        // qu'un devis est passé en brouillon. Le devis de démonstration est
+        // « approuvé », il ne porte donc légitimement aucun tampon.
+        const avecTag = await typographie(page, ED);
+        ok('Un devis approuvé ne porte aucun tag de statut', avecTag.tagStatut === null);
+
+        // ── L'arrondi des angles ──────────────────────────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Général/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1100);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const r = [...d.querySelectorAll('input[type="range"]')]
+                .find((x) => /Arrondi des angles/i.test(x.getAttribute('aria-label') || ''));
+            if (!r) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(r, '0');
+            r.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const carre = await typographie(page, ED);
+        ok(`L’arrondi se règle jusqu’au carré — ${avecTag.rayonEntete} → ${carre.rayonEntete}`,
+            parseFloat(avecTag.rayonEntete) > 0 && parseFloat(carre.rayonEntete) === 0);
+
+        // ── Séparation des lignes ─────────────────────────────────────────
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const b = [...d.querySelectorAll('nav button')].find((x) => /Tableau/.test(x.innerText));
+            if (b) b.click();
+        }, ED);
+        await wait(1100);
+        const choisirSeparation = async (libelle) => {
+            await page.evaluate(({ sel, libelle }) => {
+                const d = document.querySelector(sel);
+                const b = [...d.querySelectorAll('button')].find((x) => {
+                    const t = x.querySelector('span');
+                    return t && t.textContent.trim() === libelle;
+                });
+                if (b) b.click();
+            }, { sel: ED, libelle });
+            await wait(900);
+            return typographie(page, ED);
+        };
+        const filets = await choisirSeparation('Filets');
+        const zebre = await choisirSeparation('Alternée');
+        const aucune = await choisirSeparation('Aucune');
+        ok(`Filets : un trait entre les lignes — divide-y=${filets.separateurs.filets}`,
+            filets.separateurs.filets === true);
+        ok(`Alternée : une ligne sur deux prend un fond — ${zebre.separateurs.fonds} fonds distincts`,
+            zebre.separateurs.filets === false && zebre.separateurs.fonds >= 2);
+        ok(`Aucune : ni trait ni fond — ${aucune.separateurs.fonds} fond(s)`,
+            aucune.separateurs.filets === false && aucune.separateurs.fonds === 1);
+        await choisirSeparation('Filets');
+
+        // ── Respiration sous l'en-tête de lot ─────────────────────────────
+        const avantSousLot = await typographie(page, ED);
+        await page.evaluate((sel) => {
+            const d = document.querySelector(sel);
+            const r = [...d.querySelectorAll('input[type="range"]')]
+                .find((x) => /Espace sous l’en-tête de lot/i.test(x.getAttribute('aria-label') || ''));
+            if (!r) return;
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(r, '24');
+            r.dispatchEvent(new Event('input', { bubbles: true }));
+        }, ED);
+        await wait(900);
+        const apresSousLot = await page.evaluate((sel) => {
+            const z = document.querySelector(sel).querySelector('[data-zone-impression]');
+            const b = z.querySelector('[data-entete-lot="0"]');
+            return b ? getComputedStyle(b).paddingBottom : null;
+        }, ED);
+        ok(`La bande de lot se décolle de ses lignes — ${avantSousLot.espaceLot1} → ${apresSousLot} sous la bande`,
+            parseFloat(apresSousLot) >= 24);
 
         // ── L'aperçu PDF ──────────────────────────────────────────────────
         ok('L’éditeur propose un aperçu PDF sans obliger à enregistrer',

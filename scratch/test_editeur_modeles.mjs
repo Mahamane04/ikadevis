@@ -307,10 +307,24 @@ export async function run() {
         // Le filigrane : rien sur un devis approuvé, un bandeau sur un brouillon.
         // C'est la règle qui compte — un tampon décoratif sur tous les documents
         // n'alerterait plus personne.
+        // 2026-09-04 — Le tampon était un bandeau pleine largeur encadré de
+        // tirets, posé entre l'en-tête et le bloc client. Signalé sur capture :
+        // « enlève-moi ce badge, ce n'est pas professionnel pour le client de
+        // voir ça ». Il est devenu un tag d'angle, hors du flux et absent du
+        // papier. On mesure donc sa PART de largeur : un bandeau prenait toute
+        // la colonne, un tag en prend quelques pour cent.
         const tampon = (page) => page.evaluate(() => {
             const z = document.querySelector('[data-zone-impression]');
-            const t = z && z.querySelector('.fa-stamp');
-            return { present: !!t, libelle: t ? t.parentElement.innerText.trim() : null };
+            const t = z && [...z.querySelectorAll('div')]
+                .find((d) => /^Statut du document/.test(d.getAttribute('aria-label') || ''));
+            if (!t) return { present: false, libelle: null };
+            const r = t.getBoundingClientRect();
+            return {
+                present: true,
+                libelle: t.innerText.trim(),
+                part: r.width / z.getBoundingClientRect().width,
+                position: getComputedStyle(t).position
+            };
         });
 
         const ouvrirPremierDevis = async () => {
@@ -339,6 +353,8 @@ export async function run() {
         const brouillon = await tampon(page);
         ok(`Un brouillon porte son statut — « ${brouillon.libelle} »`,
             brouillon.present && brouillon.libelle === 'BROUILLON');
+        ok(`…en tag d’angle et non en bandeau — ${Math.round(brouillon.part * 100)} % de la largeur`,
+            brouillon.part < 0.25 && brouillon.position === 'absolute');
 
         // 2026-09-04 — Le statut ne se changeait que depuis Chiffrage, sur une
         // pastille posée près des flèches Annuler / Rétablir. C'est pourtant

@@ -3302,3 +3302,50 @@ Le réglage « Afficher le statut du devis » reste coché par défaut — mais 
 porte enfin ce qu'il promet, et se décoche en un clic.
 
 **462/462 au vert, 0 régression, 49 suites, 7 étalons conformes.**
+
+---
+
+## 🎚️ 49. Le badge de statut, et quatre réglages de plus (2026-09-04)
+
+Deux notes annotées sur l'aperçu PDF.
+
+### 49.1 « Enlève-moi ce badge, ce n'est pas professionnel »
+
+> « ça peut être un tag sur le PDF sur le côté angle haut à gauche et invisible
+> à l'impression »
+
+Le tampon était un **bandeau pleine largeur**, encadré de tirets, posé entre
+l'en-tête et le bloc client — impossible à manquer, et le client le voyait le
+premier. C'est maintenant un **tag d'angle** en haut à gauche : 8 px, majuscules
+espacées, couleur de marque à 45 % d'opacité, `position: absolute` donc **hors
+du flux** (il ne pousse plus rien), et `print:hidden` — sur une feuille
+imprimée, il n'a rien à faire.
+
+Mesuré : le bandeau prenait 100 % de la largeur, le tag en prend **11 %**.
+
+### 49.2 « Plus de fonctionnalités d'édit PDF »
+
+> « comme gérer les arrondis, l'espacement entre les cellules des lots et nom
+> d'ouvrage, et plein d'autres que tu peux analyser et ajouter »
+
+Les flèches visaient le bandeau du tableau, la bande « LOT 1 » et la bande
+« FOURNITURES & MATÉRIAUX » — trois niveaux empilés sans un blanc entre eux.
+
+| Réglage | Ce qu'il fait |
+|---|---|
+| `general.rayonCoins` — 0 à 16 px | Angles du bandeau de tableau et du bloc client. À 0, document strictement carré |
+| `tableau.espaceSousLot` — 0 à 24 px | Décolle la bande de lot de ses lignes |
+| `tableau.separateurs` — **filets / alternée / aucune** | Séparation des lignes d'ouvrage |
+
+Le troisième est celui que je propose en plus, et il vaut mieux qu'un réglage
+cosmétique : sur un bordereau de soixante lignes, l'**alternance** évite de
+perdre sa ligne en traversant vers la colonne des montants. La zébrure est
+comptée **en JavaScript**, pas en `nth-child` : les bandes de lot et les
+sous-totaux sont eux aussi des `<tr>`, un sélecteur CSS les rayerait avec les
+ouvrages et décalerait l'alternance à chaque lot.
+
+Avec `espaceLots` (§ 46) et `densite` à trois crans, l'espacement du tableau se
+règle désormais sur trois axes distincts : **dans** la ligne, **entre** les
+lots, et **sous** l'en-tête de lot.
+
+**469/469 au vert, 0 régression, 49 suites, 7 étalons conformes.**
