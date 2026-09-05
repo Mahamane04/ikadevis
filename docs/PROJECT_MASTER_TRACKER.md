@@ -3889,3 +3889,56 @@ issus du même modèle qui ne respiraient pas pareil.
 contrôle a été écrit.
 
 **515/515 au vert, 0 régression, 50 suites, 7 étalons conformes.**
+
+---
+
+## 🔓 59. L'écran de connexion ne défilait plus (2026-09-05)
+
+> « La page de connexion, le scroll n'est plus possible. »
+
+`body { overflow: hidden }` est posé pour l'**application** : sa coquille fait
+100 dvh et gère son propre défilement dans des conteneurs internes ; une barre
+au niveau du document y serait un défaut. Mais cette déclaration **se propage à
+la fenêtre** tant que `html` reste `visible` — et l'écran de connexion, lui,
+n'a aucun conteneur défilant.
+
+Mesuré à 1280 × 620 : **1094 px de contenu pour 620 px de fenêtre**, soit
+**474 px inatteignables** — champ mot de passe, « Se connecter », « Continuer
+avec Google », « Essayer sans compte » et « Créer un compte » compris.
+
+Le compactage des respirations de l'audit du 2026-09-01 réduisait le
+débordement sans le supprimer : en « Créer un compte », avec un message
+d'erreur, ou simplement sur un portable court, l'écran dépasse toujours.
+
+### 59.1 Le correctif
+
+```css
+body:has(.auth-screen) { overflow: auto; }
+```
+
+Portée minimale : `overflow` redevient `auto` **uniquement** quand l'écran de
+connexion est présent, et se propage à la fenêtre puisque `html` reste
+`visible`. Une fois connecté, `.auth-screen` disparaît, le sélecteur ne
+s'applique plus, l'application retrouve son `hidden`. Vérifié dans les deux
+états.
+
+### 59.2 Deux pièges de mesure, rencontrés en diagnostiquant
+
+Ils méritent d'être notés parce qu'ils font conclure **à tort que tout va bien** :
+
+| Mesure trompeuse | Pourquoi elle ne prouve rien |
+|---|---|
+| `scrollHeight > clientHeight` | Vrai même quand le défilement est interdit : `overflow: hidden` signifie « défilable, mais sans mécanisme offert à l'utilisateur » |
+| Écrire `scrollTop` en JavaScript | Réussit **aussi** avec `overflow: hidden` — le défilement programmatique reste permis |
+
+Seul un **vrai événement de molette** prouve que l'utilisateur atteint le bas.
+Le banc utilise `page.mouse.wheel`, et il a d'abord été vérifié **contre le
+défaut** : correctif neutralisé, il passe au rouge sur « la molette fait défiler
+la page — 0 px sur 474 », c'est-à-dire exactement le symptôme signalé.
+
+> Troisième piège, de méthode celui-là : la première mesure lisait un
+> `index.html` **en cache**, et rapportait `overflow: hidden` alors que la règle
+> venait d'être écrite. Un rechargement forcé a levé la contradiction entre
+> « la page défile » et « la règle ne s'applique pas ».
+
+**523/523 au vert, 0 régression, 51 suites, 7 étalons conformes.**
