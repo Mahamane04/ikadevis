@@ -173,7 +173,6 @@ const zoneImpressionVisible = () => {
 // ne la respectaient pas.
 const CATEGORIES_ESTIMATION = [
     { id: 'villa_house', label: 'Construction Villa / Maison', icon: 'fa-house', unit: 'm²', defaultSurface: 440, desc: 'Gros œuvre, second œuvre et finitions' },
-    { id: 'event_stand', label: 'Événementiel & Stands', icon: 'fa-tent', unit: 'm²', defaultSurface: 36, desc: 'Podium, backdrops, bâches, mobilier, régie' },
     { id: 'acm_facade', label: 'Habillage Façade Alucobond / ACM', icon: 'fa-building', unit: 'm²', defaultSurface: 180, desc: 'Panneaux composites, ossature, calepinage' },
     { id: 'signage_branding', label: 'Enseigne & Branding Magasin', icon: 'fa-shop', unit: 'ml', defaultSurface: 6, desc: 'Caissons lumineux LED, totems, adhésifs' },
     { id: 'renovation_paint', label: 'Peinture & Ravalement', icon: 'fa-paint-roller', unit: 'm²', defaultSurface: 350, desc: 'Préparation, peinture satinée et finitions' }
@@ -1867,8 +1866,7 @@ function NewQuoteWizardModal({
         // Build customized quote based on estimate
         const currentYear = new Date().getFullYear();
         let selectedTemplate = R1_TEMPLATE_QUOTE;
-        if (estimateCategory === 'event_stand') selectedTemplate = EVENT_TEMPLATE_QUOTE;
-        else if (estimateCategory === 'acm_facade') selectedTemplate = ACM_FACADE_TEMPLATE_QUOTE;
+        if (estimateCategory === 'acm_facade') selectedTemplate = ACM_FACADE_TEMPLATE_QUOTE;
         else if (estimateCategory === 'signage_branding') selectedTemplate = SIGNAGE_BRANDING_TEMPLATE_QUOTE;
 
         const baseline = CATEGORIES_ESTIMATION.find(c => c.id === estimateCategory)?.defaultSurface || 1;
@@ -2292,17 +2290,6 @@ function AcmCalepinageVisualizer({
 }
 
 
-// Date du brief événement : l'<input type="date"> rend du AAAA-MM-JJ, illisible
-// dans un résumé d'une ligne. Toute valeur non parsable est renvoyée telle
-// quelle plutôt que de faire apparaître « Invalid Date » dans l'en-tête.
-function formatBriefDate(value) {
-    if (!value) return '';
-    const d = new Date(`${value}T00:00:00`);
-    return Number.isNaN(d.getTime())
-        ? value
-        : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
 function QuoteHeader({
     quote,
     clientManquant = false,
@@ -2326,17 +2313,9 @@ function QuoteHeader({
     autosaveTime,
     hasUnsavedChanges,
     isSaving,
-    isReadOnlyDueToDowngrade,
-    onLoadEventTemplate
+    isReadOnlyDueToDowngrade
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    // Brief événement : déplié d'office là où la place existe (≥ lg), replié
-    // sur téléphone. Lu une seule fois au montage, volontairement : une fois
-    // que l'utilisateur a ouvert ou fermé le panneau, son geste prime sur un
-    // simple changement de largeur (rotation de l'écran, clavier virtuel).
-    const [isEventBriefOpen, setIsEventBriefOpen] = useState(
-        () => typeof window !== 'undefined' && window.innerWidth >= 1024
-    );
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -2356,18 +2335,6 @@ function QuoteHeader({
     ];
 
     const currentStatus = statusOptions.find(s => s.value === (quote.status || 'draft')) || statusOptions[0];
-
-    // Résumé affiché quand le brief est replié : uniquement les champs
-    // renseignés, dans l'ordre de lecture du formulaire. Vide tant que rien
-    // n'est saisi — le bandeau invite alors à compléter.
-    const eventDetails = quote.eventDetails || {};
-    const eventBriefSummary = [
-        eventDetails.name,
-        eventDetails.venue,
-        formatBriefDate(eventDetails.date),
-        eventDetails.participants ? `${eventDetails.participants} pers.` : '',
-        eventDetails.responsible
-    ].map(v => String(v || '').trim()).filter(Boolean).join(' · ');
 
     return (
         <header className="bg-white border-b border-neutral-200 px-4 py-3 sticky top-0 z-30 shadow-xs">
@@ -2561,37 +2528,6 @@ function QuoteHeader({
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
-                        <label htmlFor="quote-activity-type" className="sr-only">Type d’activité</label>
-                        <select
-                            id="quote-activity-type"
-                            value={quote.activityType || 'btp'}
-                            onChange={(e) => onUpdateQuote({ activityType: e.target.value })}
-                            // Rangée pleine largeur sur téléphone, comme Client et
-                            // Projet au-dessus. Reste un <select> natif : le sélecteur
-                            // système d'iOS/Android est déjà une vue plein écran, il n'y
-                            // a rien à réimplémenter — contrairement aux comboboxes
-                            // maison, qui reçoivent la classe picker-popover.
-                            className="w-full sm:w-auto bg-white border border-neutral-200 rounded-xl sm:rounded-lg px-3 sm:px-2.5 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none truncate"
-                            aria-label="Type d’activité du devis"
-                        >
-                            <option value="btp">BTP</option>
-                            <option value="communication">Communication</option>
-                            <option value="event">Événementiel</option>
-                        </select>
-                        {quote.activityType === 'event' && (
-                            <button
-                                type="button"
-                                onClick={onLoadEventTemplate}
-                                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[11px] font-bold text-brand-700 hover:bg-brand-100 transition-colors"
-                                title="Préparer les lots événementiels"
-                            >
-                                <i className="fa-solid fa-calendar-plus"></i>
-                                Modèle événement
-                            </button>
-                        )}
-                    </div>
-
                     {/* Indicateur Sauvegarde Auto */}
                     <div className="hidden sm:flex items-center gap-1.5 text-[11px] shrink-0 font-medium ml-auto">
                         {isSaving ? (
@@ -2612,66 +2548,6 @@ function QuoteHeader({
                         )}
                     </div>
                 </div>
-
-                {quote.activityType === 'event' && (
-                    <section className="rounded-xl border border-violet-200 bg-violet-50/60" aria-label="Informations de l’événement">
-                        {/* Repliable depuis le 2026-08-26. Déplié en permanence, ce
-                            brief ajoutait près de 190 px à un en-tête `sticky` : sur un
-                            téléphone de 375 px, en-tête + barre de totaux + barre
-                            d’onglets occupaient la totalité de l’écran et la liste des
-                            lots n’apparaissait plus du tout. Replié, il ne garde qu’une
-                            ligne de résumé : l’information reste sous les yeux pendant
-                            le chiffrage — l’intention d’origine — sans coûter la vue. */}
-                        <button
-                            type="button"
-                            onClick={() => setIsEventBriefOpen(open => !open)}
-                            aria-expanded={isEventBriefOpen}
-                            aria-controls="event-brief-fields"
-                            className="w-full flex items-center gap-2 p-3 sm:p-3.5 text-left rounded-xl hover:bg-violet-100/40 transition-colors"
-                        >
-                            <span className="w-6 h-6 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[11px] shrink-0"><i className="fa-solid fa-calendar-days"></i></span>
-                            <span className="min-w-0 flex-1">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-violet-800">Brief événement</span>
-                                <span className={`block text-[10px] truncate ${eventBriefSummary ? 'text-violet-700 font-semibold' : 'text-violet-700/70'}`}>
-                                    {eventBriefSummary || (isEventBriefOpen
-                                        ? 'Les informations utiles restent visibles pendant le chiffrage.'
-                                        : 'Aucune information saisie — appuyez pour compléter.')}
-                                </span>
-                            </span>
-                            <span className="hidden sm:inline text-[10px] font-bold text-violet-700 bg-white/70 border border-violet-200 rounded-full px-2 py-1 shrink-0">Paiement conseillé : 50 / 30 / 20</span>
-                            <i className={`fa-solid fa-chevron-down text-[10px] text-violet-700 shrink-0 transition-transform ${isEventBriefOpen ? 'rotate-180' : ''}`}></i>
-                        </button>
-
-                        {isEventBriefOpen && (
-                            <div id="event-brief-fields" className="px-3 sm:px-3.5 pb-3 sm:pb-3.5">
-                                {/* La puce de paiement est dans l’entête à partir de sm:,
-                                    où la ligne est assez large ; sous 640 px elle passe
-                                    ici pour ne pas écraser le résumé. */}
-                                <span className="sm:hidden inline-block mb-2 text-[10px] font-bold text-violet-700 bg-white/70 border border-violet-200 rounded-full px-2 py-1">Paiement conseillé : 50 / 30 / 20</span>
-                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-                                    {[
-                                        ['name', 'Nom de l’événement', 'Ex : Gala annuel'],
-                                        ['venue', 'Lieu', 'Ex : Hôtel Azalaï'],
-                                        ['date', 'Date', ''],
-                                        ['participants', 'Participants', 'Ex : 250'],
-                                        ['responsible', 'Responsable', 'Nom du contact']
-                                    ].map(([key, label, placeholder]) => (
-                                        <label key={key} className="min-w-0">
-                                            <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-800/75 mb-1">{label}</span>
-                                            <input
-                                                type={key === 'date' ? 'date' : 'text'}
-                                                value={eventDetails[key] || ''}
-                                                placeholder={placeholder}
-                                                onChange={(e) => onUpdateQuote({ eventDetails: { ...eventDetails, [key]: e.target.value } })}
-                                                className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-800 placeholder-neutral-400 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
-                                            />
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </section>
-                )}
             </div>
         </header>
     );
@@ -3442,7 +3318,6 @@ function WorkItemPicker({
         { id: 'recents', label: '🕘 Récents' },
         { id: 'popular', label: '🔥 Plus Utilisés' },
         { id: 'btp', label: '🏠 BTP & Gros Œuvre' },
-        { id: 'event', label: '🎪 Événementiel & Scéno' },
         { id: 'acm', label: '🏢 Façade & Alucobond' },
         { id: 'signage', label: '🪧 Enseigne & Branding' },
         { id: 'paint', label: '🎨 Peinture & Finitions' },
@@ -3456,7 +3331,6 @@ function WorkItemPicker({
         if (!matchesName && !matchesKeyword) return false;
         if (selectedCategory === 'all') return true;
         if (selectedCategory === 'btp') return s.name.toLowerCase().includes('béton') || s.name.toLowerCase().includes('cadre') || s.name.toLowerCase().includes('btp');
-        if (selectedCategory === 'event') return s.name.toLowerCase().includes('panneau') || s.name.toLowerCase().includes('bâche') || s.name.toLowerCase().includes('podium');
         if (selectedCategory === 'acm') return s.name.toLowerCase().includes('alucobond') || s.name.toLowerCase().includes('plaque') || s.name.toLowerCase().includes('façade');
         if (selectedCategory === 'signage') return s.name.toLowerCase().includes('enseigne') || s.name.toLowerCase().includes('lettre') || s.name.toLowerCase().includes('vinyle') || s.name.toLowerCase().includes('panneau');
         if (selectedCategory === 'paint') return s.name.toLowerCase().includes('peint') || s.name.toLowerCase().includes('enduit');
@@ -5246,15 +5120,6 @@ function QuoteWorkspace({
             return 'bloque';
         }
         setClientManquant(false);
-        if (calculatedQuote.activityType === 'event') {
-            const incompleteEventLines = (calculatedQuote.lots || []).flatMap(lot => (lot.items || [])
-                .filter(item => item.isCustom && !(Number(item.unitPriceHT) > 0))
-                .map(item => item.name || 'Ligne événementielle'));
-            if (incompleteEventLines.length) {
-                showToast(`Tarif à compléter avant l’enregistrement : ${incompleteEventLines[0]}`, "error");
-                return 'bloque';
-            }
-        }
         const doSave = () => {
             const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
             onSaveQuote(savedQ);
@@ -5333,7 +5198,6 @@ function QuoteWorkspace({
             projectId: null,
             projectRef: '',
             status: 'draft',
-            activityType: 'btp',
             vatRate: 18,
             overheadRate: 5,
             margin: 30,
@@ -5388,30 +5252,6 @@ function QuoteWorkspace({
                 hasUnsavedChanges={hasUnsavedChanges}
                 isSaving={isSaving}
                 isReadOnlyDueToDowngrade={isReadOnlyDueToDowngrade}
-                onLoadEventTemplate={() => {
-                    const current = hybridQuote;
-                    const template = JSON.parse(JSON.stringify(EVENT_TEMPLATE_QUOTE));
-                    pushState();
-                    setHybridQuote({
-                        ...template,
-                        id: current.id,
-                        // Fix "doublon à chaque Enregistrer" (2026-08-30) — ce
-                        // handler garde l'identité du devis en cours (id/numéro/
-                        // client) en changeant seulement ses lots ; sans reporter
-                        // serverId aussi, un devis déjà sauvegardé perdrait son
-                        // identité serveur et le prochain "Enregistrer" le
-                        // dupliquerait au lieu de le mettre à jour.
-                        serverId: current.serverId,
-                        number: current.number,
-                        clientId: current.clientId,
-                        clientName: current.clientName,
-                        projectId: current.projectId,
-                        projectRef: current.projectRef || template.projectRef,
-                        activityType: 'event'
-                    });
-                    setActiveLotIndex(0);
-                    showToast('Modèle événementiel chargé : 4 lots prêts à personnaliser', 'success');
-                }}
             />
             </div>
 
@@ -8476,7 +8316,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             projectId: null,
             projectRef: '',
             status: 'draft',
-            activityType: 'btp',
             vatRate: 18,
             overheadRate: 5,
             margin: 30,
@@ -9324,7 +9163,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             projectId: null,
             projectRef: 'Construction Siège NBB',
             status: 'approved',
-            activityType: 'btp',
             vatRate: 18,
             overheadRate: 5,
             margin: 30,
@@ -9407,7 +9245,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 15, name: 'Alimentation étanche LED MeanWell 12V 200W', category: 'Électricité', unitBuy: 'Unité', unitSize: 1, unitCalc: 'u', priceBuy: 24000, priceCalc: 24000, waste: 0, yieldRate: 0, purchaseMode: 'real' },
     { id: 16, name: 'Plaque Plexiglas Acrylique Diffusant 3mm', category: 'Support', unitBuy: 'Plaque (3m²)', unitSize: 3, unitCalc: 'm²', priceBuy: 36000, priceCalc: 12000, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
     { id: 17, name: 'Bâche PVC 510g M1 Anti-reflet HD', category: 'Impression', unitBuy: 'm²', unitSize: 1, unitCalc: 'm²', priceBuy: 4500, priceCalc: 4500, waste: 5, yieldRate: 0, purchaseMode: 'real' },
-    { id: 18, name: 'Moquette Événementielle Velours M1', category: 'Revêtement', unitBuy: 'm²', unitSize: 1, unitCalc: 'm²', priceBuy: 4000, priceCalc: 4000, waste: 8, yieldRate: 0, purchaseMode: 'real' },
     { id: 19, name: 'Tube carré galvanisé 40x40 Ossature Façade', category: 'Fer', unitBuy: 'Barre (6m)', unitSize: 6, unitCalc: 'm', priceBuy: 15000, priceCalc: 2500, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
     { id: 20, name: 'Chevilles chimiques & Fixations M10', category: 'Quincaillerie', unitBuy: 'Kit', unitSize: 1, unitCalc: 'u', priceBuy: 1500, priceCalc: 1500, waste: 5, yieldRate: 0, purchaseMode: 'real' },
     { id: 21, name: 'Plaque de plâtre BA13 standard 2.50m x 1.20m', category: 'Plâtrerie', unitBuy: 'Plaque (3m²)', unitSize: 3, unitCalc: 'm²', priceBuy: 6500, priceCalc: 2166.67, waste: 8, yieldRate: 0, purchaseMode: 'pack' },
@@ -9455,7 +9292,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     { id: 11, name: 'Fabrication et pose menuiserie aluminium', calcMode: 'unite', unit: 'u', rate: 25000, yieldRate: 0 },
     { id: 12, name: 'Usinage rainurage V et pose cassette Alucobond', calcMode: 'surface', unit: 'm²', rate: 8500, yieldRate: 0 },
     { id: 13, name: 'Câblage électrique, modules LED et alimentation', calcMode: 'unite', unit: 'u', rate: 25000, yieldRate: 0 },
-    { id: 14, name: 'Pose moquette événementielle avec adhésif', calcMode: 'surface', unit: 'm²', rate: 1200, yieldRate: 150 },
     { id: 15, name: 'Pose cloisons Placostil BA13 & bandes à joint', calcMode: 'surface', unit: 'm²', rate: 3500, yieldRate: 20 },
     { id: 16, name: 'Pose faux-plafond suspendu BA13 avec suspentes', calcMode: 'surface', unit: 'm²', rate: 4200, yieldRate: 18 },
     { id: 17, name: 'Application enduit ciment hydrofuge 2 passes', calcMode: 'surface', unit: 'm²', rate: 2800, yieldRate: 25 },
@@ -9551,15 +9387,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // La formule hybride fonctionne en volume ou en surface ; le moteur
         // conserve VOLUME=0 en surface pour activer la branche de secours.
         allowedModes: ['surface', 'volume'],
-        customVars: []
-    },
-    {
-        id: 11,
-        name: 'Scénographie Backdrop & Bâche Tendue HD Événementielle',
-        icon: 'fa-image',
-        // PERIMETRE est requis par la structure : le mode surface seul ne
-        // fournit pas cette dimension de façon fiable.
-        allowedModes: ['rectangle'],
         customVars: []
     },
     {
@@ -9722,12 +9549,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     // Solution 10: Terrassement & Fouilles
     { id: 38, solutionId: 10, type: 'labor', refId: 6, formula: 'VOLUME > 0 ? VOLUME : (SURFACE * 0.5)', label: 'Terrassement et évacuation décharge', costCategory: 'labor' },
-
-    // Solution 11: Scénographie Backdrop
-    { id: 39, solutionId: 11, type: 'material', refId: 1, formula: 'PERIMETRE + 12', label: 'Structure métallique tubulaire autoportante', costCategory: 'material' },
-    { id: 40, solutionId: 11, type: 'material', refId: 17, formula: 'SURFACE', label: 'Bâche PVC 510g M1 Anti-reflet HD', costCategory: 'material' },
-    { id: 41, solutionId: 11, type: 'labor', refId: 1, formula: '1', label: 'Soudure et platines de lestage', costCategory: 'labor' },
-    { id: 42, solutionId: 11, type: 'labor', refId: 4, formula: '1', label: 'Montage et tension sur site', costCategory: 'installation' },
 
     // Solution 12: Cloison Placostil BA13 72/48
     { id: 43, solutionId: 12, type: 'material', refId: 21, formula: 'SURFACE * 2', label: 'Plaques de plâtre BA13 (2 faces)', costCategory: 'material' },
@@ -11179,10 +11000,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Enregistrer ; l'utilisateur a demandé qu'on lui propose d'enregistrer.
     // On appelle l'enregistrement RÉEL de l'atelier (publié via
     // onRegisterSave) et non une copie : il valide le nom du client et gère
-    // la confirmation d'écrasement. S'il refuse — client manquant, tarif
-    // événementiel incomplet — `devisNonEnregistre` reste vrai et on RESTE sur
-    // le chiffrage, l'erreur affichée. Naviguer quand même reviendrait à
-    // perdre le devis en prétendant l'avoir sauvé.
+    // la confirmation d'écrasement. S'il refuse — client manquant —
+    // `devisNonEnregistre` reste vrai et on RESTE sur le chiffrage, l'erreur
+    // affichée. Naviguer quand même reviendrait à perdre le devis en
+    // prétendant l'avoir sauvé.
     const enregistrerChiffrageRef = React.useRef(null);
 
     const naviguerVers = React.useCallback((vue) => {
@@ -12872,7 +12693,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 number: generateNextQuoteNumber(savedQuotes),
                                 clientId: null, clientName: '',
                                 projectId: null, projectRef: '',
-                                status: 'draft', activityType: 'btp',
+                                status: 'draft',
                                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
                                 discountRate: 0, notes: '',
                                 lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation & Gros Œuvre', items: [] }]

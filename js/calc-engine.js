@@ -1154,18 +1154,12 @@ function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
     const salesMultiplierK = totalDebourse > 0 ? parseFloat((totalNetHT / totalDebourse).toFixed(3)) : 1.0;
     const profitabilityStatus = globalMarginPct < 15 ? 'warning' : 'healthy';
 
-    const paymentSchedule = quote.activityType === 'event'
-        ? {
-            deposit: { pct: 50, label: 'Acompte à la commande (50%)', amount: Math.round(totalTTC * 0.50) },
-            preEvent: { pct: 30, label: 'Avant l’événement (30%)', amount: Math.round(totalTTC * 0.30) },
-            installation: { pct: 20, label: 'Après installation (20%)', amount: Math.round(totalTTC * 0.20) }
-        }
-        : {
-            deposit: { pct: 40, label: 'Acompte à la commande (40%)', amount: Math.round(totalTTC * 0.40) },
-            midterm: { pct: 30, label: 'Situation intermédiaire / Hors d’eau (30%)', amount: Math.round(totalTTC * 0.30) },
-            finishes: { pct: 20, label: 'Second œuvre & Finitions (20%)', amount: Math.round(totalTTC * 0.20) },
-            balance: { pct: 10, label: 'Solde à la réception des travaux (10%)', amount: Math.round(totalTTC * 0.10) }
-        };
+    const paymentSchedule = {
+        deposit: { pct: 40, label: 'Acompte à la commande (40%)', amount: Math.round(totalTTC * 0.40) },
+        midterm: { pct: 30, label: 'Situation intermédiaire / Hors d’eau (30%)', amount: Math.round(totalTTC * 0.30) },
+        finishes: { pct: 20, label: 'Second œuvre & Finitions (20%)', amount: Math.round(totalTTC * 0.20) },
+        balance: { pct: 10, label: 'Solde à la réception des travaux (10%)', amount: Math.round(totalTTC * 0.10) }
+    };
 
     return {
         ...quote,
@@ -1347,7 +1341,6 @@ function calculateQuickEstimate({ category = 'villa_house', surface = 150, quali
     const ratesPerM2 = {
         villa_house: { eco: 180000, standard: 260000, premium: 380000 },
         renovation_paint: { eco: 3500, standard: 6000, premium: 11000 },
-        event_stand: { eco: 35000, standard: 65000, premium: 120000 },
         acm_facade: { eco: 45000, standard: 75000, premium: 110000 },
         signage_branding: { eco: 80000, standard: 150000, premium: 280000 }
     };
