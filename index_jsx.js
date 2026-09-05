@@ -489,204 +489,230 @@ function AuthScreen({ onAuthSuccess }) {
         }
     };
 
+    // Contenu de l'aperçu de calcul, partagé entre le panneau de marque
+    // (desktop) et — recalculé ci-dessous — nulle part ailleurs : sur
+    // mobile ce panneau est simplement masqué (voir plus bas), pas rejoué
+    // en plus petit, pour ne pas alourdir la colonne qui compte vraiment
+    // sur un écran de téléphone : le formulaire.
+    const apercuLigneDevis = (
+        <div className="app-card p-4 text-left" aria-label="Aperçu d’une ligne de devis">
+            <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-neutral-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Ligne de devis</span>
+                <span className="text-[10px] font-mono text-neutral-500">au métré</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 py-2.5">
+                <span className="text-xs font-semibold text-neutral-900 truncate">Maçonnerie en murs d’agglos de 15</span>
+                <span className="text-xs font-mono text-neutral-700 shrink-0">120&nbsp;m²</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-neutral-100 text-center">
+                {[['Déboursé', '122 760'], ['Coeff K', '1,5'], ['Net HT', '184 140'], ['Marge', '+30 %']].map(([libelle, valeur]) => (
+                    <div key={libelle}>
+                        <span className="block text-[9px] uppercase tracking-wider text-neutral-500">{libelle}</span>
+                        <span className="block text-[11px] font-mono font-bold text-neutral-900 mt-0.5">{valeur}</span>
+                    </div>
+                ))}
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-2.5 leading-relaxed">
+                Vous saisissez le métré. Le reste — quantités de matières, pertes,
+                conditionnements, main-d’œuvre, marge — est calculé.
+            </p>
+        </div>
+    );
+
     return (
-        // Audit UX (2026-08-31) — `min-h-screen` bornait le dégradé à 100vh alors
-        // que le contenu mesure ~787 px : dès 720 px de fenêtre la page glissait,
-        // découvrant le fond clair du <body> en haut et poussant le logo hors de
-        // l'écran au premier clic. `min-height: 100%` + le dégradé posé aussi sur
-        // le body couvrent toute la hauteur réelle, quelle qu'elle soit.
         // Audit UX (2026-09-02) — audit sémantique : cet écran n'avait aucun
         // repère de page (<main>), aucun h1, et ses deux champs portaient des
         // <label> NON associés (ni `for`/`id`, ni imbrication) — un lecteur
         // d'écran les annonçait donc sans nom. Le reste de l'application était
         // déjà propre sur ces points ; seul le seuil d'entrée ne l'était pas.
-        <main className="auth-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                {/* Logo */}
-                <div className="auth-logo text-center mb-10">
-                    {/* 2026-08-21 — Cet écran n'affichait pas le logo : une icône
-                        décorative (triangle + cercle dans un carré rouge) et le nom
-                        en texte, sans rapport avec la marque réelle. Remplacé par
-                        LogoSVG, qui porte déjà le mot-symbole — d'où la suppression
-                        du <h1>. En blanc, le fond étant sombre. */}
-                    <LogoSVG className="h-12 w-auto inline-block text-brand-400" />
-                    {/* Audit UX (2026-08-31) — la page d'accueil du produit était un mur
-                        d'authentification : rien n'y disait ce que fait ikadevis, et
-                        « ERP » range mentalement le produit du côté « logiciel de
-                        comptable » pour un artisan. On dit ce qu'on fait, pour qui,
-                        et en combien de temps. */}
-                    <h1 className="sr-only">ikadevis — calculateur de devis BTP</h1>
-                    <p className="text-white font-bold text-lg mt-5 leading-snug">
-                        Chiffrez un devis BTP au métré,<br className="hidden sm:block" /> et sortez le PDF client.
-                    </p>
-                    <p className="text-neutral-300 text-sm mt-2 leading-relaxed">
+        //
+        // 2026-09-05 — Refonte complète : « trop chargé, ne répond pas à la
+        // charte du système de design ikadevis ». L'écran vivait dans son
+        // propre langage visuel (fond sombre en dégradé, carte en verre
+        // dépoli, CTA en dégradé bleu avec halo lumineux) sans rapport avec
+        // le reste de l'application — claire, cartes `.app-card` blanches,
+        // bleu `brand` réservé aux accents (textes/bordures/fonds pâles),
+        // action principale quasi noire (`.btn-primary`, voir index.html).
+        // Tout ci-dessous réutilise ces mêmes classes globales plutôt que
+        // de leur inventer un double sombre.
+        // Le contenu, lui, était empilé dans une seule colonne étroite :
+        // logo, accroche, sous-texte, aperçu de calcul, PUIS le formulaire,
+        // PUIS Google, PUIS l'essai sans compte, PUIS un paragraphe
+        // « avec un compte : … », PUIS les liens — neuf blocs de texte
+        // avant d'atteindre le bas. La mise en avant du produit (accroche +
+        // aperçu + bénéfices du compte) part désormais dans un panneau
+        // séparé, affiché à côté du formulaire sur grand écran (≥ 1024px)
+        // et simplement masqué sur téléphone plutôt que compacté encore une
+        // fois — le formulaire, lui, ne perd aucun champ, aucune option.
+        <main className="auth-screen flex items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-4xl lg:flex lg:items-stretch lg:gap-8">
+
+                {/* Panneau de marque — masqué sous 1024px : c'est le formulaire,
+                    pas l'argumentaire, qui doit tenir sans détour sur un
+                    téléphone. `brand-50` est le fond pâle déjà réservé à
+                    l'accent dans tout le reste de l'app (tailwind.config.js). */}
+                <div className="hidden lg:flex lg:w-1/2 flex-col justify-center bg-brand-50 rounded-3xl p-10">
+                    <LogoSVG className="h-10 w-auto text-neutral-900" />
+                    <h1 className="text-neutral-900 font-bold text-2xl mt-6 leading-snug text-balance">
+                        Chiffrez un devis BTP au métré, et sortez le PDF client.
+                    </h1>
+                    <p className="text-neutral-600 text-sm mt-3 leading-relaxed max-w-sm">
                         Matières, main-d'œuvre, pertes et marge calculées pour vous —
                         du déboursé sec au total TTC.
                     </p>
-
-                    {/* Audit UX (2026-09-02) — le visiteur ne voyait RIEN du produit
-                        avant de s'authentifier : ni écran, ni exemple. Cet aperçu
-                        montre ce qui se passe réellement — une ligne de devis au métré
-                        et la chaîne de calcul qu'elle alimente. Écrit en HTML plutôt
-                        qu'en capture : il reste lisible, sélectionnable, traduisible,
-                        il ne pèse rien et ne se périme pas à la prochaine passe UI.
-                        Les montants sont ceux du devis d'exemple réel de la démo. */}
-                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left" aria-label="Aperçu d’une ligne de devis">
-                        <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-white/10">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Ligne de devis</span>
-                            <span className="text-[10px] font-mono text-neutral-400">au métré</span>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-3 py-2.5">
-                            <span className="text-xs font-semibold text-white truncate">Maçonnerie en murs d’agglos de 15</span>
-                            <span className="text-xs font-mono text-neutral-200 shrink-0">120&nbsp;m²</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/10 text-center">
-                            {[['Déboursé', '122 760'], ['Coeff K', '1,5'], ['Net HT', '184 140'], ['Marge', '+30 %']].map(([libelle, valeur]) => (
-                                <div key={libelle}>
-                                    <span className="block text-[9px] uppercase tracking-wider text-neutral-400">{libelle}</span>
-                                    <span className="block text-[11px] font-mono font-bold text-white mt-0.5">{valeur}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[10px] text-neutral-400 mt-2.5 leading-relaxed">
-                            Vous saisissez le métré. Le reste — quantités de matières, pertes,
-                            conditionnements, main-d’œuvre, marge — est calculé.
-                        </p>
-                    </div>
+                    <div className="mt-7 max-w-sm">{apercuLigneDevis}</div>
+                    {/* Ce qu'apporte un compte par rapport au mode invité — avant
+                        c'était un paragraphe planté au milieu du formulaire ; ici
+                        c'est un argument du panneau de marque, à sa place. */}
+                    <ul className="mt-7 space-y-2 text-sm text-neutral-700 max-w-sm">
+                        {['Vos devis sur tous vos appareils', 'Factures numérotées, valeur légale', 'Votre logo sur vos PDF clients'].map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                                <i className="fa-solid fa-check text-brand-600 text-xs mt-1"></i>
+                                <span>{item}</span>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
 
-                {/* Card */}
-                <div className="auth-card bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-                    <h2 className="text-white font-semibold text-xl mb-1">
-                        {mode === 'login' ? 'Connexion' : mode === 'signup' ? 'Créer un compte' : 'Réinitialiser le mot de passe'}
-                    </h2>
-                    <p className="text-neutral-400 text-sm font-medium mb-6">
-                        {mode === 'login' ? 'Accédez à votre espace de travail BTP.' : mode === 'signup' ? 'Commencez à chiffrer vos projets.' : 'Entrez votre email pour recevoir un lien.'}
-                    </p>
+                <div className="w-full max-w-md mx-auto lg:mx-0 lg:w-1/2 lg:max-w-none flex flex-col justify-center py-10 lg:py-0">
+                    {/* En-tête compact, uniquement sous 1024px : le panneau de
+                        marque ci-dessus porte la même accroche en grand. */}
+                    <div className="auth-logo lg:hidden text-center mb-8">
+                        <LogoSVG className="h-10 w-auto inline-block text-neutral-900" />
+                        <p className="text-neutral-900 font-bold text-base mt-4 leading-snug">
+                            Chiffrez un devis BTP au métré, et sortez le PDF client.
+                        </p>
+                    </div>
 
-                    {error && <div role="alert" aria-live="assertive" className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{error}</div>}
-                    {info && <div role="status" aria-live="polite" className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{info}</div>}
+                    <div className="auth-card app-card p-6 sm:p-8">
+                        <h2 className="text-neutral-900 font-semibold text-xl mb-1">
+                            {mode === 'login' ? 'Connexion' : mode === 'signup' ? 'Créer un compte' : 'Réinitialiser le mot de passe'}
+                        </h2>
+                        <p className="text-neutral-500 text-sm font-medium mb-6">
+                            {mode === 'login' ? 'Accédez à votre espace de travail BTP.' : mode === 'signup' ? 'Commencez à chiffrer vos projets.' : 'Entrez votre email pour recevoir un lien.'}
+                        </p>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {mode === 'signup' && (
+                        {error && <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{error}</div>}
+                        {info && <div role="status" aria-live="polite" className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{info}</div>}
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {mode === 'signup' && (
+                                <div>
+                                    <label htmlFor="auth-org" className="app-label">Nom de l'organisation</label>
+                                    <input id="auth-org" type="text" value={orgName} onChange={e=>setOrgName(e.target.value)} required
+                                        className="app-input"
+                                        placeholder="Ex: BATI SARL, BTP Constructions…" />
+                                </div>
+                            )}
                             <div>
-                                <label htmlFor="auth-org" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Nom de l'organisation</label>
-                                <input id="auth-org" type="text" value={orgName} onChange={e=>setOrgName(e.target.value)} required
-                                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                    placeholder="Ex: BATI SARL, BTP Constructions…" />
+                                <label htmlFor="auth-email" className="app-label">Email</label>
+                                <input id="auth-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required
+                                    className="app-input"
+                                    placeholder="vous@entreprise.com" />
                             </div>
-                        )}
-                        <div>
-                            <label htmlFor="auth-email" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Email</label>
-                            <input id="auth-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required
-                                className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                placeholder="vous@entreprise.com" />
-                        </div>
+                            {mode !== 'reset' && (
+                                <div>
+                                    <label htmlFor="auth-password" className="app-label">Mot de passe</label>
+                                    {/* Audit UX (2026-08-31) — minLength s'appliquait AUSSI à la
+                                        connexion : un compte créé avant cette règle ne pouvait
+                                        littéralement pas soumettre le formulaire, le navigateur
+                                        bloquant l'envoi avant tout appel réseau. La contrainte
+                                        n'a de sens qu'à la création du mot de passe. */}
+                                    <input id="auth-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
+                                        className="app-input"
+                                        placeholder={mode === 'signup' ? 'Minimum 8 caractères' : '••••••••'} />
+                                </div>
+                            )}
+                            {mode === 'signup' && (
+                                /* Audit UX (2026-08-31) — la création de compte ne
+                                   demandait aucune acceptation et n'exposait aucun lien
+                                   légal. Case décochée par défaut, obligatoire : un
+                                   consentement pré-coché n'en est pas un.
+                                   ⚠️ Les URL ci-dessous sont des espaces réservés : à
+                                   remplacer par vos pages réelles avant mise en ligne. */
+                                <label className="flex items-start gap-2.5 text-neutral-500 text-xs leading-snug cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        required
+                                        checked={cguAcceptees}
+                                        onChange={e => setCguAcceptees(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500/40"
+                                    />
+                                    <span>
+                                        J’accepte les <a href="/conditions" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">conditions d’utilisation</a> et la <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">politique de confidentialité</a>.
+                                    </span>
+                                </label>
+                            )}
+                            {/* Le CTA du formulaire réutilise .btn-primary — la SEULE action
+                                quasi-noire de toute l'application (index.html). Il n'y a plus
+                                de dégradé bleu ni de halo lumineux qui lui étaient propres :
+                                le bleu `brand` reste un accent, jamais un aplat de bouton. */}
+                            <button type="submit" disabled={loading}
+                                className="btn-primary w-full py-3.5 text-sm disabled:opacity-50">
+                                {loading ? <><i className="fa-solid fa-spinner fa-spin"></i>Connexion en cours…</>
+                                    : mode === 'login' ? 'Se connecter'
+                                    : mode === 'signup' ? 'Créer mon compte'
+                                    : 'Envoyer le lien'}
+                            </button>
+                        </form>
+
                         {mode !== 'reset' && (
-                            <div>
-                                <label htmlFor="auth-password" className="block text-neutral-300 text-xs font-bold uppercase tracking-wider mb-1.5">Mot de passe</label>
-                                {/* Audit UX (2026-08-31) — minLength s'appliquait AUSSI à la
-                                    connexion : un compte créé avant cette règle ne pouvait
-                                    littéralement pas soumettre le formulaire, le navigateur
-                                    bloquant l'envoi avant tout appel réseau. La contrainte
-                                    n'a de sens qu'à la création du mot de passe. */}
-                                <input id="auth-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
-                                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm font-medium placeholder-neutral-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                    placeholder={mode === 'signup' ? 'Minimum 8 caractères' : '••••••••'} />
-                            </div>
+                            <>
+                                <div className="auth-sep flex items-center gap-3 my-5">
+                                    <div className="flex-1 h-px bg-neutral-200"></div>
+                                    <span className="text-neutral-400 text-[11px] font-bold uppercase tracking-wider">ou</span>
+                                    <div className="flex-1 h-px bg-neutral-200"></div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleGoogleAuth}
+                                    disabled={googleLoading}
+                                    aria-label={mode === 'signup' ? "S'inscrire avec Google" : 'Se connecter avec Google'}
+                                    className="btn-secondary w-full py-3 text-sm disabled:opacity-50"
+                                >
+                                    {googleLoading
+                                        ? <i className="fa-solid fa-spinner fa-spin"></i>
+                                        : <span className="text-[#4285F4] inline-flex"><svg className="icone-marque" viewBox="0 0 488 512" aria-hidden="true" focusable="false"><path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"/></svg></span>}
+                                    {mode === 'signup' ? "S'inscrire avec Google" : 'Continuer avec Google'}
+                                </button>
+                            </>
                         )}
-                        {mode === 'signup' && (
-                            /* Audit UX (2026-08-31) — la création de compte ne
-                               demandait aucune acceptation et n'exposait aucun lien
-                               légal. Case décochée par défaut, obligatoire : un
-                               consentement pré-coché n'en est pas un.
-                               ⚠️ Les URL ci-dessous sont des espaces réservés : à
-                               remplacer par vos pages réelles avant mise en ligne. */
-                            <label className="flex items-start gap-2.5 text-neutral-400 text-xs leading-snug cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    required
-                                    checked={cguAcceptees}
-                                    onChange={e => setCguAcceptees(e.target.checked)}
-                                    className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-500/40"
-                                />
-                                <span>
-                                    J’accepte les <a href="/conditions" target="_blank" rel="noopener noreferrer" className="text-brand-400 underline">conditions d’utilisation</a> et la <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-brand-400 underline">politique de confidentialité</a>.
-                                </span>
-                            </label>
-                        )}
-                        <button type="submit" disabled={loading}
-                            className="w-full py-3.5 rounded-xl font-bold text-white text-sm tracking-wide transition-all active:scale-95 disabled:opacity-50"
-                            style={{background: loading ? '#666' : 'linear-gradient(135deg, #3b5bdb, #1e3a8a)', boxShadow: '0 4px 20px rgba(37,99,235,0.4)'}}>
-                            {loading ? <span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Connexion en cours…</span>
-                                : mode === 'login' ? 'Se connecter →'
-                                : mode === 'signup' ? 'Créer mon compte →'
-                                : 'Envoyer le lien →'}
-                        </button>
-                    </form>
 
-                    {mode !== 'reset' && (
-                        <>
-                            <div className="auth-sep flex items-center gap-3 my-5">
-                                <div className="flex-1 h-px bg-white/10"></div>
-                                <span className="text-neutral-400 text-[11px] font-bold uppercase tracking-wider">ou</span>
-                                <div className="flex-1 h-px bg-white/10"></div>
-                            </div>
+                        <div className="mt-5 pt-5 border-t border-neutral-100 flex flex-col gap-3 text-center">
+                            {/* Audit UX (2026-08-31) — ce chemin est le seul utile à un
+                                visiteur sans compte : il reste plein-largeur et nommé par
+                                ce qu'il fait. 2026-09-05 — coloré en `brand-50/700` (le
+                                fond pâle et le texte d'accent déjà réservés à `brand` dans
+                                toute l'app) plutôt qu'en blanc plein : visible sans se
+                                confondre avec l'action principale du formulaire au-dessus,
+                                qui reste la seule à porter `.btn-primary`. */}
                             <button
                                 type="button"
-                                onClick={handleGoogleAuth}
-                                disabled={googleLoading}
-                                aria-label={mode === 'signup' ? "S'inscrire avec Google" : 'Se connecter avec Google'}
-                                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-neutral-800 bg-white hover:bg-neutral-100 transition-all border border-white/20 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+                                onClick={() => onAuthSuccess({ user: { id: 'guest', email: 'invite@local.app' } })}
+                                className="w-full py-3.5 px-4 rounded-xl font-semibold text-sm text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-100 transition-all flex items-center justify-center gap-2.5"
                             >
-                                {googleLoading
-                                    ? <i className="fa-solid fa-spinner fa-spin"></i>
-                                    : <span className="text-[#4285F4] inline-flex"><svg className="icone-marque" viewBox="0 0 488 512" aria-hidden="true" focusable="false"><path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"/></svg></span>}
-                                {mode === 'signup' ? "S'inscrire avec Google" : 'Continuer avec Google'}
+                                <i className="fa-solid fa-play text-emerald-600"></i>
+                                Essayer sans compte
                             </button>
-                        </>
-                    )}
-
-                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 text-center">
-                        {/* Audit UX (2026-08-31) — ce bouton était le plus sombre, le plus
-                            petit et le plus bas de l'écran, alors qu'il est le seul chemin
-                            utile à un visiteur sans compte. Il portait aussi trois noms
-                            pour une seule chose. Remonté en action pleine et nommé par ce
-                            qu'il fait, avec ce qu'il coûte : rien. */}
-                        <button
-                            type="button"
-                            onClick={() => onAuthSuccess({ user: { id: 'guest', email: 'invite@local.app' } })}
-                            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-neutral-900 bg-white hover:bg-neutral-100 transition-all flex items-center justify-center gap-2.5 active:scale-95"
-                        >
-                            <i className="fa-solid fa-play text-emerald-600"></i>
-                            Essayer sans compte
-                        </button>
-                        <p className="text-neutral-300 text-[11px] leading-relaxed -mt-1">
-                            Un devis d'exemple s'ouvre déjà chiffré. Rien n'est envoyé, rien n'est publié.
-                        </p>
-                        {mode === 'login' && (<>
-                            {/* Ce que l'on gagne à créer un compte — rien ne le disait,
-                                nulle part dans le parcours démo. */}
-                            <p className="text-neutral-300 text-[11px] leading-relaxed">
-                                <span className="font-semibold text-neutral-200">Avec un compte :</span> vos devis sur tous
-                                vos appareils, vos factures numérotées avec valeur légale, votre logo sur les PDF.
+                            <p className="text-neutral-400 text-[11px] leading-relaxed -mt-1">
+                                Devis d'exemple déjà chiffré · rien n'est envoyé
                             </p>
-                            <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-300 hover:text-white text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-300 underline underline-offset-2">Créer un compte</span></button>
-                            <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-400 hover:text-white text-xs font-medium transition-colors py-2 px-2 -mx-2 rounded-lg">Mot de passe oublié ?</button>
-                        </>)}
-                        {mode !== 'login' && (
-                            <button onClick={()=>{setMode('login');setError(null);}} className="text-neutral-400 hover:text-white text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">← Retour à la connexion</button>
-                        )}
+                            {mode === 'login' && (
+                                <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-600 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-600 underline underline-offset-2">Créer un compte</span></button>
+                            )}
+                            {mode === 'login' && (
+                                <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-400 hover:text-neutral-700 text-xs font-medium transition-colors py-2 px-2 -mx-2 rounded-lg">Mot de passe oublié ?</button>
+                            )}
+                            {mode !== 'login' && (
+                                <button onClick={()=>{setMode('login');setError(null);}} className="text-neutral-500 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">← Retour à la connexion</button>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Audit UX (2026-08-31) — « Sécurisé par Supabase Auth & RLS » : un signal
-                    de confiance écrit pour un développeur. Le client visé — un entrepreneur
-                    BTP — ne connaît ni Supabase ni la RLS, et ce texte échouait au contraste
-                    (3,39:1). Remplacé par ce qui le rassure vraiment, et lisible. */}
-                <p className="auth-footnote text-center text-neutral-300 text-xs font-medium mt-6">
-                    Vos devis restent les vôtres · Aucune carte bancaire pour essayer
-                </p>
+                    <p className="auth-footnote text-center text-neutral-500 text-xs font-medium mt-6">
+                        Vos devis restent les vôtres · Aucune carte bancaire pour essayer
+                    </p>
+                </div>
             </div>
         </main>
     );

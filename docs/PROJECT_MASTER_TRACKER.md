@@ -3942,3 +3942,95 @@ la page — 0 px sur 474 », c'est-à-dire exactement le symptôme signalé.
 > « la page défile » et « la règle ne s'applique pas ».
 
 **523/523 au vert, 0 régression, 51 suites, 7 étalons conformes.**
+
+## 🎨 60. L'écran de connexion refondu pour respecter la charte « Encre » (2026-09-05)
+
+> « Je trouve [la page de connexion] trop chargée et [elle] ne répond pas [à
+> la] charte du système de design ikadevis. »
+
+### 60.1 Le constat
+
+L'écran de connexion (`AuthScreen`) vivait dans son **propre langage visuel**,
+sans rapport avec le reste de l'application :
+
+| | Écran de connexion (avant) | Reste de l'application |
+|---|---|---|
+| Fond | dégradé sombre `#0f172a → #171717 → #0a1a3a` | clair, `#f1f5f9` |
+| Carte | verre dépoli — `bg-white/5 backdrop-blur-xl border-white/10` | `.app-card` — blanc plein, bordure `neutral-200/80`, `shadow-app` |
+| Action principale | dégradé bleu + halo lumineux — `linear-gradient(#3b5bdb,#1e3a8a)` + `box-shadow … rgba(37,99,235,0.4)` | `.btn-primary` — quasi noir `#111827`, aucun dégradé, aucun halo |
+| Champs | `bg-white/5 border-white/10 text-white` | `.app-input` — `bg-neutral-50 border-neutral-200` |
+
+Le point le plus net : la décision « Encre » du 2026-08-21
+(`tailwind.config.js`) fait du bleu `brand` un **accent** — texte, bordures,
+fonds pâles — et de l'action principale une couleur **quasi noire**,
+précisément pour ne plus avoir un bleu saturé partout. L'écran de connexion
+faisait l'inverse exact : bleu en aplat de bouton avec halo, jamais utilisé
+nulle part ailleurs dans l'app.
+
+Le contenu, lui, empilait neuf blocs de texte dans une seule colonne étroite
+avant d'atteindre le bas : logo, accroche, sous-texte, aperçu de calcul, le
+formulaire, le séparateur « ou », Google, l'essai sans compte, un paragraphe
+« avec un compte : … », puis les liens — d'où le « trop chargé ».
+
+### 60.2 Le correctif
+
+**Réutilisation stricte des classes globales** plutôt qu'un double sombre :
+`.app-card`, `.app-input`, `.app-label`, `.btn-primary`, `.btn-secondary`
+(toutes déclarées dans `index.html`, chargées par le reste de l'app) portent
+maintenant aussi l'écran de connexion. Aucune nouvelle classe CSS créée pour
+lui — le fond redevient simplement celui du `<body>` (`#f1f5f9`), ce qui
+supprime au passage le dégradé borné à `min-height: 100%` et l'override
+`html:has()/body:has() { background: #0f172a }` : plus de couleur à border,
+plus de bug de ce type possible.
+
+**Déclutter par mise en page, pas par suppression de contenu.** Sur grand
+écran (`lg:`, ≥ 1024px), l'écran passe en **deux colonnes** : un panneau de
+marque (fond `brand-50` — le fond pâle déjà réservé à l'accent, jamais un
+fond neutre inventé) avec l'accroche, l'aperçu de calcul et les trois
+bénéfices du compte (« vos devis sur tous vos appareils », « factures
+numérotées », « votre logo sur les PDF ») ; le formulaire, lui, ne perd
+**aucun champ, aucune option** — il gagne seulement une colonne à lui. Sous
+1024px (téléphone/tablette), le panneau de marque disparaît et seul un
+en-tête compact (logo + accroche courte) reste devant le formulaire : c'est
+la mise en avant du produit qui cède la place, jamais une fonctionnalité.
+
+Le bouton « Essayer sans compte » — élevé en pleine largeur par l'audit du
+2026-08-31 comme seul chemin utile à un visiteur sans compte — reste
+pleine largeur, mais recoloré en `brand-50/700` (fond pâle + texte d'accent)
+plutôt qu'en blanc plein : visible sans se confondre avec le `.btn-primary`
+du formulaire, qui reste la seule action à porter le traitement « le plus
+sombre » de la page.
+
+Bandeaux d'erreur/info : `bg-red-500/10 … text-red-400` (pensé pour un fond
+sombre) devient `bg-red-50 border-red-200 text-red-700` — la même palette
+que les pastilles de statut utilisées ailleurs dans l'app
+(`bg-emerald-50 text-emerald-700`, ex. § statuts de devis).
+
+### 60.3 Ce que la mise en page à deux colonnes change au débordement du § 59
+
+Mesuré après refonte, à la fenêtre qui avait servi à mesurer le bug du § 59
+(1280 × 620) :
+
+| | § 59 (avant) | § 60 (après) |
+|---|---|---|
+| Contenu | 1094 px | 708 px |
+| Débordement | 474 px | 88 px |
+
+Le débordement **n'a pas disparu** (`test_ecran_connexion.mjs` continue de le
+mesurer et de le franchir à la molette — son hypothèse de départ,
+`contenu > fenêtre`, reste vraie après refonte, aucune modification du banc
+n'a été nécessaire) : sur téléphone (colonne unique, viewport 375 × 812) le
+contenu mesure 922 px, soit 110 px hors écran. Le correctif du § 59
+(`body:has(.auth-screen) { overflow: auto }`) reste donc nécessaire et n'a
+pas été touché — seul le volume de contenu à faire tenir a changé, pas le
+mécanisme qui garantit qu'on peut l'atteindre.
+
+### 60.4 Vérifié
+
+- Capture desktop (1440×900, deux colonnes) et mobile (375×812, colonne
+  unique) — voir la conversation pour les deux captures.
+- Bascule Connexion ↔ Créer un compte ↔ Réinitialiser testée dans le
+  navigateur : champs, cases, libellés corrects dans les trois modes.
+- Suite complète rejouée après la refonte — voir le résumé de fin de run.
+
+**Cache-buster bumpé à `?v=20260905b`.**

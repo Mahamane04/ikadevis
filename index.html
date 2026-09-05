@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260905a">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260905b">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260905a">
+    <link rel="stylesheet" href="tailwind.css?v=20260905b">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -435,16 +435,19 @@
            le DOM, donc un vrai élément traverse aussi bien l'aperçu que le PDF
            et l'impression. pointer-events: none pour ne jamais gêner la
            sélection du texte du devis. */
-        /* Audit UX (2026-08-31) — écran de connexion. `min-h-screen` bornait le
-           dégradé à 100vh pour ~787 px de contenu : sous 720 px de fenêtre la
-           page glissait et découvrait le fond clair du <body>, logo compris.
-           Le dégradé est posé ici sur toute la hauteur réelle du contenu. */
+        /* 2026-09-05 — Refonte : l'écran de connexion vivait sur un fond
+           sombre en dégradé (bleu marine → noir) et une carte en verre
+           dépoli — un langage visuel qu'aucun autre écran de l'application
+           ne partage (tout le reste est clair, cartes blanches `.app-card`,
+           bleu `brand` réservé aux accents). Signalé : « trop chargé, ne
+           répond pas à la charte du système de design ».
+           Le fond redevient simplement celui du <body> (`#f1f5f9`, posé
+           plus haut dans cette feuille) : plus besoin d'un dégradé borné à
+           `min-height: 100%`, ni de cet override html/body — le bug qu'ils
+           corrigeaient (le dégradé qui ne couvrait pas tout le contenu)
+           disparaît avec eux, puisqu'il n'y a plus de couleur à border. */
         .auth-screen {
             min-height: 100%;
-            background: linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%);
-        }
-        html:has(.auth-screen), body:has(.auth-screen) {
-            background: #0f172a;
         }
         /* 2026-09-05 — L'écran de connexion ne défilait plus du tout.
            `body { overflow: hidden }` est posé pour l'APPLICATION, dont la
@@ -975,10 +978,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260905a"></script>
-    <script src="js/utils.js?v=20260905a"></script>
-    <script src="js/quote-templates.js?v=20260905a"></script>
-    <script src="app.compiled.js?v=20260905a"></script>
+    <script src="js/calc-engine.js?v=20260905b"></script>
+    <script src="js/utils.js?v=20260905b"></script>
+    <script src="js/quote-templates.js?v=20260905b"></script>
+    <script src="app.compiled.js?v=20260905b"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
