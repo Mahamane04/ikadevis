@@ -4034,3 +4034,30 @@ mécanisme qui garantit qu'on peut l'atteindre.
 - Suite complète rejouée après la refonte — voir le résumé de fin de run.
 
 **Cache-buster bumpé à `?v=20260905b`.**
+
+## ✍️ 61. Logo et accroche du panneau de marque (2026-09-05)
+
+> « Le logo (ikadevis) il faut aussi trouver un slogan qui va remplacer
+> "Chiffrez un devis BTP au métré, et sortez le PDF client." — c'est trop
+> amateur. »
+
+Deux retouches sur le panneau de marque introduit au § 60 :
+
+**Logo** — la refonte l'avait posé en `text-neutral-900` (noir), sans
+vérifier les autres usages. Or partout ailleurs dans l'app — barre latérale
+desktop, rail tablette replié, en-tête mobile (`index_jsx.js` L17728+) —
+`LogoSVG` porte `text-brand-500`. Aligné : c'était une incohérence introduite
+par la refonte, pas un choix.
+
+**Accroche** — « Chiffrez un devis BTP au métré, et sortez le PDF client. »
+décrivait une suite de gestes (verbes à l'impératif, jargon « métré » en
+ouverture) plutôt qu'un bénéfice, d'où le jugement « amateur ». Remplacée par :
+
+> **Le devis BTP juste, en quelques minutes.**
+
+« Juste » porte le double sens voulu — calcul exact, prix équitable — sans
+literie technique dans le titre : le sous-texte juste en dessous (« Matières,
+main-d'œuvre, pertes et marge calculées pour vous — du déboursé sec au total
+TTC. ») garde le détail du mécanisme, le titre porte le bénéfice.
+
+Cache-buster `?v=20260905c`.

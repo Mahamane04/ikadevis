@@ -552,9 +552,17 @@ function AuthScreen({ onAuthSuccess }) {
                     téléphone. `brand-50` est le fond pâle déjà réservé à
                     l'accent dans tout le reste de l'app (tailwind.config.js). */}
                 <div className="hidden lg:flex lg:w-1/2 flex-col justify-center bg-brand-50 rounded-3xl p-10">
-                    <LogoSVG className="h-10 w-auto text-neutral-900" />
+                    {/* 2026-09-05 — `text-neutral-900` isolait cet écran : partout
+                        ailleurs (barre latérale desktop/tablette, en-tête mobile,
+                        L17728+) le logo porte `text-brand-500`. Aligné. */}
+                    <LogoSVG className="h-10 w-auto text-brand-500" />
+                    {/* 2026-09-05 — « Chiffrez un devis BTP au métré, et sortez le
+                        PDF client. » décrivait une suite de gestes, pas un
+                        bénéfice — jugé trop amateur. Le sous-texte juste en dessous
+                        porte déjà le détail du calcul (déboursé sec → TTC) ; le
+                        titre porte maintenant le bénéfice : un prix juste, vite. */}
                     <h1 className="text-neutral-900 font-bold text-2xl mt-6 leading-snug text-balance">
-                        Chiffrez un devis BTP au métré, et sortez le PDF client.
+                        Le devis BTP juste, en quelques minutes.
                     </h1>
                     <p className="text-neutral-600 text-sm mt-3 leading-relaxed max-w-sm">
                         Matières, main-d'œuvre, pertes et marge calculées pour vous —
@@ -578,9 +586,9 @@ function AuthScreen({ onAuthSuccess }) {
                     {/* En-tête compact, uniquement sous 1024px : le panneau de
                         marque ci-dessus porte la même accroche en grand. */}
                     <div className="auth-logo lg:hidden text-center mb-8">
-                        <LogoSVG className="h-10 w-auto inline-block text-neutral-900" />
+                        <LogoSVG className="h-10 w-auto inline-block text-brand-500" />
                         <p className="text-neutral-900 font-bold text-base mt-4 leading-snug">
-                            Chiffrez un devis BTP au métré, et sortez le PDF client.
+                            Le devis BTP juste, en quelques minutes.
                         </p>
                     </div>
 
