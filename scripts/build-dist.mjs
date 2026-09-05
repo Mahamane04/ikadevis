@@ -22,6 +22,11 @@ const A_PUBLIER = [
     'favicon.ico',
     'favicon.svg',
     'manifest.webmanifest',
+    // Pages légales — autonomes (pas de dépendance à tailwind.css), servies
+    // en clair par le mode Static Assets de Cloudflare (html_handling par
+    // défaut : /conditions sert conditions.html sans extension dans l'URL).
+    'conditions.html',
+    'confidentialite.html',
     'sw.js',   // application installable — voir scripts/sw.template.js
     'assets',   // marque : logo horizontal, carré, icône seule (référencés par
                 // index.html pour le favicon et l'icône d'accueil iOS)
