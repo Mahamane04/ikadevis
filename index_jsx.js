@@ -5603,6 +5603,236 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
 }
 
 
+// 2026-09-06 — Onglet "Équipe" des Paramètres (item 6 du plan d'enrichissement).
+// Le client ne peut pas lire auth.users : la liste passe par la RPC
+// list_org_members (SECURITY DEFINER), l'invitation par l'Edge Function
+// invite-member (seule détentrice de la clé service_role). Changement de rôle
+// et retrait passent en direct par organization_members — les policies RLS
+// (owner seul pour UPDATE/DELETE) font foi, ce panneau ne fait qu'exposer ce
+// qu'elles autorisent déjà.
+const ROLES_INVITABLES = ['admin', 'estimator', 'commercial', 'viewer'];
+const ROLE_LABELS_EQUIPE = {
+    owner: '👑 Propriétaire',
+    admin: '🛡️ Admin',
+    estimator: '👷 Deviseur',
+    commercial: '💼 Commercial',
+    viewer: '👁️ Lecteur'
+};
+
+function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, currentUserRole, showToast }) {
+    const [members, setMembers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState('commercial');
+    const [isInviting, setIsInviting] = useState(false);
+    const [busyUserId, setBusyUserId] = useState(null);
+
+    const estValide = organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local') && organizationId !== 'guest_org';
+    const estProprietaire = currentUserRole === 'owner';
+
+    const chargerMembres = async () => {
+        if (!supabaseClient || !estValide) { setMembers([]); setIsLoading(false); return; }
+        setIsLoading(true);
+        setLoadError('');
+        try {
+            const { data, error } = await supabaseClient.rpc('list_org_members', { p_org_id: organizationId });
+            if (error) throw error;
+            setMembers(data || []);
+        } catch (e) {
+            setLoadError(e.message || 'Chargement impossible.');
+            setMembers([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => { chargerMembres(); }, [organizationId, supabaseClient]);
+
+    const handleInvite = async (e) => {
+        e.preventDefault();
+        const email = inviteEmail.trim().toLowerCase();
+        if (!email) { showToast('Indiquez une adresse e-mail.', 'error'); return; }
+        setIsInviting(true);
+        try {
+            const { data, error } = await supabaseClient.functions.invoke('invite-member', {
+                body: { organizationId, email, role: inviteRole }
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+            showToast(`Invitation envoyée à ${email}.`, 'success');
+            setInviteEmail('');
+            setInviteRole('commercial');
+            await chargerMembres();
+        } catch (e) {
+            showToast(e.message || "Invitation impossible.", 'error');
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
+    const handleRoleChange = async (member, nouveauRole) => {
+        setBusyUserId(member.user_id);
+        try {
+            const { error } = await supabaseClient
+                .from('organization_members')
+                .update({ role: nouveauRole })
+                .eq('organization_id', organizationId)
+                .eq('user_id', member.user_id);
+            if (error) throw error;
+            setMembers(prev => prev.map(m => m.user_id === member.user_id ? { ...m, role: nouveauRole } : m));
+            showToast(`Rôle de ${member.email} mis à jour.`, 'success');
+        } catch (e) {
+            showToast(e.message || 'Changement de rôle impossible.', 'error');
+        } finally {
+            setBusyUserId(null);
+        }
+    };
+
+    const handleRemove = async (member) => {
+        if (!window.confirm(`Retirer ${member.email} de l'organisation ?`)) return;
+        setBusyUserId(member.user_id);
+        try {
+            const { error } = await supabaseClient
+                .from('organization_members')
+                .delete()
+                .eq('organization_id', organizationId)
+                .eq('user_id', member.user_id);
+            if (error) throw error;
+            setMembers(prev => prev.filter(m => m.user_id !== member.user_id));
+            showToast(`${member.email} retiré de l'organisation.`, 'success');
+        } catch (e) {
+            showToast(e.message || 'Retrait impossible.', 'error');
+        } finally {
+            setBusyUserId(null);
+        }
+    };
+
+    if (!estValide) {
+        return (
+            <div className="p-12 text-center text-neutral-500 bg-white rounded-2xl border border-neutral-200">
+                <i className="fa-solid fa-users text-3xl mb-2 text-neutral-300"></i>
+                <p className="text-sm font-bold text-neutral-700">Créez ou rejoignez une organisation cloud</p>
+                <p className="text-xs text-neutral-500 mt-1">La gestion d'équipe n'est disponible qu'une fois connecté à une organisation ikadevis.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <h4 className="font-bold text-neutral-800 text-sm mb-1">Membres &amp; rôles</h4>
+                <p className="text-xs text-neutral-500">
+                    Invitez vos collaborateurs et donnez-leur juste ce qu'il faut d'accès —
+                    deviseur, commercial, lecteur, ou administrateur.
+                </p>
+            </div>
+
+            {estProprietaire && (
+                <form onSubmit={handleInvite} className="p-4 bg-neutral-50/80 border border-neutral-200 rounded-2xl flex flex-wrap items-end gap-3">
+                    <div className="flex-1 min-w-[200px]">
+                        <label htmlFor="team_invite_email" className="app-label">Adresse e-mail</label>
+                        <input
+                            id="team_invite_email"
+                            type="email"
+                            required
+                            className="app-input"
+                            placeholder="collaborateur@exemple.com"
+                            value={inviteEmail}
+                            onChange={e => setInviteEmail(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-44">
+                        <label htmlFor="team_invite_role" className="app-label">Rôle</label>
+                        <select
+                            id="team_invite_role"
+                            className="app-select"
+                            value={inviteRole}
+                            onChange={e => setInviteRole(e.target.value)}
+                        >
+                            {ROLES_INVITABLES.map(r => (
+                                <option key={r} value={r}>{ROLE_LABELS_EQUIPE[r]}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <button type="submit" disabled={isInviting} className="btn-primary text-xs py-2 px-4">
+                        {isInviting ? <i className="fa-solid fa-circle-notch fa-spin mr-1.5"></i> : <i className="fa-solid fa-user-plus mr-1.5"></i>}
+                        Inviter
+                    </button>
+                </form>
+            )}
+
+            {isLoading ? (
+                <div className="p-12 text-center text-neutral-500">
+                    <i className="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i>
+                    <p className="text-xs font-bold">Chargement de l'équipe...</p>
+                </div>
+            ) : loadError ? (
+                <div className="p-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold">{loadError}</div>
+            ) : (
+                <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-2xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+                            <tr>
+                                <th className="p-3 pl-4">Membre</th>
+                                <th className="p-3">Rôle</th>
+                                <th className="p-3">Depuis</th>
+                                {estProprietaire && <th className="p-3 pr-4 text-right">Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 font-medium text-neutral-700">
+                            {members.map(m => {
+                                const soiMeme = m.user_id === currentUserId;
+                                return (
+                                    <tr key={m.user_id} className="hover:bg-neutral-50/60">
+                                        <td className="p-3 pl-4 font-bold text-neutral-800">
+                                            {m.email}{soiMeme && <span className="ml-1.5 text-[10px] font-normal text-neutral-400">(vous)</span>}
+                                        </td>
+                                        <td className="p-3">
+                                            {estProprietaire && !soiMeme && m.role !== 'owner' ? (
+                                                <select
+                                                    className="app-select text-xs py-1 px-2"
+                                                    value={m.role}
+                                                    disabled={busyUserId === m.user_id}
+                                                    onChange={e => handleRoleChange(m, e.target.value)}
+                                                >
+                                                    {ROLES_INVITABLES.map(r => (
+                                                        <option key={r} value={r}>{ROLE_LABELS_EQUIPE[r]}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <span>{ROLE_LABELS_EQUIPE[m.role] || m.role}</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 whitespace-nowrap font-mono text-[11px] text-neutral-500">
+                                            {new Date(m.joined_at).toLocaleDateString('fr-FR')}
+                                        </td>
+                                        {estProprietaire && (
+                                            <td className="p-3 pr-4 text-right">
+                                                {!soiMeme && m.role !== 'owner' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemove(m)}
+                                                        disabled={busyUserId === m.user_id}
+                                                        className="text-red-600 hover:text-red-700 text-xs font-bold disabled:opacity-50"
+                                                        aria-label={`Retirer ${m.email} de l'organisation`}
+                                                    >
+                                                        <i className="fa-solid fa-user-minus mr-1"></i> Retirer
+                                                    </button>
+                                                )}
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
     const [name, setName] = useState('');
     const [currency, setCurrency] = useState('FCFA');
@@ -6727,6 +6957,46 @@ function SystemDiagnosticPanel({ isOnline, sbUser, solutionsCount, materialsCoun
 //   · Local  — numérotation calculée sur place, rien n'est verrouillé. Le
 //     Mode Démo ne peut pas offrir de garantie légale, et prétendre le
 //     contraire serait pire que de l'annoncer.
+// 2026-09-06 — Situations de travaux : regroupe les commercialItems d'un
+// devis par lot (lotCode/lotName, déjà portés par chaque ligne depuis
+// calculateHybridQuote — voir js/calc-engine.js). Fonctionne aussi pour un
+// devis simple lot (un seul groupe). Montants en HT ; le TTC se déduit du
+// taux de TVA du devis au moment de l'affichage/facturation.
+function regrouperLotsDevis(devis) {
+    const items = devis?.quoteData?.commercialItems || [];
+    const parLot = new Map();
+    items.forEach(it => {
+        const lotCode = it.lotCode || '01';
+        const lotName = it.lotName || devis?.projectRef || 'Lot unique';
+        if (!parLot.has(lotCode)) parLot.set(lotCode, { lotCode, lotName, totalHT: 0 });
+        parLot.get(lotCode).totalHT += Number(it.sellingTotalHT) || 0;
+    });
+    return Array.from(parLot.values());
+}
+
+// Somme, par lot, ce qui a déjà été facturé pour ce devis sur des factures
+// ÉMISES (pas les brouillons — un brouillon abandonné ne doit pas bloquer une
+// future situation). Calcul entièrement local : `invoices` est déjà chargé
+// avec `lignes[].metadata` au démarrage, aucun appel réseau nécessaire.
+function dejaFactureParLot(devis, invoices) {
+    const devisId = devis?.serverId || devis?.id;
+    const facturesLiees = (invoices || []).filter(f =>
+        f.statut !== 'draft' && (String(f.devisId) === String(devisId) || String(f.devisId) === String(devis?.id))
+    );
+    const parLot = {};
+    facturesLiees.forEach(f => {
+        (f.lignes || []).forEach(l => {
+            const lotCode = l.metadata?.lotCode;
+            if (!lotCode) return;
+            if (!parLot[lotCode]) parLot[lotCode] = { montantHT: 0, pctCumuleMax: 0 };
+            parLot[lotCode].montantHT += Number(l.totalHT) || 0;
+            const pct = Number(l.metadata?.cumulativePct) || 0;
+            if (pct > parLot[lotCode].pctCumuleMax) parLot[lotCode].pctCumuleMax = pct;
+        });
+    });
+    return parLot;
+}
+
 const InvoiceService = {
     // Construit un BROUILLON à partir d'un devis. Le numéro reste vide : il
     // n'est attribué qu'à l'émission, pour ne jamais laisser de trou dans la
@@ -6854,7 +7124,10 @@ const InvoiceService = {
             unit: l.unite,
             quantity: l.quantite,
             unit_price_ht: l.prixUnitaireHT,
-            total_ht: l.totalHT
+            total_ht: l.totalHT,
+            // 2026-09-06 — { lotCode, lotName, cumulativePct } pour les
+            // situations de travaux uniquement ; {} pour une facture standard.
+            metadata: l.metadata || {}
         }));
         if (lignes.length > 0) {
             const { error: linesErr } = await supabaseClient.from('invoice_lines').insert(lignes);
@@ -9106,6 +9379,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Liste+détail façon Zoho Books (2026-08-22) : le menu « Nouveau » qui
     // propose les devis facturables remplace l'ancienne carte toujours visible.
     const [isCreateInvoiceMenuOpen, setIsCreateInvoiceMenuOpen] = useState(false);
+    // 2026-09-06 — Situations de travaux : { open, devis, type, lots: [{
+    // lotCode, lotName, totalHT, dejaFactureHT, pctCumuleMin, pctCumule }] }.
+    // Calculé entièrement en local à partir de `invoices` déjà chargé (avec
+    // `lignes[].metadata`) — aucune requête réseau supplémentaire nécessaire.
+    const [situationModal, setSituationModal] = useState({ open: false, devis: null, type: 'situation', lots: [] });
     // Quel document est en cours de génération PDF (null / 'devis' / 'facture').
     // Sert à bloquer un second clic pendant la génération, qui produirait deux
     // fichiers identiques et deux rendus html2canvas simultanés.
@@ -10268,7 +10546,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 quantite: Number(line.quantity) || 0,
                 prixUnitaireHT: Number(line.unit_price_ht) || 0,
                 totalHT: Number(line.total_ht) || 0,
-                costCategory: line.cost_category || 'material'
+                costCategory: line.cost_category || 'material',
+                // 2026-09-06 — Porte { lotCode, lotName, cumulativePct } pour
+                // les situations de travaux : sans ce champ, impossible de
+                // savoir combien un lot a déjà été facturé d'une situation à
+                // l'autre (voir regrouperLotsDevis / dejaFactureParLot).
+                metadata: line.metadata || {}
             })),
         companyInfoSnapshot: r.company_snapshot || {},
         quoteDataSnapshot: r.quote_snapshot || {}
@@ -14759,9 +15042,115 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         showToast(`Facture ${facture.numero} marquée comme envoyée.`, 'success');
     };
 
+    // 2026-09-06 — Ouvre le tableau "Nouvelle situation" : un devis reste
+    // proposable tant qu'au moins un de ses lots n'est pas facturé à 100 %
+    // cumulé (un devis intégralement soldé n'a plus rien à facturer).
+    const devisEstEntierementFacture = (q) => {
+        const lots = regrouperLotsDevis(q);
+        if (lots.length === 0) return true;
+        const dejaFacture = dejaFactureParLot(q, invoices);
+        return lots.every(lot => (dejaFacture[lot.lotCode]?.pctCumuleMax || 0) >= 100);
+    };
+
+    const ouvrirNouvelleSituation = (devis) => {
+        const lots = regrouperLotsDevis(devis);
+        const dejaFacture = dejaFactureParLot(devis, invoices);
+        const premiereFacture = !(invoices || []).some(f => f.statut !== 'draft' && (String(f.devisId) === String(devis.serverId || devis.id) || String(f.devisId) === String(devis.id)));
+        setSituationModal({
+            open: true,
+            devis,
+            type: premiereFacture ? 'standard' : 'situation',
+            lots: lots.map(lot => {
+                const info = dejaFacture[lot.lotCode] || { montantHT: 0, pctCumuleMax: 0 };
+                return {
+                    lotCode: lot.lotCode,
+                    lotName: lot.lotName,
+                    totalHT: lot.totalHT,
+                    dejaFactureHT: info.montantHT,
+                    pctCumuleMin: info.pctCumuleMax,
+                    // Premier passage : 100 % par défaut (équivalent à l'ancien
+                    // comportement "convertir en facture" complet). Situations
+                    // suivantes : on repart du dernier % cumulé, à ajuster.
+                    pctCumule: premiereFacture ? 100 : info.pctCumuleMax
+                };
+            })
+        });
+        setIsCreateInvoiceMenuOpen(false);
+    };
+
+    const fermerSituationModal = () => setSituationModal({ open: false, devis: null, type: 'situation', lots: [] });
+
+    const confirmerNouvelleSituation = async () => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+        const { devis, type, lots } = situationModal;
+        const tauxTva = devis.vatRate !== undefined ? devis.vatRate : 18;
+        const lignes = lots
+            .map((lot, idx) => {
+                const montantCumule = lot.totalHT * (lot.pctCumule / 100);
+                const montantSituation = Math.round(montantCumule - lot.dejaFactureHT);
+                return { lot, idx, montantSituation };
+            })
+            .filter(({ montantSituation }) => montantSituation > 0)
+            .map(({ lot, idx, montantSituation }) => ({
+                ordre: idx + 1,
+                designation: lot.lotName,
+                unite: 'lot',
+                quantite: 1,
+                prixUnitaireHT: montantSituation,
+                totalHT: montantSituation,
+                metadata: { lotCode: lot.lotCode, lotName: lot.lotName, cumulativePct: lot.pctCumule }
+            }));
+
+        if (lignes.length === 0) {
+            showToast("Aucun montant à facturer — augmentez le % cumulé d'au moins un lot.", "error");
+            return;
+        }
+
+        const totalHT = lignes.reduce((s, l) => s + l.totalHT, 0);
+        const totalTva = totalHT * (tauxTva / 100);
+        const brouillon = {
+            id: `inv_${Date.now()}`,
+            numero: null,
+            statut: 'draft',
+            type,
+            devisId: devis.id,
+            devisServerId: devis.serverId || devis.id || null,
+            clientId: devis.clientId || null,
+            projectId: devis.projectId || null,
+            devisNumero: devis.number,
+            clientName: devis.clientName,
+            projectRef: devis.projectRef,
+            dateCreation: new Date().toISOString(),
+            dateEmission: null,
+            tauxTva,
+            totalHT,
+            totalTva,
+            totalTTC: totalHT + totalTva,
+            deduitTTC: 0,
+            netAPayerTTC: totalHT + totalTva,
+            montantRegle: 0,
+            lignes,
+            companyInfoSnapshot: { ...companyInfo },
+            quoteDataSnapshot: devis.quoteData || {}
+        };
+
+        try {
+            const res = await InvoiceService.enregistrer({
+                facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
+            });
+            const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
+            updateInvoices([brouillonFinal, ...invoices]);
+            setViewingInvoice(brouillonFinal);
+            fermerSituationModal();
+            showToast(`Brouillon de facture créé depuis ${devis.number}`, "success");
+        } catch (err) {
+            showToast(`Création impossible : ${err.message}`, "error");
+        }
+    };
+
     const renderInvoices = () => {
         const cur = companyInfo.currency || 'FCFA';
-        const devisFacturables = savedQuotes.filter(q => !invoices.some(f => f.devisId === q.id));
+        const devisFacturables = savedQuotes.filter(q => !devisEstEntierementFacture(q));
         const libelleStatut = {
             draft: { texte: 'Brouillon', classe: 'bg-neutral-100 text-neutral-700 border-neutral-300' },
             issued: { texte: 'Émise', classe: 'bg-blue-50 text-blue-800 border-blue-300' },
@@ -14781,21 +15170,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const visibleInvoices = invoices.filter(f => invoiceStatusFilter === 'all' || f.statut === invoiceStatusFilter)
             .filter(f => !invoiceQuery || [f.numero, f.clientName, f.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(invoiceQuery)));
 
-        const creerFactureDepuisDevis = async (q) => {
-            const brouillon = InvoiceService.brouillonDepuisDevis(q, companyInfo);
-            try {
-                const res = await InvoiceService.enregistrer({
-                    facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
-                });
-                const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
-                updateInvoices([brouillonFinal, ...invoices]);
-                setViewingInvoice(brouillonFinal);
-                setIsCreateInvoiceMenuOpen(false);
-                showToast(`Brouillon de facture créé depuis ${q.number}`, "success");
-            } catch (err) {
-                showToast(`Création impossible : ${err.message}`, "error");
-            }
-        };
+        // 2026-09-06 — Remplacé par ouvrirNouvelleSituation (situations de
+        // travaux) : toute création de facture passe désormais par le tableau
+        // par lot, y compris la toute première (pré-remplie à 100% cumulé,
+        // ce qui reproduit exactement l'ancien comportement "tout facturer").
 
         return (
             <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
@@ -14827,7 +15205,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-neutral-200 shadow-floating z-20 max-h-80 overflow-y-auto custom-scroll">
                                         <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Créer une facture depuis un devis</p>
                                         {devisFacturables.map(q => (
-                                            <button key={q.id} onClick={() => creerFactureDepuisDevis(q)} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
+                                            <button key={q.id} onClick={() => ouvrirNouvelleSituation(q)} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
                                                 <span className="min-w-0">
                                                     <span className="block text-xs font-bold text-neutral-900 truncate">{q.clientName}</span>
                                                     <span className="block text-[11px] text-neutral-500 truncate">{q.number} · {q.projectRef}</span>
@@ -15183,31 +15561,37 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // toucher au modèle : son choix ponctuel prime, le modèle donne
                 // la valeur de départ.
                 const clientTemplate = clientDetailOverride || configurationDocument.tableau.niveauDetail || 'synthese';
-                const linkedInvoice = invoices.find(invoice => String(invoice.devisId) === String(viewingSavedQuote.id)) || null;
-                const convertirEnFacture = async () => {
-                    if (linkedInvoice) {
+                // 2026-09-06 — Un devis peut désormais porter plusieurs
+                // factures (situations de travaux) : `linkedInvoice` pointe
+                // sur la plus récente (invoices est trié par created_at
+                // décroissant au chargement), seulement utile pour "reprendre
+                // un brouillon" ou consulter la dernière facture émise.
+                const facturesDuDevis = invoices.filter(invoice =>
+                    String(invoice.devisId) === String(viewingSavedQuote.id) || String(invoice.devisId) === String(viewingSavedQuote.serverId)
+                );
+                const linkedInvoice = facturesDuDevis[0] || null;
+                const devisEntierementFacture = devisEstEntierementFacture(viewingSavedQuote);
+                // 2026-09-06 — Un brouillon existant se reprend directement ;
+                // sinon (ou si une situation reste possible sur un lot non
+                // encore à 100%), on ouvre le tableau par lot plutôt que de
+                // facturer aveuglément 100% du devis en une fois.
+                const convertirEnFacture = () => {
+                    if (linkedInvoice && linkedInvoice.statut === 'draft') {
                         setViewingInvoice(linkedInvoice);
                         setActiveView('invoices');
+                        return;
+                    }
+                    if (devisEntierementFacture) {
+                        if (linkedInvoice) { setViewingInvoice(linkedInvoice); setActiveView('invoices'); }
                         return;
                     }
                     if (isReadOnlyDueToDowngrade) {
                         showToast('Action bloquée en Lecture Seule', 'error');
                         return;
                     }
-                    const brouillon = InvoiceService.brouillonDepuisDevis(viewingSavedQuote, companyInfo);
-                    try {
-                        const res = await InvoiceService.enregistrer({
-                            facture: brouillon, supabaseClient, sbUser, activeOrgId: activeOrganizationId
-                        });
-                        const brouillonFinal = res.isLocal ? brouillon : { ...brouillon, serverId: res.serverId };
-                        updateInvoices([brouillonFinal, ...invoices]);
-                        setViewingSavedQuote(null);
-                        setViewingInvoice(brouillonFinal);
-                        setActiveView('invoices');
-                        showToast(`Brouillon de facture créé depuis ${viewingSavedQuote.number}`, 'success');
-                    } catch (err) {
-                        showToast(`Création impossible : ${err.message}`, 'error');
-                    }
+                    ouvrirNouvelleSituation(viewingSavedQuote);
+                    setViewingSavedQuote(null);
+                    setActiveView('invoices');
                 };
                 // Audit UX (2026-08-31) — P0. Cette fenêtre portait `lg:hidden` :
                 // au-dessus de 1024 px elle était montée dans le DOM mais calculée
@@ -15483,16 +15867,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 suppression (celle-ci étant par ailleurs sur chaque ligne de
                                 la liste depuis le même signalement). Une seule rangée au
                                 lieu de deux : la place gagnée l'est toujours. */}
-                            <button
-                                type="button"
-                                onClick={convertirEnFacture}
-                                disabled={isReadOnlyDueToDowngrade}
-                                className={`saved-quote-action-primary text-xs py-1.5 px-3 font-bold ${linkedInvoice ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-primary'}`}
-                                aria-label={linkedInvoice ? `Ouvrir la facture du devis ${viewingSavedQuote.number}` : `Convertir le devis ${viewingSavedQuote.number} en facture`}
-                            >
-                                <i className={`fa-solid ${linkedInvoice ? 'fa-file-invoice' : 'fa-arrow-right-arrow-left'} mr-1.5`}></i>
-                                {linkedInvoice ? 'Voir la facture' : 'Convertir en facture'}
-                            </button>
+                            {(() => {
+                                // 2026-09-06 — "Voir la facture" seulement si un brouillon
+                                // est en cours ou si tout le devis est déjà facturé ; sinon
+                                // il reste au moins un lot à situer, même quand une première
+                                // facture existe déjà.
+                                const voirExistante = (linkedInvoice && linkedInvoice.statut === 'draft') || (devisEntierementFacture && linkedInvoice);
+                                return (
+                                    <button
+                                        type="button"
+                                        onClick={convertirEnFacture}
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        className={`saved-quote-action-primary text-xs py-1.5 px-3 font-bold ${voirExistante ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-primary'}`}
+                                        aria-label={voirExistante ? `Ouvrir la facture du devis ${viewingSavedQuote.number}` : `Facturer le devis ${viewingSavedQuote.number}`}
+                                    >
+                                        <i className={`fa-solid ${voirExistante ? 'fa-file-invoice' : 'fa-arrow-right-arrow-left'} mr-1.5`}></i>
+                                        {voirExistante ? 'Voir la facture' : (facturesDuDevis.length > 0 ? 'Nouvelle situation' : 'Convertir en facture')}
+                                    </button>
+                                );
+                            })()}
                             <button
                                 type="button"
                                 onClick={() => {
@@ -17643,6 +18036,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         { id: 'entreprise', label: 'Entreprise', description: 'Identité et coordonnées', icon: 'fa-building' },
         { id: 'documents', label: 'Documents & PDF', description: 'Logo, TVA et modèles', icon: 'fa-file-pdf' },
         { id: 'facturation', label: 'Facturation & envoi', description: 'Banque, acomptes et messages', icon: 'fa-receipt' },
+        // 2026-09-06 — Visible pour owner/admin uniquement : ce sont
+        // exactement les rôles autorisés par la policy RLS "Organization
+        // members insert" et par la vérification faite dans l'Edge Function
+        // invite-member. Pas de nouvelle clé dans ROLE_PERMISSIONS, la règle
+        // vit déjà côté base — la dupliquer ici aurait pu diverger.
+        ...(['owner', 'admin'].includes(activeOrganizationRole) ? [{ id: 'equipe', label: 'Équipe', description: 'Membres et rôles', icon: 'fa-users' }] : []),
         ...(hasPermission(activeOrganizationRole, 'canViewAudit') ? [{ id: 'audit', label: 'Audit & sécurité', description: 'Historique des actions', icon: 'fa-shield-halved' }] : []),
         { id: 'diagnostic', label: 'Diagnostic', description: 'État de votre espace', icon: 'fa-heart-pulse' },
         { id: 'donnees', label: 'Données locales', description: 'Copie et réinitialisation', icon: 'fa-database' }
@@ -18266,6 +18665,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </select>
                             </div>
                             <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xs flex-1 min-h-0 flex flex-col overflow-hidden">
+                        {accountSettingsTab === 'equipe' && (
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
+                                <TeamSettingsPanel
+                                    organizationId={activeOrganizationId}
+                                    supabaseClient={supabaseClient}
+                                    currentUserId={sbUser?.id}
+                                    currentUserRole={activeOrganizationRole}
+                                    showToast={showToast}
+                                />
+                            </div>
+                        )}
                         {accountSettingsTab === 'audit' && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
                                 <AuditLogPanel organizationId={activeOrganizationId} supabaseClient={supabaseClient} />
@@ -19467,6 +19877,104 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 </div>
             )}
+
+            {/* 2026-09-06 — Situations de travaux : une facture par lot, au
+                pourcentage cumulé d'avancement choisi ici. Le "déjà facturé"
+                se lit dans les factures déjà émises du même devis (calcul
+                local, voir dejaFactureParLot) — aucune requête réseau. */}
+            {situationModal.open && (() => {
+                const devise = companyInfo.currency || 'FCFA';
+                const lignesCalculees = situationModal.lots.map(lot => {
+                    const montantCumule = lot.totalHT * (lot.pctCumule / 100);
+                    const montantSituation = Math.max(0, Math.round(montantCumule - lot.dejaFactureHT));
+                    return { ...lot, montantSituation };
+                });
+                const totalSituationHT = lignesCalculees.reduce((s, l) => s + l.montantSituation, 0);
+                return (
+                    <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                        <div className="bg-white rounded-2xl shadow-floating w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                            <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-start bg-white shrink-0">
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-neutral-800 text-lg truncate">Facturer {situationModal.devis?.number}</h3>
+                                    <p className="text-xs text-neutral-500 truncate">{situationModal.devis?.clientName}</p>
+                                </div>
+                                <button onClick={fermerSituationModal} className="btn-icon w-8 h-8 shrink-0" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                            </div>
+                            <div className="p-6 overflow-y-auto custom-scroll flex-1">
+                                <div className="mb-4 max-w-xs">
+                                    <label htmlFor="situation_type" className="app-label">Type de facture</label>
+                                    <select
+                                        id="situation_type"
+                                        className="app-select text-sm font-bold"
+                                        value={situationModal.type}
+                                        onChange={e => setSituationModal(s => ({ ...s, type: e.target.value }))}
+                                    >
+                                        <option value="standard">Standard (facture unique)</option>
+                                        <option value="acompte">Acompte</option>
+                                        <option value="situation">Situation de travaux</option>
+                                        <option value="solde">Solde (dernière facture — applique la retenue de garantie)</option>
+                                    </select>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="text-left text-neutral-500 border-b border-neutral-200">
+                                                <th className="py-2 pr-2 font-bold">Lot</th>
+                                                <th className="py-2 px-2 font-bold text-right">Montant total</th>
+                                                <th className="py-2 px-2 font-bold text-right">Déjà facturé</th>
+                                                <th className="py-2 px-2 font-bold text-right w-28">% cumulé</th>
+                                                <th className="py-2 pl-2 font-bold text-right">Cette facture</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {lignesCalculees.map((lot, idx) => (
+                                                <tr key={lot.lotCode} className="border-b border-neutral-100">
+                                                    <td className="py-2 pr-2 font-semibold text-neutral-800 whitespace-nowrap">{lot.lotName}</td>
+                                                    <td className="py-2 px-2 text-right text-neutral-600 whitespace-nowrap">{formatMoney(lot.totalHT, devise)}</td>
+                                                    <td className="py-2 px-2 text-right text-neutral-500 whitespace-nowrap">{formatMoney(lot.dejaFactureHT, devise)}</td>
+                                                    <td className="py-2 px-2 text-right">
+                                                        <input
+                                                            type="number" min={lot.pctCumuleMin} max="100" step="1"
+                                                            className="app-input text-right py-1.5 px-2 text-xs font-bold w-20"
+                                                            value={lot.pctCumule}
+                                                            onChange={e => {
+                                                                const brut = Number(e.target.value);
+                                                                const val = Number.isFinite(brut) ? Math.max(lot.pctCumuleMin, Math.min(100, brut)) : lot.pctCumuleMin;
+                                                                setSituationModal(s => ({ ...s, lots: s.lots.map((l, i) => i === idx ? { ...l, pctCumule: val } : l) }));
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td className="py-2 pl-2 text-right font-bold text-neutral-900 whitespace-nowrap">{formatMoney(lot.montantSituation, devise)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {situationModal.lots.some(l => l.pctCumuleMin > 0) && (
+                                    <p className="text-[11px] text-neutral-500 mt-3">
+                                        Le % cumulé ne peut que progresser d'une facture à l'autre — il reflète l'avancement réel du chantier, pas la période facturée.
+                                    </p>
+                                )}
+                                <div className="mt-4 pt-3 border-t border-neutral-200 flex justify-between font-bold text-sm text-neutral-900">
+                                    <span>Total HT de cette facture</span>
+                                    <span>{formatMoney(totalSituationHT, devise)}</span>
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={fermerSituationModal} className="btn-secondary">Annuler</button>
+                                <button
+                                    type="button"
+                                    onClick={confirmerNouvelleSituation}
+                                    disabled={isReadOnlyDueToDowngrade || totalSituationHT <= 0}
+                                    className="btn-primary"
+                                >
+                                    <i className="fa-solid fa-check mr-1.5"></i> Créer le brouillon
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {isSaveQuoteModalOpen && (
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">

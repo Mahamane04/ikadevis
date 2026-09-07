@@ -111,9 +111,19 @@ export async function run() {
         await wait(1800);
         await page.evaluate(() => { const tr = document.querySelector('tbody tr'); if (tr) tr.click(); });
         await wait(2200);
+        // 2026-09-06 — Situations de travaux : "Convertir en facture" ouvre
+        // désormais le tableau "Nouvelle situation" (par lot) au lieu de créer
+        // le brouillon en un clic. Premier passage = 100% pré-rempli sur tous
+        // les lots, il suffit de confirmer pour retrouver l'ancien comportement.
         await page.evaluate(() => {
             const b = [...document.querySelectorAll('button')]
-                .find((x) => /^Convertir le devis /.test(x.getAttribute('aria-label') || ''));
+                .find((x) => /^Facturer le devis /.test(x.getAttribute('aria-label') || ''));
+            if (b) b.click();
+        });
+        await wait(1200);
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')]
+                .find((x) => (x.textContent || '').trim() === 'Créer le brouillon');
             if (b) b.click();
         });
         await wait(2500);

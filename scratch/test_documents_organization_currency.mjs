@@ -86,8 +86,13 @@ export async function run() {
         // avancer un devis — le convertir en facture, et le modifier. Replier
         // « Dupliquer » se défend ; replier la suite du parcours commercial,
         // non. Le banc distingue donc désormais deux familles au lieu d'une.
+        // 2026-09-06 — Situations de travaux : le libellé/aria-label du bouton
+        // dépend désormais de l'état de facturation du devis ("Facturer le
+        // devis X" tant qu'aucune facture n'existe, "Ouvrir la facture du
+        // devis X" une fois un brouillon ou une facturation complète en cours).
+        // Ce devis de test n'a aucune facture liée, donc "Facturer".
         const ACTIONS_TOUJOURS_VISIBLES = [
-            'Convertir le devis DEV-2026-001 en facture',
+            'Facturer le devis DEV-2026-001',
             'Modifier le devis DEV-2026-001'
         ];
         const ACTIONS_REPLIEES = [

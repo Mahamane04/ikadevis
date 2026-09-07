@@ -734,6 +734,15 @@ export async function run() {
             const b = [...document.querySelectorAll('button')].find((x) => /DEV-/.test(x.textContent || ''));
             if (b) b.click();
         });
+        await wait(1000);
+        // 2026-09-06 — Situations de travaux : choisir un devis ouvre désormais
+        // le tableau "Nouvelle situation" (par lot, 100% pré-rempli au premier
+        // passage) au lieu de créer le brouillon directement — il faut confirmer.
+        await page.evaluate(() => {
+            const b = [...document.querySelectorAll('button')]
+                .find((x) => (x.textContent || '').trim() === 'Créer le brouillon');
+            if (b) b.click();
+        });
         await wait(2600);
         const facture = await page.evaluate(() => {
             const docs = [...document.querySelectorAll('.document-echelle')];
