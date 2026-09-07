@@ -8013,10 +8013,18 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                 vide sur le devis. */}
             {(() => {
                 const commercial = devis.companyInfoSnapshot?.commercialSettings || societe.commercialSettings || {};
-                return (commercial.bankName || commercial.bankAccount || commercial.bankSwift) ? (
+                const mobileMoney = [
+                    commercial.orangeMoneyNumber && `Orange Money : ${commercial.orangeMoneyNumber}`,
+                    commercial.waveNumber && `Wave : ${commercial.waveNumber}`,
+                    commercial.moovMoneyNumber && `Moov Money : ${commercial.moovMoneyNumber}`
+                ].filter(Boolean);
+                return (commercial.bankName || commercial.bankAccount || commercial.bankSwift || mobileMoney.length) ? (
                     <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
                         <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
-                        <p>{[commercial.bankName, commercial.bankAccount, commercial.bankSwift].filter(Boolean).join(' · ')}</p>
+                        {(commercial.bankName || commercial.bankAccount || commercial.bankSwift) && (
+                            <p>{[commercial.bankName, commercial.bankAccount, commercial.bankSwift].filter(Boolean).join(' · ')}</p>
+                        )}
+                        {mobileMoney.length > 0 && <p>{mobileMoney.join(' · ')}</p>}
                     </div>
                 ) : null;
             })()}
@@ -8203,9 +8211,18 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     )}
                     {facture.deduitTTC > 0 && (
                         <div className="flex justify-between text-neutral-500">
-                            <span>Acomptes déjà facturés :</span>
+                            <span>{facture.type === 'solde' ? 'Retenue de garantie :' : 'Acomptes déjà facturés :'}</span>
                             <span>-{formatMoney(facture.deduitTTC, devise)}</span>
                         </div>
+                    )}
+                    {/* 2026-09-06 — Détail de la retenue : taux et durée lus dans
+                        l'instantané (ci), figés au moment de la création du
+                        brouillon — pas les réglages courants, qui peuvent avoir
+                        changé depuis l'émission. */}
+                    {facture.type === 'solde' && facture.deduitTTC > 0 && (
+                        <p className="text-[10px] text-neutral-500 italic -mt-1">
+                            Retenue de {ci.commercialSettings?.retentionRate ?? 0}% — à libérer {ci.commercialSettings?.retentionDuration || '12 mois'} après la date d'émission.
+                        </p>
                     )}
                     <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
                         <span>NET À PAYER :</span>
@@ -8214,12 +8231,22 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 </div>
             </div>
 
-            {(ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift) && (
-                <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
-                    <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
-                    <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
-                </div>
-            )}
+            {(() => {
+                const mobileMoney = [
+                    ci.commercialSettings?.orangeMoneyNumber && `Orange Money : ${ci.commercialSettings.orangeMoneyNumber}`,
+                    ci.commercialSettings?.waveNumber && `Wave : ${ci.commercialSettings.waveNumber}`,
+                    ci.commercialSettings?.moovMoneyNumber && `Moov Money : ${ci.commercialSettings.moovMoneyNumber}`
+                ].filter(Boolean);
+                return (ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift || mobileMoney.length) ? (
+                    <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
+                        <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
+                        {(ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift) && (
+                            <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
+                        )}
+                        {mobileMoney.length > 0 && <p>{mobileMoney.join(' · ')}</p>}
+                    </div>
+                ) : null;
+            })()}
             {/* Même traitement que le devis : la mention de pied est du MOBILIER
                 de page, pas du contenu. `data-hors-pdf` la retire de la capture,
                 `data-pied-en-flux` la masque dans un aperçu paginé, et jsPDF la
@@ -8839,6 +8866,50 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [logoProcessing, setLogoProcessing] = useState(false);
     const [nouveauTauxTva, setNouveauTauxTva] = useState('');
     const [logoError, setLogoError] = useState(null);
+    // 2026-09-06 — Préfixe des devis/factures : vit dans
+    // organization_quote_sequences / organization_invoice_sequences, pas dans
+    // company_settings comme le reste de cet onglet — chargement et
+    // enregistrement séparés (RPC set_document_prefix), plutôt que le bouton
+    // global "Enregistrer les réglages Documents et PDF".
+    const [quotePrefixInput, setQuotePrefixInput] = useState('DEV-');
+    const [invoicePrefixInput, setInvoicePrefixInput] = useState('FACT-');
+    const [prefixSaving, setPrefixSaving] = useState({ quote: false, invoice: false });
+
+    useEffect(() => {
+        if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) return;
+        let annule = false;
+        (async () => {
+            const [{ data: qSeq }, { data: iSeq }] = await Promise.all([
+                supabaseClient.from('organization_quote_sequences').select('prefix').eq('organization_id', activeOrganizationId).maybeSingle(),
+                supabaseClient.from('organization_invoice_sequences').select('prefix').eq('organization_id', activeOrganizationId).maybeSingle()
+            ]);
+            if (annule) return;
+            if (qSeq?.prefix) setQuotePrefixInput(qSeq.prefix);
+            if (iSeq?.prefix) setInvoicePrefixInput(iSeq.prefix);
+        })();
+        return () => { annule = true; };
+    }, [supabaseClient, sbUser, activeOrganizationId]);
+
+    const handleSaveDocumentPrefix = async (kind) => {
+        if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) return;
+        const prefix = (kind === 'quote' ? quotePrefixInput : invoicePrefixInput).trim();
+        if (!prefix || prefix.length > 12) {
+            showToast("Le préfixe doit faire entre 1 et 12 caractères.", "error");
+            return;
+        }
+        setPrefixSaving(prev => ({ ...prev, [kind]: true }));
+        try {
+            const { error } = await supabaseClient.rpc('set_document_prefix', {
+                p_org_id: activeOrganizationId, p_kind: kind, p_prefix: prefix
+            });
+            if (error) throw error;
+            showToast(`Préfixe des ${kind === 'quote' ? 'devis' : 'factures'} mis à jour : ${prefix}`, "success");
+        } catch (err) {
+            showToast(`Échec : ${err.message}`, "error");
+        } finally {
+            setPrefixSaving(prev => ({ ...prev, [kind]: false }));
+        }
+    };
     // B3 (2026-08-18) — Cette identité n'a plus vocation à être écrite dans un
     // vrai devis : un compte réel démarre avec des champs légaux VIDES (voir
     // emptyCompany plus bas), suivant le même garde estModeDemo que les
@@ -8851,6 +8922,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         bankName: '',
         bankAccount: '',
         bankSwift: '',
+        // 2026-09-06 — Paiement mobile local (Orange Money, Wave, Moov Money) :
+        // plus pertinent que Stripe/PayPal pour la clientèle d'ikadevis en
+        // Afrique de l'Ouest. Numéros optionnels, affichés sur le PDF
+        // uniquement s'ils sont renseignés (même logique que le RIB).
+        orangeMoneyNumber: '',
+        waveNumber: '',
+        moovMoneyNumber: '',
         defaultDepositRate: 0,
         retentionRate: 0,
         retentionDuration: '12 mois',
@@ -12482,7 +12560,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 calcForm
             });
 
-            const updatedQuotes = [newQuote, ...savedQuotes];
+            // Le numéro affiché doit être celui attribué par le serveur
+            // (create_quote_v7, séquence atomique par organisation), jamais
+            // celui calculé seul dans le navigateur — même correctif que le
+            // chemin d'enregistrement de l'éditeur hybride (Bloc 1, 2026-08-30) :
+            // sans lui, ce numéro local pouvait diverger de celui réellement
+            // consommé en base, et serverId n'était jamais rattaché au devis
+            // (aucune facture ni mise à jour ultérieure ne pouvait le retrouver).
+            const persistedQuote = saveRes.isLocal
+                ? newQuote
+                : { ...newQuote, number: saveRes.quoteNumber, serverId: saveRes.serverQuoteId };
+
+            const updatedQuotes = [persistedQuote, ...savedQuotes];
             const nextSeq = nextQuoteSeq + 1;
             updateSavedQuotes(updatedQuotes);
             updateNextQuoteSeq(nextSeq);
@@ -14585,13 +14674,64 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             const res = await InvoiceService.emettre({
                 facture, factures: invoices, supabaseClient, sbUser, activeOrgId: activeOrganizationId
             });
+
+            // 2026-09-06 — Retenue de garantie : appliquée automatiquement sur
+            // la facture de solde, déduite du réglage figé dans l'instantané
+            // pris à la création du brouillon (companyInfoSnapshot), jamais du
+            // réglage courant qui a pu changer depuis. deducted_ttc/
+            // net_to_pay_ttc restent modifiables après émission (le trigger
+            // protect_issued_invoice ne les protège pas) — seuls les montants
+            // d'origine et l'identité de la facture sont figés.
+            let retenueMaj = {};
+            const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId && facture.serverId);
+            if (estCloud && facture.type === 'solde') {
+                const tauxRetenue = Number(facture.companyInfoSnapshot?.commercialSettings?.retentionRate) || 0;
+                if (tauxRetenue > 0) {
+                    const montantRetenue = Math.round(facture.totalTTC * tauxRetenue / 100);
+                    const nouveauDeduit = (facture.deduitTTC || 0) + montantRetenue;
+                    const nouveauNetAPayer = Math.max(0, facture.totalTTC - nouveauDeduit);
+                    const { error: retenueErr } = await supabaseClient
+                        .from('invoices')
+                        .update({ deducted_ttc: nouveauDeduit, net_to_pay_ttc: nouveauNetAPayer })
+                        .eq('id', facture.serverId)
+                        .eq('organization_id', activeOrganizationId);
+                    if (retenueErr) {
+                        // L'émission a déjà réussi (numéro attribué) : on prévient
+                        // sans annuler, la retenue pourra être ajustée à la main.
+                        showToast(`Facture émise, mais la retenue de garantie n'a pas pu être appliquée : ${retenueErr.message}`, "error");
+                    } else {
+                        retenueMaj = { deduitTTC: nouveauDeduit, netAPayerTTC: nouveauNetAPayer };
+                    }
+                }
+            }
+
             updateInvoices(invoices.map(f => f.id === facture.id
-                ? { ...f, numero: res.numero, statut: 'issued', dateEmission: res.dateEmission }
+                ? { ...f, numero: res.numero, statut: 'issued', dateEmission: res.dateEmission, ...retenueMaj }
                 : f));
             showToast(`Facture ${res.numero} émise — elle ne peut plus être modifiée.`, "success");
         } catch (err) {
             showToast(`Émission impossible : ${err.message}`, "error");
         }
+    };
+
+    // 2026-09-06 — Changer le type d'une facture BROUILLON (standard / acompte
+    // / situation / solde). Interdit après émission : invoice_type est figé
+    // par le trigger protect_issued_invoice au même titre que les montants.
+    const changerTypeFacture = async (facture, nouveauType) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId && facture.serverId);
+        if (estCloud) {
+            const { error } = await supabaseClient
+                .from('invoices')
+                .update({ invoice_type: nouveauType })
+                .eq('id', facture.serverId)
+                .eq('organization_id', activeOrganizationId);
+            if (error) {
+                showToast(`Changement de type impossible : ${error.message}`, 'error');
+                return;
+            }
+        }
+        updateInvoices(invoices.map(f => f.id === facture.id ? { ...f, type: nouveauType } : f));
     };
 
     const envoyerFacture = async (facture) => {
@@ -14823,6 +14963,27 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <h2 className="text-lg font-bold text-neutral-800 break-words">{activeInvoice.clientName}</h2>
                                     <p className="text-xs text-neutral-500 mt-1 break-words">{activeInvoice.projectRef}</p>
                                 </div>
+                                {/* 2026-09-06 — Type de facture, modifiable tant que c'est un
+                                    brouillon uniquement (figé par le trigger dès l'émission,
+                                    au même titre que les montants). "Solde" applique
+                                    automatiquement la retenue de garantie à l'émission. */}
+                                {estBrouillon && (
+                                    <div className="mt-3 max-w-xs">
+                                        <label htmlFor="invoice_type_select" className="app-label text-[10px]">Type de facture</label>
+                                        <select
+                                            id="invoice_type_select"
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            className="app-select text-xs font-bold"
+                                            value={activeInvoice.type || 'standard'}
+                                            onChange={(e) => changerTypeFacture(activeInvoice, e.target.value)}
+                                        >
+                                            <option value="standard">Standard (facture unique)</option>
+                                            <option value="acompte">Acompte</option>
+                                            <option value="situation">Situation de travaux</option>
+                                            <option value="solde">Solde (dernière facture — applique la retenue de garantie)</option>
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                     {estBrouillon ? (
                                         <>
@@ -18336,6 +18497,70 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                 </div>
 
+                                {/* 2026-09-06 — Préfixe personnalisable des devis/factures, avec
+                                    remise à zéro annuelle automatique côté serveur (le format
+                                    DEV-2026-001 l'implique déjà visuellement). Numéro toujours
+                                    attribué et incrémenté par la séquence transactionnelle en
+                                    base — ces champs ne changent que le préfixe affiché. */}
+                                <div className="pt-4 border-t border-neutral-100">
+                                    <label className="app-label">Numérotation des documents</label>
+                                    <p className="text-[11px] text-neutral-500 mb-3">
+                                        Le numéro (année + compteur) est toujours attribué par le
+                                        serveur, sans trou ; seul le préfixe se personnalise ici. La
+                                        remise à zéro du compteur au 1er janvier est automatique.
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label htmlFor="quote_prefix" className="app-label text-[11px]">Préfixe des devis</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id="quote_prefix"
+                                                    type="text"
+                                                    disabled={isReadOnlyDueToDowngrade || prefixSaving.quote}
+                                                    className="app-input font-medium"
+                                                    maxLength={12}
+                                                    value={quotePrefixInput}
+                                                    onChange={e => setQuotePrefixInput(e.target.value)}
+                                                    placeholder="DEV-"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade || prefixSaving.quote}
+                                                    onClick={() => handleSaveDocumentPrefix('quote')}
+                                                    className="btn-secondary text-xs py-2.5 px-3 shrink-0"
+                                                >
+                                                    {prefixSaving.quote ? '…' : 'OK'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[11px] text-neutral-500 mt-1.5">Ex. : {quotePrefixInput || 'DEV-'}2026-001</p>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="invoice_prefix" className="app-label text-[11px]">Préfixe des factures</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id="invoice_prefix"
+                                                    type="text"
+                                                    disabled={isReadOnlyDueToDowngrade || prefixSaving.invoice}
+                                                    className="app-input font-medium"
+                                                    maxLength={12}
+                                                    value={invoicePrefixInput}
+                                                    onChange={e => setInvoicePrefixInput(e.target.value)}
+                                                    placeholder="FACT-"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade || prefixSaving.invoice}
+                                                    onClick={() => handleSaveDocumentPrefix('invoice')}
+                                                    className="btn-secondary text-xs py-2.5 px-3 shrink-0"
+                                                >
+                                                    {prefixSaving.invoice ? '…' : 'OK'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[11px] text-neutral-500 mt-1.5">Ex. : {invoicePrefixInput || 'FACT-'}2026-001</p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* 2026-08-20 — Gabarit par défaut du devis client. Modifiable
                                     ponctuellement depuis l'aperçu sans toucher à ce réglage. */}
                                 <div className="pt-4 border-t border-neutral-100">
@@ -18438,6 +18663,33 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <div>
                                             <label htmlFor="commercial_bank_swift" className="app-label">Code SWIFT / BIC <span className="normal-case font-normal text-neutral-500">(facultatif)</span></label>
                                             <input id="commercial_bank_swift" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium uppercase" value={companyInfo.commercialSettings?.bankSwift || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), bankSwift: e.target.value.toUpperCase() } })} placeholder="Ex : CORIMLBA" />
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* 2026-09-06 — Paiement mobile local. Section distincte du RIB :
+                                    ce sont des moyens de paiement à part entière pour la clientèle
+                                    visée, pas une variante bancaire. */}
+                                <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
+                                    <div className="flex items-start gap-3 mb-4">
+                                        <span className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-mobile-screen-button"></i></span>
+                                        <div>
+                                            <h3 className="text-sm font-bold text-neutral-800">Paiement mobile</h3>
+                                            <p className="text-[11px] text-neutral-500 mt-0.5">Numéros optionnels — affichés sur le devis/facture uniquement s'ils sont renseignés.</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="commercial_orange_money" className="app-label">Orange Money</label>
+                                            <input id="commercial_orange_money" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium" value={companyInfo.commercialSettings?.orangeMoneyNumber || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), orangeMoneyNumber: e.target.value } })} placeholder="+223 XX XX XX XX" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="commercial_wave" className="app-label">Wave</label>
+                                            <input id="commercial_wave" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium" value={companyInfo.commercialSettings?.waveNumber || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), waveNumber: e.target.value } })} placeholder="+223 XX XX XX XX" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="commercial_moov_money" className="app-label">Moov Money</label>
+                                            <input id="commercial_moov_money" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-medium" value={companyInfo.commercialSettings?.moovMoneyNumber || ''} onChange={e => updateCompanyInfo({ ...companyInfo, commercialSettings: { ...defaultCommercialSettings, ...(companyInfo.commercialSettings || {}), moovMoneyNumber: e.target.value } })} placeholder="+223 XX XX XX XX" />
                                         </div>
                                     </div>
                                 </section>
