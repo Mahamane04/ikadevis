@@ -4359,3 +4359,27 @@ espacement et `whitespace-nowrap` sont fixés par le composant pour que deux
 badges puissent toujours coexister dans une même cellule étroite sans se
 chevaucher (empiler verticalement avec `flex flex-col items-start gap-1`
 plutôt que côte à côte si plus d'un badge doit apparaître au même endroit).
+
+## 🚀 64. Correction Chiffrage (largeurs & actions) et harmonisation des menus déroulants au Design System (2026-09-08)
+
+### 64.1 Problème résolu : Chevauchement montants et actions dans le tableau de Chiffrage
+- **Symptôme** : Les grands montants en FCFA (plusieurs dizaines de millions) et le pourcentage de marge (`+30%`) débordaient physiquement sur la colonne voisine, recouvrant les icônes d'action (Réglages, Dupliquer, Supprimer).
+- **Correctif** :
+  - Colonne `Total HT` élargie de `96px` à **`135px`**.
+  - Colonne `Actions` passée de `76px` à **`88px`** avec `flex items-center justify-center gap-1`.
+  - Colonne `Qté` ajustée à `58px` et largeur minimale du tableau passée de `500px` à **`650px`** avec défilement horizontal préservé.
+
+### 64.2 Harmonisation globale des menus déroulants et barres de navigation
+- Remplacement systématique des `<select>` natifs et bruts par le composant `CustomSelect` ou popovers dédiés :
+  - **Sidebar** : « Catalogue technique » doté d'un chevron rotatif animé (`transition-transform duration-200 rotate-180`), état actif parent (`sidebar-catalog-toggle-active`), et branchement stylisé (`border-left: 2px solid #e0e7ff`).
+  - **Top Bar Chiffrage** : Statut du devis transformé en `QuoteStatusDropdown` avec badge coloré, chevron interactif et liste popover avec indicateurs de sélection.
+  - **Barre de totaux** : Sélecteur de TVA transformé en `CustomSelect size="xs"`.
+  - **Factures & Devis enregistrés** : Filtres de statut et de tri convertis en `CustomSelect size="sm"`.
+  - **Visualiseur devis & Situation travaux** : Sélecteurs convertis en `CustomSelect`.
+  - **Paramètres mobile** : Sélecteur de section converti en `CustomSelect size="md"`.
+- **Compatibilité tests et accessibilité** : Tous les custom selects intègrent un `<select className="sr-only" style={{ display: 'none' }} aria-label="...">` synchronisé, permettant aux automatisations Puppeteer (`page.select`) et aux lecteurs d'écran de fonctionner sans faille.
+
+### 64.3 État de production
+- **523/523 assertions au vert (0 régression sur 51 suites)**.
+- Jeton de cache final : `?v=20260908i` (`app.compiled.js`, `index.html`, `sw.js`, `tailwind.css`).
+- Déployé en production sur **[app.ikadevis.com](https://app.ikadevis.com)** (Cloudflare Version ID: `491a802c-57af-432f-bde9-1685523cd0c1`).
