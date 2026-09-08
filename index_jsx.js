@@ -4128,6 +4128,7 @@ function WorkItemPicker({
     onClose,
     solutions,
     recipes = [],
+    activeLotItems = [],
     onSelectSolution,
     onSelectBulkSolutions,
     onCreateCustomSolution
@@ -4178,6 +4179,9 @@ function WorkItemPicker({
         return true;
     });
 
+    const selectedCount = Object.values(bulkSelections).filter(v => v !== undefined).length;
+    const allFilteredSelected = filteredSolutions.length > 0 && filteredSolutions.every(s => bulkSelections[s.id] !== undefined);
+
     // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
     // visuel et au libellé du bouton de fermeture.
     const handleToggleBulk = (solId) => {
@@ -4185,6 +4189,24 @@ function WorkItemPicker({
             ...prev,
             [solId]: prev[solId] ? undefined : 1
         }));
+    };
+
+    const handleSelectAllFiltered = () => {
+        if (allFilteredSelected) {
+            setBulkSelections(prev => {
+                const next = { ...prev };
+                filteredSolutions.forEach(s => { delete next[s.id]; });
+                return next;
+            });
+        } else {
+            setBulkSelections(prev => {
+                const next = { ...prev };
+                filteredSolutions.forEach(s => {
+                    if (next[s.id] === undefined) next[s.id] = 1;
+                });
+                return next;
+            });
+        }
     };
 
     const handleConfirmBulk = () => {
@@ -4294,13 +4316,39 @@ function WorkItemPicker({
 
                 {/* Liste des Résultats */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                    {isBulkMode && filteredSolutions.length > 0 && (
+                        <div className="flex items-center justify-between px-1 pb-1 text-xs text-neutral-600 border-b border-neutral-100">
+                            <span className="font-medium text-[11px] text-neutral-500">
+                                {filteredSolutions.length} ouvrage{filteredSolutions.length > 1 ? 's' : ''} affiché{filteredSolutions.length > 1 ? 's' : ''}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleSelectAllFiltered}
+                                className="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 transition-colors"
+                            >
+                                <i className={`fa-solid ${allFilteredSelected ? 'fa-square' : 'fa-square-check'}`}></i>
+                                {allFilteredSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                            </button>
+                        </div>
+                    )}
+
                     {filteredSolutions.map(sol => {
                         const isChecked = bulkSelections[sol.id] !== undefined;
+                        const isAlreadyInLot = (activeLotItems || []).some(item =>
+                            item.solutionId === sol.id || (item.name && item.name.toLowerCase() === sol.name.toLowerCase())
+                        );
 
                         return (
                             <div
                                 key={sol.id}
-                                className="p-3.5 rounded-xl border border-neutral-200 hover:border-brand-300 hover:bg-brand-50/30 bg-white transition-all flex items-center justify-between gap-3 group"
+                                onClick={isBulkMode ? () => handleToggleBulk(sol.id) : undefined}
+                                className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 group ${
+                                    isBulkMode ? 'cursor-pointer select-none' : ''
+                                } ${
+                                    isBulkMode && isChecked
+                                        ? 'border-brand-500 bg-brand-50/50 ring-1 ring-brand-500 shadow-xs'
+                                        : 'border-neutral-200 hover:border-brand-300 hover:bg-brand-50/30 bg-white'
+                                }`}
                             >
                                 <div className="flex items-start gap-3 min-w-0 flex-1">
                                     {isBulkMode && (
@@ -4308,16 +4356,28 @@ function WorkItemPicker({
                                             type="checkbox"
                                             checked={isChecked}
                                             onChange={() => handleToggleBulk(sol.id)}
-                                            className="w-4 h-4 mt-1 rounded text-brand-600 focus:ring-brand-500"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-4 h-4 mt-1 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                                         />
                                     )}
                                     <div className="w-9 h-9 rounded-xl bg-neutral-100 group-hover:bg-brand-100 text-neutral-700 group-hover:text-brand-700 flex items-center justify-center text-sm shrink-0 transition-colors">
                                         <i className={`fa-solid ${sol.icon || 'fa-cube'}`}></i>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h4 className="font-semibold text-xs text-neutral-900 truncate group-hover:text-brand-900">
-                                            {sol.name}
-                                        </h4>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h4 className="font-semibold text-xs text-neutral-900 truncate group-hover:text-brand-900">
+                                                {sol.name}
+                                            </h4>
+                                            {isAlreadyInLot && (
+                                                <span
+                                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
+                                                    title="Cet ouvrage figure déjà dans les lignes du lot actif"
+                                                >
+                                                    <i className="fa-solid fa-check-double text-[9px]"></i>
+                                                    Déjà dans ce lot
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
                                             <span className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
                                                 {libelleModes(sol.allowedModes || ['rectangle'], 'Rectangle')}
@@ -4347,11 +4407,12 @@ function WorkItemPicker({
                                                 type="number"
                                                 min="1"
                                                 value={bulkSelections[sol.id] || 1}
+                                                onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) => setBulkSelections({
                                                     ...bulkSelections,
                                                     [sol.id]: parseFloat(e.target.value) || 1
                                                 })}
-                                                className="w-16 py-1 px-2 text-center text-xs font-bold border border-brand-300 rounded-lg"
+                                                className="w-16 py-1 px-2 text-center text-xs font-bold border border-brand-300 rounded-lg bg-white"
                                                 placeholder="Qté"
                                             />
                                         )
@@ -4402,16 +4463,17 @@ function WorkItemPicker({
                 {/* Footer du Picker pour Mode Multiple */}
                 {isBulkMode && (
                     <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between gap-3">
-                        <span className="text-xs text-neutral-600 font-medium">
-                            {Object.values(bulkSelections).filter(v => v !== undefined).length} ouvrage(s) sélectionné(s)
+                        <span className="text-xs text-neutral-700 font-medium">
+                            <strong className="font-bold text-neutral-900">{selectedCount}</strong> ouvrage{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}
                         </span>
                         <button
                             type="button"
                             onClick={handleConfirmBulk}
-                            disabled={Object.values(bulkSelections).filter(v => v !== undefined).length === 0}
-                            className="btn-primary text-xs py-2 px-4 font-semibold disabled:opacity-50"
+                            disabled={selectedCount === 0}
+                            className="btn-primary text-xs py-2 px-4 font-bold flex items-center gap-2 shadow-sm disabled:opacity-50"
                         >
-                            Ajouter les ouvrages au lot
+                            <i className="fa-solid fa-layer-group"></i>
+                            <span>Insérer {selectedCount} ouvrage{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}</span>
                         </button>
                     </div>
                 )}
@@ -4437,6 +4499,26 @@ function WorkItemInspector({
 }) {
     const [inspectorMode, setInspectorMode] = useState('simple'); // 'simple' | 'advanced'
     const [activeTab, setActiveTab] = useState('dimensions'); // 'dimensions' | 'costs' | 'pricing' | 'client' | 'calepinage'
+
+    // Raccourcis clavier pour feuilleter les ouvrages du lot : Alt + ← et Alt + →
+    useEffect(() => {
+        if (!isOpen || itemCount <= 1) return;
+        const handleKeyDown = (e) => {
+            if (e.altKey && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (itemIndex > 0) {
+                    onNavigate?.(itemIndex - 1);
+                }
+            } else if (e.altKey && e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (itemIndex < itemCount - 1) {
+                    onNavigate?.(itemIndex + 1);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, itemCount, itemIndex, onNavigate]);
 
     if (!isOpen || !item) return null;
 
@@ -4561,18 +4643,23 @@ function WorkItemInspector({
                                     onClick={() => onNavigate?.(Math.max(0, itemIndex - 1))}
                                     disabled={itemIndex <= 0}
                                     className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Ouvrage précédent"
+                                    title="Ouvrage précédent (Alt + ←)"
                                     aria-label="Ouvrage précédent"
                                 >
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i>
                                 </button>
-                                <span className="text-[10px] font-bold text-neutral-500 min-w-[34px] text-center">{itemIndex + 1}/{itemCount}</span>
+                                <span
+                                    className="text-[10px] font-bold text-neutral-600 min-w-[34px] text-center cursor-help"
+                                    title="Feuilleter les ouvrages : Alt + ← / Alt + →"
+                                >
+                                    {itemIndex + 1}/{itemCount}
+                                </span>
                                 <button
                                     type="button"
                                     onClick={() => onNavigate?.(Math.min(itemCount - 1, itemIndex + 1))}
                                     disabled={itemIndex >= itemCount - 1}
                                     className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Ouvrage suivant"
+                                    title="Ouvrage suivant (Alt + →)"
                                     aria-label="Ouvrage suivant"
                                 >
                                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
@@ -5529,6 +5616,7 @@ function QuoteWorkspace({
     // inspectorItemIndex un niveau plus bas (liste des ouvrages ↔ inspecteur).
     const [mobileShowLotList, setMobileShowLotList] = useState(true);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // Audit UX (2026-09-01) — signale au champ Client qu'il est en faute après
     // une tentative d'enregistrement sans client. Levé dès que le nom est
@@ -6281,6 +6369,7 @@ function QuoteWorkspace({
                 onClose={() => setIsPickerOpen(false)}
                 solutions={solutions}
                 recipes={recipes}
+                activeLotItems={activeLot?.items || []}
                 onSelectSolution={handleSelectSolutionForLot}
                 onSelectBulkSolutions={handleSelectBulkSolutions}
                 onCreateCustomSolution={(name) => {
@@ -6295,6 +6384,59 @@ function QuoteWorkspace({
                     handleSelectSolutionForLot(newSol);
                 }}
             />
+
+            {/* FAB Mobile (Speed-Dial) : Ajout Rapide d'Ouvrage ou Ligne Libre au Pouce sur Chantier */}
+            {(!mobileShowLotList && inspectorItemIndex === null && activeLot) && (
+                <div className="md:hidden fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+76px)] z-30 flex flex-col items-end gap-2.5 pointer-events-none">
+                    {/* Sous-actions du speed dial */}
+                    {isMobileFabOpen && (
+                        <div className="flex flex-col items-end gap-2 pointer-events-auto animate-scale-up mb-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsMobileFabOpen(false);
+                                    handleAddCustomLine();
+                                }}
+                                className="flex items-center gap-2.5 bg-white text-neutral-800 font-semibold text-xs px-3.5 py-2 rounded-full shadow-floating border border-neutral-200 active:scale-95 transition-all"
+                                aria-label="Ajouter une ligne libre personnalisée"
+                            >
+                                <span className="text-[11px] font-bold text-neutral-700">Ligne libre</span>
+                                <span className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs">
+                                    <i className="fa-solid fa-pen"></i>
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsMobileFabOpen(false);
+                                    setIsPickerOpen(true);
+                                }}
+                                className="flex items-center gap-2.5 bg-white text-neutral-800 font-semibold text-xs px-3.5 py-2 rounded-full shadow-floating border border-neutral-200 active:scale-95 transition-all"
+                                aria-label="Parcourir la bibliothèque d'ouvrages"
+                            >
+                                <span className="text-[11px] font-bold text-neutral-700">Bibliothèque</span>
+                                <span className="w-7 h-7 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs">
+                                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                                </span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Bouton FAB Principal */}
+                    <button
+                        type="button"
+                        onClick={() => setIsMobileFabOpen(prev => !prev)}
+                        className={`pointer-events-auto w-12 h-12 rounded-full shadow-floating flex items-center justify-center text-white font-bold transition-all duration-200 active:scale-95 ${
+                            isMobileFabOpen ? 'bg-neutral-800 rotate-45' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-500/30'
+                        }`}
+                        aria-label={isMobileFabOpen ? 'Fermer le menu d’ajout' : 'Ajouter un ouvrage au lot'}
+                        title="Ajout rapide au lot"
+                    >
+                        <i className="fa-solid fa-plus text-base"></i>
+                    </button>
+                </div>
+            )}
 
             {/* Barre de Totaux Basse */}
             <QuoteTotalsBar

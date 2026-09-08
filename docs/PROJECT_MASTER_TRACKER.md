@@ -4381,5 +4381,26 @@ plutôt que côte à côte si plus d'un badge doit apparaître au même endroit)
 
 ### 64.3 État de production
 - **523/523 assertions au vert (0 régression sur 51 suites)**.
-- Jeton de cache final : `?v=20260908i` (`app.compiled.js`, `index.html`, `sw.js`, `tailwind.css`).
+- Jeton de cache intermédiaire : `?v=20260908i` (`app.compiled.js`, `index.html`, `sw.js`, `tailwind.css`).
 - Déployé en production sur **[app.ikadevis.com](https://app.ikadevis.com)** (Cloudflare Version ID: `491a802c-57af-432f-bde9-1685523cd0c1`).
+
+---
+
+## 65. Audit UI/UX — Derniers Ponts d'Optimisation & Clôture Complète (2026-09-08)
+
+### 65.1 Objectifs réalisés
+1. **Bibliothèque d'ouvrages (`WorkItemPicker`)** :
+   - Détection en temps réel des ouvrages déjà présents dans le lot actif avec badge ambre distinctif `<span ...><i className="fa-solid fa-check-double"></i> Déjà dans ce lot</span>`.
+   - Amélioration de la sélection en masse : case à cocher explicite `[✓]`, carte surlignée (`border-brand-500 bg-brand-50/50 ring-1`), raccourci "Tout sélectionner / Tout désélectionner", et barre d'action sticky en bas avec bouton proéminent *"Insérer X ouvrage(s) sélectionné(s)"*.
+2. **Navigation clavier rapide dans l'inspecteur (`WorkItemInspector`)** :
+   - Raccourcis clavier `Alt + ←` et `Alt + →` pour feuilleter instantanément les ouvrages sans fermer l'inspecteur ni recliquer sur le tableau.
+   - Boutons de chevrons accessibles avec `aria-label="Ouvrage précédent"` / `aria-label="Ouvrage suivant"` et infobulles explicites.
+3. **Ergonomie Mobile / Smartphone (PWA)** :
+   - Bouton d'action flottant (FAB Speed-Dial `+`) au pouce sur mobile, positionné au-dessus de la barre des totaux.
+   - Déploiement instantané d'options rapides : *"Bibliothèque"* (ouvre le catalogue) et *"Ligne libre"* (insère une prestation vierge).
+
+### 65.2 État de validation et production
+- **Tests automatisés** : 523/523 assertions au vert (51/51 suites validées à 100%, 0 régression).
+- **Étalons métier BTP** : A, B, C, D, E, F, G strictement conformes (tolérance zéro).
+- **Jeton de cache final** : `?v=20260908j` (`app.compiled.js`, `index.html`, `sw.js`, `tailwind.css`).
+- **Déploiement Cloudflare** : Publié avec succès sur **[app.ikadevis.com](https://app.ikadevis.com)** (Cloudflare Version ID: `fe104c74-3769-46b1-898c-fcfb9300fd47`).
