@@ -85,7 +85,7 @@ export async function readFinancials(page) {
         const amountAfter = (label) => {
             const i = lines.findIndex((l) => l === label || l.startsWith(label));
             if (i === -1) return null;
-            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
                 if (/FCFA|€|\$/.test(lines[j])) return lines[j];
             }
             return null;

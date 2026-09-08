@@ -9,7 +9,7 @@
          donc l'icône générique du navigateur. Le SVG s'adapte au thème du
          navigateur (voir favicon.svg) ; le .ico reste en repli pour les vieux
          navigateurs, mais il est vide — à générer si le besoin se présente. -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260908h">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260908i">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-192.png">
     <!-- 2026-08-21 — Application installable (PWA).
          L'écran de connexion proposait « Mode Démo / Hors-ligne » alors que,
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260908h">
+    <link rel="stylesheet" href="tailwind.css?v=20260908i">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -578,8 +578,9 @@
         }
         .sidebar-catalog-toggle:hover { background: var(--sidebar-hover); }
         .sidebar-catalog-toggle:active { transform: scale(0.99); }
-        .sidebar-catalog-chevron { margin-left: auto; color: #8b95ad; font-size: 10px; }
-        .sidebar-catalog-children { display: flex; flex-direction: column; gap: 3px; margin-left: 14px; padding-left: 10px; border-left: 1px solid #dfe4f0; }
+        .sidebar-catalog-toggle-active { color: var(--brand-700, #3742fa) !important; background: #eef2ff !important; }
+        .sidebar-catalog-chevron { margin-left: auto; color: #8b95ad; font-size: 10px; transition: transform 200ms ease, color 200ms ease; }
+        .sidebar-catalog-children { display: flex; flex-direction: column; gap: 3px; margin-left: 14px; padding-left: 10px; border-left: 2px solid #e0e7ff; }
         .sidebar-catalog-children .sidebar-item { min-height: 40px; font-size: 13px; }
         .sidebar-catalog-children .sidebar-item-icon { width: 17px; }
         .sidebar-catalog-children .sidebar-item-icon-img { height: 17px; }
@@ -992,10 +993,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260908h"></script>
-    <script src="js/utils.js?v=20260908h"></script>
-    <script src="js/quote-templates.js?v=20260908h"></script>
-    <script src="app.compiled.js?v=20260908h"></script>
+    <script src="js/calc-engine.js?v=20260908i"></script>
+    <script src="js/utils.js?v=20260908i"></script>
+    <script src="js/quote-templates.js?v=20260908i"></script>
+    <script src="app.compiled.js?v=20260908i"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

@@ -783,6 +783,7 @@ const IconeSVG = ({ className = "h-7 w-7" }) => (
 
 
 const CustomSelect = ({ 
+    id,
     value, 
     onChange, 
     options = [], 
@@ -829,6 +830,7 @@ const CustomSelect = ({
         <div ref={selectRef} className={`relative ${className}`}>
             <button 
                 type="button" 
+                id={id ? `${id}-btn` : undefined}
                 disabled={disabled} 
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 onKeyDown={handleKeyDown}
@@ -848,9 +850,12 @@ const CustomSelect = ({
             </button>
             {/* Native select accessible et rétrocompatible pour tests automatisés et formulaires */}
             <select
+                id={id}
                 aria-hidden="true"
                 tabIndex={-1}
                 className="sr-only"
+                style={{ display: 'none' }}
+                aria-label={ariaLabel}
                 value={value !== undefined && value !== null ? value : ''}
                 onChange={onChange}
             >
@@ -2967,6 +2972,86 @@ function WorkItemMetreVisualizer2D({
     );
 }
 
+function QuoteStatusDropdown({ value, onChange, options }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const ref = useRef(null);
+    const currentOpt = options.find(s => s.value === (value || 'draft')) || options[0];
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleClickOutside = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
+
+    return (
+        <div className="relative shrink-0" ref={ref}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-2xs ${currentOpt.bg} hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-brand-500/20`}
+                aria-haspopup="listbox"
+                aria-expanded={isOpen}
+                aria-label="Statut du devis"
+                title={`Statut actuel : ${currentOpt.label}`}
+            >
+                <span>{currentOpt.label}</span>
+                <i className={`fa-solid fa-chevron-down text-[9px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-600' : 'opacity-60'}`}></i>
+            </button>
+            {/* Select natif synchronisé pour accessibilité et compatibilité harnais de test */}
+            <select
+                aria-hidden="true"
+                tabIndex={-1}
+                className="sr-only"
+                style={{ display: 'none' }}
+                aria-label="Statut du devis"
+                value={value || 'draft'}
+                onChange={onChange}
+            >
+                {options.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+            </select>
+            {isOpen && (
+                <div role="listbox" className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-44 bg-white border border-neutral-200 rounded-2xl shadow-floating p-1.5 z-[130] animate-fade-in space-y-0.5">
+                    <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider px-2.5 py-1">Changer le statut</p>
+                    {options.map(opt => {
+                        const isSelected = opt.value === (value || 'draft');
+                        return (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                onClick={() => {
+                                    onChange({ target: { value: opt.value } });
+                                    setIsOpen(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors ${
+                                    isSelected ? 'bg-brand-50 text-brand-900 font-bold' : 'text-neutral-700 hover:bg-neutral-50'
+                                }`}
+                            >
+                                <span className={`inline-block text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold border ${opt.bg}`}>
+                                    {opt.label}
+                                </span>
+                                {isSelected && <i className="fa-solid fa-check text-brand-600 text-xs shrink-0"></i>}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
 
 function QuoteHeader({
     quote,
@@ -3011,8 +3096,6 @@ function QuoteHeader({
         { value: 'sent', label: 'Envoyé', bg: 'bg-indigo-50 text-indigo-700 border-indigo-300' },
         { value: 'accepted', label: 'Accepté', bg: 'bg-emerald-50 text-emerald-700 border-emerald-300' }
     ];
-
-    const currentStatus = statusOptions.find(s => s.value === (quote.status || 'draft')) || statusOptions[0];
 
     return (
         <header className="bg-white border-b border-neutral-200 px-3.5 py-2 sm:py-2.5 sticky top-0 z-30 shadow-xs">
@@ -3064,20 +3147,12 @@ function QuoteHeader({
                         </button>
                     </div>
 
-                    {/* Statut Pill */}
-                    <div className="relative shrink-0">
-                        <select
-                            value={quote.status || 'draft'}
-                            onChange={(e) => onUpdateQuote({ status: e.target.value })}
-                            className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border cursor-pointer appearance-none pr-6 ${currentStatus.bg} focus:outline-none focus:ring-2 focus:ring-brand-500/20`}
-                            aria-label="Statut du devis"
-                        >
-                            {statusOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
-                        <i className="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[9px] pointer-events-none opacity-60"></i>
-                    </div>
+                    {/* Statut Pill — Menu déroulant Design System */}
+                    <QuoteStatusDropdown
+                        value={quote.status || 'draft'}
+                        onChange={(e) => onUpdateQuote({ status: e.target.value })}
+                        options={statusOptions}
+                    />
                     </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 self-stretch lg:self-center">
@@ -3751,14 +3826,14 @@ function WorkItemTable({
                 propre conteneur : la page, elle, ne défile toujours pas
                 latéralement. */}
             <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto custom-scroll border border-neutral-200 rounded-2xl bg-white shadow-xs">
-                <table className="w-full min-w-[500px] table-fixed text-left text-xs border-collapse">
+                <table className="w-full min-w-[650px] table-fixed text-left text-xs border-collapse">
                     <colgroup>
                         <col />
-                        <col style={{ width: '56px' }} />
-                        <col style={{ width: '42px' }} />
-                        <col style={{ width: '84px' }} />
-                        <col style={{ width: '96px' }} />
-                        <col style={{ width: '76px' }} />
+                        <col style={{ width: '58px' }} />
+                        <col style={{ width: '46px' }} />
+                        <col style={{ width: '110px' }} />
+                        <col style={{ width: '135px' }} />
+                        <col style={{ width: '88px' }} />
                     </colgroup>
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
@@ -3766,8 +3841,8 @@ function WorkItemTable({
                             <th className="py-3.5 px-1 text-center">Qté</th>
                             <th className="py-3.5 px-1 text-center">Unité</th>
                             <th className="py-3.5 px-1 text-right">P.U. HT</th>
-                            <th className="py-3.5 px-1 text-right">Total HT</th>
-                            <th className="py-3.5 px-1 text-center">Actions</th>
+                            <th className="py-3.5 px-2 text-right">Total HT</th>
+                            <th className="py-3.5 px-2 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
@@ -3956,8 +4031,10 @@ function WorkItemTable({
                                         )}
                                     </td>
 
-                                    <td className="py-3 px-1 text-right font-bold font-mono text-neutral-900 text-xs whitespace-nowrap">
-                                        {formatMoney(total, currency)}
+                                    <td className="py-3 px-2 text-right font-bold font-mono text-neutral-900 text-xs whitespace-nowrap">
+                                        <span className="block truncate" title={formatMoney(total, currency)}>
+                                            {formatMoney(total, currency)}
+                                        </span>
                                         {margin && (
                                             <span
                                                 title={margin.tooltip}
@@ -3969,12 +4046,12 @@ function WorkItemTable({
                                         )}
                                     </td>
 
-                                    <td className="py-3 px-0 text-center">
-                                        <div className="flex items-center justify-center gap-0.5">
+                                    <td className="py-3 px-2 text-center whitespace-nowrap">
+                                        <div className="flex items-center justify-center gap-1 shrink-0">
                                             <button
                                                 type="button"
                                                 onClick={() => onOpenInspector(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[10px] transition-all flex-shrink-0"
+                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[10px] transition-all shrink-0"
                                                 title="Voir et modifier les détails techniques & métrés"
                                                 aria-label={`Détails techniques de ${item.name}`}
                                             >
@@ -3984,7 +4061,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDuplicateItem(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[10px] transition-all flex-shrink-0"
+                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[10px] transition-all shrink-0"
                                                 title="Dupliquer cette ligne"
                                                 aria-label={`Dupliquer ${item.name}`}
                                             >
@@ -3994,7 +4071,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteItem(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[10px] transition-all flex-shrink-0"
+                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[10px] transition-all shrink-0"
                                                 title="Supprimer cette ligne"
                                                 aria-label={`Supprimer ${item.name}`}
                                             >
@@ -5318,17 +5395,14 @@ function QuoteTotalsBar({
                         <span className="text-[10px] text-neutral-500 block uppercase font-bold">TVA</span>
                         {onChangeVatRate && !isReadOnlyDueToDowngrade ? (
                             <div className="flex items-baseline gap-1.5">
-                                <select
+                                <CustomSelect
                                     value={quote.vatRate !== undefined ? quote.vatRate : 18}
                                     onChange={(e) => onChangeVatRate(parseFloat(e.target.value))}
-                                    className="text-xs font-bold text-neutral-700 bg-transparent border border-neutral-200 rounded-md px-1.5 py-0.5 hover:bg-neutral-50 focus:border-brand-500 outline-none cursor-pointer"
+                                    options={vatRates.map(r => ({ value: r, label: r === 0 ? 'Exonéré' : `${r}%` }))}
+                                    size="xs"
+                                    buttonClassName="!py-0.5 !px-2 text-xs font-bold text-neutral-700 bg-white border-neutral-200 rounded-lg shadow-2xs"
                                     aria-label="Taux de TVA du devis"
-                                    title="Taux de TVA appliqué à ce devis"
-                                >
-                                    {vatRates.map(r => (
-                                        <option key={r} value={r}>{r === 0 ? 'Exonéré' : `${r}%`}</option>
-                                    ))}
-                                </select>
+                                />
                                 <span className="font-medium text-neutral-600 text-sm">+{formatMoney(totalTVA, currency)}</span>
                             </div>
                         ) : (
@@ -6575,20 +6649,18 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                             onChange={e => setInviteEmail(e.target.value)}
                         />
                     </div>
-                    <div className="w-44">
-                        <label htmlFor="team_invite_role" className="app-label">Rôle</label>
-                        <select
+                    <div className="w-48">
+                        <label id="team_invite_role_label" className="app-label">Rôle</label>
+                        <CustomSelect
                             id="team_invite_role"
-                            className="app-select"
                             value={inviteRole}
                             onChange={e => setInviteRole(e.target.value)}
-                        >
-                            {ROLES_INVITABLES.map(r => (
-                                <option key={r} value={r}>{ROLE_LABELS_EQUIPE[r]}</option>
-                            ))}
-                        </select>
+                            aria-label="Rôle du membre invité"
+                            size="md"
+                            options={ROLES_INVITABLES.map(r => ({ value: r, label: ROLE_LABELS_EQUIPE[r] }))}
+                        />
                     </div>
-                    <button type="submit" disabled={isInviting} className="btn-primary text-xs py-2 px-4">
+                    <button type="submit" disabled={isInviting} className="btn-primary text-xs py-2.5 px-4">
                         {isInviting ? <i className="fa-solid fa-circle-notch fa-spin mr-1.5"></i> : <i className="fa-solid fa-user-plus mr-1.5"></i>}
                         Inviter
                     </button>
@@ -6623,16 +6695,14 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                                         </td>
                                         <td className="p-3">
                                             {estProprietaire && !soiMeme && m.role !== 'owner' ? (
-                                                <select
-                                                    className="app-select text-xs py-1 px-2"
+                                                <CustomSelect
+                                                    size="xs"
                                                     value={m.role}
                                                     disabled={busyUserId === m.user_id}
                                                     onChange={e => handleRoleChange(m, e.target.value)}
-                                                >
-                                                    {ROLES_INVITABLES.map(r => (
-                                                        <option key={r} value={r}>{ROLE_LABELS_EQUIPE[r]}</option>
-                                                    ))}
-                                                </select>
+                                                    aria-label={`Rôle de ${m.email}`}
+                                                    options={ROLES_INVITABLES.map(r => ({ value: r, label: ROLE_LABELS_EQUIPE[r] }))}
+                                                />
                                             ) : (
                                                 <Badge colorClass={ROLE_BADGE_COLORS[m.role] || 'bg-brand-100 text-brand-800'}>{ROLE_LABELS_EQUIPE[m.role] || m.role}</Badge>
                                             )}
@@ -6762,16 +6832,14 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="new_org_currency" className="app-label">Devise par défaut</label>
-                                    <select
+                                    <label id="new_org_currency_label" className="app-label">Devise par défaut</label>
+                                    <CustomSelect
                                         id="new_org_currency"
-                                        required
                                         value={currency}
                                         onChange={(e) => setCurrency(e.target.value)}
-                                        className="app-select font-bold"
-                                    >
-                                        {CURRENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                    </select>
+                                        aria-label="Devise par défaut"
+                                        options={CURRENCY_OPTIONS}
+                                    />
                                     <p className="text-[11px] text-neutral-500 mt-1.5">Une organisation utilise une seule devise à la fois. Aucune conversion automatique n'est appliquée.</p>
                                 </div>
                             </div>
@@ -16675,20 +16743,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 aria-label="Rechercher dans les factures"
                             />
                         </div>
-                        <select
+                        <CustomSelect
                             value={invoiceStatusFilter}
                             onChange={e => setInvoiceStatusFilter(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
                             aria-label="Filtrer les factures par statut"
-                        >
-                            <option value="all">Tous les statuts</option>
-                            <option value="draft">Brouillons</option>
-                            <option value="issued">Émises</option>
-                            <option value="sent">Envoyées</option>
-                            <option value="partially_paid">Partiellement réglées</option>
-                            <option value="paid">Payées</option>
-                            <option value="cancelled">Annulées</option>
-                        </select>
+                            options={[
+                                { value: 'all', label: 'Tous les statuts' },
+                                { value: 'draft', label: 'Brouillons' },
+                                { value: 'issued', label: 'Émises' },
+                                { value: 'sent', label: 'Envoyées' },
+                                { value: 'partially_paid', label: 'Partiellement réglées' },
+                                { value: 'paid', label: 'Payées' },
+                                { value: 'cancelled', label: 'Annulées' }
+                            ]}
+                        />
                     </div>
 
                     {/* Le Mode Démo ne peut offrir aucune garantie légale : la
@@ -17271,24 +17340,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         brouillons, et le tampon « BROUILLON » s'imprimait sur
                                         100 % des documents envoyés aux clients. Un tampon posé
                                         partout n'alerte plus personne. */}
-                                    <label className="shrink-0 w-32">
+                                    <div className="shrink-0 w-36">
                                         <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
-                                        <select
+                                        <CustomSelect
                                             value={viewingSavedQuote.status || 'draft'}
                                             onChange={(e) => {
                                                 const maj = { ...viewingSavedQuote, status: e.target.value };
                                                 setViewingSavedQuote(maj);
                                                 updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                             }}
+                                            size="sm"
                                             aria-label="Statut du devis"
-                                            className="app-select py-1.5 px-2 text-xs font-semibold"
-                                        >
-                                            {[['draft', 'Brouillon'], ['to_verify', 'À vérifier'], ['ready', 'Prêt'],
-                                              ['sent', 'Envoyé'], ['accepted', 'Accepté']].map(([v, l]) => (
-                                                <option key={v} value={v}>{l}</option>
-                                            ))}
-                                        </select>
-                                    </label>
+                                            options={[
+                                                { value: 'draft', label: 'Brouillon' },
+                                                { value: 'to_verify', label: 'À vérifier' },
+                                                { value: 'ready', label: 'Prêt' },
+                                                { value: 'sent', label: 'Envoyé' },
+                                                { value: 'accepted', label: 'Accepté' }
+                                            ]}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="saved-quote-top-actions mt-3 flex flex-wrap items-center gap-2">
@@ -18033,30 +18104,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <select
+                        <CustomSelect
                             value={savedQuoteStatusFilter}
                             onChange={e => setSavedQuoteStatusFilter(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
                             aria-label="Filtrer les devis par statut"
-                        >
-                            <option value="all">Tous les statuts</option>
-                            <option value="draft">Brouillons</option>
-                            <option value="to_verify">À vérifier</option>
-                            <option value="ready">Prêts</option>
-                            <option value="sent">Envoyés</option>
-                            <option value="accepted">Acceptés</option>
-                            <option value="invoiced">Facturés</option>
-                        </select>
-                        <select
+                            options={[
+                                { value: 'all', label: 'Tous les statuts' },
+                                { value: 'draft', label: 'Brouillons' },
+                                { value: 'to_verify', label: 'À vérifier' },
+                                { value: 'ready', label: 'Prêts' },
+                                { value: 'sent', label: 'Envoyés' },
+                                { value: 'accepted', label: 'Acceptés' },
+                                { value: 'invoiced', label: 'Facturés' }
+                            ]}
+                        />
+                        <CustomSelect
                             value={savedQuoteSort}
                             onChange={e => setSavedQuoteSort(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
                             aria-label="Trier les devis"
-                        >
-                            <option value="recent">Plus récents</option>
-                            <option value="amount_desc">Montant décroissant</option>
-                            <option value="client_asc">Client A → Z</option>
-                        </select>
+                            options={[
+                                { value: 'recent', label: 'Plus récents' },
+                                { value: 'amount_desc', label: 'Montant décroissant' },
+                                { value: 'client_asc', label: 'Client A → Z' }
+                            ]}
+                        />
                     </div>
                 </div>
 
@@ -19726,27 +19799,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         );
     };
 
-    const SidebarCatalogGroup = ({ mobile = false }) => (
-        <div className={`sidebar-catalog-group ${mobile ? 'sidebar-catalog-group-mobile' : ''}`}>
-            <button
-                type="button"
-                className="sidebar-catalog-toggle outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                aria-expanded={isTechnicalCatalogOpen}
-                aria-controls={mobile ? 'mobile-technical-catalog' : 'technical-catalog'}
-                onClick={() => setIsTechnicalCatalogOpen((open) => !open)}
-            >
-                <img src={SIDEBAR_ICONS.recipes} alt="" aria-hidden="true" className="sidebar-item-icon sidebar-item-icon-img" />
-                <span className="sidebar-item-label">Catalogue technique</span>
-                <i className={`fa-solid fa-chevron-${isTechnicalCatalogOpen ? 'up' : 'down'} sidebar-catalog-chevron`} aria-hidden="true"></i>
-            </button>
-            {isTechnicalCatalogOpen && (
-                <div id={mobile ? 'mobile-technical-catalog' : 'technical-catalog'} className="sidebar-catalog-children">
-                    <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
-                    <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
-                </div>
-            )}
-        </div>
-    );
+    const SidebarCatalogGroup = ({ mobile = false }) => {
+        const isChildActive = activeView === 'recipes' || activeView === 'materials';
+        return (
+            <div className={`sidebar-catalog-group ${mobile ? 'sidebar-catalog-group-mobile' : ''}`}>
+                <button
+                    type="button"
+                    className={`sidebar-catalog-toggle outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${isChildActive ? 'sidebar-catalog-toggle-active font-semibold text-brand-700 bg-brand-50/70 shadow-2xs' : ''}`}
+                    aria-expanded={isTechnicalCatalogOpen}
+                    aria-controls={mobile ? 'mobile-technical-catalog' : 'technical-catalog'}
+                    onClick={() => setIsTechnicalCatalogOpen((open) => !open)}
+                >
+                    <img src={SIDEBAR_ICONS.recipes} alt="" aria-hidden="true" className="sidebar-item-icon sidebar-item-icon-img" />
+                    <span className="sidebar-item-label">Catalogue technique</span>
+                    <i className={`fa-solid fa-chevron-down sidebar-catalog-chevron transition-transform duration-200 ${isTechnicalCatalogOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`} aria-hidden="true"></i>
+                </button>
+                {isTechnicalCatalogOpen && (
+                    <div id={mobile ? 'mobile-technical-catalog' : 'technical-catalog'} className="sidebar-catalog-children">
+                        <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
+                        <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} onClickExtra={mobile ? () => setIsMobileDrawerOpen(false) : undefined} />
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const settingsNavigation = [
         { id: 'entreprise', label: 'Entreprise', description: 'Identité et coordonnées', icon: 'fa-building' },
@@ -20300,10 +20376,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </aside>
                         <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-neutral-100 p-4 sm:p-6">
                             <div className="xl:hidden mb-4 shrink-0">
-                                <label htmlFor="settings-section-select" className="app-label">Section des paramètres</label>
-                                <select id="settings-section-select" className="app-select font-bold" value={accountSettingsTab} onChange={e => selectAccountSettingsSection(e.target.value)}>
-                                    {settingsNavigation.map(tab => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
-                                </select>
+                                <label id="settings-section-label" className="app-label">Section des paramètres</label>
+                                <CustomSelect
+                                    id="settings-section-select"
+                                    value={accountSettingsTab}
+                                    onChange={e => selectAccountSettingsSection(e.target.value)}
+                                    size="md"
+                                    aria-label="Section des paramètres"
+                                    options={settingsNavigation.map(tab => ({ value: tab.id, label: tab.label }))}
+                                />
                             </div>
                             <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xs flex-1 min-h-0 flex flex-col overflow-hidden">
                         {accountSettingsTab === 'equipe' && (
@@ -20893,19 +20974,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="company_currency" className="app-label">Devise principale</label>
-                                        <select
+                                        <label id="company_currency_label" className="app-label">Devise principale</label>
+                                        <CustomSelect
                                             id="company_currency"
                                             disabled={isReadOnlyDueToDowngrade}
-                                            className="app-select font-bold"
                                             value={companyInfo.currency || 'FCFA'}
                                             onChange={e => updateCompanyInfo({ ...companyInfo, currency: e.target.value })}
-                                        >
-                                            {CURRENCY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                            {!CURRENCY_OPTIONS.some(option => option.value === companyInfo.currency) && companyInfo.currency && (
-                                                <option value={companyInfo.currency}>{companyInfo.currency} — devise existante</option>
-                                            )}
-                                        </select>
+                                            aria-label="Devise principale"
+                                            options={[
+                                                ...CURRENCY_OPTIONS,
+                                                ...(!CURRENCY_OPTIONS.some(option => option.value === companyInfo.currency) && companyInfo.currency ? [{ value: companyInfo.currency, label: `${companyInfo.currency} — devise existante` }] : [])
+                                            ]}
+                                        />
                                         <p className="text-[11px] text-neutral-500 mt-1.5">Devise d'affichage par défaut, sans conversion automatique.</p>
                                     </div>
                                     <div>
@@ -21543,18 +21623,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="p-6 overflow-y-auto custom-scroll flex-1">
                                 <div className="mb-4 max-w-xs">
-                                    <label htmlFor="situation_type" className="app-label">Type de facture</label>
-                                    <select
+                                    <label id="situation_type_label" className="app-label">Type de facture</label>
+                                    <CustomSelect
                                         id="situation_type"
-                                        className="app-select text-sm font-bold"
+                                        size="md"
+                                        aria-label="Type de facture"
                                         value={situationModal.type}
                                         onChange={e => setSituationModal(s => ({ ...s, type: e.target.value }))}
-                                    >
-                                        <option value="standard">Standard (facture unique)</option>
-                                        <option value="acompte">Acompte</option>
-                                        <option value="situation">Situation de travaux</option>
-                                        <option value="solde">Solde (dernière facture — applique la retenue de garantie)</option>
-                                    </select>
+                                        options={[
+                                            { value: 'standard', label: 'Standard (facture unique)' },
+                                            { value: 'acompte', label: 'Acompte' },
+                                            { value: 'situation', label: 'Situation de travaux' },
+                                            { value: 'solde', label: 'Solde (dernière facture — applique la retenue de garantie)' }
+                                        ]}
+                                    />
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
