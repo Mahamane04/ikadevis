@@ -46,8 +46,10 @@ charge `app.compiled.js`, pas la source.
 | `index_jsx.js` | Application React (JSX compilé par esbuild) |
 | `js/` | Modules extraits : moteur de calcul, utilitaires, gabarits de devis |
 | `app.compiled.js` | Bundle généré — ne pas éditer à la main |
-| `v6_schema.sql` | Schéma PostgreSQL multi-tenant (19 tables, RLS par organisation) |
+| `v6_schema.sql` | Schéma PostgreSQL multi-tenant (20 tables, RLS par organisation) |
 | `v6_platform_admin.sql` | Migration additive : super-admin plateforme (lecture seule) |
+| `migrations_*.sql` | Migrations additives postérieures au schéma de base — appliquer sur staging, valider, puis en production via le SQL editor du dashboard |
+| `supabase/functions/` | Edge Functions (Deno) — `invite-member`, `send-payment-reminders` ; jamais de clé `service_role` côté client |
 | `scratch/` | Suite de tests E2E, dont les 7 devis étalons à tolérance zéro |
 | `vendor/` | Dépendances servies localement (React, Supabase, polices, icônes) |
 

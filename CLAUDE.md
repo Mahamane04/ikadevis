@@ -7,7 +7,10 @@ chaque fois.
 > Ce document est un point d'entrée, pas la source de vérité. Pour l'historique
 > détaillé (cause, correctif, alternatives rejetées, ce qui est prouvé vs pas)
 > voir **[`docs/PROJECT_MASTER_TRACKER.md`](docs/PROJECT_MASTER_TRACKER.md)**
-> (~3900 lignes, § 1 à § 59+). Pour repartir sans tout relire, voir
+> (~4400 lignes, § 1 à § 63+ — voir en particulier **§ 62**, l'enrichissement
+> des Paramètres du 2026-09-06/08 : numérotation, paiement mobile, retenue de
+> garantie, situations de travaux, gestion d'équipe, rappels automatiques, et
+> **§ 62.9** sur l'accès production MCP). Pour repartir sans tout relire, voir
 > [`docs/REPRISE_SESSION.md`](docs/REPRISE_SESSION.md) (général) et
 > [`docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md`](docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md)
 > (calcul guidé des composants). **Ces trois fichiers peuvent être en avance
@@ -37,7 +40,14 @@ index_jsx.js (source, JSX)  ──esbuild──>  app.compiled.js (servi)
         └── js/utils.js             utilitaires, dont l'export PDF (html2canvas + jsPDF)
 
 Supabase (Postgres + RLS par organization_id)  <──requêtes──  app (navigateur)
+        └── supabase/functions/*    Edge Functions (Deno) — service_role jamais côté client
+                                    invite-member, send-payment-reminders (§ 62.6-62.7 du tracker)
 ```
+
+**Composant `Badge`** (déclaré en tête de `index_jsx.js`, juste après
+`STATUTS_DEVIS`/`statutDevis`) : tout badge de statut/rôle doit passer par lui
+(`<Badge colorClass="bg-emerald-100 text-emerald-800">Payée</Badge>`) — forme,
+taille et espacement fixes, seule la couleur varie. Voir tracker § 62.8/63.
 
 ---
 
@@ -46,19 +56,29 @@ Supabase (Postgres + RLS par organization_id)  <──requêtes──  app (navi
 | Ressource | Valeur |
 |---|---|
 | Dépôt GitHub | `github.com:Mahamane04/ikadevis.git` |
-| Domaine en ligne | https://ikadevis.officemicro89.workers.dev (domaines `ikadevis.com` / `app.ikadevis.com` non branchés) |
+| Domaine en ligne | https://app.ikadevis.com (custom domain) et https://ikadevis.officemicro89.workers.dev — `ikadevis.com`/`app.ikadevis.com` branchés sur Cloudflare depuis une session antérieure au § 62 |
 | Worker Cloudflare | `ikadevis`, mode Static Assets — pas de champ `main`, sert `./dist` |
 | Compte Cloudflare | `officemicro89@gmail.com` — wrangler déjà authentifié en local |
 | Supabase **production** | projet `SuperDevisMO` — `qmavetqcpzsfralsqxsi` |
 | Supabase **staging** | projet `ikadevis-staging` — `mwfmruzlonsrrfufbsyz` |
 | Supabase **development** | *(aucun projet dédié — pointe sur staging depuis le 2026-08-19)* |
 
-**⚠️ La connexion MCP Supabase production est en LECTURE SEULE**
-(`transaction_read_only = on`) — un garde-fou à ne pas contourner. Toute DDL/
-migration production passe par l'éditeur SQL du dashboard, à la main. Le
-destructif/expérimental va sur **staging uniquement**, avec nettoyage. Ne
-jamais émettre de facture sur le vrai compte (numéro légal immuable
-consommé). Ne jamais entrer le mot de passe du user à sa place.
+**⚠️ Accès MCP Supabase production — changé le 2026-09-07/08 (tracker § 62.9).**
+Il existait une seule connexion `mcp__supabase-production__*` en lecture
+seule ; l'utilisateur a explicitement demandé et effectué une **reconnexion
+avec les droits complets** (un second connecteur, écriture directe possible :
+`apply_migration`, `deploy_edge_function`, etc.). **Les deux connexions
+coexistent** selon la session — vérifier avant d'agir :
+```sql
+select current_setting('transaction_read_only');   -- 'on' = lecture seule, 'off' = écriture possible
+```
+L'élévation de droits ne change pas la méthode de travail établie : le
+destructif/expérimental continue d'aller sur **staging d'abord**, par
+discipline, même quand l'écriture directe en production est techniquement
+possible. Ne jamais émettre de facture sur le vrai compte pour un test
+(numéro légal immuable consommé). Ne jamais entrer le mot de passe du user à
+sa place, ni lui demander de coller une clé secrète (API/service_role) dans
+le chat — la faire coller directement dans le champ du dashboard concerné.
 
 ---
 
@@ -193,8 +213,9 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 
 ## Schéma Supabase — grandes lignes
 
-19 tables multi-tenant, **RLS par `organization_id`** sur toutes les tables
-métier. Migrations SQL versionnées à la racine (`v5_schema.sql`,
+20 tables multi-tenant, **RLS par `organization_id`** sur toutes les tables
+métier (la 20ᵉ, `invoice_reminders_sent`, ajoutée au § 62.7 pour les rappels
+automatiques). Migrations SQL versionnées à la racine (`v5_schema.sql`,
 `v6_schema.sql`, `v6_*.sql`, `migrations_*.sql`) — additives, jamais de
 réécriture destructive sur un schéma déjà en production.
 
@@ -211,23 +232,31 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
 
 ---
 
-## État courant (voir tracker § 59 pour le détail à jour)
+## État courant (voir tracker § 62-63 pour le détail à jour)
 
-- Branche `main` : à jour, arbre propre. `codex/v2-uiux` porte encore ~20
-  commits d'avance sans divergence (refonte UI devis, facturation, import
-  CSV, calcul mixte, campagne mobile) — fusion laissée à la décision de
-  l'utilisateur, ne pas fusionner sans lui demander.
-- Devis et factures partagent désormais **le même modèle de mise en page par
-  défaut** (§ 58) ; l'éditeur de modèles PDF vise ~90 % de parité avec l'onglet
-  Général de Zoho Books (§ 45–52, 55).
+- Branche `main` : à jour. `codex/v2-uiux` porte encore ~20 commits d'avance
+  sans divergence (refonte UI devis, facturation, import CSV, calcul mixte,
+  campagne mobile) — fusion laissée à la décision de l'utilisateur.
+- **Enrichissement des Paramètres (§ 62, 2026-09-06/08)** : numérotation
+  réconciliée + préfixe personnalisable, paiement mobile (Orange Money/Wave/
+  Moov Money), retenue de garantie fonctionnelle, situations de travaux
+  (facturation multi-factures par lot), gestion d'équipe (Edge Function
+  `invite-member`), rappels de paiement automatiques (`pg_cron` + Edge
+  Function `send-payment-reminders` + Resend, explicitement **sans n8n**).
+  Les trois migrations SQL et les deux Edge Functions sont **appliquées et
+  déployées en production**, cron actif. Composant `Badge` unifié (§ 62.8-63)
+  pour tout badge de statut/rôle.
+- Le parcours **connecté** de bout en bout a été exercé et vérifié en
+  production pendant ce chantier (facturation réelle, invitation d'équipe —
+  chemins d'erreur —, envoi d'e-mail de rappel réel). Reste non testé : le
+  chemin de succès d'une invitation (réception réelle par un vrai
+  destinataire), le mode hors-ligne réel (avion) et l'installation PWA à
+  l'écran d'accueil.
+- Devis et factures partagent **le même modèle de mise en page par défaut**
+  (§ 58) ; l'éditeur de modèles PDF vise ~90 % de parité avec l'onglet Général
+  de Zoho Books (§ 45–52, 55).
 - Export PDF : pagination par tranches de canvas (§ 56), coupure de page sur
   ligne uniforme (§ 57), bandeau de statut retiré du PDF/impression (§ 52).
-- Non éprouvé à ce jour : le parcours **connecté** de bout en bout (paramètres
-  entreprise, logo/pied de page PDF, changement de taux de TVA, émission de
-  facture depuis un devis) — nécessite que l'utilisateur se connecte
-  lui-même, une IA ne peut pas créer de compte ni saisir un mot de passe à sa
-  place. Mode hors-ligne réel (avion) et installation PWA à l'écran d'accueil
-  également non éprouvés.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 
@@ -235,9 +264,14 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
 
 ## Sécurité — garde-fous non négociables (rappel)
 
-- Ne jamais entrer le mot de passe du user à sa place.
-- Supabase **production** : lecture seule via MCP, aucun contournement.
-- Destructif/expérimental → **staging uniquement**, avec nettoyage après coup.
-- Ne jamais émettre de facture sur le compte réel (numéro légal immuable).
+- Ne jamais entrer le mot de passe du user à sa place, ni lui demander de
+  coller une clé secrète (service_role, API) directement dans le chat.
+- Supabase **production** : vérifier `transaction_read_only` avant d'agir
+  (§ 62.9 du tracker — l'accès complet a été accordé, mais pas systématique
+  selon la session). Même en écriture directe possible, **staging d'abord**
+  par discipline pour tout ce qui est destructif/expérimental, avec nettoyage
+  après coup.
+- Ne jamais émettre de facture sur le compte réel pour un test (numéro légal
+  immuable consommé).
 - L'email `infos@microofficeml.com` sert à l'identification uniquement —
   jamais transmis à un service tiers sans demande explicite.

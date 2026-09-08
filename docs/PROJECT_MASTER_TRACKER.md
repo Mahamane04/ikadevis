@@ -4061,3 +4061,301 @@ main-d'œuvre, pertes et marge calculées pour vous — du déboursé sec au tot
 TTC. ») garde le détail du mécanisme, le titre porte le bénéfice.
 
 Cache-buster `?v=20260905c`.
+
+## 💳 62. Enrichissement des Paramètres : six fonctionnalités face à Zoho/QuickBooks/Obat, plus les rappels automatiques (2026-09-06 → 08)
+
+> « je trouve le setting incomplet surtout pour un saas qui offre plus de
+> libèrté de config […] rajouter tout les configue possible pour rendre mon
+> saas indispenssable […] et voir ce que les autres logiciel simulaire font
+> déjà car l'expérience utilisateur compte plusque mon avis à moi seul »
+
+Le plus gros chantier fonctionnel depuis le lancement : sept livrables sur
+trois jours, testés systématiquement sur **staging** avant toute application
+en **production**, plus un changement d'infrastructure important (§ 62.9).
+Plan complet conservé dans `~/.claude/plans/lazy-sleeping-reef.md` côté
+utilisateur — ce paragraphe en est le compte-rendu vérifié.
+
+### 62.1 Le constat de départ
+
+Trois explorations (code + schéma + production réelle en lecture seule) ont
+montré que la base était plus riche qu'il n'y paraissait, mais que plusieurs
+briques étaient **déclaratives sans effet réel** :
+
+- Le numéro de devis affiché était calculé **côté client**
+  (`nextQuoteSeq` local, par navigateur) et jamais réconcilié avec le numéro
+  serveur autoritaire renvoyé par `create_quote_v7` — un bug de fond, corrigé
+  avant tout le reste (§ 62.2).
+- `invoices.invoice_type` anticipait déjà `'acompte'`, `'situation'`,
+  `'solde'`, `'avoir'` (contrainte CHECK) et `deducted_ttc`/`net_to_pay_ttc`
+  existaient — **rien côté client ne les utilisait**.
+- `retentionRate`/`retentionDuration` étaient saisissables dans les
+  Paramètres mais **zéro occurrence** dans `calc-engine.js` : aucun effet sur
+  un calcul ou un PDF.
+- **Aucune Edge Function n'était déployée** sur le projet de production —
+  inviter un membre par e-mail impose la clé `service_role`, jamais
+  exposable côté client, donc un premier morceau serveur était inévitable.
+- `organization_quote_sequences.prefix` / `organization_invoice_sequences.prefix`
+  existaient en base mais n'étaient lus par **aucune** fonction SQL —
+  `'DEV-'`/`'FACT-'` en dur.
+
+### 62.2 Numérotation réconciliée + préfixe + remise à zéro annuelle
+
+`handleSaveQuoteSubmit` jetait le retour de `QuoteService.save` — corrigé
+pour réconcilier `serverQuote.quote_number`/`quote_id` sur l'objet devis
+local après un enregistrement réussi (le compteur local reste un repli
+hors-ligne, mais le serveur fait foi dès qu'il répond).
+
+Migration `migrations_document_numbering_2026-09-06.sql` : colonne
+`seq_year` sur les deux tables de séquence, policy SELECT manquante sur
+`organization_quote_sequences` (RLS actif sans policy = personne ne pouvait
+la lire, pas même son propre owner), `create_quote_v6`/`issue_invoice_v6`
+réécrites pour lire réellement le préfixe et remettre `last_seq` à 0 au
+changement d'année civile, nouvelle RPC `set_document_prefix` (owner/admin
+seuls). Nouvelle section « Numérotation des documents » dans Paramètres →
+Documents & PDF.
+
+**Piège de banc de test** : un premier essai appelait `create_quote_v6(...)`
+directement dans un `WHERE id = …` — Postgres réévalue une fonction volatile
+plusieurs fois dans un scan séquentiel, d'où des numéros dupliqués et une
+violation de contrainte unique. Corrigé en isolant l'appel dans une variable
+avant de relire la ligne.
+
+### 62.3 Paiement mobile (Orange Money / Wave / Moov Money)
+
+Le plus simple des sept — `company_settings.commercial_settings` étant déjà
+un JSONB extensible, aucune migration. Trois champs ajoutés à Paramètres →
+Facturation & envoi, affichés sur le PDF (devis et facture) à côté du RIB
+quand ils sont renseignés.
+
+### 62.4 Retenue de garantie, enfin fonctionnelle
+
+À l'émission d'une facture de type `'solde'` : `retenue = total_ttc ×
+retentionRate/100` (lu depuis `company_snapshot`, donc figé au moment de
+l'émission comme le reste du document), `deducted_ttc`/`net_to_pay_ttc`
+mis à jour par un `UPDATE` direct — autorisé après émission car ces deux
+colonnes ne sont **pas** protégées par `protect_issued_invoice` (contrairement
+à `invoice_number`, `total_ttc`, etc.). Ligne PDF ajoutée : taux, montant,
+date de libération prévue (émission + `retentionDuration`). Pas de statut
+« tenue/libérée » séparé — portée volontairement limitée, une future
+facture/avoir manuel gérera la libération si besoin.
+
+### 62.5 Situations de travaux — la pièce la plus structurante
+
+**Décision de portée** (l'utilisateur a explicitement refusé de trancher sur
+mon seul avis, cf. citation en tête de section) : après recherche
+complémentaire sur la pratique des logiciels BTP (Obat), une situation porte
+un **% cumulé par LOT** — ni un pourcentage global unique (trop grossier : le
+gros œuvre et les finitions n'avancent jamais au même rythme), ni un suivi
+ligne par ligne (trop lourd, nouvelles colonnes nécessaires).
+
+Le schéma anticipait déjà tout (§ 62.1) — **aucune migration**, uniquement de
+la logique client :
+
+- `commercialItems` (calc-engine.js) porte déjà `lotCode`/`lotName` par
+  ligne — l'agrégation par lot ne demande qu'un regroupement client
+  (`regrouperLotsDevis`), pas de changement du moteur de calcul.
+- `invoice_lines` de **toute** l'organisation sont déjà chargées au
+  démarrage de l'app — l'historique « déjà facturé par lot »
+  (`dejaFactureParLot`) se calcule entièrement depuis l'état local déjà
+  présent, sans aller-retour réseau supplémentaire, une fois `metadata`
+  (`{ lotCode, lotName, cumulativePct }`) préservé en lecture
+  (`mapInvoiceFromDb`) et en écriture (`InvoiceService.enregistrer`).
+- Nouvelle modale « Nouvelle situation » : un tableau par lot (montant
+  total, déjà facturé, % cumulé à saisir — ne peut que progresser d'une
+  situation à l'autre, montant qui en découle), sélecteur de type de
+  facture (standard/acompte/situation/solde).
+- `devisFacturables` (liste des devis facturables) passe d'un test binaire
+  `!invoices.some(...)` à `!devisEstEntierementFacture(q)` : un devis reste
+  proposable tant qu'au moins un lot n'est pas à 100 % cumulé — la logique
+  1 devis → 1 facture devient 1 devis → N factures.
+- **Distinction volontaire** entre `dejaFactureParLot` (ne compte que les
+  factures **émises**, sert au calcul du % déjà facturé — un brouillon
+  jamais émis pourrait encore être annulé) et « une facture existe » au sens
+  large (émise ou non), utilisée uniquement pour l'indicateur visuel de
+  liste (§ 62.8) — les deux notions se ressemblent mais répondent à des
+  questions différentes, ne pas les fusionner.
+
+### 62.6 Gestion d'équipe — première Edge Function du projet
+
+Table `organization_members` et ses policies RLS existaient déjà (owner+admin
+pour INSERT, owner seul pour UPDATE/DELETE) — restait à construire l'accès.
+
+- **RPC `list_org_members(p_org_id)`** (SECURITY DEFINER) : le client ne
+  peut pas lire `auth.users`, cette fonction fait la jointure et vérifie
+  l'appartenance via `has_org_permission`. Migration
+  `migrations_team_members_2026-09-06.sql`.
+- **Edge Function `invite-member`** (`supabase/functions/invite-member/`) :
+  vérifie les permissions avec le JWT de **l'appelant** (jamais le
+  service_role à ce stade), puis seulement après ce contrôle utilise le
+  client service_role pour `inviteUserByEmail` / réutiliser un compte
+  existant / `upsert` sur `organization_members`. `owner` exclu des rôles
+  invitables (on ne peut pas s'auto-nommer propriétaire).
+- Nouvel onglet Paramètres « Équipe » (visible owner/admin uniquement) :
+  liste des membres, formulaire d'invitation, changement de rôle et retrait
+  — les contrôles suivent exactement ce que les policies RLS autorisent déjà,
+  le panneau n'invente aucune permission.
+
+**Testé sur staging** via curl brut avec un vrai JWT : sans en-tête
+Authorization → 401 (niveau plateforme, avant le code) ; rôle invalide
+(`owner`) → 400 ; appelant non-membre → 403 ; owner + e-mail de domaine
+fictif → 500 « Email address … is invalid » (preuve que la chaîne complète
+est atteinte — c'est la validation de délivrabilité de GoTrue qui refuse, pas
+un bug). **Chemin de succès volontairement non testé** en autonomie : cela
+enverrait une vraie invitation à une vraie personne sans son consentement.
+
+### 62.7 Rappels automatiques de paiement — sans n8n, décision explicite
+
+> « la partie du workflow ne pas le fairer avec n8n trouve une autres
+> solution » — refus explicite d'une dépendance à l'instance n8n d'un autre
+> projet pour une fonctionnalité cœur d'ikadevis : si ce n8n tombe, les
+> rappels d'ikadevis ne doivent pas s'arrêter.
+
+Solution 100 % Supabase : `pg_cron` + `pg_net` (aucun des deux actif sur le
+projet avant ce chantier — activés par `CREATE EXTENSION IF NOT EXISTS`),
+table de déduplication `invoice_reminders_sent(invoice_id, threshold)`
+(contrainte `UNIQUE`), Edge Function `send-payment-reminders`
+(`supabase/functions/send-payment-reminders/`), fournisseur d'e-mail
+**Resend** (choisi avec l'utilisateur — le plus simple à intégrer depuis Deno
+sans dépendance SMTP).
+
+Trois seuils : `j-3` (rappel avant échéance, `due_date = aujourd'hui + 3`),
+`j+3` et `j+7` (relances, `due_date = aujourd'hui - 3/-7`). Déduplication
+stricte : la ligne de `invoice_reminders_sent` est insérée **avant**
+l'envoi — si l'insert échoue (contrainte déjà là), on saute l'envoi ; en cas
+d'échec réseau côté Resend après un insert réussi, la ligne reste
+volontairement posée (mieux vaut manquer un rappel que risquer d'en
+spammer un client si l'e-mail est en réalité parti).
+
+**Garde-fou d'appel** : `verify_jwt: true` (le gateway exige un JWT Supabase
+valide) **plus** une vérification dans le code que ce JWT porte le rôle
+`service_role` — sans ce deuxième contrôle, n'importe quel utilisateur
+authentifié pourrait déclencher un envoi de masse en rejouant son propre
+jeton, puisque `verify_jwt` seul accepte aussi `anon`/`authenticated`.
+
+**Bug trouvé et corrigé pendant le test réel** : la requête embarquait
+`company_settings` au même niveau que `clients`/`organizations` dans un
+`.select()` PostgREST — or `company_settings.organization_id` référence
+`organizations`, **pas** `invoices` : aucune relation directe entre
+`invoices` et `company_settings` pour que PostgREST puisse l'embarquer ainsi.
+La requête échouait silencieusement (`error` loggé, `continue`), d'où un
+`{sent:0, failed:0, details:[]}` qui semblait juste « rien à envoyer » alors
+que c'était une erreur de requête. Corrigé en imbriquant `company_settings`
+**sous** `organizations` (`organizations ( name, company_settings (...) )`).
+Le corps de réponse porte désormais aussi `query_errors` pour ne plus jamais
+laisser une erreur de ce genre invisible.
+
+**Test réel bout en bout sur staging**, avec le consentement et l'adresse de
+l'utilisateur : facture de test (due_date = aujourd'hui + 3), déclenchement
+manuel via `net.http_post` (même appel que celui que fera le cron), e-mail
+effectivement reçu. **Atterri en spam** au premier envoi — normal pour un
+domaine neuf sans réputation ; DKIM et SPF étaient déjà « Verified » (donc pas
+un problème de config), un enregistrement **DMARC** (`v=DMARC1; p=none;
+rua=mailto:…`) a été ajouté en complément, absent de l'auto-configuration
+Resend↔Cloudflare.
+
+Cron programmé (`cron.schedule`, quotidien 8h UTC) sur staging **et**
+production, appelant l'Edge Function via `net.http_post` avec le
+`service_role` du projet concerné stocké dans **Supabase Vault**
+(`vault.create_secret`/`vault.update_secret`) — jamais en clair dans une
+migration versionnée.
+
+**Piège de saisie rencontré deux fois en posant la clé Vault** : une clé
+`service_role` **legacy** (JWT, `eyJ…`, 3 segments séparés par des points,
+~200+ caractères) est indispensable — le nouveau système de clés Supabase
+(`sb_secret_…`) n'est pas un JWT et échoue silencieusement au décodage dans
+la fonction. Sur un projet migré vers les nouvelles clés API, la clé
+`service_role` legacy reste accessible sous l'onglet **« Legacy anon,
+service_role API keys »** de Project Settings → API — à ne pas confondre
+avec l'onglet par défaut (« Publishable and secret API keys ») qui affiche
+autre chose. Diagnostic utilisé sans jamais exposer la valeur en clair :
+vérifier longueur / préfixe `eyJ` / nombre de points directement en SQL
+(`length()`, `LIKE 'eyJ%'`, comptage de `.`).
+
+### 62.8 Système de badges unifié (`Badge`)
+
+Signalé après coup : le badge « facturé » ajouté dans « Mes devis » (voir
+§ 62.5) chevauchait le badge de statut du devis dès que le panneau de détail
+réduit la liste à 438 px — chaque écran avait sa propre pastille (tailles
+9px/10px, formes `rounded`/`rounded-full`, bordure ou non), sans règle
+commune, d'où le chevauchement.
+
+Composant `Badge({ colorClass, uppercase, className, children })` :
+`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap`
+fixes, seule la couleur (déjà porteuse de sens par écran) reste un paramètre.
+Appliqué à : statut devis + statut facturation dans « Mes devis » (empilés
+verticalement plutôt qu'alignés, pour ne plus déborder), liste et détail des
+factures, actions du journal d'audit, rôle dans le sélecteur d'organisation
+**et** dans l'onglet Équipe (`ROLE_BADGE_COLORS` partagé entre les deux, pour
+qu'un même rôle porte la même couleur des deux côtés). Laissés en dehors du
+périmètre (portée validée avec l'utilisateur — juste badges/pastilles, pas un
+audit complet) : le chip « Synchronisé » (trois variantes, dont une
+cliquable avec hover — traitement différent volontaire, pas un oubli), les
+tags de catégorie de coût dans l'éditeur de lignes.
+
+Au passage, la liste des factures — jusqu'ici des cartes avec vignette de
+document miniature (~130 px de haut chacune) — a été convertie en table
+compacte, même format que « Mes devis » (colonnes Société/Chantier, N° de
+facture, Montant, Statut) : la liste sert à repérer et sélectionner, pas à
+prévisualiser — l'aperçu PDF reste à un clic dans le panneau de détail.
+
+### 62.9 Accès MCP production élevé en écriture — changement d'infrastructure
+
+Jusqu'ici : deux connexions Supabase distinctes, `mcp__supabase-staging__*`
+(écriture complète) et `mcp__supabase-production__*` (lecture seule,
+`transaction_read_only = on`, aucun outil `apply_migration`/
+`deploy_edge_function`) — un garde-fou déjà documenté au § 44 (identifiants).
+Pour ce chantier, l'utilisateur a **explicitement demandé et effectué** la
+reconnexion du connecteur Supabase de production avec les droits complets
+(`transaction_read_only = off`, `apply_migration`/`deploy_edge_function`
+disponibles), après une mise en garde sur la perte du filet de sécurité que
+représentait le mode lecture seule.
+
+**Cette élévation reste en place** au 2026-09-08 — toute session future dispose
+donc d'un accès en écriture direct à la production, ce que les documents plus
+anciens de ce dépôt (§ 44, `CLAUDE.md`, `REPRISE_SESSION.md` avant ce
+paragraphe) ne reflètent pas encore. **Continuer néanmoins à tester sur
+staging d'abord** par discipline — l'accès élevé ne change pas la méthode de
+travail établie, il retire seulement l'impossibilité technique de contourner
+en cas d'urgence.
+
+### 62.10 Vérifié / état production au 2026-09-08
+
+- **523/523 vérifications, 0 régression, 7/7 étalons métier** — rejoué à
+  chaque étape (numérotation, situations, équipe, rappels, badges), jamais
+  déployé sans un passage vert complet précédant immédiatement le build de
+  déploiement (leçon d'une session antérieure : rebuilder pendant qu'une
+  suite tourne encore invalide son résultat — la suite en vol est alors tuée
+  et relancée proprement plutôt que laissée retourner un faux vert).
+- **Les trois migrations SQL et les deux Edge Functions sont appliquées et
+  déployées en production** (`SuperDevisMO`, `qmavetqcpzsfralsqxsi`) :
+  `migrations_document_numbering_2026-09-06.sql`,
+  `migrations_team_members_2026-09-06.sql`,
+  `migrations_payment_reminders_2026-09-07.sql`, fonctions `invite-member` et
+  `send-payment-reminders`.
+- **Cron `send-payment-reminders-daily` actif en production** (`0 8 * * *`),
+  secrets `RESEND_API_KEY`/`REMINDER_FROM_EMAIL` posés, domaine
+  `ikadevis.com` vérifié dans Resend (DKIM, SPF, DMARC). Test technique en
+  production confirmé sans erreur de requête (`query_errors: []`) — `sent: 0`
+  observé est normal (aucune facture réelle ne tombait sur un des trois
+  seuils à l'instant du test), pas un signe d'échec.
+- **Domaines `ikadevis.com` / `app.ikadevis.com` sont désormais branchés et
+  servent l'application** (contrairement à l'état documenté aux § 44/60 et
+  dans `REPRISE_SESSION.md` — domaine acheté et migré vers Cloudflare DNS
+  dans une session antérieure à celle-ci, non encore répercuté dans ces deux
+  documents avant la présente mise à jour).
+- Invitation d'équipe : chemin de succès (réception réelle d'un e-mail
+  d'invitation) **non testé** — nécessite d'inviter une vraie personne, hors
+  périmètre d'une vérification autonome.
+- Cache-buster final de ce chantier : `?v=20260908b`.
+
+## 🎨 63. Convention design — badges, à respecter pour tout nouvel écran
+
+Depuis le § 62.8, **tout nouveau badge de statut ou de rôle doit utiliser le
+composant `Badge`** (déclaré juste après `STATUTS_DEVIS`/`statutDevis`, en
+tête de fichier) plutôt qu'un `<span>` avec des classes Tailwind écrites à la
+main : `<Badge colorClass="bg-emerald-100 text-emerald-800">Payée</Badge>`.
+Seule la paire fond/texte varie d'un statut à l'autre ; forme, taille,
+espacement et `whitespace-nowrap` sont fixés par le composant pour que deux
+badges puissent toujours coexister dans une même cellule étroite sans se
+chevaucher (empiler verticalement avec `flex flex-col items-start gap-1`
+plutôt que côte à côte si plus d'un badge doit apparaître au même endroit).
