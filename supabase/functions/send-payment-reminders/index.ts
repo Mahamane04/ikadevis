@@ -115,24 +115,29 @@ Deno.serve(async (req) => {
     let envoyes = 0;
     let echecs = 0;
     const details: any[] = [];
+    const erreursRequete: any[] = [];
 
     for (const seuil of SEUILS) {
       const dateCible = dateDecalee(DECALAGE_JOURS[seuil]);
 
+      // company_settings n'a pas de FK directe vers invoices — seulement vers
+      // organizations (organization_id). PostgREST ne peut embarquer une
+      // table que via une relation directe : on l'imbrique donc sous
+      // organizations plutôt qu'au même niveau que clients.
       const { data: factures, error } = await supabase
         .from('invoices')
         .select(`
           id, invoice_number, due_date, total_ttc, net_to_pay_ttc, amount_paid,
           organization_id, client_id,
           clients ( name, email ),
-          organizations ( name ),
-          company_settings ( phone, email, currency )
+          organizations ( name, company_settings ( phone, email, currency ) )
         `)
         .in('status', ['issued', 'partially_paid'])
         .eq('due_date', dateCible);
 
       if (error) {
         console.error(`[send-payment-reminders] Requête factures (${seuil}) impossible :`, error.message);
+        erreursRequete.push({ seuil, erreur: error.message });
         continue;
       }
 
@@ -160,7 +165,7 @@ Deno.serve(async (req) => {
         }
         if (!dedupRow) continue;
 
-        const devise = f.company_settings?.currency || 'FCFA';
+        const devise = f.organizations?.company_settings?.currency || 'FCFA';
         const { sujet, html } = sujetEtCorps(seuil, {
           invoice_number: f.invoice_number,
           due_date: f.due_date,
@@ -168,8 +173,8 @@ Deno.serve(async (req) => {
           amount_paid: f.amount_paid,
           client_name: f.clients?.name,
           org_name: f.organizations?.name,
-          org_phone: f.company_settings?.phone,
-          org_email: f.company_settings?.email,
+          org_phone: f.organizations?.company_settings?.phone,
+          org_email: f.organizations?.company_settings?.email,
         }, devise);
 
         try {
@@ -192,7 +197,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ sent: envoyes, failed: echecs, details }), {
+    return new Response(JSON.stringify({ sent: envoyes, failed: echecs, details, query_errors: erreursRequete }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -192,6 +192,21 @@ const STATUTS_DEVIS = {
 };
 const statutDevis = (s) => STATUTS_DEVIS[s] || ['À suivre', 'bg-neutral-100 text-neutral-600'];
 
+// 2026-09-08 — Système de design, badges de statut/rôle. Signalé : chaque
+// écran (devis, factures, équipe, audit) réinventait sa propre pastille —
+// tailles (9px/10px), formes (rounded/rounded-full) et présence d'une bordure
+// divergeaient d'un endroit à l'autre. Le bug immédiat (deux badges qui se
+// chevauchaient dans « Mes devis ») venait justement de cette absence de
+// règle commune. Un seul composant, une seule forme ; seule la couleur (déjà
+// porteuse de sens par écran) reste variable au cas par cas.
+function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = false, className = '', children }) {
+    return (
+        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${uppercase ? 'uppercase tracking-wider' : ''} ${colorClass} ${className}`}>
+            {children}
+        </span>
+    );
+}
+
 // Audit UX P3-7 (2026-09-01) — « Client » au singulier pour une liste,
 // « Factures » au pluriel : les intitulés de collections passent tous au
 // pluriel, et les titres de colonne de chaque écran s'alignent sur eux.
@@ -5507,10 +5522,10 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
         : logs.filter(l => l.action.includes(filterAction));
 
     const actionBadge = (act) => {
-        if (act.includes('created')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Création</span>;
-        if (act.includes('deleted')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">Suppression</span>;
-        if (act.includes('updated')) return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">Modification</span>;
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-800 border border-neutral-300">{act}</span>;
+        if (act.includes('created')) return <Badge colorClass="bg-emerald-100 text-emerald-800">Création</Badge>;
+        if (act.includes('deleted')) return <Badge colorClass="bg-red-100 text-red-800">Suppression</Badge>;
+        if (act.includes('updated')) return <Badge colorClass="bg-blue-100 text-blue-800">Modification</Badge>;
+        return <Badge colorClass="bg-neutral-100 text-neutral-800">{act}</Badge>;
     };
 
     return (
@@ -5617,6 +5632,16 @@ const ROLE_LABELS_EQUIPE = {
     estimator: '👷 Deviseur',
     commercial: '💼 Commercial',
     viewer: '👁️ Lecteur'
+};
+// Couleur par rôle, partagée par le badge du sélecteur d'organisation et par
+// l'onglet Équipe des Paramètres — deux écrans, un seul rôle "owner" ne doit
+// pas avoir deux couleurs différentes selon celui qu'on regarde.
+const ROLE_BADGE_COLORS = {
+    owner: 'bg-amber-100 text-amber-800',
+    admin: 'bg-purple-100 text-purple-800',
+    estimator: 'bg-blue-100 text-blue-800',
+    commercial: 'bg-emerald-100 text-emerald-800',
+    viewer: 'bg-neutral-100 text-neutral-600'
 };
 
 function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, currentUserRole, showToast }) {
@@ -5801,7 +5826,7 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                                                     ))}
                                                 </select>
                                             ) : (
-                                                <span>{ROLE_LABELS_EQUIPE[m.role] || m.role}</span>
+                                                <Badge colorClass={ROLE_BADGE_COLORS[m.role] || 'bg-brand-100 text-brand-800'}>{ROLE_LABELS_EQUIPE[m.role] || m.role}</Badge>
                                             )}
                                         </td>
                                         <td className="p-3 whitespace-nowrap font-mono text-[11px] text-neutral-500">
@@ -5986,14 +6011,8 @@ function OrganizationSwitcher({
     };
 
     const roleBadge = (role) => {
-        switch (role) {
-            case 'owner': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">👑 Owner</span>;
-            case 'admin': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-300">🛡️ Admin</span>;
-            case 'estimator': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-300">👷 Deviseur</span>;
-            case 'commercial': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">💼 Commercial</span>;
-            case 'viewer': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-neutral-100 text-neutral-600 border border-neutral-300">👁️ Lecteur</span>;
-            default: return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-brand-100 text-brand-800 border border-brand-300">Membre</span>;
-        }
+        const libelle = role === 'owner' ? '👑 Owner' : ROLE_LABELS_EQUIPE[role];
+        return <Badge colorClass={ROLE_BADGE_COLORS[role] || 'bg-brand-100 text-brand-800'}>{libelle || 'Membre'}</Badge>;
     };
 
     return (
@@ -15258,56 +15277,103 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
-                        {visibleInvoices.map(f => {
-                            const st = libelleStatut[f.statut] || libelleStatut.draft;
-                            const isActive = !!(activeInvoice && activeInvoice.id === f.id);
-                            return (
-                                <div key={f.id} className={`rounded-xl border-2 transition-all duration-200 bg-white overflow-hidden ${isActive ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
-                                    {/* La vignette montre le haut du document : logo, couleur,
-                                        titre, client. C'est ce qui permet de reconnaître une
-                                        facture dans une liste sans l'ouvrir une par une. */}
-                                    <VignetteModele hauteur={112}>{documentDeLaFacture(f)}</VignetteModele>
-                                    <button onClick={() => setViewingInvoice(f)}
-                                        className="w-full flex flex-col gap-1 p-3.5 text-left"
-                                        aria-label={`Voir la facture de ${f.clientName}`}>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-xs font-bold text-brand-600 truncate">{f.numero || 'Brouillon'}</span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${st.classe}`}>{st.texte}</span>
-                                        </div>
-                                        <p className="font-bold text-neutral-900 text-sm truncate">{f.clientName}</p>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[11px] text-neutral-500 truncate">{f.projectRef}</span>
-                                            <span className="text-xs font-bold text-neutral-800 shrink-0">{formatMoney(f.totalTTC, cur)}</span>
-                                        </div>
-                                    </button>
-                                    <div className="px-3.5 pb-3 -mt-1">
-                                        <button type="button"
-                                            onClick={() => setApercuDocument({
-                                                titre: `Facture ${f.numero || '(brouillon)'} — ${f.clientName}`,
-                                                nomFichier: f.numero ? `Facture-${f.numero}` : `Brouillon-facture-${f.clientName}`,
-                                                contenu: documentDeLaFacture(f)
-                                            })}
-                                            className="btn-secondary btn-dialogue w-full text-brand-700 border-brand-200"
-                                            aria-label={`Aperçu PDF de la facture de ${f.clientName}`}>
-                                            <i className="fa-solid fa-file-pdf mr-1.5"></i> Aperçu PDF
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {visibleInvoices.length === 0 && (
-                            <div className="text-center py-10 px-4">
-                                <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
-                                    <i className="fa-solid fa-file-invoice-dollar"></i>
-                                </div>
-                                <p className="text-sm font-bold text-neutral-800">{(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Aucune facture correspondante' : 'Aucune facture pour le moment'}</p>
-                                <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
-                                    {(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Modifiez votre recherche ou votre filtre pour afficher d’autres factures.' : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
-                                </p>
+                    {/* 2026-09-07 — Remplace les cartes avec vignette de document
+                        (une par facture, ~130px de haut chacune) par une table dense,
+                        même format que « Mes devis » : la liste sert à repérer et
+                        sélectionner une facture, pas à la prévisualiser — l'aperçu PDF
+                        reste à un clic dans le panneau de détail à droite. */}
+                    {visibleInvoices.length > 0 && (
+                        <div className="app-card p-0 overflow-hidden shrink-0">
+                            <table className="w-full table-fixed text-left text-xs border-collapse">
+                                <colgroup>
+                                    <col className="w-[35%]" />
+                                    <col className="w-[21%]" />
+                                    <col className="w-[24%]" />
+                                    <col className="w-[20%]" />
+                                </colgroup>
+                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500">
+                                    <tr>
+                                        <th className="px-2.5 py-3 font-bold truncate">Société / Chantier</th>
+                                        <th className="px-2.5 py-3 font-bold truncate">Facture</th>
+                                        <th className="px-2.5 py-3 font-bold truncate text-right">Montant TTC</th>
+                                        <th className="px-1 py-3 font-bold truncate">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {visibleInvoices.map(f => {
+                                        const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                        const isActive = !!(activeInvoice && activeInvoice.id === f.id);
+                                        const selectInvoice = () => setViewingInvoice(f);
+                                        return (
+                                            <tr
+                                                key={f.id}
+                                                onClick={selectInvoice}
+                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
+                                                tabIndex="0"
+                                                role="button"
+                                                aria-selected={isActive}
+                                                aria-label={`Voir la facture de ${f.clientName}`}
+                                                className={`group cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
+                                            >
+                                                <td className="px-2.5 py-3 min-w-0 align-top">
+                                                    <span className="block font-semibold text-neutral-900 line-clamp-2 break-normal leading-snug" title={f.clientName || 'Société non renseignée'}>{f.clientName || 'Société non renseignée'}</span>
+                                                    <span className="block text-[11px] text-neutral-500 line-clamp-2 break-normal leading-snug mt-0.5" title={f.projectRef || 'Chantier non renseigné'}>{f.projectRef || 'Chantier non renseigné'}</span>
+                                                </td>
+                                                <td className="px-2.5 py-3 whitespace-nowrap">
+                                                    <span className="font-mono text-[11px] font-semibold text-brand-700 block">{f.numero || 'Brouillon'}</span>
+                                                    <span className="text-[10px] tracking-tight text-neutral-500">{f.devisNumero ? `depuis ${f.devisNumero}` : ''}</span>
+                                                </td>
+                                                <td className="px-2.5 py-3 whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums">
+                                                    {formatMoney(f.totalTTC, cur)}
+                                                </td>
+                                                <td className="px-1 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center justify-between gap-1">
+                                                        <Badge colorClass={st.classe}>{st.texte}</Badge>
+                                                        {f.statut === 'draft' && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={isReadOnlyDueToDowngrade}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setConfirmDialog({
+                                                                        isOpen: true,
+                                                                        title: 'Supprimer ce brouillon de facture ?',
+                                                                        message: `Le brouillon pour « ${f.clientName || 'client non renseigné'} » sera définitivement supprimé.\n\nCette action est sans retour.`,
+                                                                        confirmLabel: 'Supprimer',
+                                                                        isDanger: true,
+                                                                        onConfirm: async () => {
+                                                                            closeConfirm();
+                                                                            if (await supprimerFacture(f)) showToast('Brouillon de facture supprimé');
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                                className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:bg-red-50 hover:text-red-600 focus-visible:text-red-600 focus-visible:bg-red-50 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                                                                aria-label={`Supprimer le brouillon de facture de ${f.clientName}`}
+                                                            >
+                                                                <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {visibleInvoices.length === 0 && (
+                        <div className="text-center py-10 px-4">
+                            <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
+                                <i className="fa-solid fa-file-invoice-dollar"></i>
                             </div>
-                        )}
-                    </div>
+                            <p className="text-sm font-bold text-neutral-800">{(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Aucune facture correspondante' : 'Aucune facture pour le moment'}</p>
+                            <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
+                                {(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Modifiez votre recherche ou votre filtre pour afficher d’autres factures.' : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* COLONNE DÉTAIL — le document lui-même, plus de modale : entre
@@ -15333,9 +15399,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-1.5 rounded-lg shrink-0">
                                         {activeInvoice.numero || 'BROUILLON'}
                                     </span>
-                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold border shrink-0 ${(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}`}>
+                                    <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
                                         {(libelleStatut[activeInvoice.statut] || libelleStatut.draft).texte}
-                                    </span>
+                                    </Badge>
                                 </div>
                                 <div className="mt-3 min-w-0">
                                     <h2 className="text-lg font-bold text-neutral-800 break-words">{activeInvoice.clientName}</h2>
@@ -16364,12 +16430,54 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <td className="px-2.5 py-3 whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums">
                         {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
                     </td>
-                    <td className="px-1 py-3 whitespace-nowrap">
-                        <div className="flex items-center justify-between gap-1">
-                            {(() => {
-                                const [libelle, pastille] = statutDevis(sq.status);
-                                return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${pastille}`}>{libelle}</span>;
-                            })()}
+                    <td className="px-1 py-3">
+                        <div className="flex items-start justify-between gap-1">
+                            {/* 2026-09-08 — Signalé : les deux badges (workflow +
+                                facturation) débordaient côte à côte dès que le panneau
+                                de détail réduit la liste à 438 px. Empilés plutôt
+                                qu'alignés, ils tiennent dans la colonne quelle que soit
+                                sa largeur — même logique que Société/Chantier juste à
+                                gauche, qui empile déjà société et chantier. */}
+                            <div className="flex flex-col items-start gap-1 min-w-0">
+                                {(() => {
+                                    const [libelle, pastille] = statutDevis(sq.status);
+                                    return <Badge colorClass={pastille}>{libelle}</Badge>;
+                                })()}
+                                {(() => {
+                                    // 2026-09-07 — Signalé : après "Convertir en facture",
+                                    // rien ne le montre dans "Mes devis". Ce badge est
+                                    // distinct de celui juste au-dessus (statutDevis, le
+                                    // workflow d'approbation du devis) : la facturation est
+                                    // une dimension séparée, qui coexiste avec lui plutôt
+                                    // que de le remplacer — un devis "Approuvé" facturé à
+                                    // moitié reste "Approuvé" ET "En cours".
+                                    //
+                                    // Premier essai basé sur dejaFactureParLot (qui n'compte
+                                    // que les factures ÉMISES, à raison — c'est ce qui sert
+                                    // au calcul du % déjà facturé d'une situation) restait
+                                    // muet tant que la facture liée n'était qu'un brouillon
+                                    // jamais émis : exactement le cas signalé (l'utilisateur
+                                    // clique "Convertir", obtient un brouillon, ne voit rien
+                                    // changer). Il faut donc une notion plus large ici :
+                                    // "une facture existe", émise ou non.
+                                    const facturesDuDevis = invoices.filter(f =>
+                                        String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
+                                    );
+                                    if (facturesDuDevis.length === 0) return null;
+                                    const lots = regrouperLotsDevis(sq);
+                                    const dejaFacture = dejaFactureParLot(sq, invoices);
+                                    const complet = lots.length > 0 && lots.every(l => (dejaFacture[l.lotCode]?.pctCumuleMax || 0) >= 100);
+                                    if (complet) {
+                                        return <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>;
+                                    }
+                                    const aUnBrouillon = facturesDuDevis.some(f => f.statut === 'draft');
+                                    return (
+                                        <Badge colorClass={aUnBrouillon ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}>
+                                            {aUnBrouillon ? 'Facture en brouillon' : 'En cours'}
+                                        </Badge>
+                                    );
+                                })()}
+                            </div>
                             {/* Signalé par un utilisateur (2026-09-02) : « il n'y a pas
                                 une possibilité de supprimer aussi un devis ? »
                                 Il y en avait une, mais uniquement derrière le dépliant
