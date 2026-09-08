@@ -3124,15 +3124,15 @@ function WorkItemTable({
                 Le tableau a désormais une largeur plancher et défile dans son
                 propre conteneur : la page, elle, ne défile toujours pas
                 latéralement. */}
-            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
-                <table className="w-full min-w-[640px] table-fixed text-left text-xs border-collapse">
+            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto custom-scroll border border-neutral-200 rounded-2xl bg-white shadow-xs">
+                <table className="w-full min-w-[500px] table-fixed text-left text-xs border-collapse">
                     <colgroup>
                         <col />
-                        <col style={{ width: '64px' }} />
                         <col style={{ width: '56px' }} />
-                        <col style={{ width: '88px' }} />
-                        <col style={{ width: '88px' }} />
+                        <col style={{ width: '42px' }} />
                         <col style={{ width: '84px' }} />
+                        <col style={{ width: '96px' }} />
+                        <col style={{ width: '76px' }} />
                     </colgroup>
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
@@ -3330,7 +3330,7 @@ function WorkItemTable({
                                         )}
                                     </td>
 
-                                    <td className="py-3 px-2 text-right font-bold text-neutral-900 text-sm">
+                                    <td className="py-3 px-1 text-right font-bold font-mono text-neutral-900 text-xs whitespace-nowrap">
                                         {formatMoney(total, currency)}
                                         {margin && (
                                             <span
@@ -3823,7 +3823,7 @@ function WorkItemInspector({
     };
 
     return (
-        <div className="flex-1 min-w-0 w-full bg-white flex flex-col overflow-hidden animate-fade-in">
+        <div className="flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
                 {/* Header Inspecteur — P0.10 (2026-08-17) : panneau inline (plus de
                     modale/overlay), même pattern liste↔détail que Ressources & Prix
                     et Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur). */}
@@ -3904,7 +3904,7 @@ function WorkItemInspector({
 
                 {/* MODE SIMPLE (Novice / Rapide) */}
                 {inspectorMode === 'simple' ? (
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5 clear-totals-bar animate-fade-in">
+                    <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 space-y-5 clear-totals-bar animate-fade-in">
                         <div className="p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Paramètres Essentiels de l'Ouvrage</span>
@@ -4073,8 +4073,7 @@ function WorkItemInspector({
                     <div className="flex-1 flex flex-col min-h-0 animate-fade-in">
                         {/* Tabs Mode Avancé */}
                         <div
-                            className="grid grid-cols-2 border-b border-neutral-200 px-3 bg-neutral-50/40 gap-px text-xs font-bold shrink-0"
-                            style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+                            className="grid grid-cols-2 xl:grid-cols-4 border-b border-neutral-200 px-3 bg-neutral-50/40 gap-px text-xs font-bold shrink-0"
                         >
                             {tabs.map(t => (
                                 <button
@@ -4124,7 +4123,7 @@ function WorkItemInspector({
                         </div>
 
                         {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto p-5 space-y-5 clear-totals-bar">
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 space-y-5 clear-totals-bar">
                             {activeTab === 'dimensions' && (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
@@ -5398,7 +5397,7 @@ function QuoteWorkspace({
     };
 
     return (
-        <div className="h-full min-h-0 bg-neutral-100 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 bg-neutral-100 flex flex-col overflow-hidden">
             {/* Header Devis.
                 Sur téléphone, ouvrir un lot (ou un ouvrage) doit donner une
                 VRAIE page : cette bande — numéro, statut, client, projet, type
@@ -5499,7 +5498,10 @@ function QuoteWorkspace({
                         repères d'un lecteur d'écran : il ne sait plus lequel est LE
                         contenu. Ce bloc est une région du devis, pas la page — il
                         devient une section nommée. */}
-                    <section aria-label="Ouvrages du lot sélectionné" className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}>
+                    <section
+                        aria-label="Ouvrages du lot sélectionné"
+                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[480px] xl:w-[520px] 2xl:w-[560px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
+                    >
                         <ActiveLotHeader
                             lot={activeLot}
                             lotIndex={activeLotIndex}
@@ -5540,7 +5542,10 @@ function QuoteWorkspace({
                         />
                     </section>
 
-                    <aside className={`${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:w-[min(560px,42vw)] shrink-0 min-h-0 bg-white border-l border-neutral-200 lg:h-full`} aria-label="Inspecteur de l'ouvrage">
+                    <aside
+                        className={`${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:flex-1 min-w-0 min-h-0 bg-white lg:h-full`}
+                        aria-label="Inspecteur de l'ouvrage"
+                    >
                         <WorkItemInspector
                             isOpen={inspectorItemIndex !== null}
                             onClose={() => setInspectorItemIndex(null)}
@@ -13885,7 +13890,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const renderCalculator = () => {
         if (useHybridEditor) {
             return (
-                <>
+                <div className="flex-1 min-h-0 flex flex-col w-full">
                 {renderBandeauExemple()}
                 {renderBandeauBrouillon()}
                 <QuoteWorkspace
@@ -14204,7 +14209,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     savedQuotes={savedQuotes}
                     showToast={showToast}
                 />
-                </>
+                </div>
             );
         }
         const activeSolution = solutions.find(s => s.id === calcForm.solutionId) || solutions[0];
@@ -19341,7 +19346,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
                                 </h1>
                             </header>
-                            <div className="animate-fade-in w-full flex-1 min-h-0">
+                            <div className="animate-fade-in w-full flex-1 min-h-0 flex flex-col">
                                 {activeView === 'dashboard' && renderDashboard()}
                                 {activeView === 'calculator' && renderCalculator()}
                                 {activeView === 'projects' && renderProjects()}
