@@ -4404,3 +4404,49 @@ plutôt que côte à côte si plus d'un badge doit apparaître au même endroit)
 - **Étalons métier BTP** : A, B, C, D, E, F, G strictement conformes (tolérance zéro).
 - **Jeton de cache final** : `?v=20260908j` (`app.compiled.js`, `index.html`, `sw.js`, `tailwind.css`).
 - **Déploiement Cloudflare** : Publié avec succès sur **[app.ikadevis.com](https://app.ikadevis.com)** (Cloudflare Version ID: `fe104c74-3769-46b1-898c-fcfb9300fd47`).
+
+---
+
+## 🔐 66. Fix OAuth Google + Test Gestion d'Équipe (2026-09-08)
+
+### 66.1 Fix OAuth Google — Safari mobile bloqué sur "localhost"
+
+**Problème** : Après déploiement sur `app.ikadevis.com`, la connexion Google OAuth échouait sur Safari (iPhone) car Supabase conservait l'URL de redirection de développement `http://localhost:3000`.
+
+**Cause racine** : Dans Supabase Dashboard (Authentication → URL Configuration) :
+- Site URL = `http://localhost:3000` ❌
+- Redirect URLs = vides (ou localhost uniquement) ❌
+
+**Correctif appliqué par l'utilisateur dans Supabase Dashboard** :
+- Site URL → `https://app.ikadevis.com` ✅
+- Redirect URLs → `https://app.ikadevis.com/**` ✅
+
+Résultat : Connexion Google OAuth (`officemicro89@gmail.com`) confirmée opérationnelle en production.
+
+> ⚠️ À retenir : tout nouveau déploiement vers un domaine custom nécessite de mettre à jour ces deux champs dans Supabase Authentication → URL Configuration. Ne pas oublier si le projet migre vers un autre domaine.
+
+### 66.2 Gestion d'Équipe — État et architecture
+
+#### Architecture technique (rappel)
+| Composant | Détail |
+|-----------|--------|
+| Table | `organization_members` (RLS : owner+admin INSERT, owner seul UPDATE/DELETE) |
+| RPC | `list_org_members(p_org_id)` — SECURITY DEFINER, joint avec `auth.users` |
+| Edge Function | `invite-member` — vérifie JWT appelant, puis `service_role` pour `inviteUserByEmail` |
+| Rôles invitables | `admin`, `estimator`, `commercial`, `viewer` |
+| UI | Onglet "Équipe" dans Paramètres, visible `owner`/`admin` uniquement |
+
+#### État des tests
+- ✅ Chemins d'erreur testés : 401 (non authentifié), 400 (paramètres manquants), 403 (pas la permission), 500 (erreur interne)
+- ⏳ Chemin de succès (invitation réelle e-mail → lien cliqué → membre ajouté) : **À tester** — nécessite une adresse e-mail de test réelle
+
+### 66.3 Prochain test à effectuer
+
+Tester le parcours complet d'invitation :
+1. Aller sur [app.ikadevis.com](https://app.ikadevis.com) → Paramètres → onglet **Équipe**
+2. Saisir une adresse e-mail de test dans le formulaire d'invitation
+3. Confirmer la réception de l'e-mail Supabase
+4. Cliquer le lien → compte créé / associé à l'organisation
+5. Vérifier l'apparition dans la liste des membres avec le bon rôle
+6. Tester changement de rôle et retrait
+
