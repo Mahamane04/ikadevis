@@ -791,7 +791,8 @@ const CustomSelect = ({
     size = 'md', // 'sm' | 'md' | 'xs'
     disabled = false, 
     ['aria-label']: ariaLabel,
-    placeholder = 'Sélectionner...'
+    placeholder = 'Sélectionner...',
+    dropdownClassName = ''
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectRef = useRef(null);
@@ -812,12 +813,25 @@ const CustomSelect = ({
         ? 'px-2 py-1 text-[11px] rounded-lg'
         : 'px-4 py-2.5 text-sm rounded-xl';
 
+    const handleKeyDown = (e) => {
+        if (disabled) return;
+        if (e.key === 'Escape') {
+            setIsOpen(false);
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (!isOpen) {
+                e.preventDefault();
+                setIsOpen(true);
+            }
+        }
+    };
+
     return (
         <div ref={selectRef} className={`relative ${className}`}>
             <button 
                 type="button" 
                 disabled={disabled} 
                 onClick={() => !disabled && setIsOpen(!isOpen)}
+                onKeyDown={handleKeyDown}
                 aria-label={ariaLabel}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
@@ -832,8 +846,22 @@ const CustomSelect = ({
                 <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
                 <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`}></i>
             </button>
+            {/* Native select accessible et rétrocompatible pour tests automatisés et formulaires */}
+            <select
+                aria-hidden="true"
+                tabIndex={-1}
+                className="sr-only"
+                value={value !== undefined && value !== null ? value : ''}
+                onChange={onChange}
+            >
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
             {isOpen && !disabled && (
-                <div role="listbox" className="picker-popover absolute z-[120] left-0 right-0 min-w-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden animate-fade-in origin-top">
+                <div role="listbox" className={`picker-popover absolute z-[120] left-0 min-w-full w-max max-w-[min(380px,95vw)] mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden animate-fade-in origin-top ${dropdownClassName}`}>
                     <div className="picker-mobile-header">
                         <button
                             type="button"
@@ -3676,7 +3704,7 @@ function WorkItemTable({
                                             title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
                                         >
                                             <i className="fa-solid fa-ruler-combined text-[8px]"></i>
-                                            <span>Calculé</span>
+                                            <span>Calculé selon le métrage</span>
                                         </span>
                                     )}
                                 </div>
@@ -3923,7 +3951,7 @@ function WorkItemTable({
                                                 title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
                                             >
                                                 <i className="fa-solid fa-ruler-combined text-[8px]"></i>
-                                                <span>Calculé</span>
+                                                <span>Calculé selon le métrage</span>
                                             </span>
                                         )}
                                     </td>
@@ -4444,7 +4472,7 @@ function WorkItemInspector({
                                 <i className="fa-solid fa-chevron-right text-[8px] text-neutral-400 shrink-0" aria-hidden="true"></i>
                                 <span className="text-neutral-500 shrink-0">Ouvrage #{itemIndex + 1}</span>
                             </div>
-                            <h3 className="font-bold text-sm text-neutral-900 line-clamp-1 leading-tight" title={item.name}>{item.name}</h3>
+                            <h3 className="font-bold text-sm text-neutral-900 line-clamp-1 leading-tight" title={`Détails : ${item.name}`}>Détails : {item.name}</h3>
                         </div>
                     </div>
 
@@ -4530,14 +4558,15 @@ function WorkItemInspector({
                                             onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
                                             className="flex-1 min-w-0 max-w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900 text-center focus:border-brand-500"
                                         />
-                                        <select
+                                        <CustomSelect
                                             value={item.unit || 'forfait'}
                                             onChange={(e) => onUpdateItem({ unit: e.target.value })}
-                                            className="flex-1 min-w-0 max-w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-bold text-neutral-700 text-center outline-none focus:border-brand-500"
+                                            options={['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => ({ value: unit, label: unit }))}
                                             aria-label={`Unité pour ${item.name}`}
-                                        >
-                                            {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
-                                        </select>
+                                            size="sm"
+                                            className="flex-1 min-w-0"
+                                            buttonClassName="!py-2.5 !text-xs !font-bold bg-white justify-between"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -4730,15 +4759,17 @@ function WorkItemInspector({
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                                                 <div className="min-w-0">
                                                     <label className="app-label">Mode de Métré</label>
-                                                    <select
+                                                    <CustomSelect
                                                         value={calcForm.takeoffMode || 'rectangle'}
                                                         onChange={(e) => handleParamChange('takeoffMode', e.target.value)}
-                                                        className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold"
-                                                    >
-                                                        {modesProposables(solution, calcForm.takeoffMode).map(m => (
-                                                            <option key={m} value={m}>{LIBELLES_MODE_LONGS[m] || m}</option>
-                                                        ))}
-                                                    </select>
+                                                        options={modesProposables(solution, calcForm.takeoffMode).map(m => ({
+                                                            value: m,
+                                                            label: LIBELLES_MODE_LONGS[m] || m
+                                                        }))}
+                                                        aria-label="Mode de Métré"
+                                                        size="sm"
+                                                        buttonClassName="!py-2.5 !text-xs !font-bold bg-white"
+                                                    />
                                                 </div>
 
                                                 <div className="min-w-0">
@@ -6828,7 +6859,7 @@ function TopBarOrganizationSwitcher({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group max-w-[170px] sm:max-w-[220px]"
-                aria-label="Sélecteur d'organisation"
+                aria-label="Changer d'organisation"
                 aria-expanded={isOpen}
                 title={`Organisation active : ${activeOrg.name}`}
             >
@@ -7402,7 +7433,7 @@ function GlobalTopBar({
                     onClick={() => onOpenSettings('entreprise')}
                     className={`btn-icon w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-neutral-900 transition-all shadow-2xs flex items-center justify-center ${activeView === 'settings' ? 'bg-brand-50 text-brand-600 border-brand-300' : ''}`}
                     title="Paramètres de l'espace de travail"
-                    aria-label="Paramètres"
+                    aria-label="Paramètres du compte"
                 >
                     <i className="fa-solid fa-gear text-xs sm:text-sm"></i>
                 </button>
@@ -15546,8 +15577,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                     <div>
                         <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Vue d’ensemble</p>
-                        <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900 mt-1">Votre activité, en un coup d’œil</h2>
-                        <p className="text-sm text-neutral-500 mt-1">Retrouvez rapidement les chantiers et documents qui nécessitent votre attention.</p>
+                        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 mt-1">Votre activité, en un coup d’œil</h1>
+                        <p className="text-xs sm:text-sm text-neutral-500 mt-1">Retrouvez rapidement les chantiers et documents qui nécessitent votre attention.</p>
                     </div>
                     <button onClick={() => setActiveView('calculator')} className="btn-primary text-xs py-2.5 px-4 shrink-0" aria-label="Créer un nouveau devis">
                         <i className="fa-solid fa-plus mr-1.5"></i> Nouveau devis
@@ -15645,7 +15676,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     par l'utilisateur en référence à Zoho Books. */}
                 <div className={`${selectedProject ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
-                        <h2 className="text-lg font-bold text-neutral-800">Chantiers</h2>
+                        <h1 className="text-lg font-bold text-neutral-800">Chantiers</h1>
                         <button
                             onClick={() => {
                                 setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
@@ -15861,6 +15892,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-bold mb-2">
                             <i className="fa-solid fa-shield-halved"></i> ADMINISTRATION PLATEFORME · LECTURE SEULE
                         </div>
+                        <h1 className="text-xl font-bold text-neutral-900 mb-1">Administration Plateforme</h1>
                         <p className="text-xs text-neutral-500 max-w-xl">
                             Vue transverse sur toutes les organisations clientes. Chaque consultation est
                             journalisée. Aucune modification des données clients n'est possible depuis cet écran.
@@ -15993,7 +16025,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     par l'utilisateur en référence à Zoho Books. */}
                 <div className={`${selectedClient ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
                     <div className="flex items-center justify-between px-1">
-                        <h2 className="text-lg font-bold text-neutral-800">Clients</h2>
+                        <h1 className="text-lg font-bold text-neutral-800">Clients</h1>
                         <button
                             onClick={() => {
                                 setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
@@ -16596,7 +16628,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <div data-testid="invoices-list" className={`${hasActiveInvoice ? 'hidden lg:flex lg:w-[380px] xl:w-[410px]' : 'flex w-full flex-1'} shrink-0 flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
                     <div className="flex items-center justify-between px-1 gap-2">
                         <div className="min-w-0">
-                            <h2 className="text-lg font-bold text-neutral-800">Factures</h2>
+                            <h1 className="text-lg font-bold text-neutral-800">Factures</h1>
                             <p className="text-xs text-neutral-500 truncate">
                                 {visibleInvoices.length} résultat(s) · {invoices.filter(f => f.statut === 'draft').length} brouillon(s)
                             </p>
@@ -16643,21 +16675,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 aria-label="Rechercher dans les factures"
                             />
                         </div>
-                        <CustomSelect
+                        <select
                             value={invoiceStatusFilter}
                             onChange={e => setInvoiceStatusFilter(e.target.value)}
-                            size="sm"
-                            options={[
-                                { value: 'all', label: 'Tous les statuts' },
-                                { value: 'draft', label: 'Brouillons' },
-                                { value: 'issued', label: 'Émises' },
-                                { value: 'sent', label: 'Envoyées' },
-                                { value: 'partially_paid', label: 'Partiellement réglées' },
-                                { value: 'paid', label: 'Payées' },
-                                { value: 'cancelled', label: 'Annulées' }
-                            ]}
+                            className="app-select py-2 px-2 text-xs"
                             aria-label="Filtrer les factures par statut"
-                        />
+                        >
+                            <option value="all">Tous les statuts</option>
+                            <option value="draft">Brouillons</option>
+                            <option value="issued">Émises</option>
+                            <option value="sent">Envoyées</option>
+                            <option value="partially_paid">Partiellement réglées</option>
+                            <option value="paid">Payées</option>
+                            <option value="cancelled">Annulées</option>
+                        </select>
                     </div>
 
                     {/* Le Mode Démo ne peut offrir aucune garantie légale : la
@@ -17242,23 +17273,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         partout n'alerte plus personne. */}
                                     <label className="shrink-0 w-32">
                                         <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
-                                        <CustomSelect
+                                        <select
                                             value={viewingSavedQuote.status || 'draft'}
                                             onChange={(e) => {
                                                 const maj = { ...viewingSavedQuote, status: e.target.value };
                                                 setViewingSavedQuote(maj);
                                                 updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                             }}
-                                            size="sm"
-                                            options={[
-                                                { value: 'draft', label: 'Brouillon' },
-                                                { value: 'to_verify', label: 'À vérifier' },
-                                                { value: 'ready', label: 'Prêt' },
-                                                { value: 'sent', label: 'Envoyé' },
-                                                { value: 'accepted', label: 'Accepté' }
-                                            ]}
                                             aria-label="Statut du devis"
-                                        />
+                                            className="app-select py-1.5 px-2 text-xs font-semibold"
+                                        >
+                                            {[['draft', 'Brouillon'], ['to_verify', 'À vérifier'], ['ready', 'Prêt'],
+                                              ['sent', 'Envoyé'], ['accepted', 'Accepté']].map(([v, l]) => (
+                                                <option key={v} value={v}>{l}</option>
+                                            ))}
+                                        </select>
                                     </label>
                                 </div>
 
@@ -17984,7 +18013,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             <div data-testid="saved-quotes-list" className={`w-full ${hasActiveQuote ? 'lg:w-[380px] xl:w-[410px]' : 'flex-1'} shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
                 <div className="flex items-center justify-between px-1 gap-2">
                     <div className="min-w-0">
-                        <h2 className="text-lg font-bold text-neutral-800">Mes devis</h2>
+                        <h1 className="text-lg font-bold text-neutral-800">Mes devis</h1>
                         <p className="text-xs text-neutral-500 truncate">
                             {visibleQuotes.length} résultat(s) · prochain {generateNextQuoteNumber(savedQuotes)}
                         </p>
@@ -18004,32 +18033,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <CustomSelect
+                        <select
                             value={savedQuoteStatusFilter}
                             onChange={e => setSavedQuoteStatusFilter(e.target.value)}
-                            size="sm"
-                            options={[
-                                { value: 'all', label: 'Tous les statuts' },
-                                { value: 'draft', label: 'Brouillons' },
-                                { value: 'to_verify', label: 'À vérifier' },
-                                { value: 'ready', label: 'Prêts' },
-                                { value: 'sent', label: 'Envoyés' },
-                                { value: 'accepted', label: 'Acceptés' },
-                                { value: 'invoiced', label: 'Facturés' }
-                            ]}
+                            className="app-select py-2 px-2 text-xs"
                             aria-label="Filtrer les devis par statut"
-                        />
-                        <CustomSelect
+                        >
+                            <option value="all">Tous les statuts</option>
+                            <option value="draft">Brouillons</option>
+                            <option value="to_verify">À vérifier</option>
+                            <option value="ready">Prêts</option>
+                            <option value="sent">Envoyés</option>
+                            <option value="accepted">Acceptés</option>
+                            <option value="invoiced">Facturés</option>
+                        </select>
+                        <select
                             value={savedQuoteSort}
                             onChange={e => setSavedQuoteSort(e.target.value)}
-                            size="sm"
-                            options={[
-                                { value: 'recent', label: 'Plus récents' },
-                                { value: 'amount_desc', label: 'Montant décroissant' },
-                                { value: 'client_asc', label: 'Client A → Z' }
-                            ]}
+                            className="app-select py-2 px-2 text-xs"
                             aria-label="Trier les devis"
-                        />
+                        >
+                            <option value="recent">Plus récents</option>
+                            <option value="amount_desc">Montant décroissant</option>
+                            <option value="client_asc">Client A → Z</option>
+                        </select>
                     </div>
                 </div>
 
@@ -18054,96 +18081,102 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         hasActiveQuote ? (
                             /* Mode 2 colonnes (Master-Detail) : liste de tuiles devis épurées, zéro chevauchement horizontal */
                             <div className="flex flex-col gap-2.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
-                                {visibleQuotes.map(sq => {
-                                    const isActive = !!(activeQuote && activeQuote.id === sq.id);
-                                    const selectQuote = () => {
-                                        setViewingSavedQuote(sq);
-                                        setIsCommercialMode(true);
-                                    };
-                                    const facturesDuDevis = invoices.filter(f =>
-                                        String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
-                                    );
-                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
-                                    const estFacture = sq.status === 'invoiced' || aFactureEmise;
-                                    const badgeElem = estFacture
-                                        ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
-                                        : (() => {
-                                            const [libelle, pastille] = statutDevis(sq.status);
-                                            return <Badge colorClass={pastille}>{libelle}</Badge>;
-                                        })();
+                                <table className="w-full border-separate border-spacing-y-2 text-left">
+                                    <tbody className="divide-y-0">
+                                        {visibleQuotes.map(sq => {
+                                            const isActive = !!(activeQuote && activeQuote.id === sq.id);
+                                            const selectQuote = () => {
+                                                setViewingSavedQuote(sq);
+                                                setIsCommercialMode(true);
+                                            };
+                                            const facturesDuDevis = invoices.filter(f =>
+                                                String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
+                                            );
+                                            const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                            const estFacture = sq.status === 'invoiced' || aFactureEmise;
+                                            const badgeElem = estFacture
+                                                ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
+                                                : (() => {
+                                                    const [libelle, pastille] = statutDevis(sq.status);
+                                                    return <Badge colorClass={pastille}>{libelle}</Badge>;
+                                                })();
 
-                                    return (
-                                        <div
-                                            key={sq.id}
-                                            onClick={selectQuote}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
-                                            tabIndex="0"
-                                            role="button"
-                                            aria-selected={isActive}
-                                            aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
-                                            className={`group cursor-pointer rounded-xl p-3 border transition-all outline-none ${
-                                                isActive
-                                                    ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
-                                                    : 'bg-white hover:bg-neutral-50/90 border-neutral-200/80 hover:border-neutral-300'
-                                            }`}
-                                        >
-                                            {/* Ligne 1 : Numéro Devis & Montant TTC */}
-                                            <div className="flex items-center justify-between gap-2 min-w-0">
-                                                <span className="font-mono text-xs font-bold text-brand-700 truncate">
-                                                    {sq.number}
-                                                </span>
-                                                <span className="font-bold text-xs text-neutral-900 tabular-nums shrink-0">
-                                                    {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
-                                                </span>
-                                            </div>
+                                            return (
+                                                <tr
+                                                    key={sq.id}
+                                                    onClick={selectQuote}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                                    tabIndex="0"
+                                                    role="button"
+                                                    aria-selected={isActive}
+                                                    aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                                                    className={`group cursor-pointer rounded-xl block p-3 border transition-all outline-none ${
+                                                        isActive
+                                                            ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
+                                                            : 'bg-white hover:bg-neutral-50/90 border-neutral-200/80 hover:border-neutral-300'
+                                                    }`}
+                                                >
+                                                    <td className="block p-0">
+                                                        {/* Ligne 1 : Numéro Devis & Montant TTC */}
+                                                        <div className="flex items-center justify-between gap-2 min-w-0">
+                                                            <span className="font-mono text-xs font-bold text-brand-700 truncate">
+                                                                {sq.number}
+                                                            </span>
+                                                            <span className="font-bold text-xs text-neutral-900 tabular-nums shrink-0">
+                                                                {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
+                                                            </span>
+                                                        </div>
 
-                                            {/* Ligne 2 : Client & Statut */}
-                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5">
-                                                <span className="font-semibold text-xs text-neutral-900 truncate" title={sq.clientName || 'Société non renseignée'}>
-                                                    {sq.clientName || 'Société non renseignée'}
-                                                </span>
-                                                <div className="shrink-0">
-                                                    {badgeElem}
-                                                </div>
-                                            </div>
+                                                        {/* Ligne 2 : Client & Statut */}
+                                                        <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5">
+                                                            <span className="font-semibold text-xs text-neutral-900 truncate" title={sq.clientName || 'Société non renseignée'}>
+                                                                {sq.clientName || 'Société non renseignée'}
+                                                            </span>
+                                                            <div className="shrink-0">
+                                                                {badgeElem}
+                                                            </div>
+                                                        </div>
 
-                                            {/* Ligne 3 : Chantier & Date / Actions */}
-                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
-                                                <span className="truncate flex items-center gap-1 min-w-0" title={sq.projectRef || 'Chantier non renseigné'}>
-                                                    <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
-                                                    <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
-                                                </span>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <span>{sq.date}</span>
-                                                    <button
-                                                        type="button"
-                                                        disabled={isReadOnlyDueToDowngrade}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setConfirmDialog({
-                                                                isOpen: true,
-                                                                title: 'Supprimer ce devis ?',
-                                                                message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
-                                                                confirmLabel: 'Supprimer',
-                                                                isDanger: true,
-                                                                onConfirm: async () => {
-                                                                    closeConfirm();
-                                                                    if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
-                                                                }
-                                                            });
-                                                        }}
-                                                        onKeyDown={(e) => e.stopPropagation()}
-                                                        className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5 disabled:opacity-0"
-                                                        aria-label={`Supprimer le devis ${sq.number}`}
-                                                        title="Supprimer ce devis"
-                                                    >
-                                                        <i className="fa-solid fa-trash-can text-[11px]"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                                        {/* Ligne 3 : Chantier & Date / Actions */}
+                                                        <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
+                                                            <span className="truncate flex items-center gap-1 min-w-0" title={sq.projectRef || 'Chantier non renseigné'}>
+                                                                <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                                <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
+                                                            </span>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span>{sq.date}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setConfirmDialog({
+                                                                            isOpen: true,
+                                                                            title: 'Supprimer ce devis ?',
+                                                                            message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
+                                                                            confirmLabel: 'Supprimer',
+                                                                            isDanger: true,
+                                                                            onConfirm: async () => {
+                                                                                closeConfirm();
+                                                                                if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                                    className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5 disabled:opacity-0"
+                                                                    aria-label={`Supprimer le devis ${sq.number}`}
+                                                                    title="Supprimer ce devis"
+                                                                >
+                                                                    <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         ) : (
                             /* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré */
@@ -18209,14 +18242,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         {badgeElem}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right whitespace-nowrap">
-                                                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={selectQuote}
-                                                                className="btn-secondary py-1 px-2.5 text-xs font-bold text-neutral-700 hover:text-brand-700 hover:bg-neutral-100"
-                                                            >
-                                                                Consulter
-                                                            </button>
+                                                        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                                                             <button
                                                                 type="button"
                                                                 disabled={isReadOnlyDueToDowngrade}
@@ -18234,6 +18260,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                     });
                                                                 }}
                                                                 className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-0"
+                                                                aria-label={`Supprimer le devis ${sq.number}`}
                                                                 title="Supprimer ce devis"
                                                             >
                                                                 <i className="fa-solid fa-trash-can text-[11px]"></i>
@@ -18516,7 +18543,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 restent visibles. */}
             <div className={`${selectedSolutionForEdit ? 'hidden lg:flex' : 'flex'} w-full lg:w-[min(30%,360px)] shrink-0 flex-col gap-3 lg:h-full lg:min-h-0`}>
                 <div className="flex items-center justify-between px-1">
-                    <h2 className="text-lg font-bold text-neutral-800">Catalogue des Ouvrages</h2>
+                    <h1 className="text-lg font-bold text-neutral-800">Catalogue des Ouvrages</h1>
                     <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setSolutionModalForm({ id: null, name: '', icon: 'fa-cube', allowedModes: ['rectangle', 'surface', 'linear'] }); setIsSolutionModalOpen(true); }} className={`btn-secondary py-1.5 px-3 text-xs ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : 'text-brand-600 border-brand-200 hover:bg-brand-50'}`} aria-label="Créer un nouvel ouvrage au catalogue">
                         <i className="fa-solid fa-plus"></i> Nouvel Ouvrage
                     </button>
@@ -19050,7 +19077,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return (
         <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
             {/* COLONNE LISTE — masquée sur mobile quand un détail est ouvert (P0.10, pattern Zoho Books) */}
-            <div className={`${selectedItem ? 'hidden lg:flex' : 'flex'} lg:w-[380px] w-full shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
+            <div className={`${selectedItem ? 'hidden lg:flex' : 'flex'} lg:w-[380px] w-full shrink-0 flex-col gap-3 lg:h-full lg:min-h-0`}>
+                <div className="flex items-center justify-between px-1">
+                    <h1 className="text-lg font-bold text-neutral-800">Ressources &amp; Prix</h1>
+                </div>
                 <div className="flex gap-2 bg-white p-2 rounded-xl border border-neutral-200">
                     <button onClick={() => { setResourceTab('materials'); setResourceSearchQuery(''); }}
                             className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'materials' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
@@ -19851,6 +19881,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </nav>
                     <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
                         <PwaInstallButton />
+                        <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
+                            <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
+                        </button>
                         {onSignOut && (
                             <button onClick={deconnexionGardee} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
                                 <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
@@ -19873,6 +19906,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </nav>
                     <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
                         <PwaInstallButton compact />
+                        <div className="relative sidebar-item-collapsed-wrap">
+                            <button onClick={() => openAccountSettings('entreprise')} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres du compte">
+                                <i className="fa-solid fa-gear"></i>
+                            </button>
+                            <span className="sidebar-tooltip" role="tooltip">Paramètres du Compte</span>
+                        </div>
                         {onSignOut && (
                             <div className="relative sidebar-item-collapsed-wrap">
                                 <button onClick={deconnexionGardee} className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
@@ -19947,14 +19986,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     {/* MAIN CONTENT AREA */}
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
-                        <div className={`${activeView === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-4 md:p-6 lg:p-8 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
-                            {activeView !== 'calculator' && (
-                                <header className="flex h-10 sm:h-12 items-center justify-between mb-4 sm:mb-6 shrink-0">
-                                    <h1 className="text-xl sm:text-2xl font-semibold text-neutral-800 tracking-tight">
-                                        {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
-                                    </h1>
-                                </header>
-                            )}
+                        <div className={`${activeView === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
                             <div className="animate-fade-in w-full flex-1 min-h-0 flex flex-col">
                                 {activeView === 'dashboard' && renderDashboard()}
                                 {activeView === 'calculator' && renderCalculator()}
@@ -20237,7 +20269,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <header className="bg-white border-b border-neutral-200 px-4 py-4 sm:px-6 lg:px-8 flex flex-wrap items-start sm:items-center justify-between gap-4 shrink-0">
                         <div>
                             <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-brand-600 mb-1">Espace de configuration</p>
-                            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">Paramètres du compte</h2>
+                            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">Paramètres du compte</h1>
                             <p className="text-xs sm:text-sm text-neutral-500 mt-1">Personnalisez l’entreprise, vos documents et les réglages de votre espace.</p>
                         </div>
                         <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs py-2 px-3 shrink-0" aria-label="Retourner au tableau de bord">
