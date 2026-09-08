@@ -2340,6 +2340,605 @@ function AcmCalepinageVisualizer({
     );
 }
 
+/**
+ * Sprint 3 (2026-09-08) — Visualiseur de Métré BTP 2D / 2.5D SVG Interactif
+ * Offre un rendu géométrique coté professionnel en temps réel avec lignes d'attache,
+ * lignes de cotes d'ingénierie, projections volumétriques 2.5D, synthèse des chutes/pertes,
+ * formule développée complète et garde-fous de cohérence technique.
+ */
+function WorkItemMetreVisualizer2D({
+    calcForm = {},
+    quoteData = {},
+    item = {},
+    currency = 'FCFA'
+}) {
+    const [isBlueprint, setIsBlueprint] = useState(false);
+
+    const mode = calcForm.takeoffMode || 'rectangle';
+    const qty = Math.max(1, parseFloat(calcForm.qty || item.qty) || 1);
+    const width = Math.max(0, parseFloat(calcForm.width) || 0);
+    const height = Math.max(0, parseFloat(calcForm.height) || 0);
+    const depth = parseFloat(calcForm.depth) != null ? Math.max(0, parseFloat(calcForm.depth)) : 0.15;
+    const surfaceDirect = Math.max(0, parseFloat(calcForm.surfaceDirect) || 0);
+    const lengthDirect = Math.max(0, parseFloat(calcForm.lengthDirect) || 0);
+
+    // Calculs dérivés pour les métriques et formules
+    let netSurface = 0;
+    let netVolume = 0;
+    let netLinear = 0;
+    let perimeter = 0;
+    let formulaText = '';
+    let metricPrimaryLabel = '';
+    let metricPrimaryValue = '';
+
+    if (mode === 'rectangle') {
+        const singleS = width * height;
+        netSurface = singleS * qty;
+        perimeter = 2 * (width + height);
+        formulaText = qty > 1 
+            ? `(${width.toFixed(2)} m × ${height.toFixed(2)} m) × ${qty} = ${netSurface.toFixed(2)} m²`
+            : `${width.toFixed(2)} m × ${height.toFixed(2)} m = ${netSurface.toFixed(2)} m²`;
+        metricPrimaryLabel = 'Surface Totale';
+        metricPrimaryValue = `${netSurface.toFixed(2)} m²`;
+    } else if (mode === 'volume') {
+        const singleS = width * height;
+        const singleV = singleS * depth;
+        netVolume = singleV * qty;
+        netSurface = singleS * qty;
+        formulaText = qty > 1
+            ? `(${width.toFixed(2)} m × ${height.toFixed(2)} m × ${depth.toFixed(2)} m) × ${qty} = ${netVolume.toFixed(3)} m³`
+            : `${width.toFixed(2)} m × ${height.toFixed(2)} m × ${depth.toFixed(2)} m = ${netVolume.toFixed(3)} m³`;
+        metricPrimaryLabel = 'Volume Total';
+        metricPrimaryValue = `${netVolume.toFixed(3)} m³`;
+    } else if (mode === 'floor') {
+        const len = lengthDirect || width;
+        const singleS = width * len;
+        netSurface = singleS * qty;
+        perimeter = 2 * (width + len);
+        formulaText = qty > 1
+            ? `(${width.toFixed(2)} m × ${len.toFixed(2)} m) × ${qty} = ${netSurface.toFixed(2)} m²`
+            : `${width.toFixed(2)} m × ${len.toFixed(2)} m = ${netSurface.toFixed(2)} m²`;
+        metricPrimaryLabel = 'Surface Plancher';
+        metricPrimaryValue = `${netSurface.toFixed(2)} m²`;
+    } else if (mode === 'linear') {
+        netLinear = lengthDirect * qty;
+        formulaText = qty > 1
+            ? `${lengthDirect.toFixed(2)} ml × ${qty} = ${netLinear.toFixed(2)} ml`
+            : `${lengthDirect.toFixed(2)} ml`;
+        metricPrimaryLabel = 'Linéaire Total';
+        metricPrimaryValue = `${netLinear.toFixed(2)} ml`;
+    } else if (mode === 'surface') {
+        netSurface = surfaceDirect * qty;
+        formulaText = qty > 1
+            ? `${surfaceDirect.toFixed(2)} m² × ${qty} = ${netSurface.toFixed(2)} m²`
+            : `${surfaceDirect.toFixed(2)} m²`;
+        metricPrimaryLabel = 'Surface Directe';
+        metricPrimaryValue = `${netSurface.toFixed(2)} m²`;
+    } else if (mode === 'unit') {
+        formulaText = `${qty} unité(s)`;
+        metricPrimaryLabel = 'Quantité d’Ouvrage';
+        metricPrimaryValue = `${qty} u`;
+    }
+
+    // Garde-fous et avertissements de cohérence technique BTP
+    const warnings = [];
+    if (mode === 'volume') {
+        if (depth <= 0) {
+            warnings.push("Épaisseur / Profondeur nulle (0.00 m) : le volume calculé est nul (0.000 m³). Veuillez renseigner une épaisseur.");
+        } else if (depth > 5) {
+            warnings.push(`Épaisseur très élevée (${depth.toFixed(2)} m) : vérifiez s'il ne s'agit pas de centimètres saisis comme des mètres.`);
+        }
+        if (width <= 0 || height <= 0) {
+            warnings.push("Largeur ou Hauteur non renseignée pour le calcul de l'emprise volumétrique.");
+        }
+    } else if (mode === 'rectangle') {
+        if (width <= 0 || height <= 0) {
+            warnings.push("Largeur ou Hauteur non renseignée : la surface calculée est de 0.00 m².");
+        } else if ((width > 0 && height > 0) && (width / height > 25 || height / width > 25)) {
+            warnings.push("Ratio de forme très allongé (> 25:1) : vérifiez s'il ne s'agit pas plutôt d'un ouvrage linéaire (ml).");
+        }
+    } else if (mode === 'floor') {
+        if (width <= 0 || (lengthDirect <= 0 && width <= 0)) {
+            warnings.push("Dimensions du plancher non renseignées pour le calcul de surface au sol.");
+        }
+    } else if (mode === 'linear') {
+        if (lengthDirect <= 0) {
+            warnings.push("Longueur linéaire non renseignée : métré à 0.00 ml.");
+        }
+    } else if (mode === 'surface') {
+        if (surfaceDirect <= 0) {
+            warnings.push("Surface directe non renseignée : métré à 0.00 m².");
+        }
+    }
+
+    // Décomposition et analyse des déperditions / chutes techniques
+    let totalWasteCost = 0;
+    let totalNetCost = 0;
+    (quoteData.details || []).forEach(d => {
+        const p = parseFloat(d.pu) || 0;
+        const wq = parseFloat(d.wasteQty) || 0;
+        const nq = parseFloat(d.netQty) || 0;
+        if (wq > 0 && p > 0) totalWasteCost += wq * p;
+        if (nq > 0 && p > 0) totalNetCost += nq * p;
+    });
+    const avgWastePct = totalNetCost > 0 ? (totalWasteCost / totalNetCost) * 100 : 0;
+    const dsConsomme = quoteData.totalRevientConsomme != null ? quoteData.totalRevientConsomme : (quoteData.totalDebourseConsomme || 0);
+
+    // Palette dynamique Thème Blueprint vs Papier Millimétré
+    const theme = {
+        cardBg: isBlueprint ? 'bg-slate-900 border-slate-800 text-slate-100 theme-blueprint' : 'bg-slate-50/80 border-slate-200 text-slate-800',
+        svgBg: isBlueprint ? '#0b1329' : '#f8fafc',
+        gridColor: isBlueprint ? '#1e293b' : '#e2e8f0',
+        strokeColor: isBlueprint ? '#38bdf8' : '#2563eb',
+        fillColor: isBlueprint ? 'rgba(2, 132, 199, 0.25)' : 'rgba(37, 99, 235, 0.12)',
+        hatchColor: isBlueprint ? 'rgba(56, 189, 248, 0.25)' : 'rgba(37, 99, 235, 0.18)',
+        dimLineColor: isBlueprint ? '#38bdf8' : '#2563eb',
+        dimTextColor: isBlueprint ? '#f0f9ff' : '#0f172a',
+        extLineColor: isBlueprint ? '#64748b' : '#94a3b8',
+        badgeBg: isBlueprint ? '#1e293b' : '#ffffff',
+        badgeBorder: isBlueprint ? '#334155' : '#cbd5e1',
+        subtextColor: isBlueprint ? '#94a3b8' : '#64748b',
+        highlightColor: isBlueprint ? '#38bdf8' : '#1d4ed8'
+    };
+
+    const svgW = 380;
+    const svgH = 220;
+
+    // Rendu spécifique selon le mode de métré
+    const renderSvgContent = () => {
+        if (mode === 'volume') {
+            // Projection 2.5D axonométrique (cube / pavé droit)
+            const wRatio = width > 0 ? width : 12;
+            const hRatio = height > 0 ? height : 8;
+
+            const maxBoxW = 180;
+            const maxBoxH = 95;
+            const maxBoxD = 55;
+
+            // Clamping visuel proportionnel
+            const normW = Math.max(90, Math.min(maxBoxW, 90 + (wRatio / 20) * 80));
+            const normH = Math.max(50, Math.min(maxBoxH, 50 + (hRatio / 20) * 45));
+            const normD = Math.max(25, Math.min(maxBoxD, 25 + Math.min(depth, 2) * 20));
+
+            // Vecteur de fuite 30°
+            const dx = normD * 0.866;
+            const dy = normD * 0.5;
+
+            // Origine de la face avant
+            const startX = 65;
+            const startY = 60 + dy;
+
+            // Points des faces
+            const frontTL = { x: startX, y: startY };
+            const frontTR = { x: startX + normW, y: startY };
+            const frontBR = { x: startX + normW, y: startY + normH };
+            const frontBL = { x: startX, y: startY + normH };
+
+            const topTL = { x: startX + dx, y: startY - dy };
+            const topTR = { x: startX + normW + dx, y: startY - dy };
+            const topBR = frontTR;
+            const topBL = frontTL;
+
+            const sideTL = frontTR;
+            const sideTR = topTR;
+            const sideBR = { x: startX + normW + dx, y: startY + normH - dy };
+            const sideBL = frontBR;
+
+            const topPoints = `${topTL.x},${topTL.y} ${topTR.x},${topTR.y} ${topBR.x},${topBR.y} ${topBL.x},${topBL.y}`;
+            const sidePoints = `${sideTL.x},${sideTL.y} ${sideTR.x},${sideTR.y} ${sideBR.x},${sideBR.y} ${sideBL.x},${sideBL.y}`;
+            const frontPoints = `${frontTL.x},${frontTL.y} ${frontTR.x},${frontTR.y} ${frontBR.x},${frontBR.y} ${frontBL.x},${frontBL.y}`;
+
+            const topFill = isBlueprint ? 'rgba(56, 189, 248, 0.40)' : 'rgba(191, 219, 254, 0.70)';
+            const sideFill = isBlueprint ? 'rgba(2, 132, 199, 0.50)' : 'rgba(96, 165, 250, 0.50)';
+            const frontFill = isBlueprint ? 'rgba(2, 132, 199, 0.30)' : 'rgba(147, 197, 253, 0.35)';
+
+            return (
+                <g data-testid="metre-mode-volume">
+                    {/* Face Supérieure (Top) */}
+                    <polygon points={topPoints} fill={topFill} stroke={theme.strokeColor} strokeWidth="1.5" strokeLinejoin="round" />
+                    {/* Face Latérale Droite (Side) */}
+                    <polygon points={sidePoints} fill={sideFill} stroke={theme.strokeColor} strokeWidth="1.5" strokeLinejoin="round" />
+                    {/* Face Avant (Front) */}
+                    <polygon points={frontPoints} fill={frontFill} stroke={theme.strokeColor} strokeWidth="2" strokeLinejoin="round" />
+
+                    {/* Hachures sur la face avant */}
+                    <polygon points={frontPoints} fill="url(#btpGridHatch)" />
+
+                    {/* Lignes de cotes 3D */}
+                    {/* 1. Cote Largeur L (en bas de la face avant) */}
+                    <g>
+                        <line x1={frontBL.x} y1={frontBL.y + 4} x2={frontBL.x} y2={frontBL.y + 22} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={frontBR.x} y1={frontBR.y + 4} x2={frontBR.x} y2={frontBR.y + 22} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={frontBL.x + 2} y1={frontBL.y + 16} x2={frontBR.x - 2} y2={frontBL.y + 16} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <rect x={frontBL.x + normW / 2 - 34} y={frontBL.y + 7} width="68" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={frontBL.x + normW / 2} y={frontBL.y + 19} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                            L = {width.toFixed(2)} m
+                        </text>
+                    </g>
+
+                    {/* 2. Cote Hauteur H (à gauche de la face avant) */}
+                    <g>
+                        <line x1={frontTL.x - 4} y1={frontTL.y} x2={frontTL.x - 22} y2={frontTL.y} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={frontBL.x - 4} y1={frontBL.y} x2={frontBL.x - 22} y2={frontBL.y} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={frontTL.x - 16} y1={frontTL.y + 2} x2={frontTL.x - 16} y2={frontBL.y - 2} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <rect x={frontTL.x - 48} y={frontTL.y + normH / 2 - 9} width="64" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={frontTL.x - 16} y={frontTL.y + normH / 2 + 3} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                            H = {height.toFixed(2)} m
+                        </text>
+                    </g>
+
+                    {/* 3. Cote Épaisseur / Profondeur Ép. (arête supérieure fuyante) */}
+                    <g>
+                        <line x1={topTR.x + 4} y1={topTR.y - 2} x2={topTR.x + 18} y2={topTR.y - 9} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={sideTL.x + 4} y1={sideTL.y - 2} x2={sideTL.x + 18} y2={sideTL.y - 9} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                        <line x1={sideTL.x + 12} y1={sideTL.y - 6} x2={topTR.x + 12} y2={topTR.y - 6} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <rect x={topTR.x + 14} y={topTR.y + dy / 2 - 12} width="72" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={topTR.x + 50} y={topTR.y + dy / 2} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                            Ép. = {depth.toFixed(2)} m
+                        </text>
+                    </g>
+
+                    {/* Badge central sur la face avant : Volume & Emprise */}
+                    <g>
+                        <rect x={frontTL.x + normW / 2 - 44} y={frontTL.y + normH / 2 - 14} width="88" height="28" rx="6" fill={theme.badgeBg} stroke={theme.strokeColor} strokeWidth="1.5" />
+                        <text x={frontTL.x + normW / 2} y={frontTL.y + normH / 2 - 1} textAnchor="middle" fill={theme.highlightColor} fontSize="11" fontWeight="900" fontFamily="monospace">
+                            V = {netVolume.toFixed(3)} m³
+                        </text>
+                        <text x={frontTL.x + normW / 2} y={frontTL.y + normH / 2 + 10} textAnchor="middle" fill={theme.subtextColor} fontSize="8" fontWeight="bold">
+                            Emprise : {netSurface.toFixed(2)} m²
+                        </text>
+                    </g>
+                </g>
+            );
+        }
+
+        if (mode === 'floor') {
+            // Vue plancher / dalle en perspective horizontale
+            const startX = 60;
+            const startY = 70;
+            const floorW = 240;
+            const floorH = 90;
+            const p1 = `${startX + 40},${startY}`;
+            const p2 = `${startX + floorW - 20},${startY}`;
+            const p3 = `${startX + floorW + 15},${startY + floorH}`;
+            const p4 = `${startX - 15},${startY + floorH}`;
+
+            return (
+                <g data-testid="metre-mode-floor">
+                    {/* Dalle / Plancher perspective */}
+                    <polygon points={`${p1} ${p2} ${p3} ${p4}`} fill={theme.fillColor} stroke={theme.strokeColor} strokeWidth="2" />
+                    <polygon points={`${p1} ${p2} ${p3} ${p4}`} fill="url(#btpGridHatch)" />
+
+                    {/* Cote Largeur en avant */}
+                    <g>
+                        <line x1={startX - 15} y1={startY + floorH + 15} x2={startX + floorW + 15} y2={startY + floorH + 15} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <rect x={startX + floorW / 2 - 35} y={startY + floorH + 6} width="70" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={startX + floorW / 2} y={startY + floorH + 18} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                            L = {width.toFixed(2)} m
+                        </text>
+                    </g>
+
+                    {/* Cote Longueur sur côté */}
+                    <g>
+                        <line x1={startX + floorW - 10} y1={startY} x2={startX + floorW + 25} y2={startY + floorH} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <rect x={startX + floorW + 8} y={startY + floorH / 2 - 9} width="76" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={startX + floorW + 46} y={startY + floorH / 2 + 3} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                            Long = {(lengthDirect || width).toFixed(2)} m
+                        </text>
+                    </g>
+
+                    {/* Badge central */}
+                    <g>
+                        <rect x={startX + floorW / 2 - 40} y={startY + floorH / 2 - 12} width="80" height="24" rx="6" fill={theme.badgeBg} stroke={theme.strokeColor} strokeWidth="1.5" />
+                        <text x={startX + floorW / 2} y={startY + floorH / 2 + 4} textAnchor="middle" fill={theme.highlightColor} fontSize="11" fontWeight="900" fontFamily="monospace">
+                            S = {netSurface.toFixed(2)} m²
+                        </text>
+                    </g>
+                </g>
+            );
+        }
+
+        if (mode === 'linear') {
+            // Vue linéaire CAD : poutre / profilé avec jalons et cotations
+            const startX = 40;
+            const barY = 95;
+            const barW = 290;
+            const barH = 24;
+
+            return (
+                <g data-testid="metre-mode-linear">
+                    {/* Profilé linéaire */}
+                    <rect x={startX} y={barY} width={barW} height={barH} rx="4" fill={theme.fillColor} stroke={theme.strokeColor} strokeWidth="2" />
+                    {/* Hachures et jalons de découpe / travées */}
+                    {Array.from({ length: 7 }).map((_, i) => (
+                        <line
+                            key={i}
+                            x1={startX + (i + 1) * (barW / 8)}
+                            y1={barY}
+                            x2={startX + (i + 1) * (barW / 8)}
+                            y2={barY + barH}
+                            stroke={theme.strokeColor}
+                            strokeWidth="1"
+                            strokeDasharray="2,2"
+                            opacity="0.6"
+                        />
+                    ))}
+
+                    {/* Poteaux d'extrémités */}
+                    <rect x={startX - 6} y={barY - 8} width="8" height={barH + 16} rx="2" fill={theme.dimLineColor} />
+                    <rect x={startX + barW - 2} y={barY - 8} width="8" height={barH + 16} rx="2" fill={theme.dimLineColor} />
+
+                    {/* Ligne de cote supérieure */}
+                    <g>
+                        <line x1={startX} y1={barY - 20} x2={startX + barW} y2={barY - 20} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                        <line x1={startX} y1={barY - 26} x2={startX} y2={barY - 12} stroke={theme.extLineColor} strokeWidth="1" />
+                        <line x1={startX + barW} y1={barY - 26} x2={startX + barW} y2={barY - 12} stroke={theme.extLineColor} strokeWidth="1" />
+                        <rect x={startX + barW / 2 - 40} y={barY - 30} width="80" height="20" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                        <text x={startX + barW / 2} y={barY - 16} textAnchor="middle" fill={theme.dimTextColor} fontSize="11" fontWeight="bold" fontFamily="monospace">
+                            Long. = {lengthDirect.toFixed(2)} ml
+                        </text>
+                    </g>
+
+                    {/* Badge total net linéaire */}
+                    <g>
+                        <rect x={startX + barW / 2 - 48} y={barY + barH + 15} width="96" height="26" rx="6" fill={theme.badgeBg} stroke={theme.strokeColor} strokeWidth="1.5" />
+                        <text x={startX + barW / 2} y={barY + barH + 32} textAnchor="middle" fill={theme.highlightColor} fontSize="11" fontWeight="900" fontFamily="monospace">
+                            Total : {netLinear.toFixed(2)} ml
+                        </text>
+                    </g>
+                </g>
+            );
+        }
+
+        if (mode === 'surface') {
+            // Surface directe : forme polygonale stylisée BTP
+            const polyPoints = "75,55 240,45 305,100 270,165 95,155";
+            const equivSide = Math.sqrt(surfaceDirect) || 0;
+
+            return (
+                <g data-testid="metre-mode-surface">
+                    <polygon points={polyPoints} fill={theme.fillColor} stroke={theme.strokeColor} strokeWidth="2" strokeLinejoin="round" />
+                    <polygon points={polyPoints} fill="url(#btpGridHatch)" />
+
+                    {/* Sommets CAD repérés */}
+                    {[
+                        [75, 55], [240, 45], [305, 100], [270, 165], [95, 155]
+                    ].map(([px, py], idx) => (
+                        <circle key={idx} cx={px} cy={py} r="3.5" fill={theme.dimLineColor} stroke={theme.badgeBg} strokeWidth="1.5" />
+                    ))}
+
+                    {/* Badge central Surface Directe */}
+                    <g>
+                        <rect x="135" y="90" width="110" height="34" rx="6" fill={theme.badgeBg} stroke={theme.strokeColor} strokeWidth="1.5" />
+                        <text x="190" y="105" textAnchor="middle" fill={theme.highlightColor} fontSize="12" fontWeight="900" fontFamily="monospace">
+                            S = {surfaceDirect.toFixed(2)} m²
+                        </text>
+                        <text x="190" y="117" textAnchor="middle" fill={theme.subtextColor} fontSize="8" fontWeight="bold">
+                            Carré équiv. ~ {equivSide.toFixed(2)} × {equivSide.toFixed(2)} m
+                        </text>
+                    </g>
+                </g>
+            );
+        }
+
+        if (mode === 'unit') {
+            // Ouvrage unitaire / pièce
+            return (
+                <g data-testid="metre-mode-unit">
+                    {/* Dessin module pièce technique */}
+                    <rect x="130" y="60" width="120" height="90" rx="10" fill={theme.fillColor} stroke={theme.strokeColor} strokeWidth="2" />
+                    <circle cx="190" cy="105" r="28" fill="none" stroke={theme.strokeColor} strokeWidth="1.5" strokeDasharray="3,3" />
+                    <text x="190" y="102" textAnchor="middle" fill={theme.dimTextColor} fontSize="20">
+                        📦
+                    </text>
+                    <rect x="140" y="125" width="100" height="22" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                    <text x="190" y="139" textAnchor="middle" fill={theme.highlightColor} fontSize="11" fontWeight="bold" fontFamily="monospace">
+                        Quantité : {qty} u
+                    </text>
+                </g>
+            );
+        }
+
+        // Mode RECTANGLE par défaut
+        const wVal = width > 0 ? width : 8;
+        const hVal = height > 0 ? height : 4;
+        const realRatio = wVal / hVal;
+        const visRatio = Math.max(0.35, Math.min(3.2, realRatio));
+
+        const maxW = 210;
+        const maxH = 115;
+        let rectW = maxW;
+        let rectH = maxW / visRatio;
+        if (rectH > maxH) {
+            rectH = maxH;
+            rectW = maxH * visRatio;
+        }
+
+        const cx = 175;
+        const cy = 110;
+        const rx = cx - rectW / 2;
+        const ry = cy - rectH / 2;
+
+        return (
+            <g data-testid="metre-mode-rectangle">
+                {/* Forme rectangulaire principale */}
+                <rect x={rx} y={ry} width={rectW} height={rectH} rx="4" fill={theme.fillColor} stroke={theme.strokeColor} strokeWidth="2" />
+                <rect x={rx} y={ry} width={rectW} height={rectH} rx="4" fill="url(#btpGridHatch)" />
+
+                {/* 1. Cote Horizontale Largeur L (au-dessus) */}
+                <g>
+                    <line x1={rx} y1={ry - 4} x2={rx} y2={ry - 20} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                    <line x1={rx + rectW} y1={ry - 4} x2={rx + rectW} y2={ry - 20} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                    <line x1={rx + 2} y1={ry - 14} x2={rx + rectW - 2} y2={ry - 14} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                    <rect x={rx + rectW / 2 - 34} y={ry - 24} width="68" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                    <text x={rx + rectW / 2} y={ry - 12} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                        L = {width.toFixed(2)} m
+                    </text>
+                </g>
+
+                {/* 2. Cote Verticale Hauteur H (à droite) */}
+                <g>
+                    <line x1={rx + rectW + 4} y1={ry} x2={rx + rectW + 20} y2={ry} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                    <line x1={rx + rectW + 4} y1={ry + rectH} x2={rx + rectW + 20} y2={ry + rectH} stroke={theme.extLineColor} strokeWidth="1" strokeDasharray="2,2" />
+                    <line x1={rx + rectW + 14} y1={ry + 2} x2={rx + rectW + 14} y2={ry + rectH - 2} stroke={theme.dimLineColor} strokeWidth="1.5" markerStart="url(#arrowBtpStart)" markerEnd="url(#arrowBtpEnd)" />
+                    <rect x={rx + rectW + 20} y={ry + rectH / 2 - 9} width="66" height="18" rx="4" fill={theme.badgeBg} stroke={theme.badgeBorder} strokeWidth="1" />
+                    <text x={rx + rectW + 53} y={ry + rectH / 2 + 3} textAnchor="middle" fill={theme.dimTextColor} fontSize="10" fontWeight="bold" fontFamily="monospace">
+                        H = {height.toFixed(2)} m
+                    </text>
+                </g>
+
+                {/* Badge central : Surface & Périmètre */}
+                <g>
+                    <rect x={cx - 45} y={cy - 14} width="90" height="28" rx="6" fill={theme.badgeBg} stroke={theme.strokeColor} strokeWidth="1.5" />
+                    <text x={cx} y={cy - 1} textAnchor="middle" fill={theme.highlightColor} fontSize="11" fontWeight="900" fontFamily="monospace">
+                        S = {netSurface.toFixed(2)} m²
+                    </text>
+                    <text x={cx} y={cy + 10} textAnchor="middle" fill={theme.subtextColor} fontSize="8" fontWeight="bold">
+                        P = {perimeter.toFixed(2)} ml
+                    </text>
+                </g>
+
+                {/* Si quantité > 1, badge d'unité en coin */}
+                {qty > 1 && (
+                    <g>
+                        <rect x={rx + 6} y={ry + 6} width="32" height="16" rx="4" fill={theme.highlightColor} />
+                        <text x={rx + 22} y={ry + 17} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
+                            ×{qty}
+                        </text>
+                    </g>
+                )}
+            </g>
+        );
+    };
+
+    return (
+        <div
+            data-testid="metre-visualizer-2d"
+            className={`rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col ${theme.cardBg}`}
+        >
+            {/* En-tête du Visualiseur */}
+            <div className="px-4 py-2.5 border-b border-inherit flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-6 h-6 rounded-lg bg-brand-500/10 text-brand-600 flex items-center justify-center text-xs shrink-0">
+                        <i className="fa-solid fa-compass-drafting"></i>
+                    </span>
+                    <div className="min-w-0">
+                        <span className="text-[11px] font-bold uppercase tracking-wider block truncate">
+                            Schéma Coté BTP · {mode.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-neutral-200/50 dark:bg-slate-800 border border-neutral-300/60 dark:border-slate-700">
+                        {qty > 1 ? `× ${qty} ouvrages` : '1 ouvrage'}
+                    </span>
+                    {/* Bascule Thème Blueprint */}
+                    <button
+                        type="button"
+                        data-testid="toggle-blueprint-theme"
+                        onClick={() => setIsBlueprint(!isBlueprint)}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isBlueprint
+                                ? 'bg-sky-500/20 border-sky-400 text-sky-300'
+                                : 'bg-white border-neutral-200 text-neutral-600 hover:text-neutral-900'
+                        }`}
+                        title={isBlueprint ? "Passer en thème papier clair" : "Passer en thème Blueprint CAD sombre"}
+                        aria-label="Basculer le thème du schéma coté"
+                    >
+                        <i className="fa-solid fa-layer-group"></i>
+                        <span>{isBlueprint ? 'Blueprint' : 'Papier'}</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Zone Graphique SVG */}
+            <div className="p-3 flex items-center justify-center min-h-[220px]">
+                <svg
+                    data-testid="metre-visualizer-svg"
+                    viewBox={`0 0 ${svgW} ${svgH}`}
+                    className="w-full h-auto max-w-[420px] rounded-xl overflow-hidden border border-inherit shadow-inner select-none"
+                    style={{ backgroundColor: theme.svgBg }}
+                >
+                    <defs>
+                        {/* Motif de grille millimétrée d'architecte */}
+                        <pattern id="btpMillimeterGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke={theme.gridColor} strokeWidth="0.8" />
+                        </pattern>
+                        {/* Motif de hachures à 45° */}
+                        <pattern id="btpGridHatch" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="10" stroke={theme.hatchColor} strokeWidth="1.5" />
+                        </pattern>
+                        {/* Flèches de cotation BTP */}
+                        <marker id="arrowBtpStart" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill={theme.dimLineColor} />
+                        </marker>
+                        <marker id="arrowBtpEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill={theme.dimLineColor} />
+                        </marker>
+                    </defs>
+
+                    {/* Grille de fond */}
+                    <rect width={svgW} height={svgH} fill="url(#btpMillimeterGrid)" />
+
+                    {/* Dessin géométrique et cotations */}
+                    {renderSvgContent()}
+                </svg>
+            </div>
+
+            {/* Garde-fous et avertissements de cohérence technique */}
+            {warnings.length > 0 && (
+                <div
+                    data-testid="metre-warning-alert"
+                    role="alert"
+                    className="mx-3 mb-3 p-2.5 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/50 flex items-start gap-2 text-amber-800 dark:text-amber-300 text-[11px]"
+                >
+                    <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
+                    <div className="space-y-0.5">
+                        {warnings.map((w, wi) => (
+                            <p key={wi} className="font-medium leading-snug">{w}</p>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Barre de Synthèse Technique & Déperditions */}
+            <div className="p-3 border-t border-inherit bg-neutral-100/60 dark:bg-slate-800/60 space-y-2 text-xs">
+                {/* Formule développée */}
+                <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Formule :</span>
+                    <span
+                        data-testid="metre-formula-developed"
+                        className="font-mono font-bold text-[11px] text-neutral-800 dark:text-neutral-200 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-neutral-200 dark:border-slate-700"
+                    >
+                        {formulaText || 'Métré à renseigner'}
+                    </span>
+                </div>
+
+                {/* Métriques financières & Déperditions */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-neutral-200/80 dark:border-slate-700">
+                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Métré Net</span>
+                        <span className="font-mono font-bold text-neutral-900 dark:text-white text-xs">{metricPrimaryValue}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-neutral-200/80 dark:border-slate-700">
+                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Déboursé Sec</span>
+                        <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-xs">
+                            {formatMoney(dsConsomme, currency)}
+                        </span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-neutral-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
+                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Pertes & Chutes</span>
+                        <span className="font-mono font-bold text-xs text-neutral-700 dark:text-neutral-300">
+                            {avgWastePct > 0 ? `~${avgWastePct.toFixed(1)}% perte` : 'Pertes incluses'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 function QuoteHeader({
     quote,
@@ -4126,130 +4725,137 @@ function WorkItemInspector({
                         <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 space-y-5 clear-totals-bar">
                             {activeTab === 'dimensions' && (
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
-                                        <div className="min-w-0">
-                                            <label className="app-label">Mode de Métré</label>
-                                            <select
-                                                value={calcForm.takeoffMode || 'rectangle'}
-                                                onChange={(e) => handleParamChange('takeoffMode', e.target.value)}
-                                                className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold"
-                                            >
-                                                {modesProposables(solution, calcForm.takeoffMode).map(m => (
-                                                    <option key={m} value={m}>{LIBELLES_MODE_LONGS[m] || m}</option>
+                                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 min-w-0">
+                                        {/* Colonne Gauche : Saisie des Paramètres */}
+                                        <div className="xl:col-span-5 space-y-4 min-w-0">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+                                                <div className="min-w-0">
+                                                    <label className="app-label">Mode de Métré</label>
+                                                    <select
+                                                        value={calcForm.takeoffMode || 'rectangle'}
+                                                        onChange={(e) => handleParamChange('takeoffMode', e.target.value)}
+                                                        className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold"
+                                                    >
+                                                        {modesProposables(solution, calcForm.takeoffMode).map(m => (
+                                                            <option key={m} value={m}>{LIBELLES_MODE_LONGS[m] || m}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <label className="app-label">Quantité d'ouvrages</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={calcForm.qty || item.qty || 1}
+                                                        onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
+                                                        className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Dimensions selon le mode */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-neutral-50/60 rounded-xl border border-neutral-200 min-w-0">
+                                                {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume' || calcForm.takeoffMode === 'floor') && (
+                                                    <div className="min-w-0">
+                                                        <label className="app-label">Largeur (m)</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={calcForm.width || 0}
+                                                            onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume') && (
+                                                    <div className="min-w-0">
+                                                        <label className="app-label">Hauteur (m)</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={calcForm.height || 0}
+                                                            onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {calcForm.takeoffMode === 'volume' && (
+                                                    <div className="min-w-0 sm:col-span-2">
+                                                        <label className="app-label">Épaisseur / Profondeur (m)</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={calcForm.depth != null ? calcForm.depth : 0.15}
+                                                            onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {calcForm.takeoffMode === 'surface' && (
+                                                    <div className="sm:col-span-2 min-w-0">
+                                                        <label className="app-label">Surface Directe (m²)</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={calcForm.surfaceDirect || 0}
+                                                            onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {calcForm.takeoffMode === 'linear' && (
+                                                    <div className="sm:col-span-2 min-w-0">
+                                                        <label className="app-label">Longueur (ml)</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="any"
+                                                            value={calcForm.lengthDirect || 0}
+                                                            onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {calcForm.takeoffMode === 'unit' && (
+                                                    <div className="sm:col-span-2 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-lg p-2">
+                                                        Mode Pièce / Forfait : le calcul s'applique directement à la quantité d'ouvrages ci-dessus.
+                                                    </div>
+                                                )}
+
+                                                {solution?.customVars?.map((cv) => (
+                                                    <div key={cv.name} className="min-w-0">
+                                                        <label className="app-label">{cv.label}</label>
+                                                        <input
+                                                            type="number"
+                                                            step="any"
+                                                            value={(calcForm.customVarValues && calcForm.customVarValues[cv.name] !== undefined) ? calcForm.customVarValues[cv.name] : cv.defaultValue}
+                                                            onChange={(e) => handleCustomVarChange(cv.name, e.target.value)}
+                                                            className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
+                                                        />
+                                                    </div>
                                                 ))}
-                                            </select>
+                                            </div>
                                         </div>
 
-                                        <div className="min-w-0">
-                                            <label className="app-label">Quantité d'ouvrages</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={calcForm.qty || item.qty || 1}
-                                                onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
-                                                className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
+                                        {/* Colonne Droite : Schéma coté 2D SVG & Synthèse Déperditions */}
+                                        <div className="xl:col-span-7 min-w-0">
+                                            <WorkItemMetreVisualizer2D
+                                                calcForm={calcForm}
+                                                quoteData={quoteData}
+                                                item={item}
+                                                currency={currency}
                                             />
                                         </div>
-                                    </div>
-
-                                    {/* Dimensions selon le mode */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-neutral-50/60 rounded-xl border border-neutral-200 min-w-0">
-                                        {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume' || calcForm.takeoffMode === 'floor') && (
-                                            <div className="min-w-0">
-                                                <label className="app-label">Largeur (m)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    value={calcForm.width || 0}
-                                                    onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume') && (
-                                            <div className="min-w-0">
-                                                <label className="app-label">Hauteur (m)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    value={calcForm.height || 0}
-                                                    onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {calcForm.takeoffMode === 'volume' && (
-                                            <div className="min-w-0">
-                                                <label className="app-label">Épaisseur / Profondeur (m)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    value={calcForm.depth || 0.15}
-                                                    onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {calcForm.takeoffMode === 'surface' && (
-                                            <div className="sm:col-span-2 min-w-0">
-                                                <label className="app-label">Surface Directe (m²)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    value={calcForm.surfaceDirect || 0}
-                                                    onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* P0.7 — mode 'linear' absent de cet inspecteur avant le 2026-08-16 :
-                                            présent dans le sélecteur (option "Mètre Linéaire") et dans le moteur
-                                            de calcul, mais sans champ de saisie ici — impossible de modifier la
-                                            longueur d'un ouvrage linéaire (ex: Garde-Corps) une fois ajouté. */}
-                                        {calcForm.takeoffMode === 'linear' && (
-                                            <div className="sm:col-span-2 min-w-0">
-                                                <label className="app-label">Longueur (ml)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    value={calcForm.lengthDirect || 0}
-                                                    onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {calcForm.takeoffMode === 'unit' && (
-                                            <div className="sm:col-span-2 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-lg p-2">
-                                                Mode Pièce / Forfait : le calcul s'applique directement à la quantité d'ouvrages ci-dessus.
-                                            </div>
-                                        )}
-
-                                        {/* handleCustomVarChange existait déjà dans le code (L3917) mais n'était
-                                            appelé nulle part : les variables personnalisées (COUCHES, NOMBRE_LETTRES,
-                                            et désormais ESPACEMENT/HAUTEUR_POTEAU/etc.) n'étaient éditables sur
-                                            aucun ouvrage depuis cet inspecteur. */}
-                                        {solution?.customVars?.map((cv) => (
-                                            <div key={cv.name}>
-                                                <label className="app-label">{cv.label}</label>
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    value={(calcForm.customVarValues && calcForm.customVarValues[cv.name] !== undefined) ? calcForm.customVarValues[cv.name] : cv.defaultValue}
-                                                    onChange={(e) => handleCustomVarChange(cv.name, e.target.value)}
-                                                    className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
-                                                />
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             )}
