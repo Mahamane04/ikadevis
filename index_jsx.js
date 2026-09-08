@@ -1131,10 +1131,11 @@ function ClientCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ clientName: '', clientId: null }); setIsOpen(true); }}
-                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
                         aria-label="Effacer le client"
+                        title="Effacer le client"
                     >
-                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                        <i className="fa-solid fa-xmark text-xs"></i>
                     </button>
                 )}
                 {/* Chevron de rangée : signale que taper ouvre une page de
@@ -1409,10 +1410,11 @@ function ProjectCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ projectRef: '', projectId: null }); setIsOpen(true); }}
-                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-5 h-5 rounded-full hover:bg-neutral-100"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
                         aria-label="Effacer le projet"
+                        title="Effacer le projet"
                     >
-                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                        <i className="fa-solid fa-xmark text-xs"></i>
                     </button>
                 )}
                 {!query && (
@@ -2898,6 +2900,7 @@ function WorkItemTable({
     onSelectSolution,
     onCreateSolution,
     onAddCustomLine,
+    activeInspectorIndex = null,
     currency = 'FCFA'
 }) {
     if (!items || items.length === 0) {
@@ -2969,22 +2972,30 @@ function WorkItemTable({
                     const total = item.totalHT || 0;
                     const margin = lineMarginInfo(item, currency);
                     const facture = ligneFacturee(item);
+                    const isActive = activeInspectorIndex === idx;
                     return (
-                        <div key={item.id || idx} className="border border-neutral-200 rounded-2xl bg-white shadow-xs p-3.5 space-y-3">
+                        <div key={item.id || idx} className={`rounded-2xl bg-white shadow-xs p-3.5 space-y-3 transition-all ${isActive ? 'border-2 border-brand-500 ring-2 ring-brand-500/20 bg-brand-50/20' : 'border border-neutral-200'}`}>
                             <div className="flex items-start gap-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-700 flex items-center justify-center text-xs shrink-0 mt-1">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 mt-1 ${isActive ? 'bg-brand-500 text-white shadow-xs' : 'bg-neutral-100 text-neutral-700'}`}>
                                     <i className="fa-solid fa-cube"></i>
                                 </div>
                                 <div className="min-w-0 flex-1 space-y-1">
-                                    <input
-                                        type="text"
-                                        value={item.name || ''}
-                                        onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
-                                        placeholder="Désignation de l'ouvrage ou ligne..."
-                                        className="w-full font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
-                                        aria-label={`Désignation pour ${item.name}`}
-                                        title={item.name}
-                                    />
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <input
+                                            type="text"
+                                            value={item.name || ''}
+                                            onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
+                                            placeholder="Désignation de l'ouvrage ou ligne..."
+                                            className="flex-1 min-w-0 font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
+                                            aria-label={`Désignation pour ${item.name}`}
+                                            title={item.name}
+                                        />
+                                        {isActive && (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                                <i className="fa-solid fa-sliders text-[8px]"></i> Édition
+                                            </span>
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
                                         value={item.description || ''}
@@ -3061,7 +3072,15 @@ function WorkItemTable({
                                         aria-label={`Prix unitaire pour ${item.name}`}
                                         title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                     />
-                                    {item.calcForm && !item.isCustom && <span className="block text-[10px] text-neutral-500 mt-1">Calculé selon le métrage</span>}
+                                    {item.calcForm && !item.isCustom && (
+                                        <span
+                                            className="inline-flex items-center gap-1 text-[9px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.5 mt-1"
+                                            title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
+                                        >
+                                            <i className="fa-solid fa-ruler-combined text-[8px]"></i>
+                                            <span>Calculé</span>
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
@@ -3131,9 +3150,17 @@ function WorkItemTable({
                             const total = item.totalHT || 0;
                             const margin = lineMarginInfo(item, currency);
                             const facture = ligneFacturee(item);
+                            const isActive = activeInspectorIndex === idx;
 
                             return (
-                                <tr key={item.id || idx} className="hover:bg-neutral-50/60 transition-colors group">
+                                <tr
+                                    key={item.id || idx}
+                                    className={`transition-all group ${
+                                        isActive
+                                            ? 'bg-brand-50/70 border-l-4 border-l-brand-600 shadow-xs'
+                                            : 'hover:bg-neutral-50/60'
+                                    }`}
+                                >
                                     <td className="py-3 px-3 min-w-0">
                                         <div className="flex items-start gap-2.5">
                                             {/* Cube décoratif retiré le 2026-08-21 — TABLE DESKTOP UNIQUEMENT.
@@ -3144,15 +3171,25 @@ function WorkItemTable({
                                                 manque pas et où il sert de repère visuel. */}
                                             <div className="min-w-0 max-w-full flex-1 space-y-1">
                                                 {/* Édition Directe du Nom de l'Ouvrage (Annotation 5) */}
-                                                <input
-                                                    type="text"
-                                                    value={item.name || ''}
-                                                    onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
-                                                    placeholder="Désignation de l'ouvrage ou ligne..."
-                                                    className="w-full min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
-                                                    aria-label={`Désignation pour ${item.name}`}
-                                        title={item.name}
-                                                />
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <input
+                                                        type="text"
+                                                        value={item.name || ''}
+                                                        onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
+                                                        placeholder="Désignation de l'ouvrage ou ligne..."
+                                                        className="flex-1 min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
+                                                        aria-label={`Désignation pour ${item.name}`}
+                                                        title={item.name}
+                                                    />
+                                                    {isActive && (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 text-[9px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                                                            title="Cet article est actuellement ouvert dans l'inspecteur technique à droite"
+                                                        >
+                                                            <i className="fa-solid fa-sliders text-[8px]"></i> Édition
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {/* Édition Directe du Descriptif Commercial */}
                                                 <input
                                                     type="text"
@@ -3184,18 +3221,41 @@ function WorkItemTable({
 
                                     <td className="py-3 px-1 text-center">
                                         {facture.derive ? (
-                                            <span
-                                                className="inline-block w-14 min-w-0 text-center py-1.5 px-1 font-bold text-neutral-900 border border-dashed border-neutral-200 rounded-lg bg-neutral-50"
-                                                title="Quantité issue du métré — modifiable dans les détails techniques"
+                                            <button
+                                                type="button"
+                                                onClick={() => onOpenInspector(idx)}
+                                                className="inline-block w-14 min-w-0 text-center py-1.5 px-1 font-bold font-mono text-neutral-900 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 cursor-pointer transition-colors shadow-2xs"
+                                                title="Quantité issue du métré — cliquez pour ouvrir l'inspecteur"
+                                                aria-label={`Quantité métrée ${formatQuantite(facture.quantite)} pour ${item.name}, ouvrir inspecteur`}
                                             >
                                                 {formatQuantite(facture.quantite)}
-                                            </span>
+                                            </button>
                                         ) : (
                                         <input
                                             type="number"
                                             min="0"
                                             step="any"
+                                            data-col="qty"
+                                            data-row={idx}
                                             value={item.qty || 1}
+                                            onFocus={(e) => e.target.select()}
+                                            onKeyDown={(e) => {
+                                                const inputs = Array.from(document.querySelectorAll('[data-testid="quote-items-desktop"] [data-col="qty"]'));
+                                                const pos = inputs.indexOf(e.target);
+                                                if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.altKey)) {
+                                                    e.preventDefault();
+                                                    if (pos !== -1 && pos + 1 < inputs.length) {
+                                                        inputs[pos + 1].focus();
+                                                        inputs[pos + 1].select();
+                                                    }
+                                                } else if (e.key === 'ArrowUp' && !e.altKey) {
+                                                    e.preventDefault();
+                                                    if (pos > 0) {
+                                                        inputs[pos - 1].focus();
+                                                        inputs[pos - 1].select();
+                                                    }
+                                                }
+                                            }}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 1;
                                                 onUpdateItem(idx, {
@@ -3203,7 +3263,7 @@ function WorkItemTable({
                                                     calcForm: { ...(item.calcForm || {}), qty: val }
                                                 });
                                             }}
-                                            className="w-14 min-w-0 text-center py-1.5 px-1 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                            className="w-14 min-w-0 text-center py-1.5 px-1 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs transition-all"
                                             aria-label={`Quantité pour ${item.name}`}
                                         />
                                         )}
@@ -3222,7 +3282,27 @@ function WorkItemTable({
                                             type="number"
                                             min="0"
                                             step="any"
+                                            data-col="price"
+                                            data-row={idx}
                                             value={Math.round(facture.prixUnitaire)}
+                                            onFocus={(e) => e.target.select()}
+                                            onKeyDown={(e) => {
+                                                const inputs = Array.from(document.querySelectorAll('[data-testid="quote-items-desktop"] [data-col="price"]'));
+                                                const pos = inputs.indexOf(e.target);
+                                                if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.altKey)) {
+                                                    e.preventDefault();
+                                                    if (pos !== -1 && pos + 1 < inputs.length) {
+                                                        inputs[pos + 1].focus();
+                                                        inputs[pos + 1].select();
+                                                    }
+                                                } else if (e.key === 'ArrowUp' && !e.altKey) {
+                                                    e.preventDefault();
+                                                    if (pos > 0) {
+                                                        inputs[pos - 1].focus();
+                                                        inputs[pos - 1].select();
+                                                    }
+                                                }
+                                            }}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
                                                 // Voir la carte mobile : on reporte quantité et unité pour
@@ -3235,11 +3315,19 @@ function WorkItemTable({
                                                     isCustom: true
                                                 });
                                             }}
-                                            className="w-20 min-w-0 text-right py-1.5 px-1 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                                            className="w-20 min-w-0 text-right py-1.5 px-1.5 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs transition-all"
                                             aria-label={`Prix unitaire pour ${item.name}`}
                                             title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                         />
-                                        {item.calcForm && !item.isCustom && <span className="block text-[10px] text-neutral-500 mt-1">Calculé selon le métrage</span>}
+                                        {item.calcForm && !item.isCustom && (
+                                            <span
+                                                className="inline-flex items-center gap-1 text-[9px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.5 mt-1"
+                                                title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
+                                            >
+                                                <i className="fa-solid fa-ruler-combined text-[8px]"></i>
+                                                <span>Calculé</span>
+                                            </span>
+                                        )}
                                     </td>
 
                                     <td className="py-3 px-2 text-right font-bold text-neutral-900 text-sm">
@@ -3633,6 +3721,7 @@ function WorkItemInspector({
     isOpen,
     onClose,
     item,
+    lot = null,
     itemIndex = 0,
     itemCount = 1,
     onNavigate,
@@ -3651,6 +3740,15 @@ function WorkItemInspector({
     const solution = solutions.find(s => s.id === item.solutionId);
     const calcForm = item.calcForm || {};
     const quoteData = item.quoteData || {};
+    const facture = ligneFacturee(item);
+    const qtyCalc = facture.quantite > 0 ? facture.quantite : (item.qty || 1);
+    const dsTotal = quoteData.totalRevientConsomme != null ? quoteData.totalRevientConsomme : (item.isCustom && item.costUnit ? item.costUnit * qtyCalc : 0);
+    const dsUnitaire = qtyCalc > 0 ? dsTotal / qtyCalc : dsTotal;
+    const pvTotal = item.totalHT != null ? item.totalHT : (facture.prixUnitaire || item.unitPriceHT || 0) * qtyCalc;
+    const pvUnitaire = qtyCalc > 0 ? pvTotal / qtyCalc : (facture.prixUnitaire || item.unitPriceHT || 0);
+    const margeValeur = pvTotal - dsTotal;
+    const margePct = pvTotal > 0 ? (margeValeur / pvTotal) * 100 : 0;
+    const isLoss = margeValeur < 0;
 
     const tabs = [
         { id: 'dimensions', label: '1. Métré & Dimensions', icon: 'fa-ruler-combined' },
@@ -3743,8 +3841,12 @@ function WorkItemInspector({
                             <i className="fa-solid fa-sliders"></i>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-sm text-neutral-900 line-clamp-2 leading-tight">Détails : {item.name}</h3>
-                            <p className="text-[11px] text-neutral-500 truncate mt-0.5">Métrés, coûts et prix client</p>
+                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-brand-700 min-w-0 mb-0.5">
+                                <span className="truncate max-w-[120px] sm:max-w-[180px]" title={lot?.name || 'Lot principal'}>{lot?.name || 'Lot principal'}</span>
+                                <i className="fa-solid fa-chevron-right text-[8px] text-neutral-400 shrink-0" aria-hidden="true"></i>
+                                <span className="text-neutral-500 shrink-0">Ouvrage #{itemIndex + 1}</span>
+                            </div>
+                            <h3 className="font-bold text-sm text-neutral-900 line-clamp-1 leading-tight" title={item.name}>{item.name}</h3>
                         </div>
                     </div>
 
@@ -3990,6 +4092,35 @@ function WorkItemInspector({
                                     <span>{t.label}</span>
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Mini-KPIs Financiers Figés Mode Avancé */}
+                        <div data-testid="inspector-mini-kpis" className="bg-neutral-50/90 border-b border-neutral-200/80 px-4 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
+                            <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                                <div>
+                                    <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Déboursé Sec</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="font-mono font-bold text-neutral-800 text-xs">{formatMoney(dsTotal, currency)}</span>
+                                        <span className="text-[10px] text-neutral-500 hidden sm:inline font-mono">({formatMoney(dsUnitaire, currency)}/{facture.unite})</span>
+                                    </div>
+                                </div>
+                                <div className="h-6 w-px bg-neutral-200"></div>
+                                <div>
+                                    <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Vente HT</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="font-mono font-bold text-brand-700 text-xs">{formatMoney(pvTotal, currency)}</span>
+                                        <span className="text-[10px] text-neutral-500 hidden sm:inline font-mono">({formatMoney(pvUnitaire, currency)}/{facture.unite})</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Marge Réelle</span>
+                                <span className={`inline-flex items-center gap-1 font-mono font-bold text-xs px-2 py-0.5 rounded-md ${isLoss ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                                    {isLoss && <i className="fa-solid fa-triangle-exclamation text-[9px]"></i>}
+                                    <span>{isLoss ? '' : '+'}{Math.round(margePct)}%</span>
+                                    <span className="text-[10px] font-normal opacity-80 hidden sm:inline font-mono">({formatMoney(margeValeur, currency)})</span>
+                                </span>
+                            </div>
                         </div>
 
                         {/* Tab Content */}
@@ -5404,6 +5535,7 @@ function QuoteWorkspace({
                                 handleSelectSolutionForLot(newSol);
                             }}
                             onAddCustomLine={handleAddCustomLine}
+                            activeInspectorIndex={inspectorItemIndex}
                             currency={companyInfo.currency}
                         />
                     </section>
@@ -5413,6 +5545,7 @@ function QuoteWorkspace({
                             isOpen={inspectorItemIndex !== null}
                             onClose={() => setInspectorItemIndex(null)}
                             item={activeLot.items?.[inspectorItemIndex]}
+                            lot={activeLot}
                             itemIndex={inspectorItemIndex || 0}
                             itemCount={activeLot.items?.length || 0}
                             onNavigate={(nextIndex) => setInspectorItemIndex(nextIndex)}
@@ -6029,19 +6162,31 @@ function CreateOrganizationModal({ isOpen, onClose, onCreateOrg, isReadOnly }) {
     );
 }
 
-function OrganizationSwitcher({
+function TopBarOrganizationSwitcher({
     userOrganizations,
     activeOrgId,
     activeOrgRole,
     onSelectOrg,
     onOpenCreateOrg,
-    isGuest
+    isGuest,
+    companyInfo
 }) {
     const [isOpen, setIsOpen] = useState(false);
-    const activeOrg = userOrganizations.find(o => o.id === activeOrgId) || {
-        id: 'guest_org',
-        name: isGuest ? 'Organisation Démo (Locale)' : 'Mon Entreprise BTP',
-        currency: 'FCFA'
+    const dropdownRef = useRef(null);
+
+    // Résolution dynamique des organisations : remplace le nom de l'organisation par défaut
+    // par la raison sociale saisie dans les paramètres dès qu'elle existe.
+    // "MicroOffice" ou tout autre nom n'est JAMAIS codé en dur : il vient toujours des données actives.
+    const organizations = (userOrganizations || []).map(o => (
+        o.id === 'org_default' && companyInfo?.name?.trim()
+            ? { ...o, name: companyInfo.name.trim(), currency: companyInfo.currency || o.currency }
+            : o
+    ));
+
+    const activeOrg = organizations.find(o => o.id === activeOrgId) || {
+        id: activeOrgId || 'guest_org',
+        name: isGuest ? 'Organisation Démo (Locale)' : (companyInfo?.name?.trim() || 'Mon Entreprise BTP'),
+        currency: companyInfo?.currency || 'FCFA'
     };
 
     const roleBadge = (role) => {
@@ -6049,40 +6194,51 @@ function OrganizationSwitcher({
         return <Badge colorClass={ROLE_BADGE_COLORS[role] || 'bg-brand-100 text-brand-800'}>{libelle || 'Membre'}</Badge>;
     };
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        const handleKey = (e) => {
+            if (e.key === 'Escape') setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('keydown', handleKey);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('keydown', handleKey);
+        };
+    }, [isOpen]);
+
     return (
-        <div className="relative w-full">
+        <div className="relative" ref={dropdownRef}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full bg-white hover:bg-neutral-50 border border-neutral-200 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-2xs transition-all text-left group"
-                aria-label="Changer d'organisation"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group max-w-[170px] sm:max-w-[220px]"
+                aria-label="Sélecteur d'organisation"
+                aria-expanded={isOpen}
+                title={`Organisation active : ${activeOrg.name}`}
             >
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-brand-100 transition-colors">
-                        <i className="fa-solid fa-building"></i>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-neutral-900 truncate block">{activeOrg.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            {roleBadge(activeOrgRole || 'owner')}
-                            <span className="text-[10px] text-neutral-500 font-mono">{activeOrg.currency || 'FCFA'}</span>
-                        </div>
-                    </div>
-                </div>
-                <i className={`fa-solid fa-chevron-down text-xs text-neutral-500 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+                <span className="w-6 h-6 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-brand-100 transition-colors">
+                    <i className="fa-solid fa-building text-[11px]"></i>
+                </span>
+                <span className="truncate font-semibold text-neutral-900 text-left flex-1 min-w-0">{activeOrg.name}</span>
+                <i className={`fa-solid fa-chevron-down text-[10px] text-neutral-400 transition-transform shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
             </button>
 
             {isOpen && (
-                <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
-                        <div className="px-2.5 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
-                            Mes Entreprises ({userOrganizations.length})
-                        </div>
-                        <div className="max-h-48 overflow-y-auto custom-scroll space-y-0.5">
-                            {userOrganizations.map(org => (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
+                    <div className="px-3 py-1.5 flex items-center justify-between border-b border-neutral-100 pb-2">
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Organisation active</span>
+                        <span className="text-[10px] text-neutral-400 font-mono">{organizations.length} dispo(s)</span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto custom-scroll space-y-0.5 py-1">
+                        {organizations.map(org => {
+                            const isSelected = org.id === activeOrgId;
+                            return (
                                 <button
                                     key={org.id}
                                     type="button"
@@ -6090,36 +6246,585 @@ function OrganizationSwitcher({
                                         onSelectOrg(org.id);
                                         setIsOpen(false);
                                     }}
-                                    className={`w-full text-left p-2 rounded-xl flex items-center justify-between text-xs transition-colors ${
-                                        org.id === activeOrgId ? 'bg-brand-50 text-brand-900 font-semibold' : 'hover:bg-neutral-50 text-neutral-700 font-semibold'
+                                    className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between text-xs transition-colors ${
+                                        isSelected ? 'bg-brand-50 text-brand-900 font-bold border border-brand-200/60' : 'hover:bg-neutral-50 text-neutral-700 font-medium'
                                     }`}
                                 >
                                     <div className="min-w-0 flex-1 truncate pr-2">
-                                        <span className="truncate block">{org.name}</span>
-                                        <span className="text-[10px] text-neutral-500 font-normal">{org.currency}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="truncate block font-semibold">{org.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            {roleBadge(org.role || 'owner')}
+                                            <span className="text-[10px] text-neutral-500 font-mono">{org.currency || 'FCFA'}</span>
+                                        </div>
                                     </div>
-                                    {org.id === activeOrgId && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                                    {isSelected && <i className="fa-solid fa-check text-brand-600 text-xs shrink-0"></i>}
                                 </button>
-                            ))}
+                            );
+                        })}
+                    </div>
+                    <div className="border-t border-neutral-100 pt-1.5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                onOpenCreateOrg();
+                            }}
+                            className="w-full text-left p-2 rounded-xl text-xs font-bold text-brand-600 hover:bg-brand-50 flex items-center gap-2 transition-colors"
+                        >
+                            <i className="fa-solid fa-plus text-xs"></i>
+                            <span>+ Nouvelle Entreprise</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TopBarUserProfile({
+    sbUser,
+    activeOrganizationRole,
+    onOpenSettings,
+    onSignOut,
+    deconnexionGardee
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    const isGuest = !sbUser || sbUser.id === 'guest';
+    const fullName = sbUser?.user_metadata?.full_name || sbUser?.user_metadata?.name || '';
+    const email = sbUser?.email || (isGuest ? 'Mode Démo (Invité)' : 'Utilisateur');
+    const displayName = fullName || (sbUser?.email ? sbUser.email.split('@')[0] : 'Invité');
+
+    const initials = fullName
+        ? fullName.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase()
+        : displayName.slice(0, 2).toUpperCase();
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        const handleKey = (e) => {
+            if (e.key === 'Escape') setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('keydown', handleKey);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('keydown', handleKey);
+        };
+    }, [isOpen]);
+
+    const roleLabel = activeOrganizationRole === 'owner' ? '👑 Propriétaire' : (ROLE_LABELS_EQUIPE[activeOrganizationRole] || 'Membre');
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-xl border border-neutral-200/80 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group"
+                aria-label="Menu du profil utilisateur"
+                aria-expanded={isOpen}
+                title={`Profil : ${displayName}`}
+            >
+                <div className="w-7 h-7 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    {isGuest ? <i className="fa-solid fa-user text-[11px]"></i> : <span>{initials}</span>}
+                </div>
+                <span className="hidden xl:inline font-medium text-neutral-800 max-w-[110px] truncate">{displayName}</span>
+                <i className={`hidden sm:inline fa-solid fa-chevron-down text-[10px] text-neutral-400 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+            </button>
+
+            {isOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
+                    <div className="px-3 py-2 border-b border-neutral-100 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-neutral-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                            {isGuest ? <i className="fa-solid fa-user"></i> : <span>{initials}</span>}
                         </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-neutral-900 truncate">{displayName}</p>
+                            <p className="text-[11px] text-neutral-500 truncate font-mono">{email}</p>
+                            <p className="text-[10px] text-brand-600 font-semibold mt-0.5">{roleLabel}</p>
+                        </div>
+                    </div>
+                    <div className="py-1 space-y-0.5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                onOpenSettings('compte');
+                            }}
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                        >
+                            <i className="fa-solid fa-user-gear text-neutral-400 w-4 text-center"></i>
+                            <span>Mon Profil & Compte</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                onOpenSettings('entreprise');
+                            }}
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                        >
+                            <i className="fa-solid fa-building text-neutral-400 w-4 text-center"></i>
+                            <span>Paramètres Entreprise</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                onOpenSettings('diagnostic');
+                            }}
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                        >
+                            <i className="fa-solid fa-heart-pulse text-neutral-400 w-4 text-center"></i>
+                            <span>Diagnostic & Santé</span>
+                        </button>
+                    </div>
+                    {onSignOut && (
                         <div className="border-t border-neutral-100 pt-1">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setIsOpen(false);
-                                    onOpenCreateOrg();
+                                    deconnexionGardee();
                                 }}
-                                className="w-full text-left p-2 rounded-xl text-xs font-bold text-brand-600 hover:bg-brand-50 flex items-center gap-2 transition-colors"
+                                className="w-full text-left p-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
                             >
-                                <i className="fa-solid fa-plus text-xs"></i>
-                                <span>+ Nouvelle Entreprise</span>
+                                <i className="fa-solid fa-arrow-right-from-bracket text-red-500 w-4 text-center"></i>
+                                <span>Se déconnecter</span>
                             </button>
                         </div>
-                    </div>
-                </>
+                    )}
+                </div>
             )}
         </div>
     );
+}
+
+function GlobalSearch({
+    savedQuotes,
+    invoices,
+    clients,
+    projects,
+    onSelectQuote,
+    onSelectInvoice,
+    onSelectClient,
+    onSelectProject,
+    onSelectView,
+    currency = 'FCFA'
+}) {
+    const [query, setQuery] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const inputRef = useRef(null);
+    const containerRef = useRef(null);
+
+    // Raccourci clavier universel Cmd+K / Ctrl+K
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                inputRef.current?.focus();
+                setIsOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Fermeture clic en dehors ou touche Escape
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        const handleKey = (e) => {
+            if (e.key === 'Escape') {
+                setIsOpen(false);
+                inputRef.current?.blur();
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('keydown', handleKey);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('keydown', handleKey);
+        };
+    }, [isOpen]);
+
+    const q = normalizeSearchText(query);
+
+    const matchedQuotes = !q ? [] : (savedQuotes || []).filter(item => 
+        [item.number, item.clientName, item.projectRef].some(val => normalizeSearchText(val).includes(q))
+    ).slice(0, 4);
+
+    const matchedInvoices = !q ? [] : (invoices || []).filter(item =>
+        [item.numero, item.clientName, item.projectRef].some(val => normalizeSearchText(val).includes(q))
+    ).slice(0, 4);
+
+    const matchedClients = !q ? [] : (clients || []).filter(item =>
+        [item.name, item.contactPerson, item.email, item.phone].some(val => normalizeSearchText(val).includes(q))
+    ).slice(0, 4);
+
+    const matchedProjects = !q ? [] : (projects || []).filter(item =>
+        [item.name, item.clientName, item.siteAddress].some(val => normalizeSearchText(val).includes(q))
+    ).slice(0, 4);
+
+    const quickNavigationItems = [
+        { id: 'dashboard', label: 'Tableau de bord', icon: 'fa-chart-pie' },
+        { id: 'calculator', label: 'Chiffrage / Nouveau Devis', icon: 'fa-calculator' },
+        { id: 'savedQuotes', label: 'Mes devis', icon: 'fa-folder-open' },
+        { id: 'invoices', label: 'Factures', icon: 'fa-file-invoice-dollar' },
+        { id: 'clients', label: 'Clients', icon: 'fa-users' },
+        { id: 'projects', label: 'Chantiers', icon: 'fa-folder-tree' },
+        { id: 'recipes', label: 'Catalogue technique', icon: 'fa-layer-group' },
+        { id: 'settings', label: 'Paramètres', icon: 'fa-gear' }
+    ];
+
+    const matchedNav = !q
+        ? quickNavigationItems.slice(0, 4)
+        : quickNavigationItems.filter(item => normalizeSearchText(item.label).includes(q));
+
+    const totalResults = matchedQuotes.length + matchedInvoices.length + matchedClients.length + matchedProjects.length + (q ? matchedNav.length : 0);
+
+    return (
+        <div className="relative w-full" ref={containerRef}>
+            <div className="relative flex items-center w-full">
+                <i className="fa-solid fa-magnifying-glass absolute left-3 text-neutral-400 text-xs pointer-events-none"></i>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={query}
+                    onChange={(e) => {
+                        setQuery(e.target.value);
+                        if (!isOpen) setIsOpen(true);
+                    }}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder="Rechercher dans ikadevis..."
+                    aria-label="Recherche globale dans ikadevis"
+                    className="w-full bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200/90 focus:border-brand-500 rounded-xl pl-8 pr-12 sm:pr-14 py-1.5 text-xs text-neutral-800 placeholder-neutral-400 transition-all outline-none shadow-2xs"
+                />
+                <div className="absolute right-2.5 flex items-center gap-1 pointer-events-none">
+                    {query ? (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setQuery(''); inputRef.current?.focus(); }}
+                            className="pointer-events-auto text-neutral-400 hover:text-neutral-600 p-0.5"
+                            aria-label="Effacer la recherche"
+                        >
+                            <i className="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    ) : (
+                        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold text-neutral-400 bg-white rounded border border-neutral-200 shadow-2xs">
+                            ⌘K
+                        </kbd>
+                    )}
+                </div>
+            </div>
+
+            {isOpen && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in max-h-96 overflow-y-auto custom-scroll space-y-2">
+                    {q && totalResults === 0 && (
+                        <div className="p-6 text-center text-neutral-500 text-xs">
+                            <i className="fa-solid fa-magnifying-glass text-xl mb-2 text-neutral-300"></i>
+                            <p className="font-semibold text-neutral-700">Aucun résultat pour « {query} »</p>
+                            <p className="text-[11px] text-neutral-400 mt-1">Recherchez un devis, client, chantier ou une vue.</p>
+                        </div>
+                    )}
+
+                    {matchedQuotes.length > 0 && (
+                        <div>
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-folder-open text-brand-500"></i> Devis ({matchedQuotes.length})
+                            </div>
+                            <div className="space-y-0.5">
+                                {matchedQuotes.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectQuote(item);
+                                            setIsOpen(false);
+                                            setQuery('');
+                                        }}
+                                        className="w-full p-2 text-left hover:bg-neutral-50 rounded-xl flex items-center justify-between text-xs transition-colors"
+                                    >
+                                        <div className="min-w-0 flex-1 truncate pr-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-bold text-brand-700">{item.number}</span>
+                                                <span className="text-neutral-800 font-semibold truncate">{item.clientName}</span>
+                                            </div>
+                                            <div className="text-[11px] text-neutral-500 truncate">{item.projectRef || 'Sans référence'}</div>
+                                        </div>
+                                        <span className="font-mono font-bold text-neutral-900 text-xs shrink-0">
+                                            {formatMoney(item.quoteData?.totalTTCConsomme || 0, currency)}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {matchedInvoices.length > 0 && (
+                        <div>
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Factures ({matchedInvoices.length})
+                            </div>
+                            <div className="space-y-0.5">
+                                {matchedInvoices.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectInvoice(item);
+                                            setIsOpen(false);
+                                            setQuery('');
+                                        }}
+                                        className="w-full p-2 text-left hover:bg-neutral-50 rounded-xl flex items-center justify-between text-xs transition-colors"
+                                    >
+                                        <div className="min-w-0 flex-1 truncate pr-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-bold text-emerald-700">{item.numero}</span>
+                                                <span className="text-neutral-800 font-semibold truncate">{item.clientName}</span>
+                                            </div>
+                                            <div className="text-[11px] text-neutral-500 truncate">{item.projectRef || item.devisRef || 'Facture'}</div>
+                                        </div>
+                                        <span className="font-mono font-bold text-neutral-900 text-xs shrink-0">
+                                            {formatMoney(item.totalTTC || 0, currency)}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {matchedClients.length > 0 && (
+                        <div>
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-users text-violet-600"></i> Clients ({matchedClients.length})
+                            </div>
+                            <div className="space-y-0.5">
+                                {matchedClients.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectClient(item);
+                                            setIsOpen(false);
+                                            setQuery('');
+                                        }}
+                                        className="w-full p-2 text-left hover:bg-neutral-50 rounded-xl flex items-center justify-between text-xs transition-colors"
+                                    >
+                                        <div className="min-w-0 flex-1 truncate pr-2">
+                                            <span className="text-neutral-800 font-bold truncate block">{item.name}</span>
+                                            <span className="text-[11px] text-neutral-500 truncate block">{item.contactPerson || item.email || item.city || ''}</span>
+                                        </div>
+                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-400"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {matchedProjects.length > 0 && (
+                        <div>
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-folder-tree text-amber-600"></i> Chantiers ({matchedProjects.length})
+                            </div>
+                            <div className="space-y-0.5">
+                                {matchedProjects.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectProject(item);
+                                            setIsOpen(false);
+                                            setQuery('');
+                                        }}
+                                        className="w-full p-2 text-left hover:bg-neutral-50 rounded-xl flex items-center justify-between text-xs transition-colors"
+                                    >
+                                        <div className="min-w-0 flex-1 truncate pr-2">
+                                            <span className="text-neutral-800 font-bold truncate block">{item.name}</span>
+                                            <span className="text-[11px] text-neutral-500 truncate block">{item.clientName || item.siteAddress || ''}</span>
+                                        </div>
+                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-400"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {matchedNav.length > 0 && (
+                        <div>
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-compass text-neutral-500"></i> {q ? 'Navigation' : 'Accès rapide'}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                {matchedNav.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelectView(item.id);
+                                            setIsOpen(false);
+                                            setQuery('');
+                                        }}
+                                        className="p-2 text-left hover:bg-neutral-50 rounded-xl flex items-center gap-2.5 text-xs transition-colors"
+                                    >
+                                        <span className="w-6 h-6 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center text-xs shrink-0">
+                                            <i className={`fa-solid ${item.icon}`}></i>
+                                        </span>
+                                        <span className="font-semibold text-neutral-800 truncate">{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function GlobalTopBar({
+    onOpenMobileDrawer,
+    activeView,
+    setActiveView,
+    savedQuotes,
+    onSelectQuote,
+    invoices,
+    onSelectInvoice,
+    clients,
+    onSelectClient,
+    projects,
+    onSelectProject,
+    userOrganizations,
+    activeOrganizationId,
+    activeOrganizationRole,
+    onSelectOrg,
+    onOpenCreateOrg,
+    isGuest,
+    companyInfo,
+    sbUser,
+    connectionState,
+    onOpenSettings,
+    onSignOut,
+    deconnexionGardee
+}) {
+    return (
+        <header
+            data-nav-principale="1"
+            className="global-top-bar mobile-app-header w-full h-16 shrink-0 bg-white border-b border-neutral-200/80 z-40 flex items-center justify-between pl-0 pr-3 sm:pr-4 lg:pr-6 sticky top-0"
+            role="banner"
+        >
+            {/* GAUCHE : MARQUE & LOGO UNIQUE IKADEVIS ALIGNÉ AVEC LA SIDEBAR */}
+            <div className="global-topbar-brand mobile-header-brand flex items-center shrink-0 h-full lg:border-r lg:border-neutral-200/70 px-4 lg:px-6">
+                {/* BOUTON HAMBURGER VISIBLE UNIQUEMENT SUR MOBILE SMARTPHONE */}
+                <button
+                    type="button"
+                    onClick={onOpenMobileDrawer}
+                    className="global-mobile-menu-btn p-1.5 -ml-1 mr-2 text-neutral-600 hover:text-neutral-900 rounded-lg"
+                    aria-label="Ouvrir le menu de navigation"
+                    title="Menu"
+                >
+                    <i className="fa-solid fa-bars text-base"></i>
+                </button>
+
+                {/* LOGO IKADEVIS UNIQUE */}
+                <button
+                    type="button"
+                    onClick={() => {
+                        setActiveView('dashboard');
+                        if (onSelectQuote) onSelectQuote(null);
+                        if (onSelectInvoice) onSelectInvoice(null);
+                    }}
+                    className="flex items-center gap-2 hover:opacity-90 transition-opacity focus:outline-none"
+                    aria-label="ikadevis - Tableau de bord"
+                    title="ikadevis"
+                >
+                    <LogoSVG className="mobile-header-logo h-7 sm:h-8 w-auto text-brand-500" />
+                </button>
+            </div>
+
+            {/* CENTRE / GAUCHE-CENTRE : RECHERCHE GLOBALE */}
+            <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4 lg:mx-6 relative">
+                <GlobalSearch
+                    savedQuotes={savedQuotes}
+                    invoices={invoices}
+                    clients={clients}
+                    projects={projects}
+                    onSelectQuote={onSelectQuote}
+                    onSelectInvoice={onSelectInvoice}
+                    onSelectClient={onSelectClient}
+                    onSelectProject={onSelectProject}
+                    onSelectView={(viewId) => {
+                        if (viewId === 'settings') onOpenSettings('entreprise');
+                        else setActiveView(viewId);
+                    }}
+                    currency={companyInfo?.currency || 'FCFA'}
+                />
+            </div>
+
+            {/* DROITE : CONTRÔLES GLOBAUX */}
+            <div className="mobile-header-actions flex items-center gap-1.5 sm:gap-2.5 lg:gap-3 shrink-0">
+                {/* INDICATEUR DE SYNCHRONISATION */}
+                <button
+                    type="button"
+                    onClick={() => onOpenSettings('diagnostic')}
+                    className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold border transition-all shadow-2xs hover:brightness-95 ${connectionState?.chip || 'bg-neutral-100 text-neutral-700'}`}
+                    title={`État de synchronisation : ${connectionState?.detail || connectionState?.label || 'Synchronisé'}`}
+                    aria-label={`État de synchronisation : ${connectionState?.label || 'Synchronisé'}`}
+                >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${connectionState?.dot || 'bg-emerald-500'} ${connectionState?.key === 'synced' ? 'animate-pulse' : ''}`}></span>
+                    <span className="hidden md:inline font-bold">{connectionState?.label || 'Synchronisé'}</span>
+                </button>
+
+                {/* ACCÈS AUX PARAMÈTRES ⚙ */}
+                <button
+                    type="button"
+                    onClick={() => onOpenSettings('entreprise')}
+                    className={`btn-icon w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-neutral-900 transition-all shadow-2xs flex items-center justify-center ${activeView === 'settings' ? 'bg-brand-50 text-brand-600 border-brand-300' : ''}`}
+                    title="Paramètres de l'espace de travail"
+                    aria-label="Paramètres"
+                >
+                    <i className="fa-solid fa-gear text-xs sm:text-sm"></i>
+                </button>
+
+                {/* SÉLECTEUR D'ORGANISATION DYNAMIQUE */}
+                <div className="hidden sm:block">
+                    <TopBarOrganizationSwitcher
+                        userOrganizations={userOrganizations}
+                        activeOrgId={activeOrganizationId}
+                        activeOrgRole={activeOrganizationRole}
+                        onSelectOrg={onSelectOrg}
+                        onOpenCreateOrg={onOpenCreateOrg}
+                        isGuest={isGuest}
+                        companyInfo={companyInfo}
+                    />
+                </div>
+
+                {/* PROFIL UTILISATEUR DISTINCT */}
+                <TopBarUserProfile
+                    sbUser={sbUser}
+                    activeOrganizationRole={activeOrganizationRole}
+                    onOpenSettings={onOpenSettings}
+                    onSignOut={onSignOut}
+                    deconnexionGardee={deconnexionGardee}
+                />
+            </div>
+        </header>
+    );
+}
+
+function OrganizationSwitcher(props) {
+    return <TopBarOrganizationSwitcher {...props} />;
 }
 
 
@@ -11633,6 +12338,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // c'est le travail réel de l'utilisateur.
     const CLE_DEMO_VUE = 'demoQuoteOpened';
     const [devisExemplecharge, setDevisExempleCharge] = useState(false);
+    const [bandeauExempleReplie, setBandeauExempleReplie] = useState(false);
     const atterrissageExamineRef = useRef(false);
 
     useEffect(() => {
@@ -13069,8 +13775,49 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // voici comment commencer le sien.
     const renderBandeauExemple = () => {
         if (!devisExemplecharge) return null;
+        if (bandeauExempleReplie) {
+            return (
+                <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-brand-200/80 bg-brand-50/80 px-3 py-1.5 text-xs text-neutral-800 animate-fade-in shadow-2xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <i className="fa-solid fa-lightbulb text-brand-600 text-xs shrink-0" aria-hidden="true"></i>
+                        <span className="truncate text-[11px] font-medium text-neutral-700">
+                            Mode exemple interactif actif — calculs en direct
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setBandeauExempleReplie(false)}
+                            className="text-[11px] font-bold text-brand-700 hover:text-brand-800 hover:underline flex items-center gap-1"
+                            title="Afficher les conseils de découverte"
+                        >
+                            <span>Déplier l'aide</span>
+                            <i className="fa-solid fa-chevron-down text-[9px]"></i>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDevisExempleCharge(false)}
+                            className="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-brand-100/60 transition-colors"
+                            aria-label="Fermer le bandeau d'exemple"
+                            title="Fermer le bandeau"
+                        >
+                            <i className="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            );
+        }
         return (
-            <div role="status" className="mb-3 flex flex-col lg:flex-row lg:items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+            <div role="status" className="mb-3 relative flex flex-col lg:flex-row lg:items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 sm:pr-10 animate-fade-in shadow-2xs">
+                <button
+                    type="button"
+                    onClick={() => setBandeauExempleReplie(true)}
+                    className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-brand-100/60 transition-colors"
+                    aria-label="Replier l'aide"
+                    title="Replier le bandeau d'aide pour libérer l'espace"
+                >
+                    <i className="fa-solid fa-chevron-up text-xs"></i>
+                </button>
                 <i className="fa-solid fa-lightbulb text-brand-700 shrink-0" aria-hidden="true"></i>
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">
@@ -18428,7 +19175,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     }, [activeView]);
 
     return (
-        <div className="mobile-app-shell flex h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
+        <div className="mobile-app-shell flex flex-col h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
             {/* SKIP LINK ACCESSIBLE POUR NAVIGATION CLAVIER / LECTEURS D'ÉCRAN */}
             <a 
                 href="#main-content" 
@@ -18437,264 +19184,185 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 Aller au contenu principal
             </a>
 
-            {/* SIDEBAR DESKTOP (≥ 1024px) */}
-            <aside data-nav-principale="1" className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0">
-                <div className="p-4 flex flex-col gap-3 border-b border-neutral-100 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <LogoSVG className="h-8 w-auto text-brand-500" />
-                    </div>
-                    <OrganizationSwitcher
-                        // F2 — L'organisation par défaut s'appelait « Entreprise BTP
-                        // Principale » pendant que l'en-tête affichait la raison sociale
-                        // saisie : deux noms pour la même entreprise sur le même écran.
-                        // Tant que l'utilisateur n'a qu'une organisation, c'est son nom
-                        // à lui qui fait foi.
-                        userOrganizations={userOrganizations.map(o => (
-                            o.id === 'org_default' && companyInfo.name?.trim()
-                                ? { ...o, name: companyInfo.name.trim(), currency: companyInfo.currency || o.currency }
-                                : o
-                        ))}
-                        activeOrgId={activeOrganizationId}
-                        activeOrgRole={activeOrganizationRole}
-                        onSelectOrg={(orgId) => {
-                            setActiveOrganizationId(orgId);
-                            const found = userOrganizations.find(o => o.id === orgId);
-                            if (found) setActiveOrganizationRole(found.role);
-                            localStorage.setItem(`ikadevis_active_org_${currentUserId}`, orgId);
-                            showToast(`Organisation active : ${found?.name || orgId}`, "info");
-                        }}
-                        onOpenCreateOrg={() => setIsCreateOrgModalOpen(true)}
-                        isGuest={!sbUser || sbUser.id === 'guest'}
-                    />
-                </div>
-                <nav ref={sidebarNavRef} onScroll={majDefilementSidebar} className={`flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll sidebar-nav-scroll ${sidebarADuContenuSousLaLigne ? 'sidebar-nav-scroll-more' : ''}`} aria-label="Menu principal">
-                    <p className="sidebar-section-label">Pilotage</p>
-                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} />
-                    <p className="sidebar-section-label mt-4">Exploitation</p>
-                    <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} />
-                    <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} />
-                    <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} emphasis />
-                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
-                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} />
-                    <p className="sidebar-section-label mt-4">Configuration</p>
-                    <SidebarCatalogGroup />
-                    {isPlatformAdmin && (<>
-                        <p className="sidebar-section-label mt-4">Plateforme</p>
-                        <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label={LIBELLES_NAV.platformAdmin} />
-                    </>)}
-                </nav>
-                <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
-                    <PwaInstallButton />
-                    {sbUser && connectionState.key !== 'local' && (
-                        <div className={`flex flex-col gap-1 px-3.5 py-2.5 rounded-xl text-xs font-semibold border ${connectionState.chip}`}>
-                            <div className="flex items-center justify-between">
-                                <span className="flex items-center gap-1.5 font-bold">
-                                    <i className={`fa-solid ${connectionState.icon}`}></i>
-                                    {connectionState.label}
-                                </span>
-                                {connectionState.key === 'synced' && lastSavedTime.current && (
-                                    <span className="text-[10px] opacity-75 font-mono">{lastSavedTime.current}</span>
-                                )}
-                            </div>
-                            <span className="truncate text-[11px] opacity-80">{connectionState.detail}</span>
-                        </div>
-                    )}
-                    <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2.5 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
-                        <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
-                    </button>
-                    {onSignOut && (
-                        <button onClick={deconnexionGardee} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
-                            <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
-                        </button>
-                    )}
-                </div>
-            </aside>
+            {/* BARRE DE NAVIGATION SUPÉRIEURE GLOBALE & PERSISTANTE */}
+            <GlobalTopBar
+                onOpenMobileDrawer={() => setIsMobileDrawerOpen(true)}
+                activeView={activeView}
+                setActiveView={setActiveView}
+                savedQuotes={savedQuotes}
+                onSelectQuote={(q) => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }}
+                invoices={invoices}
+                onSelectInvoice={(f) => { setViewingInvoice(f); setActiveView('invoices'); }}
+                clients={clients}
+                onSelectClient={(c) => { setSelectedClientId(c.id); setActiveView('clients'); }}
+                projects={projects}
+                onSelectProject={(p) => { setSelectedProjectId(p.id); setActiveView('projects'); }}
+                userOrganizations={userOrganizations}
+                activeOrganizationId={activeOrganizationId}
+                activeOrganizationRole={activeOrganizationRole}
+                onSelectOrg={(orgId) => {
+                    setActiveOrganizationId(orgId);
+                    const found = userOrganizations.find(o => o.id === orgId);
+                    if (found) setActiveOrganizationRole(found.role);
+                    localStorage.setItem(`ikadevis_active_org_${currentUserId}`, orgId);
+                    showToast(`Organisation active : ${found?.name || orgId}`, "info");
+                }}
+                onOpenCreateOrg={() => setIsCreateOrgModalOpen(true)}
+                isGuest={!sbUser || sbUser.id === 'guest'}
+                companyInfo={companyInfo}
+                sbUser={sbUser}
+                connectionState={connectionState}
+                onOpenSettings={openAccountSettings}
+                onSignOut={onSignOut}
+                deconnexionGardee={deconnexionGardee}
+            />
 
-            {/* RAIL TABLETTE REPLIÉ (768–1023px) — icônes seules + tooltip au survol,
-                mêmes items/handlers que la sidebar desktop, rien de nouveau côté logique. */}
-            <aside data-nav-principale="1" className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4">
-                {/* Repère visuel de marque au format icône seule (rail replié trop
-                    étroit pour le logo complet ikadevis + baseline) */}
-                <IconeSVG className="h-7 w-7 text-brand-500" />
-                <nav className="flex-1 overflow-y-auto flex flex-col gap-[5px] custom-scroll w-full items-center" aria-label="Menu principal (replié)">
-                    <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} collapsed />
-                    <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} collapsed />
-                    <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} collapsed />
-                    <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} collapsed />
-                    <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} collapsed />
-                    <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} collapsed />
-                    <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} collapsed />
-                    <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} collapsed />
-                </nav>
-                <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
-                    <PwaInstallButton compact />
-                    <div className="relative sidebar-item-collapsed-wrap">
-                        <button onClick={() => openAccountSettings('entreprise')} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres du compte">
-                            <i className="fa-solid fa-gear"></i>
-                        </button>
-                        <span className="sidebar-tooltip" role="tooltip">Paramètres du Compte</span>
-                    </div>
-                    {onSignOut && (
-                        <div className="relative sidebar-item-collapsed-wrap">
-                            <button onClick={deconnexionGardee} className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
-                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
+            {/* CONTENEUR CORPS (SIDEBAR + MAIN) SOUS LA TOP BAR */}
+            <div className="flex-1 min-h-0 flex w-full overflow-hidden relative">
+                {/* SIDEBAR DESKTOP (≥ 1024px) */}
+                <aside data-nav-principale="1" className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0 h-full">
+                    <nav ref={sidebarNavRef} onScroll={majDefilementSidebar} className={`flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll sidebar-nav-scroll ${sidebarADuContenuSousLaLigne ? 'sidebar-nav-scroll-more' : ''}`} aria-label="Menu principal">
+                        <p className="sidebar-section-label">Pilotage</p>
+                        <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} />
+                        <p className="sidebar-section-label mt-4">Exploitation</p>
+                        <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} />
+                        <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} />
+                        <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} emphasis />
+                        <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
+                        <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} />
+                        <p className="sidebar-section-label mt-4">Configuration</p>
+                        <SidebarCatalogGroup />
+                        {isPlatformAdmin && (<>
+                            <p className="sidebar-section-label mt-4">Plateforme</p>
+                            <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label={LIBELLES_NAV.platformAdmin} />
+                        </>)}
+                    </nav>
+                    <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
+                        <PwaInstallButton />
+                        {onSignOut && (
+                            <button onClick={deconnexionGardee} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
+                                <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
                             </button>
-                            <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
-                        </div>
-                    )}
-                </div>
-            </aside>
+                        )}
+                    </div>
+                </aside>
 
-            {/* TIROIR MOBILE (< 768px) — au-delà, le rail tablette/desktop prend le
-                relais (persistant, plus besoin d'un tiroir off-canvas). */}
-            {isMobileDrawerOpen && (
-                <div className="fixed inset-0 z-[150] md:hidden flex" role="dialog" aria-modal="true" aria-label="Menu de navigation mobile">
-                    <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
-                    <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
-                        <div className="p-4 flex items-center justify-between border-b border-neutral-100">
-                            <LogoSVG className="h-8 text-brand-500" />
-                            <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
-                                <i className="fa-solid fa-xmark text-xl"></i>
-                            </button>
-                        </div>
-                        <nav ref={drawerNavRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
-                            <p className="sidebar-section-label">Pilotage</p>
-                            <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <p className="sidebar-section-label mt-4">Exploitation</p>
-                            <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} onClickExtra={() => setIsMobileDrawerOpen(false)} emphasis />
-                            <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                            <p className="sidebar-section-label mt-4">Configuration</p>
-                            <SidebarCatalogGroup mobile />
-                        </nav>
-                        <div className="p-4 border-t border-neutral-100 space-y-2">
-                            <PwaInstallButton />
-                            <button onClick={() => { openAccountSettings('entreprise'); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres du compte">
-                                <i className="fa-solid fa-gear text-brand-500 mr-2"></i> Paramètres du Compte
-                            </button>
-                            {onSignOut && (
-                                <button onClick={deconnexionGardee} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
-                                    <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                {/* HEADER SOUS 768px AVEC BOUTON HAMBURGER (tablette/desktop ont le rail/la sidebar persistants) */}
-                <header className="mobile-app-header md:hidden shrink-0 h-16 bg-white border-b border-neutral-200 z-30 flex items-center justify-between px-4 shadow-sm">
-                    <div className="mobile-header-brand flex items-center gap-3 min-w-0">
-                        <button 
-                            onClick={() => setIsMobileDrawerOpen(true)} 
-                            className="btn-icon text-neutral-700 hover:text-brand-600 hover:bg-neutral-100 p-2" 
-                            aria-label="Ouvrir le menu de navigation"
-                            title="Menu"
-                        >
-                            <i className="fa-solid fa-bars text-xl"></i>
-                        </button>
-                        <LogoSVG className="mobile-header-logo h-7 text-brand-500" />
-                    </div>
-                    <div className="mobile-header-actions flex items-center gap-2 min-w-0">
+                {/* RAIL TABLETTE REPLIÉ (768–1023px) */}
+                <aside data-nav-principale="1" className="hidden md:flex lg:hidden flex-col sidebar-shell-collapsed border-r border-neutral-200/70 z-20 shrink-0 items-center py-4 gap-4 h-full">
+                    <nav className="flex-1 overflow-y-auto flex flex-col gap-[5px] custom-scroll w-full items-center" aria-label="Menu principal (replié)">
+                        <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} collapsed />
+                        <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} collapsed />
+                        <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} collapsed />
+                        <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} collapsed />
+                        <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} collapsed />
+                        <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} collapsed />
+                        <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} collapsed />
+                        <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} collapsed />
+                    </nav>
+                    <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
                         <PwaInstallButton compact />
-                        {connectionState.key !== 'local' && (
-                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${connectionState.chip}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${connectionState.dot}`}></span>
-                                <span>{connectionState.label}</span>
+                        {onSignOut && (
+                            <div className="relative sidebar-item-collapsed-wrap">
+                                <button onClick={deconnexionGardee} className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
+                                    <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                </button>
+                                <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
                             </div>
                         )}
-                        <button
-                            onClick={() => openAccountSettings('entreprise')}
-                            className="mobile-company-button btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
-                            aria-label="Ouvrir les paramètres du compte"
-                        >
-                            <i className="fa-solid fa-building text-brand-500"></i>
-                            <span className="hidden sm:inline font-bold truncate max-w-[120px]">{companyInfo.name}</span>
-                        </button>
                     </div>
-                </header>
+                </aside>
 
-                {/* V5.3 READ-ONLY BANNER */}
-                {downgradeWarning && (
-                    <div className="bg-red-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg animate-pulse" role="alert">
-                        <div className="flex items-center gap-2">
-                            <i className="fa-solid fa-lock text-base"></i>
-                            <span>{downgradeWarning}</span>
-                        </div>
-                    </div>
-                )}
-
-                {/* V5.7.1 CLOUD OFFLINE INFORMATIONAL BANNER */}
-                {cloudState === 'offline_error' && cloudErrorMessage && (
-                    <div className="bg-amber-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg" role="alert">
-                        <div className="flex items-center gap-2">
-                            <i className="fa-solid fa-wifi text-base"></i>
-                            <span>⚠️ {cloudErrorMessage}</span>
-                        </div>
-                        <button onClick={() => { setCloudState('idle'); setSbDataLoaded(false); setCloudRetryCount(c => c + 1); }} className="underline text-xs hover:text-amber-100 font-bold px-3 py-1 bg-amber-700/60 rounded-md transition-all">Réessayer la synchronisation</button>
-                    </div>
-                )}
-
-                {/* P0.18 (2026-08-17) — Discipline de scroll "app shell" : la coque
-                    ne défile jamais, seules des zones internes définies défilent
-                    (comportement attendu d'une vraie application, pas d'une page
-                    web). `main` était `overflow-y-auto` : n'importe quelle vue un
-                    peu haute faisait apparaître une barre de défilement pleine
-                    hauteur sur tout l'écran, qui emportait aussi l'en-tête de
-                    page. Il est désormais `overflow-hidden` et chaque vue gère
-                    son propre défilement interne. */}
-                <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
-                    <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
-                        <header className="hidden lg:flex h-12 items-center justify-between mb-6 shrink-0">
-                            <h1 className="text-2xl font-semibold text-neutral-800 tracking-tight">
-                                {/* Audit UX (2026-08-31) — les titres suivent désormais la
-                                    table LIBELLES_NAV : ils disaient « Devis & PDF
-                                    Commercial » là où la navigation dit « Mes devis »,
-                                    « Catégorie Ouvrage » pour « Catalogue », et deux écrans
-                                    (Client, Chantier) n'avaient pas de titre du tout.
-                                    Un écran doit porter le nom par lequel on y arrive. */}
-                                {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
-                            </h1>
-                            <div className="flex items-center gap-2">
-                                {connectionState.key !== 'local' && (
-                                    <button
-                                        onClick={() => openAccountSettings('diagnostic')}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all shadow-2xs hover:brightness-95 ${connectionState.chip}`}
-                                        title="Ouvrir le Diagnostic Système & Health Check"
-                                    >
-                                        <span className={`w-2 h-2 rounded-full ${connectionState.dot} ${connectionState.key === 'synced' ? 'animate-pulse' : ''}`}></span>
-                                        <span>{connectionState.label}</span>
-                                    </button>
-                                )}
-                                <button onClick={() => openAccountSettings('entreprise')} className="btn-secondary text-xs py-1.5 px-3" aria-label="Paramètres du compte">
-                                    <i className="fa-solid fa-building text-brand-500"></i> {companyInfo.name}
+                {/* TIROIR MOBILE (< 768px) */}
+                {isMobileDrawerOpen && (
+                    <div className="fixed inset-0 z-[150] md:hidden flex" role="dialog" aria-modal="true" aria-label="Menu de navigation mobile">
+                        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
+                        <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
+                            <div className="p-4 flex items-center justify-between border-b border-neutral-100">
+                                <LogoSVG className="h-8 text-brand-500" />
+                                <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
+                                    <i className="fa-solid fa-xmark text-xl"></i>
                                 </button>
                             </div>
-                        </header>
-                        <div className="animate-fade-in w-full flex-1 min-h-0">
-                            {activeView === 'dashboard' && renderDashboard()}
-                            {activeView === 'calculator' && renderCalculator()}
-                            {activeView === 'projects' && renderProjects()}
-                            {activeView === 'clients' && renderClients()}
-                            {activeView === 'savedQuotes' && renderSavedQuotes()}
-                            {activeView === 'invoices' && renderInvoices()}
-                            {activeView === 'recipes' && renderRecipes()}
-                            {activeView === 'materials' && renderMaterials()}
-                            {activeView === 'platformAdmin' && renderPlatformAdmin()}
+                            <nav ref={drawerNavRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
+                                <p className="sidebar-section-label">Pilotage</p>
+                                <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                                <p className="sidebar-section-label mt-4">Exploitation</p>
+                                <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                                <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                                <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} onClickExtra={() => setIsMobileDrawerOpen(false)} emphasis />
+                                <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                                <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} onClickExtra={() => setIsMobileDrawerOpen(false)} />
+                                <p className="sidebar-section-label mt-4">Configuration</p>
+                                <SidebarCatalogGroup mobile />
+                            </nav>
+                            <div className="p-4 border-t border-neutral-100 space-y-2">
+                                <PwaInstallButton />
+                                <button onClick={() => { openAccountSettings('entreprise'); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres du compte">
+                                    <i className="fa-solid fa-gear text-brand-500 mr-2"></i> Paramètres du Compte
+                                </button>
+                                {onSignOut && (
+                                    <button onClick={deconnexionGardee} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
+                                        <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </main>
+                )}
 
-                {/* BOTTOM BAR MOBILE (< 768px) — tablette/desktop ont le rail/la sidebar persistants */}
-                <nav data-nav-principale="1" className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
-                    <NavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} />
-                    <NavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
-                    <NavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} />
-                    <NavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} />
-                </nav>
+                {/* CONTENEUR CONTENU PRINCIPAL */}
+                <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
+                    {/* V5.3 READ-ONLY BANNER */}
+                    {downgradeWarning && (
+                        <div className="bg-red-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg animate-pulse" role="alert">
+                            <div className="flex items-center gap-2">
+                                <i className="fa-solid fa-lock text-base"></i>
+                                <span>{downgradeWarning}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* V5.7.1 CLOUD OFFLINE INFORMATIONAL BANNER */}
+                    {cloudState === 'offline_error' && cloudErrorMessage && (
+                        <div className="bg-amber-600 text-white px-4 py-3 text-xs font-semibold flex items-center justify-between shrink-0 shadow-lg" role="alert">
+                            <div className="flex items-center gap-2">
+                                <i className="fa-solid fa-wifi text-base"></i>
+                                <span>⚠️ {cloudErrorMessage}</span>
+                            </div>
+                            <button onClick={() => { setCloudState('idle'); setSbDataLoaded(false); setCloudRetryCount(c => c + 1); }} className="underline text-xs hover:text-amber-100 font-bold px-3 py-1 bg-amber-700/60 rounded-md transition-all">Réessayer la synchronisation</button>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT AREA */}
+                    <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
+                        <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
+                            <header className="flex h-10 sm:h-12 items-center justify-between mb-4 sm:mb-6 shrink-0">
+                                <h1 className="text-xl sm:text-2xl font-semibold text-neutral-800 tracking-tight">
+                                    {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
+                                </h1>
+                            </header>
+                            <div className="animate-fade-in w-full flex-1 min-h-0">
+                                {activeView === 'dashboard' && renderDashboard()}
+                                {activeView === 'calculator' && renderCalculator()}
+                                {activeView === 'projects' && renderProjects()}
+                                {activeView === 'clients' && renderClients()}
+                                {activeView === 'savedQuotes' && renderSavedQuotes()}
+                                {activeView === 'invoices' && renderInvoices()}
+                                {activeView === 'recipes' && renderRecipes()}
+                                {activeView === 'materials' && renderMaterials()}
+                                {activeView === 'platformAdmin' && renderPlatformAdmin()}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* BOTTOM BAR MOBILE (< 768px) */}
+                    <nav data-nav-principale="1" className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
+                        <NavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} />
+                        <NavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
+                        <NavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} />
+                        <NavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} />
+                    </nav>
+                </div>
             </div>
 
             {isPwaHelpOpen && (
