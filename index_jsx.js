@@ -782,7 +782,17 @@ const IconeSVG = ({ className = "h-7 w-7" }) => (
 );
 
 
-const CustomSelect = ({ value, onChange, options, className, disabled = false, ['aria-label']: ariaLabel }) => {
+const CustomSelect = ({ 
+    value, 
+    onChange, 
+    options = [], 
+    className = '', 
+    buttonClassName = '',
+    size = 'md', // 'sm' | 'md' | 'xs'
+    disabled = false, 
+    ['aria-label']: ariaLabel,
+    placeholder = 'Sélectionner...'
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectRef = useRef(null);
     
@@ -796,21 +806,34 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false, [
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const sizeClasses = size === 'sm' 
+        ? 'px-3 py-2 text-xs rounded-xl' 
+        : size === 'xs'
+        ? 'px-2 py-1 text-[11px] rounded-lg'
+        : 'px-4 py-2.5 text-sm rounded-xl';
+
     return (
-        <div ref={selectRef} className={`relative ${className || ''}`}>
-            <button type="button" disabled={disabled} onClick={() => !disabled && setIsOpen(!isOpen)}
+        <div ref={selectRef} className={`relative ${className}`}>
+            <button 
+                type="button" 
+                disabled={disabled} 
+                onClick={() => !disabled && setIsOpen(!isOpen)}
                 aria-label={ariaLabel}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                className={`w-full text-left px-4 py-3 border rounded-xl text-sm font-semibold transition-all focus:outline-none flex justify-between items-center ${disabled ? 'bg-neutral-100 text-neutral-500 border-neutral-200 cursor-not-allowed' : isOpen ? 'border-brand-500 bg-white ring-4 ring-brand-500/10 text-brand-700' : 'bg-neutral-50 border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-white'}`}>
-                <span className="truncate">{selectedOption ? selectedOption.label : 'Sélectionner...'}</span>
-                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-500' : 'text-neutral-500'}`}></i>
+                className={`w-full text-left font-semibold transition-all focus:outline-none flex justify-between items-center gap-2 ${sizeClasses} ${
+                    disabled 
+                        ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed' 
+                        : isOpen 
+                        ? 'border border-brand-500 bg-white ring-2 ring-brand-500/20 text-brand-700 shadow-2xs' 
+                        : 'bg-white border border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50 shadow-2xs'
+                } ${buttonClassName}`}
+            >
+                <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`}></i>
             </button>
             {isOpen && !disabled && (
-                // picker-popover : sur téléphone (< 480px) ce panneau devient une
-                // page de sélection plein écran — voir le bloc PWA MOBILE dans
-                // index.html. Au-dessus, il reste le menu flottant habituel.
-                <div role="listbox" className="picker-popover absolute z-[100] w-full mt-2 bg-white border border-neutral-100 rounded-xl shadow-floating overflow-hidden animate-fade-in origin-top">
+                <div role="listbox" className="picker-popover absolute z-[120] left-0 right-0 min-w-full mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-floating overflow-hidden animate-fade-in origin-top">
                     <div className="picker-mobile-header">
                         <button
                             type="button"
@@ -824,14 +847,25 @@ const CustomSelect = ({ value, onChange, options, className, disabled = false, [
                             {ariaLabel || 'Choisir une option'}
                         </p>
                     </div>
-                    <div className="picker-results max-h-60 overflow-y-auto">
+                    <div className="picker-results max-h-60 overflow-y-auto custom-scroll p-1">
                         {options.map((opt) => (
-                            <button key={opt.value} type="button" onClick={() => { onChange({ target: { value: opt.value }}); setIsOpen(false); }}
+                            <button 
+                                key={opt.value} 
+                                type="button" 
+                                onClick={() => { 
+                                    onChange({ target: { value: opt.value }}); 
+                                    setIsOpen(false); 
+                                }}
                                 role="option"
                                 aria-selected={String(value) === String(opt.value)}
-                                className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${String(value) === String(opt.value) ? 'bg-brand-50 text-brand-700 font-bold' : 'text-neutral-700 font-medium hover:bg-neutral-50 hover:text-neutral-900'}`}>
-                                <span>{opt.label}</span>
-                                {String(value) === String(opt.value) && <i className="fa-solid fa-check text-brand-600 text-xs"></i>}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between gap-2 ${
+                                    String(value) === String(opt.value) 
+                                        ? 'bg-brand-50 text-brand-700 font-bold' 
+                                        : 'text-neutral-700 font-medium hover:bg-neutral-100 hover:text-neutral-900'
+                                }`}
+                            >
+                                <span className="truncate">{opt.label}</span>
+                                {String(value) === String(opt.value) && <i className="fa-solid fa-check text-brand-600 text-xs shrink-0"></i>}
                             </button>
                         ))}
                     </div>
@@ -15183,7 +15217,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // après émission), jamais l'objet figé au moment du clic. Même patron
         // que selectedClientId : rien n'est sélectionné par défaut.
         const activeInvoice = viewingInvoice
-            ? (invoices.find(f => f.id === viewingInvoice.id) || null)
+            ? (invoices.find(f => f.id === viewingInvoice.id) || viewingInvoice)
             : null;
         const invoiceQuery = normalizeSearchText(invoiceSearchQuery);
         const visibleInvoices = invoices.filter(f => invoiceStatusFilter === 'all' || f.statut === invoiceStatusFilter)
@@ -15194,13 +15228,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // par lot, y compris la toute première (pré-remplie à 100% cumulé,
         // ce qui reproduit exactement l'ancien comportement "tout facturer").
 
+        const hasActiveInvoice = Boolean(activeInvoice);
+
         return (
-            <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-                {/* Pattern liste+détail (Clients / Ressources & Prix / Catalogue
-                    Ouvrages), repris ici le 2026-08-22 pour Factures : la colonne
-                    de droite montre le document rendu, comme un aperçu PDF —
-                    référence Zoho Books partagée par l'utilisateur. */}
-                <div className={`${activeInvoice ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] shrink-0 flex-col gap-4 lg:h-full lg:min-h-0`}>
+            <div className="w-full max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-5 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
+                {/* Pattern liste+détail : Si aucune facture sélectionnée -> 100% pleine largeur.
+                    Si une facture sélectionnée -> 2 colonnes (liste compacte à gauche + inspecteur à droite). */}
+                <div data-testid="invoices-list" className={`${hasActiveInvoice ? 'hidden lg:flex lg:w-[380px] xl:w-[410px]' : 'flex w-full flex-1'} shrink-0 flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
                     <div className="flex items-center justify-between px-1 gap-2">
                         <div className="min-w-0">
                             <h2 className="text-lg font-bold text-neutral-800">Factures</h2>
@@ -15224,7 +15258,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-neutral-200 shadow-floating z-20 max-h-80 overflow-y-auto custom-scroll">
                                         <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Créer une facture depuis un devis</p>
                                         {devisFacturables.map(q => (
-                                            <button key={q.id} onClick={() => ouvrirNouvelleSituation(q)} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
+                                            <button key={q.id} onClick={() => { setIsCreateInvoiceMenuOpen(false); ouvrirNouvelleSituation(q); }} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
                                                 <span className="min-w-0">
                                                     <span className="block text-xs font-bold text-neutral-900 truncate">{q.clientName}</span>
                                                     <span className="block text-[11px] text-neutral-500 truncate">{q.number} · {q.projectRef}</span>
@@ -15250,20 +15284,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 aria-label="Rechercher dans les factures"
                             />
                         </div>
-                        <select
+                        <CustomSelect
                             value={invoiceStatusFilter}
                             onChange={e => setInvoiceStatusFilter(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
+                            options={[
+                                { value: 'all', label: 'Tous les statuts' },
+                                { value: 'draft', label: 'Brouillons' },
+                                { value: 'issued', label: 'Émises' },
+                                { value: 'sent', label: 'Envoyées' },
+                                { value: 'partially_paid', label: 'Partiellement réglées' },
+                                { value: 'paid', label: 'Payées' },
+                                { value: 'cancelled', label: 'Annulées' }
+                            ]}
                             aria-label="Filtrer les factures par statut"
-                        >
-                            <option value="all">Tous les statuts</option>
-                            <option value="draft">Brouillons</option>
-                            <option value="issued">Émises</option>
-                            <option value="sent">Envoyées</option>
-                            <option value="partially_paid">Partiellement réglées</option>
-                            <option value="paid">Payées</option>
-                            <option value="cancelled">Annulées</option>
-                        </select>
+                        />
                     </div>
 
                     {/* Le Mode Démo ne peut offrir aucune garantie légale : la
@@ -15277,91 +15312,183 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                     )}
 
-                    {/* 2026-09-07 — Remplace les cartes avec vignette de document
-                        (une par facture, ~130px de haut chacune) par une table dense,
-                        même format que « Mes devis » : la liste sert à repérer et
-                        sélectionner une facture, pas à la prévisualiser — l'aperçu PDF
-                        reste à un clic dans le panneau de détail à droite. */}
                     {visibleInvoices.length > 0 && (
-                        <div className="app-card p-0 overflow-hidden shrink-0">
-                            <table className="w-full table-fixed text-left text-xs border-collapse">
-                                <colgroup>
-                                    <col className="w-[35%]" />
-                                    <col className="w-[21%]" />
-                                    <col className="w-[24%]" />
-                                    <col className="w-[20%]" />
-                                </colgroup>
-                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500">
-                                    <tr>
-                                        <th className="px-2.5 py-3 font-bold truncate">Société / Chantier</th>
-                                        <th className="px-2.5 py-3 font-bold truncate">Facture</th>
-                                        <th className="px-2.5 py-3 font-bold truncate text-right">Montant TTC</th>
-                                        <th className="px-1 py-3 font-bold truncate">Statut</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {visibleInvoices.map(f => {
-                                        const st = libelleStatut[f.statut] || libelleStatut.draft;
-                                        const isActive = !!(activeInvoice && activeInvoice.id === f.id);
-                                        const selectInvoice = () => setViewingInvoice(f);
-                                        return (
-                                            <tr
-                                                key={f.id}
-                                                onClick={selectInvoice}
-                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
-                                                tabIndex="0"
-                                                role="button"
-                                                aria-selected={isActive}
-                                                aria-label={`Voir la facture de ${f.clientName}`}
-                                                className={`group cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
-                                            >
-                                                <td className="px-2.5 py-3 min-w-0 align-top">
-                                                    <span className="block font-semibold text-neutral-900 line-clamp-2 break-normal leading-snug" title={f.clientName || 'Société non renseignée'}>{f.clientName || 'Société non renseignée'}</span>
-                                                    <span className="block text-[11px] text-neutral-500 line-clamp-2 break-normal leading-snug mt-0.5" title={f.projectRef || 'Chantier non renseigné'}>{f.projectRef || 'Chantier non renseigné'}</span>
-                                                </td>
-                                                <td className="px-2.5 py-3 whitespace-nowrap">
-                                                    <span className="font-mono text-[11px] font-semibold text-brand-700 block">{f.numero || 'Brouillon'}</span>
-                                                    <span className="text-[10px] tracking-tight text-neutral-500">{f.devisNumero ? `depuis ${f.devisNumero}` : ''}</span>
-                                                </td>
-                                                <td className="px-2.5 py-3 whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums">
+                        hasActiveInvoice ? (
+                            /* Mode 2 colonnes (Master-Detail) : liste de tuiles épurées, zéro chevauchement horizontal */
+                            <div className="flex flex-col gap-2.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
+                                {visibleInvoices.map(f => {
+                                    const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                    const isActive = !!(activeInvoice && activeInvoice.id === f.id);
+                                    const selectInvoice = () => setViewingInvoice(f);
+                                    return (
+                                        <div
+                                            key={f.id}
+                                            onClick={selectInvoice}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
+                                            tabIndex="0"
+                                            role="button"
+                                            aria-selected={isActive}
+                                            aria-label={`Voir la facture de ${f.clientName}`}
+                                            className={`group cursor-pointer rounded-xl p-3 border transition-all outline-none ${
+                                                isActive
+                                                    ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
+                                                    : 'bg-white hover:bg-neutral-50/90 border-neutral-200/80 hover:border-neutral-300'
+                                            }`}
+                                        >
+                                            {/* Ligne 1 : Numéro & Montant TTC */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                                <span className="font-mono text-xs font-bold text-brand-700 truncate">
+                                                    {f.numero || 'Brouillon'}
+                                                </span>
+                                                <span className="font-bold text-xs text-neutral-900 tabular-nums shrink-0">
                                                     {formatMoney(f.totalTTC, cur)}
-                                                </td>
-                                                <td className="px-1 py-3 whitespace-nowrap">
-                                                    <div className="flex items-center justify-between gap-1">
+                                                </span>
+                                            </div>
+
+                                            {/* Ligne 2 : Client / Société & Statut */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5">
+                                                <span className="font-semibold text-xs text-neutral-900 truncate" title={f.clientName || 'Société non renseignée'}>
+                                                    {f.clientName || 'Société non renseignée'}
+                                                </span>
+                                                <div className="shrink-0">
+                                                    <Badge colorClass={st.classe}>{st.texte}</Badge>
+                                                </div>
+                                            </div>
+
+                                            {/* Ligne 3 : Chantier & Source / Actions */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
+                                                <span className="truncate flex items-center gap-1 min-w-0" title={f.projectRef || 'Chantier non renseigné'}>
+                                                    <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                    <span className="truncate">{f.projectRef || 'Chantier non renseigné'}</span>
+                                                </span>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {f.devisNumero && (
+                                                        <span className="text-[10px] text-neutral-500">depuis {f.devisNumero}</span>
+                                                    )}
+                                                    {f.statut === 'draft' && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnlyDueToDowngrade}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setConfirmDialog({
+                                                                    isOpen: true,
+                                                                    title: 'Supprimer ce brouillon de facture ?',
+                                                                    message: `Le brouillon pour « ${f.clientName || 'client non renseigné'} » sera définitivement supprimé.\n\nCette action est sans retour.`,
+                                                                    confirmLabel: 'Supprimer',
+                                                                    isDanger: true,
+                                                                    onConfirm: async () => {
+                                                                        closeConfirm();
+                                                                        if (await supprimerFacture(f)) showToast('Brouillon de facture supprimé');
+                                                                    }
+                                                                });
+                                                            }}
+                                                            onKeyDown={(e) => e.stopPropagation()}
+                                                            className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5"
+                                                            aria-label={`Supprimer le brouillon de facture de ${f.clientName}`}
+                                                            title="Supprimer ce brouillon"
+                                                        >
+                                                            <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Mode Pleine Largeur (100%) : Grand tableau spacieux et aéré */
+                            <div className="app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
+                                <table className="w-full text-left text-xs border-collapse">
+                                    <thead className="bg-neutral-50/90 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500 font-bold">
+                                        <tr>
+                                            <th className="px-4 py-3.5">Client & Entreprise</th>
+                                            <th className="px-4 py-3.5">Chantier / Projet</th>
+                                            <th className="px-4 py-3.5">Facture</th>
+                                            <th className="px-4 py-3.5 text-right">Montant TTC</th>
+                                            <th className="px-4 py-3.5 text-center">Statut</th>
+                                            <th className="px-4 py-3.5 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {visibleInvoices.map(f => {
+                                            const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                            const isActive = !!(activeInvoice && activeInvoice.id === f.id);
+                                            const selectInvoice = () => setViewingInvoice(f);
+                                            return (
+                                                <tr
+                                                    key={f.id}
+                                                    onClick={selectInvoice}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
+                                                    tabIndex="0"
+                                                    role="button"
+                                                    aria-selected={isActive}
+                                                    aria-label={`Voir la facture de ${f.clientName}`}
+                                                    className="group cursor-pointer hover:bg-neutral-50/80 focus-visible:bg-brand-50 transition-colors bg-white"
+                                                >
+                                                    <td className="px-4 py-3.5 align-middle">
+                                                        <span className="font-semibold text-neutral-900 block text-xs" title={f.clientName || 'Société non renseignée'}>
+                                                            {f.clientName || 'Société non renseignée'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-neutral-600">
+                                                        <span className="flex items-center gap-1.5 text-xs text-neutral-600">
+                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                            <span className="truncate max-w-[240px]">{f.projectRef || 'Chantier non renseigné'}</span>
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                                        <span className="font-mono text-xs font-bold text-brand-700 block">{f.numero || 'Brouillon'}</span>
+                                                        {f.devisNumero && <span className="text-[10px] text-neutral-500">depuis {f.devisNumero}</span>}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-right font-bold text-neutral-900 tabular-nums whitespace-nowrap">
+                                                        {formatMoney(f.totalTTC, cur)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
                                                         <Badge colorClass={st.classe}>{st.texte}</Badge>
-                                                        {f.statut === 'draft' && (
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-right whitespace-nowrap">
+                                                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                                             <button
                                                                 type="button"
-                                                                disabled={isReadOnlyDueToDowngrade}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setConfirmDialog({
-                                                                        isOpen: true,
-                                                                        title: 'Supprimer ce brouillon de facture ?',
-                                                                        message: `Le brouillon pour « ${f.clientName || 'client non renseigné'} » sera définitivement supprimé.\n\nCette action est sans retour.`,
-                                                                        confirmLabel: 'Supprimer',
-                                                                        isDanger: true,
-                                                                        onConfirm: async () => {
-                                                                            closeConfirm();
-                                                                            if (await supprimerFacture(f)) showToast('Brouillon de facture supprimé');
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                onKeyDown={(e) => e.stopPropagation()}
-                                                                className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:bg-red-50 hover:text-red-600 focus-visible:text-red-600 focus-visible:bg-red-50 transition-colors disabled:opacity-0 disabled:pointer-events-none"
-                                                                aria-label={`Supprimer le brouillon de facture de ${f.clientName}`}
+                                                                onClick={selectInvoice}
+                                                                className="btn-secondary py-1 px-2.5 text-xs font-bold text-neutral-700 hover:text-brand-700 hover:bg-neutral-100"
                                                             >
-                                                                <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                                Consulter
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                                            {f.statut === 'draft' && (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    onClick={() => {
+                                                                        setConfirmDialog({
+                                                                            isOpen: true,
+                                                                            title: 'Supprimer ce brouillon de facture ?',
+                                                                            message: `Le brouillon pour « ${f.clientName || 'client non renseigné'} » sera définitivement supprimé.\n\nCette action est sans retour.`,
+                                                                            confirmLabel: 'Supprimer',
+                                                                            isDanger: true,
+                                                                            onConfirm: async () => {
+                                                                                closeConfirm();
+                                                                                if (await supprimerFacture(f)) showToast('Brouillon de facture supprimé');
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                                    title="Supprimer ce brouillon"
+                                                                >
+                                                                    <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )
                     )}
                     {visibleInvoices.length === 0 && (
                         <div className="text-center py-10 px-4">
@@ -15376,58 +15503,67 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     )}
                 </div>
 
-                {/* COLONNE DÉTAIL — le document lui-même, plus de modale : entre
-                    dans l'architecture documentaire du § 27.1 comme document
-                    « destinataire = client » (logo, pied de page, exonération
-                    déjà en place, sans les redéfinir). Aucun coût d'achat ni
-                    marge n'y figure. */}
-                <div className={`${activeInvoice ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
-                    {!activeInvoice ? (
-                        <div className="app-card p-16 text-center text-neutral-500">
-                            <i className="fa-solid fa-file-invoice-dollar text-3xl mb-3 text-neutral-300"></i>
-                            <p className="text-sm font-bold text-neutral-600">Sélectionnez une facture pour l'afficher</p>
-                        </div>
-                    ) : (() => {
-                        const estBrouillon = activeInvoice.statut === 'draft';
-                        return (
-                        <div className="app-card flex flex-col">
-                            <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="lg:hidden shrink-0"><button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
-                                        <i className="fa-solid fa-arrow-left"></i>
-                                    </button></span>
-                                    <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-1.5 rounded-lg shrink-0">
-                                        {activeInvoice.numero || 'BROUILLON'}
-                                    </span>
-                                    <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
-                                        {(libelleStatut[activeInvoice.statut] || libelleStatut.draft).texte}
-                                    </Badge>
-                                </div>
-                                <div className="mt-3 min-w-0">
-                                    <h2 className="text-lg font-bold text-neutral-800 break-words">{activeInvoice.clientName}</h2>
-                                    <p className="text-xs text-neutral-500 mt-1 break-words">{activeInvoice.projectRef}</p>
-                                </div>
-                                {/* 2026-09-06 — Type de facture, modifiable tant que c'est un
-                                    brouillon uniquement (figé par le trigger dès l'émission,
-                                    au même titre que les montants). "Solde" applique
-                                    automatiquement la retenue de garantie à l'émission. */}
-                                {estBrouillon && (
-                                    <div className="mt-3 max-w-xs">
-                                        <label htmlFor="invoice_type_select" className="app-label text-[10px]">Type de facture</label>
-                                        <select
-                                            id="invoice_type_select"
-                                            disabled={isReadOnlyDueToDowngrade}
-                                            className="app-select text-xs font-bold"
-                                            value={activeInvoice.type || 'standard'}
-                                            onChange={(e) => changerTypeFacture(activeInvoice, e.target.value)}
+                {/* COLONNE DÉTAIL — rendue uniquement si une facture est sélectionnée */}
+                {hasActiveInvoice && (
+                    <div data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-fade-in">
+                        {(() => {
+                            const estBrouillon = activeInvoice.statut === 'draft';
+                            return (
+                            <div className="app-card flex flex-col">
+                                <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="lg:hidden shrink-0"><button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
+                                            <i className="fa-solid fa-arrow-left"></i>
+                                        </button></span>
+                                        {activeInvoice.numero ? (
+                                            <>
+                                                <span className="text-xs font-bold font-mono text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1.5 rounded-lg shrink-0">
+                                                    {activeInvoice.numero}
+                                                </span>
+                                                <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
+                                                    {(libelleStatut[activeInvoice.statut] || libelleStatut.draft).texte}
+                                                </Badge>
+                                            </>
+                                        ) : (
+                                            <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
+                                                <i className="fa-solid fa-file-pen mr-1.5 text-[10px]"></i> Brouillon non émis
+                                            </Badge>
+                                        )}
+                                        <button
+                                            onClick={() => setViewingInvoice(null)}
+                                            className="btn-icon w-8 h-8 ml-auto text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                                            aria-label="Fermer le détail de la facture"
+                                            title="Fermer"
                                         >
-                                            <option value="standard">Standard (facture unique)</option>
-                                            <option value="acompte">Acompte</option>
-                                            <option value="situation">Situation de travaux</option>
-                                            <option value="solde">Solde (dernière facture — applique la retenue de garantie)</option>
-                                        </select>
+                                            <i className="fa-solid fa-xmark text-lg"></i>
+                                        </button>
                                     </div>
-                                )}
+                                    <div className="mt-3 min-w-0">
+                                        <h2 className="text-lg font-bold text-neutral-800 break-words">{activeInvoice.clientName}</h2>
+                                        <p className="text-xs text-neutral-500 mt-1 break-words">{activeInvoice.projectRef}</p>
+                                    </div>
+                                    {/* 2026-09-06 — Type de facture, modifiable tant que c'est un
+                                        brouillon uniquement (figé par le trigger dès l'émission,
+                                        au même titre que les montants). "Solde" applique
+                                        automatiquement la retenue de garantie à l'émission. */}
+                                    {estBrouillon && (
+                                        <div className="mt-3 max-w-xs">
+                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Type de facture</label>
+                                            <CustomSelect
+                                                value={activeInvoice.type || 'standard'}
+                                                onChange={(e) => changerTypeFacture(activeInvoice, e.target.value)}
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                size="sm"
+                                                options={[
+                                                    { value: 'standard', label: 'Standard (facture unique)' },
+                                                    { value: 'acompte', label: 'Acompte' },
+                                                    { value: 'situation', label: 'Situation de travaux' },
+                                                    { value: 'solde', label: 'Solde (dernière facture — applique la retenue de garantie)' }
+                                                ]}
+                                                aria-label="Type de facture"
+                                            />
+                                        </div>
+                                    )}
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                     {estBrouillon ? (
                                         <>
@@ -15549,13 +15685,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     </div>
                                 )}
-
                                 {documentDeLaFacture(activeInvoice)}
                             </div>
                         </div>
                         );
                     })()}
                 </div>
+                )}
             </div>
         );
     };
@@ -15723,6 +15859,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </span>
                                         );
                                     })()}
+                                    <button
+                                        onClick={() => setViewingSavedQuote(null)}
+                                        className="btn-icon w-8 h-8 ml-auto text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                                        aria-label="Fermer la boîte de dialogue"
+                                        title="Fermer le devis"
+                                    >
+                                        <i className="fa-solid fa-xmark text-lg"></i>
+                                    </button>
                                 </div>
 
                                 <div className="mt-3 min-w-0 flex flex-wrap items-start justify-between gap-3">
@@ -15737,23 +15881,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         brouillons, et le tampon « BROUILLON » s'imprimait sur
                                         100 % des documents envoyés aux clients. Un tampon posé
                                         partout n'alerte plus personne. */}
-                                    <label className="shrink-0">
+                                    <label className="shrink-0 w-32">
                                         <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
-                                        <select
+                                        <CustomSelect
                                             value={viewingSavedQuote.status || 'draft'}
                                             onChange={(e) => {
                                                 const maj = { ...viewingSavedQuote, status: e.target.value };
                                                 setViewingSavedQuote(maj);
                                                 updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                             }}
+                                            size="sm"
+                                            options={[
+                                                { value: 'draft', label: 'Brouillon' },
+                                                { value: 'to_verify', label: 'À vérifier' },
+                                                { value: 'ready', label: 'Prêt' },
+                                                { value: 'sent', label: 'Envoyé' },
+                                                { value: 'accepted', label: 'Accepté' }
+                                            ]}
                                             aria-label="Statut du devis"
-                                            className="app-select py-1.5 px-2 text-xs font-semibold"
-                                        >
-                                            {[['draft', 'Brouillon'], ['to_verify', 'À vérifier'], ['ready', 'Prêt'],
-                                              ['sent', 'Envoyé'], ['accepted', 'Accepté']].map(([v, l]) => (
-                                                <option key={v} value={v}>{l}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     </label>
                                 </div>
 
@@ -15868,7 +16014,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         <span>{missingLegal.length > 0 ? 'Identité à compléter' : 'Échéancier à corriger'}</span>
                                     </button>
                                     )}
-                                    <button onClick={() => { setViewingSavedQuote(null); setIsQuoteDetailMoreOpen(false); }} className="btn-icon w-8 h-8 ml-1" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                                 </div>
                             </div>
 
@@ -16357,7 +16502,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 : savedQuotes.filter(q => q.clientId === quotesClientFilter.id || q.clientName === quotesClientFilter.name);
         const quoteQuery = normalizeSearchText(savedQuoteSearchQuery);
         const visibleQuotes = scopedQuotes
-            .filter(q => savedQuoteStatusFilter === 'all' || q.status === savedQuoteStatusFilter)
+            .filter(q => {
+                if (savedQuoteStatusFilter === 'all') return true;
+                if (savedQuoteStatusFilter === 'invoiced') {
+                    const factures = invoices.filter(f => String(f.devisId) === String(q.id) || String(f.devisId) === String(q.serverId));
+                    return q.status === 'invoiced' || factures.some(f => f.statut === 'issued' || f.statut === 'paid');
+                }
+                return q.status === savedQuoteStatusFilter;
+            })
             .filter(q => !quoteQuery || [q.number, q.clientName, q.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(quoteQuery)))
             .slice()
             .sort((a, b) => {
@@ -16382,6 +16534,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const activeQuote = viewingSavedQuote
             ? (savedQuotes.find(q => q.id === viewingSavedQuote.id) || viewingSavedQuote)
             : null;
+        const hasActiveQuote = Boolean(activeQuote);
 
         // Vue table dédiée : les actions restent disponibles dans le panneau
         // de détail, jamais dans les lignes de cette liste synthétique.
@@ -16407,97 +16560,35 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
                     className={`group cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
                 >
-                    {/* Audit UX (2026-09-01) — Société et Chantier occupaient deux
-                        colonnes. Depuis l'ajout du montant et du statut, cinq
-                        colonnes ne tiennent plus dans les 438 px que laisse le
-                        panneau de détail : « CHANTIER » et le numéro de devis
-                        sortaient tronqués. Les deux textes sont empilés dans une
-                        seule colonne — ils désignent le même dossier (le client
-                        et son chantier) et se lisent naturellement l'un sous
-                        l'autre, comme le numéro et sa date juste à côté. */}
-                    <td className="px-2.5 py-3 min-w-0 align-top">
+                    <td className={`${hasActiveQuote ? 'px-2.5 py-3' : 'px-4 py-3.5'} min-w-0 align-top`}>
                         <span className="block font-semibold text-neutral-900 line-clamp-2 break-normal leading-snug" title={sq.clientName || 'Société non renseignée'}>{sq.clientName || 'Société non renseignée'}</span>
                         <span className="block text-[11px] text-neutral-500 line-clamp-2 break-normal leading-snug mt-0.5" title={sq.projectRef || 'Chantier non renseigné'}>{sq.projectRef || 'Chantier non renseigné'}</span>
                     </td>
-                    <td className="px-2.5 py-3 whitespace-nowrap">
+                    <td className={`${hasActiveQuote ? 'px-2.5 py-3' : 'px-4 py-3.5'} whitespace-nowrap`}>
                         <span className="font-mono text-[11px] font-semibold text-brand-700 block">{sq.number}</span>
                         <span className="text-[10px] tracking-tight text-neutral-500">{sq.date}</span>
                     </td>
-                    {/* Audit UX (2026-08-31) — le montant et le statut, les deux
-                        informations qu'on cherche dans une liste de devis, n'y
-                        figuraient pas ; il fallait ouvrir chaque fiche. La liste
-                        des factures, elle, affichait bien le montant. */}
-                    <td className="px-2.5 py-3 whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums">
+                    <td className={`${hasActiveQuote ? 'px-2.5 py-3' : 'px-4 py-3.5'} whitespace-nowrap text-right font-semibold text-neutral-900 tabular-nums`}>
                         {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
                     </td>
-                    <td className="px-1 py-3">
-                        <div className="flex items-start justify-between gap-1">
-                            {/* 2026-09-08 — Signalé : les deux badges (workflow +
-                                facturation) débordaient côte à côte dès que le panneau
-                                de détail réduit la liste à 438 px. Empilés plutôt
-                                qu'alignés, ils tiennent dans la colonne quelle que soit
-                                sa largeur — même logique que Société/Chantier juste à
-                                gauche, qui empile déjà société et chantier. */}
-                            <div className="flex flex-col items-start gap-1 min-w-0">
+                    <td className={`${hasActiveQuote ? 'px-1 py-3' : 'px-3 py-3.5'}`}>
+                        <div className="flex items-center justify-between gap-1">
+                            {/* Statut Unique du Devis — Un seul badge lisible, zéro double tag */}
+                            <div className="flex items-center min-w-0">
                                 {(() => {
-                                    const [libelle, pastille] = statutDevis(sq.status);
-                                    return <Badge colorClass={pastille}>{libelle}</Badge>;
-                                })()}
-                                {(() => {
-                                    // 2026-09-07 — Signalé : après "Convertir en facture",
-                                    // rien ne le montre dans "Mes devis". Ce badge est
-                                    // distinct de celui juste au-dessus (statutDevis, le
-                                    // workflow d'approbation du devis) : la facturation est
-                                    // une dimension séparée, qui coexiste avec lui plutôt
-                                    // que de le remplacer — un devis "Approuvé" facturé à
-                                    // moitié reste "Approuvé" ET "En cours".
-                                    //
-                                    // Premier essai basé sur dejaFactureParLot (qui n'compte
-                                    // que les factures ÉMISES, à raison — c'est ce qui sert
-                                    // au calcul du % déjà facturé d'une situation) restait
-                                    // muet tant que la facture liée n'était qu'un brouillon
-                                    // jamais émis : exactement le cas signalé (l'utilisateur
-                                    // clique "Convertir", obtient un brouillon, ne voit rien
-                                    // changer). Il faut donc une notion plus large ici :
-                                    // "une facture existe", émise ou non.
                                     const facturesDuDevis = invoices.filter(f =>
                                         String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                     );
-                                    if (facturesDuDevis.length === 0) return null;
-                                    const lots = regrouperLotsDevis(sq);
-                                    const dejaFacture = dejaFactureParLot(sq, invoices);
-                                    const complet = lots.length > 0 && lots.every(l => (dejaFacture[l.lotCode]?.pctCumuleMax || 0) >= 100);
-                                    if (complet) {
+                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                    const estFacture = sq.status === 'invoiced' || aFactureEmise;
+                                    
+                                    if (estFacture) {
                                         return <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>;
                                     }
-                                    const aUnBrouillon = facturesDuDevis.some(f => f.statut === 'draft');
-                                    return (
-                                        <Badge colorClass={aUnBrouillon ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}>
-                                            {aUnBrouillon ? 'Facture en brouillon' : 'En cours'}
-                                        </Badge>
-                                    );
+                                    const [libelle, pastille] = statutDevis(sq.status);
+                                    return <Badge colorClass={pastille}>{libelle}</Badge>;
                                 })()}
                             </div>
-                            {/* Signalé par un utilisateur (2026-09-02) : « il n'y a pas
-                                une possibilité de supprimer aussi un devis ? »
-                                Il y en avait une, mais uniquement derrière le dépliant
-                                « Actions du devis » du panneau de détail — replié par
-                                défaut depuis la veille pour rendre 117 px au document.
-                                Résultat : le seul chemin de suppression était devenu
-                                invisible, sur un compte comptant 22 devis dont une
-                                majorité de brouillons répétés.
-                                La corbeille revient donc là où on la cherche : sur la
-                                ligne, comme dans toute liste. Elle n'apparaît qu'au
-                                survol ou au focus clavier — une action destructive n'a
-                                pas à s'offrir en permanence — et reste toujours
-                                atteignable au clavier. stopPropagation : sans lui, le
-                                clic ouvrirait aussi le devis derrière la confirmation.
-                                Volontairement visible en permanence, et non révélée au
-                                survol : sur mobile il n'y a pas de survol, et la
-                                corbeille y serait redevenue introuvable — le défaut
-                                même qu'on corrige. Elle est donc discrète (gris clair)
-                                plutôt que cachée, et la confirmation protège du
-                                geste malheureux. */}
                             <button
                                 type="button"
                                 disabled={isReadOnlyDueToDowngrade}
@@ -16528,22 +16619,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             );
         };
 
-        // `carteDevis` (148 lignes) a été retirée le 2026-09-03. Elle rendait
-        // l'ancienne vue en CARTES de la liste des devis, remplacée depuis par un
-        // tableau — plus aucun appel ne la référençait.
-        //
-        // Ce n'était pas du code mort inoffensif : c'est elle qui portait la
-        // corbeille de suppression. En la laissant en place, un lecteur pouvait
-        // conclure que la suppression existait déjà — et c'est exactement ce qui
-        // s'est produit lors de l'audit, avant de vérifier qu'elle n'était jamais
-        // appelée. La suppression vit désormais sur la ligne du tableau et dans le
-        // panneau de détail.
-
         return (
-        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-            {/* COLONNE LISTE — table dense type Excel. Les lignes sont les seuls
-                éléments interactifs de la liste : clic ou clavier → détail. */}
-            <div data-testid="saved-quotes-list" className="w-full lg:w-[min(46%,600px)] shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-5 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
+            {/* COLONNE LISTE — table dense. Pleine largeur (100%) si aucun devis actif, compacte (340px) si un devis est sélectionné. */}
+            <div data-testid="saved-quotes-list" className={`w-full ${hasActiveQuote ? 'lg:w-[380px] xl:w-[410px]' : 'flex-1'} shrink-0 flex flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
                 <div className="flex items-center justify-between px-1 gap-2">
                     <div className="min-w-0">
                         <h2 className="text-lg font-bold text-neutral-800">Mes devis</h2>
@@ -16566,30 +16645,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <select
+                        <CustomSelect
                             value={savedQuoteStatusFilter}
                             onChange={e => setSavedQuoteStatusFilter(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
+                            options={[
+                                { value: 'all', label: 'Tous les statuts' },
+                                { value: 'draft', label: 'Brouillons' },
+                                { value: 'to_verify', label: 'À vérifier' },
+                                { value: 'ready', label: 'Prêts' },
+                                { value: 'sent', label: 'Envoyés' },
+                                { value: 'accepted', label: 'Acceptés' },
+                                { value: 'invoiced', label: 'Facturés' }
+                            ]}
                             aria-label="Filtrer les devis par statut"
-                        >
-                            <option value="all">Tous les statuts</option>
-                            <option value="draft">Brouillons</option>
-                            <option value="to_verify">À vérifier</option>
-                            <option value="ready">Prêts</option>
-                            <option value="sent">Envoyés</option>
-                            <option value="accepted">Acceptés</option>
-                            <option value="approved">Approuvés</option>
-                        </select>
-                        <select
+                        />
+                        <CustomSelect
                             value={savedQuoteSort}
                             onChange={e => setSavedQuoteSort(e.target.value)}
-                            className="app-select py-2 px-2 text-xs"
+                            size="sm"
+                            options={[
+                                { value: 'recent', label: 'Plus récents' },
+                                { value: 'amount_desc', label: 'Montant décroissant' },
+                                { value: 'client_asc', label: 'Client A → Z' }
+                            ]}
                             aria-label="Trier les devis"
-                        >
-                            <option value="recent">Plus récents</option>
-                            <option value="amount_desc">Montant décroissant</option>
-                            <option value="client_asc">Client A → Z</option>
-                        </select>
+                        />
                     </div>
                 </div>
 
@@ -16610,60 +16691,203 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 )}
 
                 <div className="flex flex-col gap-3 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
-                    {/* Signalé en production le 2026-09-02 : « je ne vois pas
-                            tous les devis sur la page car ce n'est plus possible
-                            de faire le scroll » — 23 devis, une dizaine visibles.
-
-                            Mécanisme exact, mesuré : cette carte est un élément
-                            flex de la zone défilante juste au-dessus. Un élément
-                            flex a normalement `min-height: auto`, ce qui l'empêche
-                            de rétrécir sous la hauteur de son contenu — SAUF si
-                            son propre `overflow` n'est pas `visible`. Or il vaut
-                            ici `hidden`, pour arrondir les coins du tableau. Le
-                            minimum automatique retombe donc à zéro, la carte est
-                            comprimée à la hauteur de la zone (669 px au lieu de
-                            1388), et elle rogne elle-même son tableau. La zone
-                            défilante, ne voyant plus rien dépasser, n'affiche
-                            aucune barre : les devis au-delà du dixième étaient
-                            simplement inatteignables.
-
-                            `shrink-0` rend à la carte sa hauteur de contenu ; le
-                            débordement revient là où il doit être, dans la zone
-                            défilante, et les coins restent arrondis. */}
                     {visibleQuotes.length > 0 && (
-                        <div className="app-card p-0 overflow-hidden shrink-0">
-                            <div>
-                                <table className="w-full table-fixed text-left text-xs border-collapse">
-                                    {/* Audit UX (2026-09-01) — la répartition d'origine
-                                        (26/18/20/22/14) était calée sur une liste pleine
-                                        largeur. Depuis que le détail occupe la moitié
-                                        droite, la colonne ne fait plus que 438 px : l'en-tête
-                                        « MONTANT TTC » sortait tronqué et la pastille de
-                                        statut, en nowrap, débordait la table de 7 px.
-                                        Les deux colonnes qui portent l'information qu'on
-                                        vient chercher dans une liste de devis passent donc
-                                        devant les deux colonnes de texte, qui se replient
-                                        proprement sur deux lignes. */}
-                                    <colgroup>
-                                        <col className="w-[35%]" />
-                                        <col className="w-[21%]" />
-                                        <col className="w-[24%]" />
-                                        <col className="w-[20%]" />
-                                    </colgroup>
-                                    <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500">
+                        hasActiveQuote ? (
+                            /* Mode 2 colonnes (Master-Detail) : liste de tuiles devis épurées, zéro chevauchement horizontal */
+                            <div className="flex flex-col gap-2.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
+                                {visibleQuotes.map(sq => {
+                                    const isActive = !!(activeQuote && activeQuote.id === sq.id);
+                                    const selectQuote = () => {
+                                        setViewingSavedQuote(sq);
+                                        setIsCommercialMode(true);
+                                    };
+                                    const facturesDuDevis = invoices.filter(f =>
+                                        String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
+                                    );
+                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                    const estFacture = sq.status === 'invoiced' || aFactureEmise;
+                                    const badgeElem = estFacture
+                                        ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
+                                        : (() => {
+                                            const [libelle, pastille] = statutDevis(sq.status);
+                                            return <Badge colorClass={pastille}>{libelle}</Badge>;
+                                        })();
+
+                                    return (
+                                        <div
+                                            key={sq.id}
+                                            onClick={selectQuote}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                            tabIndex="0"
+                                            role="button"
+                                            aria-selected={isActive}
+                                            aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                                            className={`group cursor-pointer rounded-xl p-3 border transition-all outline-none ${
+                                                isActive
+                                                    ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
+                                                    : 'bg-white hover:bg-neutral-50/90 border-neutral-200/80 hover:border-neutral-300'
+                                            }`}
+                                        >
+                                            {/* Ligne 1 : Numéro Devis & Montant TTC */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                                <span className="font-mono text-xs font-bold text-brand-700 truncate">
+                                                    {sq.number}
+                                                </span>
+                                                <span className="font-bold text-xs text-neutral-900 tabular-nums shrink-0">
+                                                    {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
+                                                </span>
+                                            </div>
+
+                                            {/* Ligne 2 : Client & Statut */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5">
+                                                <span className="font-semibold text-xs text-neutral-900 truncate" title={sq.clientName || 'Société non renseignée'}>
+                                                    {sq.clientName || 'Société non renseignée'}
+                                                </span>
+                                                <div className="shrink-0">
+                                                    {badgeElem}
+                                                </div>
+                                            </div>
+
+                                            {/* Ligne 3 : Chantier & Date / Actions */}
+                                            <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
+                                                <span className="truncate flex items-center gap-1 min-w-0" title={sq.projectRef || 'Chantier non renseigné'}>
+                                                    <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                    <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
+                                                </span>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span>{sq.date}</span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setConfirmDialog({
+                                                                isOpen: true,
+                                                                title: 'Supprimer ce devis ?',
+                                                                message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
+                                                                confirmLabel: 'Supprimer',
+                                                                isDanger: true,
+                                                                onConfirm: async () => {
+                                                                    closeConfirm();
+                                                                    if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
+                                                                }
+                                                            });
+                                                        }}
+                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                        className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5 disabled:opacity-0"
+                                                        aria-label={`Supprimer le devis ${sq.number}`}
+                                                        title="Supprimer ce devis"
+                                                    >
+                                                        <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré */
+                            <div className="app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
+                                <table className="w-full text-left text-xs border-collapse">
+                                    <thead className="bg-neutral-50/90 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500 font-bold">
                                         <tr>
-                                            <th className="px-2.5 py-3 font-bold truncate">Société / Chantier</th>
-                                            <th className="px-2.5 py-3 font-bold truncate">Devis</th>
-                                            <th className="px-2.5 py-3 font-bold truncate text-right">Montant TTC</th>
-                                            <th className="px-1 py-3 font-bold truncate">Statut</th>
+                                            <th className="px-4 py-3.5">Client & Entreprise</th>
+                                            <th className="px-4 py-3.5">Chantier / Projet</th>
+                                            <th className="px-4 py-3.5">Devis & Date</th>
+                                            <th className="px-4 py-3.5 text-right">Montant TTC</th>
+                                            <th className="px-4 py-3.5 text-center">Statut</th>
+                                            <th className="px-4 py-3.5 text-right">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {visibleQuotes.map(sq => ligneDevis(sq))}
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {visibleQuotes.map(sq => {
+                                            const selectQuote = () => {
+                                                setViewingSavedQuote(sq);
+                                                setIsCommercialMode(true);
+                                            };
+                                            const facturesDuDevis = invoices.filter(f =>
+                                                String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
+                                            );
+                                            const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                            const estFacture = sq.status === 'invoiced' || aFactureEmise;
+                                            const badgeElem = estFacture
+                                                ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
+                                                : (() => {
+                                                    const [libelle, pastille] = statutDevis(sq.status);
+                                                    return <Badge colorClass={pastille}>{libelle}</Badge>;
+                                                })();
+
+                                            return (
+                                                <tr
+                                                    key={sq.id}
+                                                    onClick={selectQuote}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                                    tabIndex="0"
+                                                    role="button"
+                                                    aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                                                    className="group cursor-pointer hover:bg-neutral-50/80 focus-visible:bg-brand-50 transition-colors bg-white"
+                                                >
+                                                    <td className="px-4 py-3.5 align-middle">
+                                                        <span className="font-semibold text-neutral-900 block text-xs" title={sq.clientName || 'Société non renseignée'}>
+                                                            {sq.clientName || 'Société non renseignée'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-neutral-600">
+                                                        <span className="flex items-center gap-1.5 text-xs text-neutral-600">
+                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                            <span className="truncate max-w-[240px]">{sq.projectRef || 'Chantier non renseigné'}</span>
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                                                        <span className="font-mono text-xs font-bold text-brand-700 block">{sq.number}</span>
+                                                        <span className="text-[10px] text-neutral-500">{sq.date}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-right font-bold text-neutral-900 tabular-nums whitespace-nowrap">
+                                                        {formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
+                                                        {badgeElem}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 align-middle text-right whitespace-nowrap">
+                                                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={selectQuote}
+                                                                className="btn-secondary py-1 px-2.5 text-xs font-bold text-neutral-700 hover:text-brand-700 hover:bg-neutral-100"
+                                                            >
+                                                                Consulter
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isReadOnlyDueToDowngrade}
+                                                                onClick={() => {
+                                                                    setConfirmDialog({
+                                                                        isOpen: true,
+                                                                        title: 'Supprimer ce devis ?',
+                                                                        message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
+                                                                        confirmLabel: 'Supprimer',
+                                                                        isDanger: true,
+                                                                        onConfirm: async () => {
+                                                                            closeConfirm();
+                                                                            if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-0"
+                                                                title="Supprimer ce devis"
+                                                            >
+                                                                <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        )
                     )}
                     {visibleQuotes.length === 0 && (
                         <div className="text-center py-10 px-4">
@@ -16679,17 +16903,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 </div>
             </div>
 
-            {/* COLONNE DÉTAIL — desktop uniquement (≥1024px). Le mobile garde sa
-                modale historique (rendue à la racine de l'app, voir
-                renderQuoteDetailPanel), inchangée. */}
-            <div data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0">
-                {!activeQuote ? (
-                    <div className="app-card p-16 text-center text-neutral-500">
-                        <i className="fa-solid fa-folder-open text-3xl mb-3 text-neutral-300"></i>
-                        <p className="text-sm font-bold text-neutral-600">Sélectionnez un devis pour l'afficher</p>
-                    </div>
-                ) : renderQuoteDetailPanel(activeQuote, { asModal: false })}
-            </div>
+            {/* COLONNE DÉTAIL — rendue uniquement si un devis est sélectionné */}
+            {hasActiveQuote && (
+                <div data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-fade-in">
+                    {renderQuoteDetailPanel(activeQuote, { asModal: false })}
+                </div>
+            )}
         </div>
         );
     };
