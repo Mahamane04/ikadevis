@@ -2987,25 +2987,24 @@ function QuoteHeader({
     const currentStatus = statusOptions.find(s => s.value === (quote.status || 'draft')) || statusOptions[0];
 
     return (
-        <header className="bg-white border-b border-neutral-200 px-4 py-3 sticky top-0 z-30 shadow-xs">
+        <header className="bg-white border-b border-neutral-200 px-3.5 py-2 sm:py-2.5 sticky top-0 z-30 shadow-xs">
             {/* En-tête de l'espace de chiffrage, refondu en DEUX bandes (2026-08-21).
-
-                Avant : identité, undo/redo, les deux champs, le statut, l'indicateur
-                de sauvegarde ET les quatre actions se partageaient une seule ligne
-                flex. Mesuré dans le DOM : les champs « Nom du client » et
-                « Chantier / Projet » tombaient à 108 px chacun — leurs libellés
-                étaient coupés en plein milieu (« Nom du Clien », « Chantier / Proj »).
-                Ce sont pourtant les deux seules zones de saisie de la barre.
-
-                Bande 1 = identité + actions. Bande 2 = les champs, sur toute la
-                largeur : ils passent de 108 px à plus de 350 px chacun. */}
-            <div className="max-w-[1700px] mx-auto flex flex-col gap-2.5">
+                Bande 1 = identité (Chiffrage / Numéro Devis) + actions.
+                Bande 2 = les champs Client & Projet sur toute la largeur. */}
+            <div className="max-w-[1700px] mx-auto flex flex-col gap-2">
 
                 {/* Bande 1 — identité du devis, puis actions. */}
                 <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 font-mono text-xs font-semibold tracking-wide shrink-0">
-                        <i className="fa-solid fa-file-invoice text-brand-400 text-[11px]"></i>
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <h1 className="text-xs sm:text-sm font-bold text-neutral-800 tracking-tight flex items-center gap-1.5">
+                            <i className="fa-solid fa-calculator text-brand-600 text-xs"></i>
+                            <span>Chiffrage</span>
+                        </h1>
+                        <span className="text-neutral-300 font-light hidden sm:inline" aria-hidden="true">/</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 font-mono text-xs font-semibold tracking-wide shrink-0 border border-brand-200/50">
+                        <i className="fa-solid fa-file-invoice text-brand-500 text-[11px]"></i>
                         {quote.number || 'DEV-2026-001'}
                     </span>
 
@@ -14366,16 +14365,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             ? `${quand.toLocaleDateString('fr-FR')} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
             : 'récemment';
         return (
-            <div role="status" className="mb-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-                <i className="fa-solid fa-clock-rotate-left text-amber-700 shrink-0" aria-hidden="true"></i>
-                <p className="flex-1 text-xs font-semibold text-neutral-800 leading-snug">
-                    Un devis non enregistré du {horodatage} a été retrouvé
-                    {nbOuvrages > 0 && <> — {nbOuvrages} ouvrage{nbOuvrages > 1 ? 's' : ''}</>}
-                    {q.clientName ? <>, client « {q.clientName} »</> : null}.
-                </p>
-                <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" onClick={oublierBrouillon} className="btn-secondary text-xs py-1.5 px-3 font-bold">Ignorer</button>
-                    <button type="button" onClick={reprendreBrouillon} className="btn-primary text-xs py-1.5 px-3 font-bold">Reprendre ce devis</button>
+            <div role="status" className="mb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-1.5 text-xs shadow-2xs">
+                <div className="flex items-center gap-2 min-w-0">
+                    <i className="fa-solid fa-clock-rotate-left text-amber-600 shrink-0 text-xs" aria-hidden="true"></i>
+                    <p className="text-xs font-semibold text-neutral-800 leading-snug truncate">
+                        Un devis non enregistré du {horodatage} a été retrouvé
+                        {nbOuvrages > 0 && <span className="font-normal text-neutral-600"> — {nbOuvrages} ouvrage{nbOuvrages > 1 ? 's' : ''}</span>}
+                        {q.clientName ? <span className="font-normal text-neutral-600">, client « {q.clientName} »</span> : null}.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    <button type="button" onClick={oublierBrouillon} className="text-xs py-1 px-2.5 font-bold text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:bg-neutral-100 rounded-md transition-colors">Ignorer</button>
+                    <button type="button" onClick={reprendreBrouillon} className="btn-primary text-xs py-1 px-3 font-bold">Reprendre ce devis</button>
                 </div>
             </div>
         );
@@ -19946,12 +19947,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     {/* MAIN CONTENT AREA */}
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
-                        <div className="p-4 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col">
-                            <header className="flex h-10 sm:h-12 items-center justify-between mb-4 sm:mb-6 shrink-0">
-                                <h1 className="text-xl sm:text-2xl font-semibold text-neutral-800 tracking-tight">
-                                    {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
-                                </h1>
-                            </header>
+                        <div className={`${activeView === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-4 md:p-6 lg:p-8 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
+                            {activeView !== 'calculator' && (
+                                <header className="flex h-10 sm:h-12 items-center justify-between mb-4 sm:mb-6 shrink-0">
+                                    <h1 className="text-xl sm:text-2xl font-semibold text-neutral-800 tracking-tight">
+                                        {LIBELLES_NAV[activeView] || (activeView === 'settings' ? 'Paramètres' : '')}
+                                    </h1>
+                                </header>
+                            )}
                             <div className="animate-fade-in w-full flex-1 min-h-0 flex flex-col">
                                 {activeView === 'dashboard' && renderDashboard()}
                                 {activeView === 'calculator' && renderCalculator()}
