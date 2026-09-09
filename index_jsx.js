@@ -222,6 +222,21 @@ const LIBELLES_NAV = {
     platformAdmin: 'Administration'
 };
 
+// Configuration par défaut du Tableau de Bord Personnalisable
+const DEFAULT_DASHBOARD_CONFIG = {
+    monthlyGoal: 15000000, // Objectif de CA mensuel (en devise de l'entreprise)
+    defaultPeriod: 'all',  // 'all' | 'month' | 'quarter' | 'year'
+    widgets: {
+        monthlyGoal: true,     // Jauge d'avancement de l'objectif mensuel
+        quickActions: true,    // Barre de raccourcis rapides en 1 clic
+        kpis: true,            // Cartes d'indicateurs clés (CA, devis, chantiers, clients, facturation)
+        pipeline: true,        // Entonnoir commercial des devis et taux de conversion
+        recentQuotes: true,    // Derniers devis enregistrés
+        activeProjects: true,  // Chantiers en cours
+        recentInvoices: true   // Factures récentes et encaissements
+    }
+};
+
 // ═══════════════════════════════════════════════════════════════
 // LIGNE DE DEVIS : QUANTITÉ ET PRIX UNITAIRE RÉELLEMENT FACTURÉS
 // ═══════════════════════════════════════════════════════════════
@@ -11232,6 +11247,37 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isTechnicalCatalogOpen, setIsTechnicalCatalogOpen] = useState(false);
     const [toast, setToast] = useState(null);
 
+    // Personnalisation du Tableau de bord (Option A — persistance localStorage)
+    const [dashboardConfig, setDashboardConfig] = useState(() => {
+        try {
+            const saved = localStorage.getItem('ikadevis_dashboard_config');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return {
+                    ...DEFAULT_DASHBOARD_CONFIG,
+                    ...parsed,
+                    widgets: { ...DEFAULT_DASHBOARD_CONFIG.widgets, ...(parsed.widgets || {}) }
+                };
+            }
+        } catch (e) {
+            console.warn('Erreur lecture config dashboard:', e);
+        }
+        return DEFAULT_DASHBOARD_CONFIG;
+    });
+    const [isDashboardCustomizeOpen, setIsDashboardCustomizeOpen] = useState(false);
+    const [dashboardPeriodFilter, setDashboardPeriodFilter] = useState(() => dashboardConfig.defaultPeriod || 'all');
+
+    const handleSaveDashboardConfig = useCallback((newConfig) => {
+        setDashboardConfig(newConfig);
+        try {
+            localStorage.setItem('ikadevis_dashboard_config', JSON.stringify(newConfig));
+        } catch (e) {
+            console.warn('Erreur sauvegarde config dashboard:', e);
+        }
+        setToast({ message: 'Disposition du tableau de bord enregistrée !', type: 'success', id: Date.now() });
+        setTimeout(() => setToast(null), 3500);
+    }, [setToast]);
+
     // Audit UX (2026-08-31) — sur un écran de 720 px, la zone de défilement de
     // la barre latérale mesurait 447 px pour 588 px de contenu : 141 px de
     // navigation invisibles, SANS le moindre indice. L'utilisateur voyait un
@@ -16622,107 +16668,734 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const getProjectStatusBadge = (status) => PROJECT_STATUS_LABELS[status] || { label: 'Statut inconnu', className: 'bg-neutral-100 text-neutral-500' };
 
+    // ═══════════════════════════════════════════════════════════════
+    // MODALE DE PERSONNALISATION DU TABLEAU DE BORD (OPTION A)
+    // ═══════════════════════════════════════════════════════════════
+    const DashboardCustomizationModal = ({
+        isOpen,
+        onClose,
+        config,
+        onSaveConfig,
+        currency = 'FCFA'
+    }) => {
+        if (!isOpen) return null;
+
+        const [tempConfig, setTempConfig] = useState(() => ({
+            monthlyGoal: config?.monthlyGoal || 15000000,
+            defaultPeriod: config?.defaultPeriod || 'all',
+            widgets: {
+                monthlyGoal: config?.widgets?.monthlyGoal !== false,
+                quickActions: config?.widgets?.quickActions !== false,
+                kpis: config?.widgets?.kpis !== false,
+                pipeline: config?.widgets?.pipeline !== false,
+                recentQuotes: config?.widgets?.recentQuotes !== false,
+                activeProjects: config?.widgets?.activeProjects !== false,
+                recentInvoices: config?.widgets?.recentInvoices !== false,
+            }
+        }));
+
+        const toggleWidget = (key) => {
+            setTempConfig(prev => ({
+                ...prev,
+                widgets: {
+                    ...prev.widgets,
+                    [key]: !prev.widgets[key]
+                }
+            }));
+        };
+
+        const handleReset = () => {
+            setTempConfig(DEFAULT_DASHBOARD_CONFIG);
+        };
+
+        const handleSave = () => {
+            onSaveConfig(tempConfig);
+            onClose();
+        };
+
+        const widgetDefinitions = [
+            {
+                key: 'monthlyGoal',
+                icon: 'fa-bullseye',
+                tone: 'brand',
+                title: 'Objectif & Jauge Mensuelle',
+                description: 'Progression visuelle du chiffre d’affaires réalisé par rapport à votre objectif mensuel.'
+            },
+            {
+                key: 'quickActions',
+                icon: 'fa-bolt',
+                tone: 'amber',
+                title: 'Actions Rapides en 1 Clic',
+                description: 'Boutons de création instantanée : Nouveau devis, Nouveau chantier, Nouveau client, Créer facture.'
+            },
+            {
+                key: 'kpis',
+                icon: 'fa-chart-pie',
+                tone: 'violet',
+                title: 'Cartes KPIs Essentielles',
+                description: 'Chiffre d’affaires chiffré, Devis à suivre, Chantiers actifs et Facturation.'
+            },
+            {
+                key: 'pipeline',
+                icon: 'fa-filter',
+                tone: 'emerald',
+                title: 'Pipeline Commercial des Devis',
+                description: 'Répartition des devis par étape (Brouillon → Prêt → Envoyé → Accepté) et taux de transformation.'
+            },
+            {
+                key: 'recentQuotes',
+                icon: 'fa-file-signature',
+                tone: 'blue',
+                title: 'Derniers Devis Enregistrés',
+                description: 'Accès rapide à vos devis récents avec statut, client, référence et montant.'
+            },
+            {
+                key: 'activeProjects',
+                icon: 'fa-folder-tree',
+                tone: 'brand',
+                title: 'Chantiers en Cours',
+                description: 'Liste et suivi direct des chantiers actifs et de leur avancement.'
+            },
+            {
+                key: 'recentInvoices',
+                icon: 'fa-file-invoice-dollar',
+                tone: 'emerald',
+                title: 'Facturation Récente & Règlements',
+                description: 'Historique des dernières factures émises et état des encaissements.'
+            }
+        ];
+
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="modal-dashboard-config-title">
+                <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/80 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
+                    {/* Header */}
+                    <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/70 shrink-0">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                                <i className="fa-solid fa-sliders text-sm"></i>
+                            </div>
+                            <div>
+                                <h3 id="modal-dashboard-config-title" className="text-base font-bold text-neutral-900">Personnaliser mon Tableau de Bord</h3>
+                                <p className="text-xs text-neutral-500">Activez les indicateurs et configurez votre espace de pilotage selon vos priorités</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-8 h-8 rounded-lg border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-colors cursor-pointer"
+                            aria-label="Fermer la personnalisation"
+                        >
+                            <i className="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-5 overflow-y-auto custom-scroll space-y-6 flex-1 text-xs">
+                        {/* Section 1 : Objectif & Période */}
+                        <div className="p-4 bg-neutral-50/80 rounded-xl border border-neutral-200/60 space-y-4">
+                            <div className="flex items-center gap-2 text-neutral-800 font-bold text-xs uppercase tracking-wider">
+                                <i className="fa-solid fa-bullseye text-brand-600"></i>
+                                <span>Paramètres Financiers & Période</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="app-label">Objectif de CA Mensuel ({currency})</label>
+                                    <div className="relative mt-1">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="100000"
+                                            value={tempConfig.monthlyGoal}
+                                            onChange={(e) => setTempConfig(prev => ({ ...prev, monthlyGoal: parseFloat(e.target.value) || 0 }))}
+                                            className="app-input font-bold font-mono text-sm pl-3 pr-16"
+                                            placeholder="15000000"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-[11px] pointer-events-none">
+                                            {currency}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-neutral-500 mt-1">Alimente la jauge d’avancement mensuelle du tableau de bord.</p>
+                                </div>
+                                <div>
+                                    <label className="app-label">Filtre de Période par Défaut</label>
+                                    <select
+                                        value={tempConfig.defaultPeriod}
+                                        onChange={(e) => setTempConfig(prev => ({ ...prev, defaultPeriod: e.target.value }))}
+                                        className="app-input font-medium text-xs mt-1"
+                                    >
+                                        <option value="all">Tout l’historique</option>
+                                        <option value="month">Ce mois-ci</option>
+                                        <option value="quarter">Ce trimestre</option>
+                                        <option value="year">Cette année</option>
+                                    </select>
+                                    <p className="text-[10px] text-neutral-500 mt-1">Période présélectionnée à l’ouverture du tableau de bord.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 2 : Sélection des Widgets */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-neutral-800 font-bold text-xs uppercase tracking-wider">
+                                    <i className="fa-solid fa-table-cells-large text-brand-600"></i>
+                                    <span>Widgets & Sections Visibles</span>
+                                </div>
+                                <span className="text-[11px] text-neutral-500 font-bold">
+                                    {Object.values(tempConfig.widgets).filter(Boolean).length} sur {widgetDefinitions.length} actifs
+                                </span>
+                            </div>
+
+                            <div className="space-y-2">
+                                {widgetDefinitions.map(w => {
+                                    const isActive = tempConfig.widgets[w.key] !== false;
+                                    return (
+                                        <div
+                                            key={w.key}
+                                            onClick={() => toggleWidget(w.key)}
+                                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
+                                                isActive
+                                                    ? 'bg-white border-neutral-300 shadow-2xs hover:border-brand-400'
+                                                    : 'bg-neutral-50/60 border-neutral-200/50 opacity-60 hover:opacity-80'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                                    isActive ? 'bg-brand-50 text-brand-600' : 'bg-neutral-200 text-neutral-400'
+                                                }`}>
+                                                    <i className={`fa-solid ${w.icon} text-xs`}></i>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-xs text-neutral-900 truncate">{w.title}</p>
+                                                    <p className="text-[11px] text-neutral-500 line-clamp-1">{w.description}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Toggle Switch */}
+                                            <div
+                                                className={`w-11 h-6 flex items-center rounded-full p-0.5 shrink-0 transition-colors duration-200 ease-in-out ${
+                                                    isActive ? 'bg-brand-600 justify-end' : 'bg-neutral-300 justify-start'
+                                                }`}
+                                            >
+                                                <div className="w-5 h-5 rounded-full bg-white shadow-xs transition-all"></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-5 py-3.5 border-t border-neutral-100 bg-neutral-50/70 flex items-center justify-between shrink-0">
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            className="text-xs font-semibold text-neutral-500 hover:text-neutral-800 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg hover:bg-neutral-200/60 transition-colors cursor-pointer"
+                            title="Rétablir la configuration recommandée"
+                        >
+                            <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                            <span>Rétablir par défaut</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="btn-secondary text-xs py-2 px-3 cursor-pointer"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                className="btn-primary text-xs py-2 px-4 shadow-sm cursor-pointer"
+                            >
+                                <i className="fa-solid fa-check mr-1.5"></i>
+                                Appliquer & Enregistrer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // VUE 0 : TABLEAU DE BORD MODERNE & PERSONNALISABLE
+    // ═══════════════════════════════════════════════════════════════
     const renderDashboard = () => {
-        const pendingQuotes = savedQuotes.filter(q => !['approved', 'accepted', 'sent'].includes(q.status));
+        // Filtrage temporel helper
+        const isDateInPeriod = (dateStr, period) => {
+            if (!dateStr || period === 'all') return true;
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return true;
+            const now = new Date();
+            if (period === 'month') {
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            }
+            if (period === 'quarter') {
+                const currentQuarter = Math.floor(now.getMonth() / 3);
+                const itemQuarter = Math.floor(d.getMonth() / 3);
+                return itemQuarter === currentQuarter && d.getFullYear() === now.getFullYear();
+            }
+            if (period === 'year') {
+                return d.getFullYear() === now.getFullYear();
+            }
+            return true;
+        };
+
+        const activePeriod = dashboardPeriodFilter || 'all';
+        const filteredQuotes = savedQuotes.filter(q => isDateInPeriod(q.date || q.createdAt || q.updatedAt, activePeriod));
+        const totalChiffre = filteredQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+
+        // Répartition par étape commerciale
+        const draftQuotes = filteredQuotes.filter(q => !q.status || q.status === 'draft');
+        const readyQuotes = filteredQuotes.filter(q => ['review', 'to_verify', 'ready'].includes(q.status));
+        const sentQuotes = filteredQuotes.filter(q => q.status === 'sent');
+        const acceptedQuotes = filteredQuotes.filter(q => ['approved', 'accepted'].includes(q.status));
+
+        const draftTotal = draftQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+        const readyTotal = readyQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+        const sentTotal = sentQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+        const acceptedTotal = acceptedQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+
+        const conversionRate = filteredQuotes.length > 0 ? Math.round((acceptedQuotes.length / filteredQuotes.length) * 100) : 0;
+
+        const pendingQuotes = filteredQuotes.filter(q => !['approved', 'accepted'].includes(q.status));
+        const pendingTotal = pendingQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+
         const activeProjects = projects.filter(p => ['active', 'in_progress'].includes(p.status));
-        const issuedInvoices = invoices.filter(f => ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
+        const issuedInvoices = invoices.filter(f => isDateInPeriod(f.date || f.createdAt, activePeriod) && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
         const invoicedTotal = issuedInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
+
+        // Objectif Mensuel (calculé sur le mois en cours)
+        const now = new Date();
+        const monthName = now.toLocaleDateString('fr-FR', { month: 'long' });
+        const monthlyGoal = Number(dashboardConfig.monthlyGoal) || 15000000;
+        const currentMonthInvoices = invoices.filter(f => isDateInPeriod(f.date || f.createdAt, 'month') && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
+        const currentMonthInvoicedTotal = currentMonthInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
+        const currentMonthAcceptedQuotes = savedQuotes.filter(q => isDateInPeriod(q.date || q.createdAt, 'month') && ['approved', 'accepted'].includes(q.status));
+        const currentMonthAcceptedTotal = currentMonthAcceptedQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+        const monthAchieved = currentMonthInvoicedTotal > 0 ? currentMonthInvoicedTotal : (currentMonthAcceptedTotal > 0 ? currentMonthAcceptedTotal : totalChiffre);
+        const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthAchieved / monthlyGoal) * 100)) : 0;
+        const goalRemaining = Math.max(0, monthlyGoal - monthAchieved);
+
         const recentQuotes = savedQuotes.slice(0, 4);
         const recentInvoices = invoices.slice(0, 3);
+        const enabledWidgets = dashboardConfig.widgets || DEFAULT_DASHBOARD_CONFIG.widgets;
 
         const DashboardMetric = ({ label, value, detail, icon, tone = 'brand' }) => (
-            <div className="app-card p-4 sm:p-5 flex items-start justify-between gap-4">
+            <div className="app-card p-4 sm:p-5 flex items-start justify-between gap-4 border border-neutral-200/80 shadow-2xs hover:border-neutral-300 transition-all">
                 <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-neutral-500">{label}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 tabular-nums">{value}</p>
+                    <p className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 tabular-nums font-mono">{value}</p>
                     <p className="mt-1 text-xs text-neutral-500 truncate">{detail}</p>
                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : tone === 'violet' ? 'bg-violet-50 text-violet-600' : 'bg-brand-50 text-brand-600'}`}>
-                    <i className={`fa-solid ${icon}`}></i>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' :
+                    tone === 'amber' ? 'bg-amber-50 text-amber-700' :
+                    tone === 'violet' ? 'bg-violet-50 text-violet-600' :
+                    'bg-brand-50 text-brand-600'
+                }`}>
+                    <i className={`fa-solid ${icon} text-base`}></i>
                 </div>
             </div>
         );
 
         return (
-            <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-5 h-full min-h-0 overflow-y-auto custom-scroll pr-1">
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-5 h-full min-h-0 overflow-y-auto custom-scroll pr-1 pb-6">
+                {/* En-tête du Tableau de bord avec salutation, filtre temporel & personnalisation */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
                     <div>
-                        <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Vue d’ensemble</p>
-                        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 mt-1">Votre activité, en un coup d’œil</h1>
-                        <p className="text-xs sm:text-sm text-neutral-500 mt-1">Retrouvez rapidement les chantiers et documents qui nécessitent votre attention.</p>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Tableau de bord de pilotage</span>
+                            <span className="text-[10px] text-neutral-400">•</span>
+                            <span className="text-xs text-neutral-500 capitalize">{new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</span>
+                        </div>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 mt-1">
+                            {companyInfo?.name ? `Espace ${companyInfo.name}` : 'Votre activité BTP en direct'}
+                        </h1>
+                        <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
+                            Suivez vos indicateurs de chiffrage, vos chantiers en cours et l'atteinte de vos objectifs commerciaux.
+                        </p>
                     </div>
-                    <button onClick={() => setActiveView('calculator')} className="btn-primary text-xs py-2.5 px-4 shrink-0" aria-label="Créer un nouveau devis">
-                        <i className="fa-solid fa-plus mr-1.5"></i> Nouveau devis
-                    </button>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {/* Filtre de période */}
+                        <div className="flex items-center bg-neutral-100 p-1 rounded-xl border border-neutral-200/60 text-xs">
+                            <button
+                                type="button"
+                                onClick={() => setDashboardPeriodFilter('all')}
+                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'all' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            >
+                                Tout
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDashboardPeriodFilter('month')}
+                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'month' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            >
+                                Ce mois
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDashboardPeriodFilter('quarter')}
+                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'quarter' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            >
+                                Trimestre
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDashboardPeriodFilter('year')}
+                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'year' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                            >
+                                Année
+                            </button>
+                        </div>
+
+                        {/* Bouton Personnaliser le Dashboard */}
+                        <button
+                            type="button"
+                            onClick={() => setIsDashboardCustomizeOpen(true)}
+                            className="btn-secondary text-xs py-2 px-3 shrink-0 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            aria-label="Modifier et personnaliser le tableau de bord"
+                            title="Modifier les widgets et objectifs du tableau de bord"
+                        >
+                            <i className="fa-solid fa-sliders text-neutral-500"></i>
+                            <span>Personnaliser</span>
+                        </button>
+
+                        {/* Bouton Nouveau devis */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('calculator')}
+                            className="btn-primary text-xs py-2 px-3.5 shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            aria-label="Créer un nouveau devis"
+                        >
+                            <i className="fa-solid fa-plus text-xs"></i>
+                            <span>Nouveau devis</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <DashboardMetric label="Chantiers actifs" value={activeProjects.length} detail={projects.length === activeProjects.length ? "Tous en cours" : `sur ${projects.length} au total`} icon="fa-folder-tree" />
-                    <DashboardMetric label="Clients" value={clients.length} detail="dans votre répertoire" icon="fa-users" tone="violet" />
-                    <DashboardMetric label="Devis à suivre" value={pendingQuotes.length} detail={`sur ${savedQuotes.length} devis enregistré${savedQuotes.length > 1 ? "s" : ""}`} icon="fa-file-signature" tone="amber" />
-                    <DashboardMetric label="Facturé" value={formatMoney(invoicedTotal, companyInfo.currency)} detail={issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`} icon="fa-chart-line" tone="emerald" />
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-5 min-h-0">
-                    <section className="app-card overflow-hidden">
-                        <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
-                            <div>
-                                <h3 className="font-semibold text-neutral-900">Devis récents</h3>
-                                <p className="text-xs text-neutral-500 mt-0.5">Les dernières propositions enregistrées</p>
+                {/* WIDGET 1 : OBJECTIF MENSUEL & JAUGE D'AVANCEMENT */}
+                {enabledWidgets.monthlyGoal !== false && (
+                    <div className="app-card p-5 bg-gradient-to-br from-white via-white to-brand-50/20 border border-neutral-200/80 shadow-2xs relative overflow-hidden">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="space-y-1 max-w-xl">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Objectif Mensuel de Chiffre d'Affaires</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-brand-50 text-brand-700 rounded-full capitalize">{monthName}</span>
+                                </div>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl sm:text-3xl font-bold font-mono text-neutral-900 tabular-nums">{formatMoney(monthAchieved, companyInfo.currency)}</span>
+                                    <span className="text-xs sm:text-sm text-neutral-500">réalisés sur {formatMoney(monthlyGoal, companyInfo.currency)} visés</span>
+                                </div>
+                                <p className="text-xs text-neutral-500">
+                                    {goalRemaining === 0 ? (
+                                        <span className="text-emerald-700 font-semibold"><i className="fa-solid fa-circle-check mr-1"></i> Objectif du mois atteint avec succès ! Félicitations.</span>
+                                    ) : (
+                                        <span>Il reste <strong className="font-mono text-neutral-800">{formatMoney(goalRemaining, companyInfo.currency)}</strong> pour atteindre la cible de {monthName}.</span>
+                                    )}
+                                </p>
                             </div>
-                            <button onClick={() => setActiveView('savedQuotes')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir tous</button>
-                        </div>
-                        <div className="divide-y divide-neutral-100">
-                            {recentQuotes.length === 0 ? (
-                                <div className="p-8 text-center text-sm text-neutral-500">Aucun devis enregistré.</div>
-                            ) : recentQuotes.map(q => {
-                                const [statusLabel, statusClass] = statutDevis(q.status);
-                                return (
-                                    <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50 transition-colors">
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-sm text-neutral-900 truncate">{q.clientName || 'Client non renseigné'}</p>
-                                            <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusClass}`}>{statusLabel}</span>
-                                            <i className="fa-solid fa-chevron-right text-[10px] text-neutral-300"></i>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </section>
 
-                    <section className="app-card overflow-hidden">
-                        <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
-                            <div>
-                                <h3 className="font-semibold text-neutral-900">Chantiers en cours</h3>
-                                <p className="text-xs text-neutral-500 mt-0.5">Projets actifs à surveiller</p>
-                            </div>
-                            <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir tous</button>
-                        </div>
-                        <div className="divide-y divide-neutral-100">
-                            {activeProjects.length === 0 ? (
-                                <div className="p-8 text-center text-sm text-neutral-500">Aucun chantier actif.</div>
-                            ) : activeProjects.slice(0, 4).map(p => (
-                                <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-4 flex items-center gap-3 text-left hover:bg-neutral-50 transition-colors">
-                                    <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-folder-tree text-xs"></i></div>
-                                    <div className="min-w-0 flex-1"><p className="font-semibold text-sm text-neutral-900 truncate">{p.name}</p><p className="text-xs text-neutral-500 truncate mt-0.5">{p.clientName || 'Client non renseigné'}</p></div>
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full shrink-0">{getProjectStatusBadge(p.status).label}</span>
+                            <div className="flex md:flex-col items-center md:items-end justify-between gap-2 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-neutral-500">Progression</span>
+                                    <span className={`text-sm sm:text-base font-extrabold px-3 py-0.5 rounded-full font-mono ${
+                                        goalPct >= 100 ? 'bg-emerald-100 text-emerald-800' : goalPct >= 50 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                        {goalPct}%
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDashboardCustomizeOpen(true)}
+                                    className="text-[11px] text-brand-600 hover:text-brand-800 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-pen text-[9px]"></i>
+                                    Modifier l'objectif
                                 </button>
-                            ))}
+                            </div>
                         </div>
-                    </section>
-                </div>
 
-                {recentInvoices.length > 0 && (
-                    <section className="app-card overflow-hidden">
+                        {/* Barre de progression dégradée */}
+                        <div className="mt-4 w-full h-3 bg-neutral-100 rounded-full overflow-hidden p-0.5 border border-neutral-200/50">
+                            <div
+                                className="h-full rounded-full bg-gradient-to-r from-brand-600 via-blue-500 to-emerald-500 transition-all duration-500"
+                                style={{ width: `${Math.max(2, goalPct)}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
+
+                {/* WIDGET 2 : ACTIONS RAPIDES EN 1 CLIC */}
+                {enabledWidgets.quickActions !== false && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('calculator')}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:bg-brand-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-calculator text-base"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-brand-700 transition-colors">Nouveau devis</p>
+                                <p className="text-[11px] text-neutral-500 truncate">Chiffrer un projet</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:bg-amber-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-folder-plus text-base"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-amber-800 transition-colors">Nouveau chantier</p>
+                                <p className="text-[11px] text-neutral-500 truncate">Ouvrir un dossier</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:bg-violet-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-user-plus text-base"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-violet-800 transition-colors">Ajouter un client</p>
+                                <p className="text-[11px] text-neutral-500 truncate">Répertoire & NIF</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('invoices')}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:bg-emerald-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-file-invoice-dollar text-base"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
+                                <p className="text-[11px] text-neutral-500 truncate">Facturer un acompte</p>
+                            </div>
+                        </button>
+                    </div>
+                )}
+
+                {/* WIDGET 3 : CARTES KPIS ESSENTIELLES */}
+                {enabledWidgets.kpis !== false && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                        <DashboardMetric
+                            label="Chiffre d'Affaires Chiffré"
+                            value={formatMoney(totalChiffre, companyInfo.currency)}
+                            detail={`${filteredQuotes.length} devis au total`}
+                            icon="fa-coins"
+                            tone="brand"
+                        />
+                        <DashboardMetric
+                            label="Devis à Suivre"
+                            value={pendingQuotes.length}
+                            detail={`En attente : ${formatMoney(pendingTotal, companyInfo.currency)}`}
+                            icon="fa-file-signature"
+                            tone="amber"
+                        />
+                        <DashboardMetric
+                            label="Chantiers Actifs"
+                            value={activeProjects.length}
+                            detail={projects.length === activeProjects.length ? "Tous en cours" : `sur ${projects.length} chantiers totaux`}
+                            icon="fa-folder-tree"
+                            tone="violet"
+                        />
+                        <DashboardMetric
+                            label="Total Facturé"
+                            value={formatMoney(invoicedTotal, companyInfo.currency)}
+                            detail={issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`}
+                            icon="fa-chart-line"
+                            tone="emerald"
+                        />
+                    </div>
+                )}
+
+                {/* WIDGET 4 : PIPELINE COMMERCIAL DES DEVIS & CONVERSION */}
+                {enabledWidgets.pipeline !== false && (
+                    <div className="app-card p-5 border border-neutral-200/80 shadow-2xs space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                    <i className="fa-solid fa-filter text-brand-600 text-xs"></i>
+                                    <span>Pipeline Commercial des Devis</span>
+                                </h3>
+                                <p className="text-xs text-neutral-500">Répartition des propositions et conversion par étape du cycle de vente</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-neutral-500">Taux de conversion :</span>
+                                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-mono">
+                                    {conversionRate}% accepté{conversionRate > 1 ? 's' : ''}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Cartes des 4 étapes */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200/60">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">1. Brouillon</span>
+                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-neutral-200 text-neutral-700 rounded-full">{draftQuotes.length}</span>
+                                </div>
+                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-neutral-800 tabular-nums">{formatMoney(draftTotal, companyInfo.currency)}</p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-200/50">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">2. Prêt / Vérifié</span>
+                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full">{readyQuotes.length}</span>
+                                </div>
+                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-blue-900 tabular-nums">{formatMoney(readyTotal, companyInfo.currency)}</p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-violet-50/50 border border-violet-200/50">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider">3. Envoyé Client</span>
+                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-violet-200 text-violet-800 rounded-full">{sentQuotes.length}</span>
+                                </div>
+                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-violet-900 tabular-nums">{formatMoney(sentTotal, companyInfo.currency)}</p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200/60">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">4. Accepté / Gagné</span>
+                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">{acceptedQuotes.length}</span>
+                                </div>
+                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-emerald-900 tabular-nums">{formatMoney(acceptedTotal, companyInfo.currency)}</p>
+                            </div>
+                        </div>
+
+                        {/* Barre de répartition segmentée */}
+                        {filteredQuotes.length > 0 && (
+                            <div className="w-full h-2 rounded-full overflow-hidden flex bg-neutral-100 p-0.5 gap-0.5">
+                                {draftQuotes.length > 0 && <div style={{ width: `${(draftQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-neutral-400 h-full rounded-xs" title={`Brouillons : ${draftQuotes.length}`}></div>}
+                                {readyQuotes.length > 0 && <div style={{ width: `${(readyQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-blue-500 h-full rounded-xs" title={`Prêts : ${readyQuotes.length}`}></div>}
+                                {sentQuotes.length > 0 && <div style={{ width: `${(sentQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-violet-500 h-full rounded-xs" title={`Envoyés : ${sentQuotes.length}`}></div>}
+                                {acceptedQuotes.length > 0 && <div style={{ width: `${(acceptedQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-emerald-500 h-full rounded-xs" title={`Acceptés : ${acceptedQuotes.length}`}></div>}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* GRILLE : DEVIS RÉCENTS & CHANTIERS EN COURS */}
+                {((enabledWidgets.recentQuotes !== false) || (enabledWidgets.activeProjects !== false)) && (
+                    <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-5 min-h-0">
+                        {/* WIDGET 5 : DEVIS RÉCENTS */}
+                        {enabledWidgets.recentQuotes !== false && (
+                            <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
+                                <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                            <i className="fa-solid fa-file-signature text-brand-600 text-xs"></i>
+                                            <span>Devis récents</span>
+                                        </h3>
+                                        <p className="text-xs text-neutral-500 mt-0.5">Les dernières propositions chiffrées</p>
+                                    </div>
+                                    <button onClick={() => setActiveView('savedQuotes')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir tous</button>
+                                </div>
+                                <div className="divide-y divide-neutral-100">
+                                    {recentQuotes.length === 0 ? (
+                                        <div className="p-8 text-center text-sm text-neutral-500">Aucun devis enregistré.</div>
+                                    ) : recentQuotes.map(q => {
+                                        const [statusLabel, statusClass] = statutDevis(q.status);
+                                        const quoteAmount = q.quoteData?.totalTTCConsomme || q.totalTTC || 0;
+                                        return (
+                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{q.clientName || 'Client non renseigné'}</p>
+                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    <span className="font-bold text-xs font-mono text-neutral-900 tabular-nums">
+                                                        {formatMoney(quoteAmount, companyInfo.currency)}
+                                                    </span>
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusClass}`}>{statusLabel}</span>
+                                                    <i className="fa-solid fa-chevron-right text-[10px] text-neutral-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all"></i>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* WIDGET 6 : CHANTIERS EN COURS */}
+                        {enabledWidgets.activeProjects !== false && (
+                            <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
+                                <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                            <i className="fa-solid fa-folder-tree text-brand-600 text-xs"></i>
+                                            <span>Chantiers en cours</span>
+                                        </h3>
+                                        <p className="text-xs text-neutral-500 mt-0.5">Dossiers opérationnels actifs</p>
+                                    </div>
+                                    <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir tous</button>
+                                </div>
+                                <div className="divide-y divide-neutral-100">
+                                    {activeProjects.length === 0 ? (
+                                        <div className="p-8 text-center text-sm text-neutral-500">Aucun chantier actif.</div>
+                                    ) : activeProjects.slice(0, 4).map(p => (
+                                        <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-4 flex items-center gap-3 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
+                                            <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                                <i className="fa-solid fa-folder-tree text-xs"></i>
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{p.name}</p>
+                                                <p className="text-xs text-neutral-500 truncate mt-0.5">{p.clientName || 'Client non renseigné'}</p>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full shrink-0">{getProjectStatusBadge(p.status).label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                    </div>
+                )}
+
+                {/* WIDGET 7 : FACTURATION RÉCENTE & RÈGLEMENTS */}
+                {enabledWidgets.recentInvoices !== false && recentInvoices.length > 0 && (
+                    <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
                         <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
-                            <div><h3 className="font-semibold text-neutral-900">Facturation récente</h3><p className="text-xs text-neutral-500 mt-0.5">Les dernières factures créées</p></div>
-                            <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50">Voir toutes</button>
+                            <div>
+                                <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                    <i className="fa-solid fa-file-invoice-dollar text-brand-600 text-xs"></i>
+                                    <span>Facturation récente & Règlements</span>
+                                </h3>
+                                <p className="text-xs text-neutral-500 mt-0.5">Dernières factures émises et encaissements</p>
+                            </div>
+                            <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir toutes</button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-neutral-100">
-                            {recentInvoices.map(f => <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="p-4 text-left hover:bg-neutral-50 transition-colors"><p className="font-semibold text-sm text-neutral-900 truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p><p className="text-xs text-neutral-500 mt-1">{f.numero || 'Facture brouillon'}</p><p className="text-sm font-semibold text-neutral-800 mt-2">{formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}</p></button>)}
+                            {recentInvoices.map(f => (
+                                <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="p-4 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                            f.statut === 'paid' ? 'bg-emerald-100 text-emerald-800' : f.statut === 'partially_paid' ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-600'
+                                        }`}>
+                                            {f.statut === 'paid' ? 'Payée' : f.statut === 'partially_paid' ? 'Partielle' : 'Émise'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-neutral-500 mt-1">{f.numero || 'Facture brouillon'}</p>
+                                    <p className="text-sm font-bold font-mono text-neutral-900 tabular-nums mt-2">{formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}</p>
+                                </button>
+                            ))}
                         </div>
                     </section>
                 )}
@@ -21340,6 +22013,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         updateMaterials(newMats);
                         showToast(`${newMats.length} matières enregistrées dans le catalogue !`, "success");
                     }}
+                />
+            )}
+
+            {isDashboardCustomizeOpen && (
+                <DashboardCustomizationModal
+                    isOpen={isDashboardCustomizeOpen}
+                    onClose={() => setIsDashboardCustomizeOpen(false)}
+                    config={dashboardConfig}
+                    onSaveConfig={handleSaveDashboardConfig}
+                    currency={companyInfo?.currency || 'FCFA'}
                 />
             )}
 
