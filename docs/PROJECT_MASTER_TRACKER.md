@@ -4485,3 +4485,115 @@ La page de **Chiffrage** constitue le cœur opérationnel d'ikadevis, où les es
 - **Harnais global de tests** : [`scratch/test_master_saas_100.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_master_saas_100.mjs) : **537/537 assertions au vert, 0 régression sur 52 suites**.
 - **Étalons métier BTP** : A, B, C, D, E, F, G strictement conformes (tolérance zéro).
 - **Compilation & SW** : `npm run build` exécuté avec succès (esbuild 746.1kb, Tailwind CSS minifié, service worker pré-cache `ikadevis-20260909a`).
+
+### 67.4 Refonte du Tableau Desktop, Barre d'Ajout Rapide et Raccourcis Mac (2026-09-09)
+
+#### 1. Raccourcis Clavier Mac & PC (`handleLotKeyDown`)
+- **Diagnostic Mac** : Sur macOS, la touche `Option (⌥)` agit comme `Alt`. Toutefois, lorsqu'un champ de saisie (quantité, prix unitaire, recherche, description) détenait le focus, le raccourci était précédemment ignoré par sécurité (`isInput` précoce) ou intercepté par le comportement natif de saut de paragraphe macOS en phase de bouillonnement.
+- **Correctif robuste** :
+  - Écoute en phase de capture : `window.addEventListener('keydown', handleLotKeyDown, true)`.
+  - Prise en charge universelle : `Option (⌥) + Flèche Bas/Haut`, `Ctrl + Flèche Bas/Haut`, et variantes `PageDown/PageUp`.
+  - Défocalisation douce : si le focus est sur un `<input>` simple, appel à `document.activeElement.blur()`, `e.preventDefault()`, et `e.stopPropagation()` pour basculer de lot instantanément sans conflit. Seuls les champs multilignes (`textarea`) restent préservés.
+  - Infobulles des chevrons mises à jour avec les symboles Mac & PC : `(⌥↓ / Ctrl+↓)` et `(⌥↑ / Ctrl+↑)`.
+
+#### 2. Réorganisation Professionnelle du Tableau des Ouvrages (`WorkItemsTableDesktop`)
+- **Proportions et suppression du tronquage** :
+  - Largeurs de colonnes optimisées : `Qté` (48px), `Unité` (36px), `P.U. HT` (84px), `Total HT` (126px), `Actions` (66px).
+  - Plus de 80 px restitués à la colonne `Désignation` : les noms d'ouvrages longs ("Habillage Façade en Panneaux Alucobond") ne sont plus coupés à 5 caractères lorsque l'inspecteur latéral est ouvert.
+  - `Total HT` passe à 126px avec `whitespace-nowrap` : les montants en millions (ex: `14 472 527 FCFA`) s'affichent en entier sans coupure ni suspension.
+  - En-tête de la colonne Actions allégé par une icône `•••` (`fa-ellipsis`) discrète avec texte accessible `sr-only`.
+- **Compacité verticale et élégance visuelle** :
+  - Le badge `Calculé selon le métrage` qui s'enroulait sur 3 lignes sous le prix a été déplacé dans la colonne Désignation aux côtés des dimensions (`14 × 20 × 0.6 m`), où se trouvent les détails techniques.
+  - La colonne `P.U. HT` ne contient désormais que l'input monétaire épuré, réduisant la hauteur de chaque ligne de ~30px et éliminant tout aspect encombrant.
+  - Ligne active en cours d'inspection soulignée en douceur : `bg-brand-50/40 border-l-2 border-l-brand-600 ring-1 ring-inset ring-brand-500/10` avec puce compacte `Édition`.
+
+#### 3. Barre d'Action Rapide Inférieure Unifiée
+- **Suppression du bloc encombrant** : Remplacement des deux énormes boutons secondaires empilés (qui occupaient plus de 130px de haut sous le tableau) par une barre d'action intégrée sur une seule ligne horizontale :
+  - Gauche / Centre : `SolutionCombobox` flexible (`flex-1`) pour chercher ou saisir directement un ouvrage au clavier.
+  - Droite : Deux boutons compacts et épurés de hauteur 36px (`h-9`) : `[ 📚 Catalogue ]` et `[ ✏️ Ligne libre ]`.
+  - Hauteur totale divisée par 3, alignement parfait avec le design system SaaS moderne (Linear/Notion).
+
+#### 4. Cache-Buster et Service Worker PWA
+- Jeton de cache bumpé de `20260909a` à `20260909b` dans `index.html` et `sw.js`.
+- Recompilation complète exécutée avec succès (`npm run build`).
+- Suite de tests de validation :
+  - [`scratch/test_lot_mac_and_table_redesign.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_lot_mac_and_table_redesign.mjs) : 9/9 assertions passées.
+  - [`scratch/test_chiffrage_uiux_optim.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_chiffrage_uiux_optim.mjs) : 14/14 assertions passées.
+  - Total : 23/23 assertions nouvelles au vert, 0 régression.
+
+### 67.5 Sélecteur de Lot Direct (1 Clic) dans l'Inspecteur d'Ouvrage et Raccourcis Multi-Touches Mac (2026-09-09)
+
+#### 1. Sélecteur de Lot Direct 1 Clic (`LotSelectorDropdown`)
+- **Problème résolu** : Lorsque l'inspecteur latéral était ouvert, le fil d'Ariane affichait le lot en simple texte statique. Pour basculer vers un autre lot (ex: Lot 1 vers Lot 2 parmi de multiples lots), l'utilisateur devait impérativement cliquer sur la flèche retour `←` pour refermer l'inspecteur, puis sélectionner le lot dans l'arborescence, puis rouvrir un ouvrage.
+- **Solution implémentée** :
+  - Création du composant réutilisable `LotSelectorDropdown` intégré dans le bandeau supérieur de `WorkItemInspector` : `[ ‹ ] [ 01 Lot 01... ▾ ] [ › ]`.
+  - Un clic sur le bouton ouvre un menu popover déroulant affichant instantanément tous les lots du devis, avec pour chacun son code, son libellé complet, son nombre d'ouvrages et son sous-total HT en FCFA.
+  - La sélection d'un lot change immédiatement le lot actif en conservant l'inspecteur ouvert (recadrage automatique de l'index d'ouvrage ou fermeture propre si lot vide).
+  - Deux boutons chevrons `‹` et `›` permettent également de naviguer séquentiellement de lot en lot directement depuis l'inspecteur.
+  - Le même composant `LotSelectorDropdown` a également été branché dans l'en-tête du volet gauche (`ActiveLotHeader`).
+
+#### 2. Raccourcis Clavier Universels Mac & PC
+- Prise en charge universelle en phase de capture d'événement (`useCapture = true`) :
+  - `Option (⌥) + Flèche Bas / Haut` (Mac)
+  - `Ctrl + Flèche Bas / Haut` (PC / Mac)
+  - `⌘ + Option + Flèche Bas / Haut` (Mac)
+  - `PageDown / PageUp` (Claviers étendus)
+- Défocalisation douce automatique des champs `<input>` simples pour basculer de lot sans conflit lors de la frappe d'un prix ou d'une quantité.
+- Dépendances du gestionnaire d'événements reliées au lot courant et à l'inspecteur pour une synchronisation temps réel garantie.
+
+#### 3. Invalidation du Cache Local PWA et Auto-Reload
+- Cache PWA rehaussé à `ikadevis-20260909c` dans `index.html` et `sw.js`.
+- Ajout du listener `navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload())` pour auto-rafraîchissement sur localhost dès qu'un nouveau build est détecté.
+
+#### 4. Validation & Conformité
+- **Suite dédiée** : [`scratch/test_lot_mac_and_table_redesign.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_lot_mac_and_table_redesign.mjs) (16/16 assertions passées avec succès).
+### 67.6 Résolution des 3 Demandes Utilisateur sur le Chantier / Chiffrage (2026-09-09)
+
+#### 1. Image 1 : Élimination Intégrale du Défilement Horizontal (Scroll X)
+- **Constat** : Lorsque l'inspecteur latéral de métré était ouvert ou lorsque la fenêtre était rétrécie, le tableau `WorkItemsTableDesktop` présentait une barre de défilement horizontal (`overflow-x-auto`) et un débordement causé par `min-w-[540px]` et des largeurs fixes rigides.
+- **Correctif** :
+  - Remplacement de `overflow-x-auto` par `overflow-hidden` sur le conteneur principal `[data-testid="quote-items-desktop"]`.
+  - Suppression de `min-w-[540px]` sur `<table>` pour forcer `w-full table-fixed`.
+  - Recalibrage précis des largeurs `<colgroup>` : `Qté` (40px), `Unité` (30px), `P.U. HT` (70px), `Total HT` (96px), `Actions` (68px).
+  - La colonne `Désignation Ouvrage` absorbe toute la largeur restante en fluidité sans aucune contrainte artificielle.
+  - Inputs et cellules stylisés avec `truncate` et `min-w-0` : `clientWidth === scrollWidth` (zéro pixel de dépassement, zéro barre de scroll horizontal quelle que soit la largeur d'écran).
+
+#### 2. Image 2 : Modale « Synthèse et répartition des lots » Complète & Non Tronquée
+- **Constat** : 
+  1. L'en-tête de la colonne `Actions` et les boutons d'action étaient tronqués (`ACTIO...`, `Ouvri...`) par le `max-w-2xl` et `overflow-hidden`.
+  2. La modale ne présentait que des totaux agrégés sans lister les éléments/ouvrages réels composant les lots.
+  3. Un toast de récupération de brouillon ("3 ouvrages") pouvait contraster avec un devis actif affichant 1 seul ouvrage.
+- **Correctif** :
+  - Élargissement de la boîte de dialogue de `max-w-2xl` à `max-w-4xl`.
+  - Recalibrage de la grille de colonnes (`colgroup`) avec largeurs garantissant la lisibilité intégrale de `Actions` et `[ Actif ]` / `[ Ouvrir ]`.
+  - Ajout d'un sous-tableau accordéon pour chaque lot listant **tous les éléments (ouvrages)** avec Désignation, métré, Quantité, Unité, P.U. HT, Montant HT et taux de Marge.
+  - Accordéons dépliés par défaut pour tous les lots possédant des ouvrages, accompagnés d'un bouton de contrôle global `[ Tout replier / Tout déplier ]`.
+  - Bandeau d'alerte interactif pour synchroniser ou reprendre un brouillon local contenant plus d'éléments.
+
+#### 3. Image 3 : « Ajout Multiple » Activé par Défaut dans la Bibliothèque des Ouvrages
+- **Constat** : Dans `WorkItemPicker`, le mode ajout multiple devait être activé manuellement par l'utilisateur.
+- **Correctif** :
+  - Initialisation de `isBulkMode` à `true` par défaut à chaque ouverture de la bibliothèque (`useState(true)` et réinitialisation dans `useEffect` sur `isOpen`).
+  - Cases à cocher actives et visibles d'emblée sur chaque carte d'ouvrage.
+  - Bouton d'en-tête mis en évidence : `✓ Ajout Multiple (Actif)`.
+  - Préservation du bouton individuel `[ + Ajouter ]` sur chaque ligne en accès direct pour une ergonomie fluide sans friction.
+
+---
+
+### 67.7 Déploiement en Production Cloudflare Workers — Version `20260909e` (2026-09-09)
+
+- **Cache-Buster & PWA** : Jeton incrémenté à `20260909e` dans `index.html` et `sw.js`.
+- **Compilations & Assemblage** :
+  - `npm run build:css` (Tailwind CSS minifié).
+  - `npm run build:js` (esbuild JSX → `app.compiled.js` 759 Ko).
+  - `generer-sw.mjs` (Service Worker mis à jour avec pré-cache complet).
+  - `npm run deploy:build` → `config.js` injecté depuis `.env.production` + `dist/` assemblé (22 entrées, 2.3 Mo).
+- **Déploiement Wrangler** :
+  - Exécution réussie de `npx wrangler deploy` vers Cloudflare Workers (mode Static Assets).
+  - ID de version : `63d8cb79-8baa-4df1-bca0-976efafdf226`.
+  - Restauration immédiate de l'environnement de développement local (`generate-config.mjs development`).
+- **Vérification en Ligne** :
+  - `curl -sL https://ikadevis.officemicro89.workers.dev/` → `v=20260909e` ✅
+  - `curl -sL https://app.ikadevis.com/` → `v=20260909e` ✅
+
+

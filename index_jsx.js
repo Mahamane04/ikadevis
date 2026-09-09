@@ -3519,6 +3519,7 @@ function LotTabsBar({
                     className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
                     title="Vue d'ensemble et répartition financière des lots"
                     aria-label="Synthèse des lots"
+                    data-testid="lots-overview-btn"
                 >
                     <i className="fa-solid fa-chart-pie text-brand-600 text-[11px]"></i>
                     <span className="hidden md:inline">Synthèse lots</span>
@@ -3534,15 +3535,41 @@ function LotsOverviewModal({
     lots = [],
     activeLotIndex = 0,
     onSelectLot,
-    currency = 'FCFA'
+    currency = 'FCFA',
+    brouillonPropose = null,
+    onReprendreBrouillon = null
 }) {
     if (!isOpen) return null;
     const totalDevisHT = lots.reduce((acc, l) => acc + (l.lotTotalHT || 0), 0);
     const totalItems = lots.reduce((acc, l) => acc + (l.items?.length || 0), 0);
 
+    // État pour déplier/replier les ouvrages de chaque lot (dépliés par défaut s'ils ont des ouvrages)
+    const [expandedLots, setExpandedLots] = useState(() => {
+        const init = {};
+        lots.forEach((l, idx) => {
+            init[idx] = (l.items && l.items.length > 0);
+        });
+        return init;
+    });
+
+    const toggleLotExpand = (idx, e) => {
+        if (e) e.stopPropagation();
+        setExpandedLots(prev => ({ ...prev, [idx]: !prev[idx] }));
+    };
+
+    const allExpanded = lots.length > 0 && lots.every((_, idx) => !!expandedLots[idx]);
+    const toggleAllLots = () => {
+        const target = !allExpanded;
+        const next = {};
+        lots.forEach((_, idx) => { next[idx] = target; });
+        setExpandedLots(next);
+    };
+
+    const brouillonNbOuvrages = brouillonPropose?.quote?.lots?.reduce((n, l) => n + ((l.items || []).length), 0) || 0;
+
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true">
-            <div className="bg-white rounded-2xl shadow-floating border border-neutral-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-fade-in" role="dialog" aria-modal="true">
+            <div data-testid="lots-overview-modal" className="bg-white rounded-3xl shadow-floating border border-neutral-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
                 <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between bg-neutral-50/80">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
@@ -3553,17 +3580,54 @@ function LotsOverviewModal({
                             <p className="text-xs text-neutral-500">{lots.length} lot(s) · {totalItems} ouvrage(s) au total</p>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="w-8 h-8 rounded-lg hover:bg-neutral-200 text-neutral-500 hover:text-neutral-800 flex items-center justify-center text-sm"
-                        aria-label="Fermer la synthèse des lots"
-                    >
-                        <i className="fa-solid fa-xmark"></i>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {totalItems > 0 && (
+                            <button
+                                type="button"
+                                onClick={toggleAllLots}
+                                className="text-xs py-1.5 px-3 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-700 font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                                title="Déplier ou replier tous les ouvrages des lots"
+                                data-testid="lots-toggle-all-btn"
+                            >
+                                <i className={`fa-solid ${allExpanded ? 'fa-compress' : 'fa-expand'} text-xs text-brand-600`}></i>
+                                <span>{allExpanded ? 'Tout replier' : 'Tout déplier'}</span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-8 h-8 rounded-lg hover:bg-neutral-200 text-neutral-500 hover:text-neutral-800 flex items-center justify-center text-sm"
+                            aria-label="Fermer la synthèse des lots"
+                        >
+                            <i className="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-4 sm:p-5 overflow-y-auto custom-scroll flex-1 space-y-4">
+                    {/* Alerte si un brouillon non enregistré contient plus d'ouvrages */}
+                    {brouillonPropose && (
+                        <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <i className="fa-solid fa-clock-rotate-left text-amber-600 shrink-0 text-sm"></i>
+                                <div>
+                                    <span className="font-bold">Brouillon non enregistré détecté :</span>{' '}
+                                    <span>{brouillonNbOuvrages} ouvrage{brouillonNbOuvrages > 1 ? 's' : ''} enregistré{brouillonNbOuvrages > 1 ? 's' : ''} récemment. Vous affichez actuellement {totalItems} ouvrage(s).</span>
+                                </div>
+                            </div>
+                            {onReprendreBrouillon && (
+                                <button
+                                    type="button"
+                                    onClick={() => { onReprendreBrouillon(); onClose(); }}
+                                    className="btn-primary text-xs py-1.5 px-3 font-bold shrink-0 shadow-2xs flex items-center gap-1.5 self-end sm:self-auto"
+                                >
+                                    <i className="fa-solid fa-rotate-left"></i>
+                                    <span>Reprendre ce devis ({brouillonNbOuvrages} ouv.)</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200">
                             <span className="text-[10px] uppercase font-bold text-neutral-500 block">Total Devis HT</span>
@@ -3579,16 +3643,26 @@ function LotsOverviewModal({
                         </div>
                     </div>
 
-                    <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+                    <div className="border border-neutral-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
                         <table className="w-full text-left text-xs border-collapse">
+                            <colgroup>
+                                <col style={{ width: '36px' }} />
+                                <col />
+                                <col style={{ width: '80px' }} />
+                                <col style={{ width: '130px' }} />
+                                <col style={{ width: '115px' }} />
+                                <col style={{ width: '80px' }} />
+                                <col style={{ width: '90px' }} />
+                            </colgroup>
                             <thead>
-                                <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-600 font-semibold uppercase text-[10px]">
+                                <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-600 font-semibold uppercase text-[10px] tracking-wider">
+                                    <th className="py-2.5 px-2 text-center"><span className="sr-only">Déplier</span></th>
                                     <th className="py-2.5 px-3">Lot</th>
                                     <th className="py-2.5 px-2 text-center">Ouvrages</th>
                                     <th className="py-2.5 px-3 text-right">Montant HT</th>
                                     <th className="py-2.5 px-3 text-right">Part (%)</th>
                                     <th className="py-2.5 px-3 text-center">Marge</th>
-                                    <th className="py-2.5 px-2 text-center">Action</th>
+                                    <th className="py-2.5 px-3 text-center" data-testid="lots-actions-th">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
@@ -3598,59 +3672,148 @@ function LotsOverviewModal({
                                     const pct = totalDevisHT > 0 ? ((subtotal / totalDevisHT) * 100).toFixed(1) : 0;
                                     const itemsCount = l.items?.length || 0;
                                     const marginPct = l.lotMarginPct != null ? Math.round(l.lotMarginPct) : null;
+                                    const isExpanded = !!expandedLots[idx];
+
                                     return (
-                                        <tr
-                                            key={l.id || idx}
-                                            className={`transition-colors cursor-pointer ${
-                                                isActive ? 'bg-brand-50/70 font-semibold' : 'hover:bg-neutral-50'
-                                            }`}
-                                            onClick={() => { onSelectLot && onSelectLot(idx); onClose(); }}
-                                        >
-                                            <td className="py-2.5 px-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                                                        isActive ? 'bg-brand-600 text-white' : 'bg-neutral-200 text-neutral-700'
-                                                    }`}>
-                                                        {l.code || String(idx + 1).padStart(2, '0')}
-                                                    </span>
-                                                    <span className="truncate max-w-[180px] sm:max-w-[220px] text-neutral-900 font-medium">
-                                                        {l.name || `Lot ${idx + 1}`}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="py-2.5 px-2 text-center text-neutral-600">
-                                                {itemsCount}
-                                            </td>
-                                            <td className="py-2.5 px-3 text-right font-mono font-bold text-neutral-900">
-                                                {formatMoney(subtotal, currency)}
-                                            </td>
-                                            <td className="py-2.5 px-3 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <span className="font-mono text-neutral-600 font-medium">{pct}%</span>
-                                                    <div className="w-12 bg-neutral-200 rounded-full h-1.5 hidden sm:block overflow-hidden">
-                                                        <div className="bg-brand-600 h-1.5 rounded-full" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}></div>
+                                        <React.Fragment key={l.id || idx}>
+                                            <tr
+                                                className={`transition-colors cursor-pointer ${
+                                                    isActive ? 'bg-brand-50/70 font-semibold' : 'hover:bg-neutral-50'
+                                                }`}
+                                                onClick={() => { onSelectLot && onSelectLot(idx); onClose(); }}
+                                            >
+                                                <td className="py-2.5 px-2 text-center" onClick={(e) => toggleLotExpand(idx, e)}>
+                                                    <button
+                                                        type="button"
+                                                        className="w-6 h-6 rounded hover:bg-neutral-200 text-neutral-500 hover:text-neutral-800 inline-flex items-center justify-center text-xs transition-transform"
+                                                        title={isExpanded ? "Replier les ouvrages de ce lot" : "Déplier les ouvrages de ce lot"}
+                                                        aria-label={isExpanded ? `Replier les ouvrages de ${l.name || idx + 1}` : `Déplier les ouvrages de ${l.name || idx + 1}`}
+                                                    >
+                                                        <i className={`fa-solid fa-chevron-right transition-transform ${isExpanded ? 'rotate-90 text-brand-600' : 'text-neutral-400'}`}></i>
+                                                    </button>
+                                                </td>
+                                                <td className="py-2.5 px-3 min-w-0">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                                            isActive ? 'bg-brand-600 text-white' : 'bg-neutral-200 text-neutral-700'
+                                                        }`}>
+                                                            {l.code || String(idx + 1).padStart(2, '0')}
+                                                        </span>
+                                                        <span className="text-neutral-900 font-semibold truncate" title={l.name || `Lot ${idx + 1}`}>
+                                                            {l.name || `Lot ${idx + 1}`}
+                                                        </span>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="py-2.5 px-3 text-center">
-                                                {marginPct != null ? (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                        marginPct < 15 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                                                    }`}>
-                                                        {marginPct}%
+                                                </td>
+                                                <td className="py-2.5 px-2 text-center text-neutral-600">
+                                                    <span className="inline-block px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-bold text-[10px]">
+                                                        {itemsCount}
                                                     </span>
-                                                ) : <span className="text-neutral-400">—</span>}
-                                            </td>
-                                            <td className="py-2.5 px-2 text-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); onSelectLot && onSelectLot(idx); onClose(); }}
-                                                    className="px-2 py-1 rounded bg-neutral-100 hover:bg-brand-50 hover:text-brand-700 text-neutral-700 text-[11px] font-semibold transition-colors"
-                                                >
-                                                    {isActive ? 'Actif' : 'Ouvrir'}
-                                                </button>
-                                            </td>
-                                        </tr>
+                                                </td>
+                                                <td className="py-2.5 px-3 text-right font-mono font-bold text-neutral-900 whitespace-nowrap">
+                                                    {formatMoney(subtotal, currency)}
+                                                </td>
+                                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <span className="font-mono text-neutral-600 font-medium">{pct}%</span>
+                                                        <div className="w-12 bg-neutral-200 rounded-full h-1.5 hidden sm:block overflow-hidden shrink-0">
+                                                            <div className="bg-brand-600 h-1.5 rounded-full" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                                    {marginPct != null ? (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                            marginPct < 15 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                                                        }`}>
+                                                            {marginPct}%
+                                                        </span>
+                                                    ) : <span className="text-neutral-400">—</span>}
+                                                </td>
+                                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); onSelectLot && onSelectLot(idx); onClose(); }}
+                                                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors inline-flex items-center gap-1 ${
+                                                            isActive
+                                                                ? 'bg-brand-600 text-white shadow-2xs'
+                                                                : 'bg-neutral-100 hover:bg-brand-50 hover:text-brand-700 text-neutral-700'
+                        }`}
+                                                        title={`Ouvrir le lot ${l.name || idx + 1}`}
+                                                    >
+                                                        <span>{isActive ? 'Actif' : 'Ouvrir'}</span>
+                                                        {!isActive && <i className="fa-solid fa-arrow-right text-[9px]"></i>}
+                                                    </button>
+                                                </td>
+                                            </tr>
+
+                                            {/* Volet accordéon détaillé listant tous les éléments de ce lot */}
+                                            {isExpanded && (
+                                                <tr className="bg-neutral-50/60 border-b border-neutral-200">
+                                                    <td colSpan="7" className="p-3 pl-8 pr-4">
+                                                        {itemsCount > 0 ? (
+                                                            <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                                                                <table className="w-full text-left text-xs border-collapse">
+                                                                    <thead>
+                                                                        <tr className="bg-neutral-100/80 text-[10px] text-neutral-500 font-semibold uppercase border-b border-neutral-200">
+                                                                            <th className="py-2 px-3">Ouvrage / Désignation</th>
+                                                                            <th className="py-2 px-2 text-center">Qté</th>
+                                                                            <th className="py-2 px-2 text-center">Unité</th>
+                                                                            <th className="py-2 px-3 text-right">P.U. HT</th>
+                                                                            <th className="py-2 px-3 text-right">Total HT</th>
+                                                                            <th className="py-2 px-3 text-center">Marge</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-neutral-100">
+                                                                        {l.items.map((item, itemIdx) => {
+                                                                            const unitPrice = item.unitPriceHT || 0;
+                                                                            const itemTotal = item.totalHT || (unitPrice * (item.qty || 1));
+                                                                            const margin = lineMarginInfo(item, currency);
+                                                                            return (
+                                                                                <tr key={item.id || itemIdx} className="hover:bg-neutral-50/70 transition-colors">
+                                                                                    <td className="py-2 px-3">
+                                                                                        <div className="font-semibold text-neutral-800 text-xs">
+                                                                                            {item.name || 'Ouvrage sans nom'}
+                                                                                        </div>
+                                                                                        {item.calcForm && (
+                                                                                            <div className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                                                                                                {formatItemMetre(item.calcForm)}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="py-2 px-2 text-center font-mono font-bold text-neutral-800">
+                                                                                        {item.qty || 1}
+                                                                                    </td>
+                                                                                    <td className="py-2 px-2 text-center text-neutral-500 font-mono text-[10.5px]">
+                                                                                        {item.unit || 'u'}
+                                                                                    </td>
+                                                                                    <td className="py-2 px-3 text-right font-mono text-neutral-700">
+                                                                                        {formatMoney(unitPrice, currency)}
+                                                                                    </td>
+                                                                                    <td className="py-2 px-3 text-right font-mono font-bold text-neutral-900">
+                                                                                        {formatMoney(itemTotal, currency)}
+                                                                                    </td>
+                                                                                    <td className="py-2 px-3 text-center">
+                                                                                        {margin ? (
+                                                                                            <span className={`text-[10px] font-bold ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}>
+                                                                                                {margin.label}
+                                                                                            </span>
+                                                                                        ) : <span className="text-neutral-400">—</span>}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="py-2 px-3 text-xs text-neutral-400 italic bg-white rounded-xl border border-dashed border-neutral-200 text-center">
+                                                                Aucun ouvrage dans ce lot pour le moment.
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>
@@ -3668,6 +3831,138 @@ function LotsOverviewModal({
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function LotSelectorDropdown({
+    lots = [],
+    activeLotIndex = 0,
+    onSelectLot,
+    onAddLot,
+    currency = 'FCFA',
+    compact = false
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isOpen) setIsOpen(false);
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
+
+    const activeLot = lots[activeLotIndex] || { code: '01', name: 'Lot principal' };
+
+    return (
+        <div ref={dropdownRef} className="relative inline-block text-left shrink-0">
+            <button
+                type="button"
+                data-testid="lot-selector-dropdown-btn"
+                onClick={() => setIsOpen(prev => !prev)}
+                className={`inline-flex items-center gap-1.5 transition-all text-left ${
+                    compact
+                        ? 'px-2 py-0.5 rounded-lg bg-brand-50/90 hover:bg-brand-100 border border-brand-200/90 text-brand-900 text-[11px] font-bold shadow-2xs hover:shadow-xs'
+                        : 'px-2.5 py-1 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-800 text-xs font-bold shadow-2xs hover:shadow-xs'
+                }`}
+                title="Changer directement de lot (1 clic)"
+                aria-haspopup="listbox"
+                aria-expanded={isOpen}
+            >
+                <span className={`rounded font-extrabold flex items-center justify-center shrink-0 ${
+                    compact
+                        ? 'w-4 h-4 bg-brand-600 text-white text-[9px]'
+                        : 'w-5 h-5 bg-brand-600 text-white text-[10px]'
+                }`}>
+                    {activeLot.code || String(activeLotIndex + 1).padStart(2, '0')}
+                </span>
+                <span className={`truncate font-bold ${compact ? 'max-w-[120px] sm:max-w-[190px]' : 'max-w-[160px] sm:max-w-[240px]'}`}>
+                    {activeLot.name || `Lot ${activeLotIndex + 1}`}
+                </span>
+                <i className={`fa-solid fa-chevron-down text-[9px] text-brand-600 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true"></i>
+            </button>
+
+            {isOpen && (
+                <div
+                    data-testid="lot-selector-dropdown-menu"
+                    className="absolute left-0 top-full mt-1.5 w-72 max-w-[90vw] bg-white border border-neutral-200 rounded-xl shadow-floating p-1.5 z-50 text-xs font-medium animate-fade-in"
+                    role="listbox"
+                    aria-label="Sélectionner un lot"
+                >
+                    <div className="px-2 py-1 border-b border-neutral-100 flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                        <span>Changer de lot ({lots.length})</span>
+                        <span className="text-neutral-400 font-normal">⌥↑ / ⌥↓</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto custom-scroll py-1 space-y-0.5">
+                        {lots.map((l, idx) => {
+                            const isActive = idx === activeLotIndex;
+                            const itemCount = l.items?.length || 0;
+                            const subtotal = l.lotTotalHT || 0;
+                            return (
+                                <button
+                                    key={l.id || idx}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isActive}
+                                    data-testid={`lot-selector-option-${idx}`}
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        onSelectLot?.(idx);
+                                    }}
+                                    className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                                        isActive
+                                            ? 'bg-brand-50 text-brand-900 font-bold ring-1 ring-brand-300/40'
+                                            : 'hover:bg-neutral-50 text-neutral-700'
+                                    }`}
+                                >
+                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${
+                                        isActive ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-600'
+                                    }`}>
+                                        {l.code || String(idx + 1).padStart(2, '0')}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-semibold leading-tight">
+                                            {l.name || `Lot ${idx + 1}`}
+                                        </p>
+                                        <p className="text-[10px] text-neutral-400 font-normal">
+                                            {itemCount} ouvrage{itemCount > 1 ? 's' : ''} &bull; {formatMoney(subtotal, currency)}
+                                        </p>
+                                    </div>
+                                    {isActive && (
+                                        <i className="fa-solid fa-check text-brand-600 text-xs shrink-0" aria-hidden="true"></i>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {onAddLot && (
+                        <div className="pt-1 border-t border-neutral-100 mt-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    onAddLot();
+                                }}
+                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-brand-50 text-brand-700 font-bold flex items-center gap-1.5 transition-colors text-xs"
+                            >
+                                <i className="fa-solid fa-plus text-[10px]"></i>
+                                <span>Nouveau lot…</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -3730,7 +4025,9 @@ function ActiveLotHeader({
     lot,
     lotIndex,
     lotsCount,
+    lots = [],
     onSelectLot,
+    onAddLot,
     onMoveLot,
     onUpdateLot,
     onOpenPicker,
@@ -3789,7 +4086,7 @@ function ActiveLotHeader({
                             disabled={lotIndex <= 0}
                             onClick={() => onSelectLot && onSelectLot(lotIndex - 1)}
                             className="w-7 h-7 rounded-lg border border-neutral-200 hover:bg-neutral-100 disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center text-neutral-600 text-xs transition-colors"
-                            title="Lot précédent (Alt + ↑)"
+                            title="Lot précédent (⌥↑ / Ctrl+↑)"
                             aria-label="Lot précédent"
                         >
                             <i className="fa-solid fa-chevron-left text-[10px]"></i>
@@ -3806,7 +4103,7 @@ function ActiveLotHeader({
                             disabled={lotIndex >= lotsCount - 1}
                             onClick={() => onSelectLot && onSelectLot(lotIndex + 1)}
                             className="w-7 h-7 rounded-lg border border-neutral-200 hover:bg-neutral-100 disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center text-neutral-600 text-xs transition-colors"
-                            title="Lot suivant (Alt + ↓)"
+                            title="Lot suivant (⌥↓ / Ctrl+↓)"
                             aria-label="Lot suivant"
                         >
                             <i className="fa-solid fa-chevron-right text-[10px]"></i>
@@ -3831,11 +4128,23 @@ function ActiveLotHeader({
                             </button>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 group cursor-pointer min-w-0" onClick={() => setIsEditingTitle(true)}>
-                            <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
-                                {lot.name || `Lot ${lotIndex + 1}`}
-                            </h2>
-                            <i className="fa-solid fa-pencil text-xs text-neutral-500 group-hover:text-brand-500 transition-colors"></i>
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <div className="flex items-center gap-1.5 group cursor-pointer min-w-0" onClick={() => setIsEditingTitle(true)} title="Cliquer pour renommer ce lot">
+                                <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
+                                    {lot.name || `Lot ${lotIndex + 1}`}
+                                </h2>
+                                <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors"></i>
+                            </div>
+                            {lots && lots.length > 1 && (
+                                <LotSelectorDropdown
+                                    lots={lots}
+                                    activeLotIndex={lotIndex}
+                                    onSelectLot={onSelectLot}
+                                    onAddLot={onAddLot}
+                                    currency={currency}
+                                    compact={true}
+                                />
+                            )}
                         </div>
                     )}
 
@@ -3857,16 +4166,6 @@ function ActiveLotHeader({
 
             {/* Menu d'options du lot (épure visuelle et focus mode) */}
             <div className="flex items-center gap-1.5 w-auto shrink-0">
-                <button
-                    type="button"
-                    onClick={onDuplicateLot}
-                    className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs"
-                    title="Dupliquer ce lot"
-                    aria-label="Dupliquer ce lot"
-                >
-                    <i className="fa-solid fa-clone"></i>
-                </button>
-
                 <div ref={optionsMenuRef} className="relative">
                     <button
                         type="button"
@@ -3886,6 +4185,15 @@ function ActiveLotHeader({
                                 className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
                             >
                                 <i className="fa-solid fa-pen text-neutral-400 w-4"></i> Renommer le lot
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setIsMenuOpen(false); onDuplicateLot && onDuplicateLot(); }}
+                                className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
+                                title="Dupliquer ce lot"
+                                aria-label="Dupliquer ce lot"
+                            >
+                                <i className="fa-solid fa-clone text-neutral-400 w-4"></i> Dupliquer ce lot
                             </button>
                             {lotIndex > 0 && (
                                 <button
@@ -4153,33 +4461,28 @@ function WorkItemTable({
                 })}
             </div>
 
-            {/* Audit UX (2026-08-31) — ouvrir le panneau de détail rétrécissait ce
-                tableau au point de le rendre inutilisable : mesuré à 1440 px, la
-                colonne « Désignation » passait de 467 à 127 px et son champ de
-                saisie tombait à 0 px de large — l'ouvrage n'avait plus de nom à
-                l'écran. `table-fixed` répartissait la place restante sans jamais
-                refuser de descendre.
-                Le tableau a désormais une largeur plancher et défile dans son
-                propre conteneur : la page, elle, ne défile toujours pas
-                latéralement. */}
-            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto custom-scroll border border-neutral-200 rounded-2xl bg-white shadow-xs">
-                <table className="w-full min-w-[650px] table-fixed text-left text-xs border-collapse">
+            {/* Tableau Desktop : conçu pour s'adapter à 100% de la largeur disponible SANS aucun défilement horizontal (scroll), même lorsque l'inspecteur latéral est ouvert */}
+            <div data-testid="quote-items-desktop" className="hidden md:block overflow-hidden border border-neutral-200 rounded-2xl bg-white shadow-xs">
+                <table className="w-full table-fixed text-left text-xs border-collapse">
                     <colgroup>
                         <col />
-                        <col style={{ width: '58px' }} />
-                        <col style={{ width: '46px' }} />
-                        <col style={{ width: '110px' }} />
-                        <col style={{ width: '135px' }} />
-                        <col style={{ width: '88px' }} />
+                        <col style={{ width: '40px' }} />
+                        <col style={{ width: '30px' }} />
+                        <col style={{ width: '70px' }} />
+                        <col style={{ width: '96px' }} />
+                        <col style={{ width: '68px' }} />
                     </colgroup>
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
-                            <th className="py-3.5 px-3">Désignation Ouvrage</th>
-                            <th className="py-3.5 px-1 text-center">Qté</th>
-                            <th className="py-3.5 px-1 text-center">Unité</th>
-                            <th className="py-3.5 px-1 text-right">P.U. HT</th>
-                            <th className="py-3.5 px-2 text-right">Total HT</th>
-                            <th className="py-3.5 px-2 text-center">Actions</th>
+                            <th className="py-2.5 px-3">Désignation Ouvrage</th>
+                            <th className="py-2.5 px-0.5 text-center">Qté</th>
+                            <th className="py-2.5 px-0.5 text-center">Unité</th>
+                            <th className="py-2.5 px-1 text-right">P.U. HT</th>
+                            <th className="py-2.5 px-1.5 text-right">Total HT</th>
+                            <th className="py-2.5 px-0.5 text-center" title="Actions">
+                                <span className="sr-only">Actions</span>
+                                <i className="fa-solid fa-ellipsis text-neutral-400 text-xs" aria-hidden="true"></i>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
@@ -4195,36 +4498,30 @@ function WorkItemTable({
                                     key={item.id || idx}
                                     className={`transition-all group ${
                                         isActive
-                                            ? 'bg-brand-50/70 border-l-4 border-l-brand-600 shadow-xs'
+                                            ? 'bg-brand-50/40 border-l-2 border-l-brand-600 ring-1 ring-inset ring-brand-500/10'
                                             : 'hover:bg-neutral-50/60'
                                     }`}
                                 >
-                                    <td className="py-3 px-3 min-w-0">
-                                        <div className="flex items-start gap-2.5">
-                                            {/* Cube décoratif retiré le 2026-08-21 — TABLE DESKTOP UNIQUEMENT.
-                                                Identique sur chaque ligne, il consommait 38 px de la colonne
-                                                « Désignation » : la seule réellement à l'étroit, et la seule dont
-                                                le contenu est un <input>, donc incapable de passer à la ligne.
-                                                Conservé dans la vue mobile en cartes (sm:hidden), où la place ne
-                                                manque pas et où il sert de repère visuel. */}
-                                            <div className="min-w-0 max-w-full flex-1 space-y-1">
-                                                {/* Édition Directe du Nom de l'Ouvrage (Annotation 5) */}
+                                    <td className="py-2.5 px-3 min-w-0">
+                                        <div className="flex items-start gap-2 min-w-0">
+                                            <div className="min-w-0 max-w-full flex-1 space-y-0.5">
+                                                {/* Édition Directe du Nom de l'Ouvrage */}
                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                     <input
                                                         type="text"
                                                         value={item.name || ''}
                                                         onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
                                                         placeholder="Désignation de l'ouvrage ou ligne..."
-                                                        className="flex-1 min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
+                                                        className="flex-1 min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all truncate"
                                                         aria-label={`Désignation pour ${item.name}`}
                                                         title={item.name}
                                                     />
                                                     {isActive && (
                                                         <span
-                                                            className="inline-flex items-center gap-1 text-[9px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                                                            className="inline-flex items-center gap-1 text-[8.5px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded tracking-wider shrink-0"
                                                             title="Cet article est actuellement ouvert dans l'inspecteur technique à droite"
                                                         >
-                                                            <i className="fa-solid fa-sliders text-[8px]"></i> Édition
+                                                            <i className="fa-solid fa-pen-ruler text-[7.5px]"></i> Édition
                                                         </span>
                                                     )}
                                                 </div>
@@ -4233,36 +4530,45 @@ function WorkItemTable({
                                                     type="text"
                                                     value={item.description || ''}
                                                     onChange={(e) => onUpdateItem(idx, { description: e.target.value })}
-                                                    placeholder="Précisions ou description pour le devis client..."
-                                                    className="w-full min-w-0 max-w-full text-[11px] text-neutral-500 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-2 py-0.5 outline-none transition-all placeholder-neutral-300"
+                                                    placeholder="Description (optionnelle)..."
+                                                    className="w-full min-w-0 max-w-full text-[11px] text-neutral-400 focus:text-neutral-700 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all placeholder-neutral-300 truncate"
                                                     aria-label={`Description pour ${item.name}`}
                                                 />
                                                 {item.calcForm && (
-                                                    <span className="inline-block text-[10px] font-mono text-neutral-500 pl-2">
-                                                        {formatItemMetre(item.calcForm)}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] flex-wrap min-w-0">
+                                                        <span className="font-mono text-neutral-500 truncate">
+                                                            {formatItemMetre(item.calcForm)}
+                                                        </span>
+                                                        <span
+                                                            className="inline-flex items-center gap-1 text-[8.5px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.2 shrink-0"
+                                                            title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
+                                                        >
+                                                            <i className="fa-solid fa-ruler-combined text-[7.5px]"></i>
+                                                            <span>Calculé selon le métrage</span>
+                                                        </span>
+                                                    </div>
                                                 )}
                                                 {item.isCustom && (
-                                                    <div className="flex flex-wrap items-center gap-1.5 pl-2 pt-1 text-[10px]">
-                                                        <span className="font-bold uppercase tracking-wide text-amber-700">Ligne libre</span>
+                                                    <div className="flex flex-wrap items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] min-w-0">
+                                                        <span className="font-bold uppercase tracking-wide text-amber-700 shrink-0">Ligne libre</span>
                                                         <span className="text-neutral-500" aria-hidden="true">•</span>
-                                                        <span className={item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}>
+                                                        <span className={`truncate ${item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}`}>
                                                             {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
                                                         </span>
-                                                        {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
-                                                        {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600">Tarif à compléter</span>}
+                                                        {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500 shrink-0" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
+                                                        {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600 shrink-0">Tarif à compléter</span>}
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
                                     </td>
 
-                                    <td className="py-3 px-1 text-center">
+                                    <td className="py-2.5 px-0.5 text-center">
                                         {facture.derive ? (
                                             <button
                                                 type="button"
                                                 onClick={() => onOpenInspector(idx)}
-                                                className="inline-block w-14 min-w-0 text-center py-1.5 px-1 font-bold font-mono text-neutral-900 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 cursor-pointer transition-colors shadow-2xs"
+                                                className="inline-block w-9 min-w-0 text-center py-1 px-0.5 font-bold font-mono text-neutral-900 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 cursor-pointer transition-colors shadow-2xs text-xs"
                                                 title="Quantité issue du métré — cliquez pour ouvrir l'inspecteur"
                                                 aria-label={`Quantité métrée ${formatQuantite(facture.quantite)} pour ${item.name}, ouvrir inspecteur`}
                                             >
@@ -4301,21 +4607,21 @@ function WorkItemTable({
                                                     calcForm: { ...(item.calcForm || {}), qty: val }
                                                 });
                                             }}
-                                            className="w-14 min-w-0 text-center py-1.5 px-1 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs transition-all"
+                                            className="w-9 min-w-0 text-center py-1 px-0.5 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
                                             aria-label={`Quantité pour ${item.name}`}
                                         />
                                         )}
                                     </td>
 
-                                    <td className="py-3 px-0 text-center text-neutral-600 font-medium">
+                                    <td className="py-2.5 px-0.5 text-center text-neutral-600 font-medium">
                                         {item.isCustom ? (
-                                            <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="w-14 max-w-full min-w-0 px-1 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[10px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
+                                            <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="w-8 max-w-full min-w-0 px-0.5 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[9.5px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
                                                 {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
                                             </select>
-                                        ) : <span className="px-1 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px]">{facture.unite}</span>}
+                                        ) : <span className="inline-block px-1 py-0.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[10px] truncate max-w-full">{facture.unite}</span>}
                                     </td>
 
-                                    <td className="py-3 px-1 text-right">
+                                    <td className="py-2.5 px-1 text-right">
                                         <input
                                             type="number"
                                             min="0"
@@ -4343,8 +4649,7 @@ function WorkItemTable({
                                             }}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
-                                                // Voir la carte mobile : on reporte quantité et unité pour
-                                                // qu'un prix saisi au m² reste un prix au m².
+                                                // Reporter la quantité et l'unité facturées
                                                 onUpdateItem(idx, {
                                                     unitPriceHT: val,
                                                     qty: facture.quantite,
@@ -4353,29 +4658,20 @@ function WorkItemTable({
                                                     isCustom: true
                                                 });
                                             }}
-                                            className="w-20 min-w-0 text-right py-1.5 px-1.5 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs transition-all"
+                                            className="w-full max-w-[64px] min-w-0 text-right py-1 px-1 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
                                             aria-label={`Prix unitaire pour ${item.name}`}
                                             title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                         />
-                                        {item.calcForm && !item.isCustom && (
-                                            <span
-                                                className="inline-flex items-center gap-1 text-[9px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.5 mt-1"
-                                                title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
-                                            >
-                                                <i className="fa-solid fa-ruler-combined text-[8px]"></i>
-                                                <span>Calculé selon le métrage</span>
-                                            </span>
-                                        )}
                                     </td>
 
-                                    <td className="py-3 px-2 text-right font-bold font-mono text-neutral-900 text-xs whitespace-nowrap">
-                                        <span className="block truncate" title={formatMoney(total, currency)}>
+                                    <td className="py-2.5 px-1.5 text-right font-bold font-mono text-neutral-900 text-xs whitespace-nowrap">
+                                        <span className="block truncate text-[11px] font-bold" title={formatMoney(total, currency)}>
                                             {formatMoney(total, currency)}
                                         </span>
                                         {margin && (
                                             <span
                                                 title={margin.tooltip}
-                                                className={`block mt-0.5 text-[10px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
+                                                className={`block mt-0.5 text-[9.5px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
                                             >
                                                 {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
                                                 {margin.label}
@@ -4383,12 +4679,12 @@ function WorkItemTable({
                                         )}
                                     </td>
 
-                                    <td className="py-3 px-2 text-center whitespace-nowrap">
-                                        <div className={`flex items-center justify-center gap-1 shrink-0 transition-opacity duration-150 ${isActive ? 'opacity-100' : 'opacity-40 group-hover:opacity-100 focus-within:opacity-100'}`}>
+                                    <td className="py-2.5 px-0.5 text-center whitespace-nowrap">
+                                        <div className={`flex items-center justify-center gap-0.5 shrink-0 transition-opacity duration-150 ${isActive ? 'opacity-100' : 'opacity-40 group-hover:opacity-100 focus-within:opacity-100'}`}>
                                             <button
                                                 type="button"
                                                 onClick={() => onOpenInspector(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[10px] transition-all shrink-0"
+                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
                                                 title="Voir et modifier les détails techniques & métrés"
                                                 aria-label={`Détails techniques de ${item.name}`}
                                             >
@@ -4398,7 +4694,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDuplicateItem(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[10px] transition-all shrink-0"
+                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
                                                 title="Dupliquer cette ligne"
                                                 aria-label={`Dupliquer ${item.name}`}
                                             >
@@ -4408,7 +4704,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteItem(idx)}
-                                                className="w-6 h-6 p-1 rounded-lg border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[10px] transition-all shrink-0"
+                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
                                                 title="Supprimer cette ligne"
                                                 aria-label={`Supprimer ${item.name}`}
                                             >
@@ -4423,35 +4719,37 @@ function WorkItemTable({
                 </table>
             </div>
 
-            {/* Point d'entrée unique du tableau : la recherche reste au bas de
-                la liste, là où l'utilisateur vient d'ajouter ou de relire une
-                ligne. Le catalogue complet conserve ses catégories et son mode
-                d'ajout multiple comme action secondaire. */}
-            <div className="border-t border-neutral-100 pt-3 space-y-2.5">
-                <div className="max-w-2xl mx-auto">
+            {/* Barre d'action rapide compacte & professionnelle (Recherche directe + Catalogue + Ligne libre) */}
+            <div className="border-t border-neutral-100 pt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex-1 min-w-0">
                     <SolutionCombobox
                         solutions={solutions}
                         onSelectSolution={onSelectSolution}
                         onCreateSolution={onCreateSolution}
+                        placeholder="Rechercher un ouvrage à ajouter..."
                     />
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
                         onClick={onOpenPicker}
-                        className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2 text-brand-700 border-brand-200 hover:bg-brand-50"
+                        className="h-9 px-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors shrink-0"
+                        title="Ouvrir le catalogue complet pour insérer un ou plusieurs ouvrages"
                         aria-label="Ouvrir le catalogue complet des ouvrages"
                     >
-                        <i className="fa-solid fa-layer-group"></i> Catalogue complet / ajout multiple
+                        <i className="fa-solid fa-layer-group text-brand-600 text-xs"></i>
+                        <span>Catalogue</span>
                     </button>
                     {onAddCustomLine && (
                         <button
                             type="button"
                             onClick={onAddCustomLine}
-                            className="btn-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-2"
+                            className="h-9 px-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors shrink-0"
+                            title="Ajouter une ligne libre (fourniture ou prestation personnalisée)"
                             aria-label="Ajouter une ligne libre"
                         >
-                            <i className="fa-solid fa-pen-ruler"></i> Ajouter une ligne libre
+                            <i className="fa-solid fa-pen-ruler text-neutral-500 text-xs"></i>
+                            <span>Ligne libre</span>
                         </button>
                     )}
                 </div>
@@ -4472,7 +4770,7 @@ function WorkItemPicker({
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
-    const [isBulkMode, setIsBulkMode] = useState(false);
+    const [isBulkMode, setIsBulkMode] = useState(true);
     const [bulkSelections, setBulkSelections] = useState({});
     // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
     // visuel et au libellé du bouton de sortie. Remis à zéro à chaque ouverture.
@@ -4484,6 +4782,8 @@ function WorkItemPicker({
             setSearchQuery('');
             setSelectedCategory('all');
             setNbAjoutes(0);
+            setIsBulkMode(true);
+            setBulkSelections({});
             setTimeout(() => searchInputRef.current?.focus(), 100);
         }
     }, [isOpen]);
@@ -4577,12 +4877,12 @@ function WorkItemPicker({
                         <button
                             type="button"
                             onClick={() => setIsBulkMode(!isBulkMode)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                isBulkMode ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                                isBulkMode ? 'bg-brand-50 border-brand-300 text-brand-700 shadow-xs' : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                             }`}
                         >
-                            <i className="fa-solid fa-list-check mr-1.5"></i>
-                            {isBulkMode ? 'Mode Multiple Actif' : 'Ajout Multiple'}
+                            <i className="fa-solid fa-list-check"></i>
+                            <span>{isBulkMode ? '✓ Ajout Multiple (Actif)' : 'Ajout Multiple'}</span>
                         </button>
                         {/* La fenêtre ne se referme plus à chaque ajout : ce bouton
                             devient donc le point de sortie, et il rappelle ce qui a
@@ -4738,39 +5038,33 @@ function WorkItemPicker({
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                    {isBulkMode ? (
-                                        isChecked && (
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={bulkSelections[sol.id] || 1}
-                                                onClick={(e) => e.stopPropagation()}
-                                                onChange={(e) => setBulkSelections({
-                                                    ...bulkSelections,
-                                                    [sol.id]: parseFloat(e.target.value) || 1
-                                                })}
-                                                className="w-16 py-1 px-2 text-center text-xs font-bold border border-brand-300 rounded-lg bg-white"
-                                                placeholder="Qté"
-                                            />
-                                        )
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                // Audit UX (2026-08-31) — la fenêtre se refermait à
-                                                // chaque ajout : composer un lot de cinq ouvrages
-                                                // demandait cinq allers-retours, à moins d'avoir
-                                                // repéré le bouton « Ajout Multiple ». On reste
-                                                // ouvert ; « Terminer » ferme quand on a fini.
-                                                onSelectSolution(sol);
-                                                setNbAjoutes(n => n + 1);
-                                            }}
-                                            className="btn-primary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5"
-                                        >
-                                            <i className="fa-solid fa-plus"></i>
-                                            <span>Ajouter</span>
-                                        </button>
+                                    {isBulkMode && isChecked && (
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={bulkSelections[sol.id] || 1}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => setBulkSelections({
+                                                ...bulkSelections,
+                                                [sol.id]: parseFloat(e.target.value) || 1
+                                            })}
+                                            className="w-16 py-1 px-2 text-center text-xs font-bold border border-brand-300 rounded-lg bg-white"
+                                            placeholder="Qté"
+                                        />
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            if (isBulkMode) e.stopPropagation();
+                                            onSelectSolution(sol);
+                                            setNbAjoutes(n => n + 1);
+                                        }}
+                                        className="btn-primary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5"
+                                        title="Ajouter immédiatement cet ouvrage au lot actif"
+                                    >
+                                        <i className="fa-solid fa-plus"></i>
+                                        <span>Ajouter</span>
+                                    </button>
                                 </div>
                             </div>
                         );
@@ -4825,6 +5119,10 @@ function WorkItemInspector({
     item,
     lot = null,
     lots = [],
+    lotIndex = 0,
+    lotsCount = 1,
+    onSelectLot,
+    onAddLot,
     onMoveItemToLot,
     itemIndex = 0,
     itemCount = 1,
@@ -4839,24 +5137,28 @@ function WorkItemInspector({
     const [inspectorMode, setInspectorMode] = useState('simple'); // 'simple' | 'advanced'
     const [activeTab, setActiveTab] = useState('dimensions'); // 'dimensions' | 'costs' | 'pricing' | 'client' | 'calepinage'
 
-    // Raccourcis clavier pour feuilleter les ouvrages du lot : Alt + ← et Alt + →
+    // Raccourcis clavier pour feuilleter les ouvrages du lot : ⌥ + ← et ⌥ + → (Alt/Option sur Mac & PC)
     useEffect(() => {
         if (!isOpen || itemCount <= 1) return;
         const handleKeyDown = (e) => {
-            if (e.altKey && e.key === 'ArrowLeft') {
-                e.preventDefault();
-                if (itemIndex > 0) {
-                    onNavigate?.(itemIndex - 1);
-                }
-            } else if (e.altKey && e.key === 'ArrowRight') {
-                e.preventDefault();
-                if (itemIndex < itemCount - 1) {
-                    onNavigate?.(itemIndex + 1);
-                }
+            const isLeft = (e.key === 'ArrowLeft' || e.code === 'ArrowLeft');
+            const isRight = (e.key === 'ArrowRight' || e.code === 'ArrowRight');
+            if (!isLeft && !isRight) return;
+            const hasModifier = e.altKey || (e.metaKey && e.altKey);
+            if (!hasModifier) return;
+
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            if (tag === 'textarea') return;
+
+            e.preventDefault();
+            if (isLeft && itemIndex > 0) {
+                onNavigate?.(itemIndex - 1);
+            } else if (isRight && itemIndex < itemCount - 1) {
+                onNavigate?.(itemIndex + 1);
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
     }, [isOpen, itemCount, itemIndex, onNavigate]);
 
     if (!isOpen || !item) return null;
@@ -4885,14 +5187,7 @@ function WorkItemInspector({
         tabs.push({ id: 'calepinage', label: '5. Calepinage 2D ACM', icon: 'fa-border-all' });
     }
 
-    // M5 (2026-08-18) — Mode réellement actif de cet ouvrage. Sert à ne
-    // montrer/synchroniser que les champs pertinents pour CE mode, au lieu
-    // de Largeur/Hauteur toujours affichés en Mode Simple quel que soit le
-    // mode réel (constat du test du 17/08 : un ouvrage en mode 'surface'
-    // affichait des champs Largeur/Hauteur fantômes qui ne pilotaient rien
-    // — jusqu'à ce qu'on y touche, cf. ci-dessous).
-    // Une ligne libre n'est pas un ouvrage géométrique : elle ne doit jamais
-    // afficher des champs Largeur/Hauteur à zéro dans l'inspecteur.
+    // M5 (2026-08-18) — Mode réellement actif de cet ouvrage.
     const isManualLine = Boolean(item.isCustom && !item.calcForm);
     const activeMode = isManualLine ? 'unit' : (calcForm.takeoffMode || solution?.allowedModes?.[0] || 'rectangle');
 
@@ -4910,13 +5205,6 @@ function WorkItemInspector({
             ...calcForm,
             [field]: val
         };
-        // Auto-synchronize dimensions with surfaceDirect & formulas (BUG-014
-        // fix) — restreint au mode 'rectangle' (M5) : ailleurs, Largeur/
-        // Hauteur et surfaceDirect sont deux métrés INDÉPENDANTS. Les
-        // synchroniser en mode 'surface' écrasait silencieusement
-        // surfaceDirect — le champ réellement lu par le calcul dans ce
-        // mode — dès qu'on touchait aux champs Largeur/Hauteur, même
-        // fantômes et sans rapport avec le mode actif.
         if (activeMode === 'rectangle') {
             if (field === 'width' || field === 'height') {
                 const w = field === 'width' ? val : (parseFloat(updatedCalcForm.width) || 0);
@@ -4948,9 +5236,6 @@ function WorkItemInspector({
 
     return (
         <div className="flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
-                {/* Header Inspecteur — P0.10 (2026-08-17) : panneau inline (plus de
-                    modale/overlay), même pattern liste↔détail que Ressources & Prix
-                    et Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur). */}
                 <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/70">
                     <div className="flex items-center gap-3 min-w-0">
                         <button
@@ -4965,10 +5250,46 @@ function WorkItemInspector({
                             <i className="fa-solid fa-sliders"></i>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-brand-700 min-w-0 mb-0.5 flex-wrap">
-                                <span className="truncate max-w-[120px] sm:max-w-[180px]" title={lot?.name || 'Lot principal'}>{lot?.name || 'Lot principal'}</span>
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-700 min-w-0 mb-0.5 flex-wrap">
+                                <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Navigation entre les lots">
+                                    {lots && lots.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelectLot && onSelectLot(lotIndex - 1)}
+                                            disabled={lotIndex <= 0}
+                                            className="w-5 h-5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-neutral-500 text-[9px] transition-colors"
+                                            title="Lot précédent (⌥↑ / Ctrl+↑)"
+                                            aria-label="Lot précédent"
+                                        >
+                                            <i className="fa-solid fa-chevron-left text-[8px]"></i>
+                                        </button>
+                                    )}
+
+                                    <LotSelectorDropdown
+                                        lots={lots}
+                                        activeLotIndex={lotIndex}
+                                        onSelectLot={onSelectLot}
+                                        onAddLot={onAddLot}
+                                        currency={currency}
+                                        compact={true}
+                                    />
+
+                                    {lots && lots.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelectLot && onSelectLot(lotIndex + 1)}
+                                            disabled={lotIndex >= (lots?.length || 1) - 1}
+                                            className="w-5 h-5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-neutral-500 text-[9px] transition-colors"
+                                            title="Lot suivant (⌥↓ / Ctrl+↓)"
+                                            aria-label="Lot suivant"
+                                        >
+                                            <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                                        </button>
+                                    )}
+                                </div>
+
                                 <i className="fa-solid fa-chevron-right text-[8px] text-neutral-400 shrink-0" aria-hidden="true"></i>
-                                <span className="text-neutral-500 shrink-0">Ouvrage #{itemIndex + 1}</span>
+                                <span className="text-neutral-500 shrink-0 font-medium">Ouvrage #{itemIndex + 1}</span>
                                 {lots && lots.length > 1 && onMoveItemToLot && (
                                     <MoveItemPopover
                                         lots={lots}
@@ -5950,7 +6271,9 @@ function QuoteWorkspace({
     confirmAction,
     saveQuoteStatus = 'idle',
     saveQuoteError = null,
-    initialDirty = false
+    initialDirty = false,
+    brouillonPropose = null,
+    onReprendreBrouillon = null
 }) {
     const [activeLotIndex, setActiveLotIndex] = useState(0);
     // Sous lg:, la liste des lots (LotNavigator) et le détail du lot actif
@@ -6115,25 +6438,61 @@ function QuoteWorkspace({
 
     const activeLot = calculatedQuote.lots?.[activeLotIndex] || calculatedQuote.lots?.[0] || { id: 'lot_1', code: '01', name: 'Lot 01', items: [] };
 
-    // Raccourcis clavier pour naviguer entre les lots : Alt + ↑ et Alt + ↓
+    const handleSelectLot = (targetLotIdx) => {
+        const lots = calculatedQuote.lots || [];
+        const totalLots = lots.length || 1;
+        const clampedLotIdx = Math.max(0, Math.min(totalLots - 1, targetLotIdx));
+        setActiveLotIndex(clampedLotIdx);
+        setMobileShowLotList(false);
+
+        // Si l'inspecteur d'ouvrage est ouvert, adapter l'ouvrage inspecté au nouveau lot sélectionné
+        if (inspectorItemIndex !== null) {
+            const targetLot = lots[clampedLotIdx];
+            const targetItemsCount = targetLot?.items?.length || 0;
+            if (targetItemsCount > 0) {
+                setInspectorItemIndex(prev => Math.min(prev !== null ? prev : 0, targetItemsCount - 1));
+            } else {
+                setInspectorItemIndex(null);
+            }
+        }
+    };
+
+    // Raccourcis clavier pour naviguer entre les lots : ⌥ + ↑ / ⌥ + ↓ ou Ctrl + ↑ / Ctrl + ↓ (optimisé Mac & PC)
     useEffect(() => {
         const handleLotKeyDown = (e) => {
-            const tag = document.activeElement?.tagName?.toLowerCase();
-            const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
-            if (isInput) return;
+            const isDown = (e.key === 'ArrowDown' || e.code === 'ArrowDown' || e.key === 'PageDown' || e.code === 'PageDown');
+            const isUp = (e.key === 'ArrowUp' || e.code === 'ArrowUp' || e.key === 'PageUp' || e.code === 'PageUp');
+            if (!isDown && !isUp) return;
 
-            if (e.altKey && (e.key === 'ArrowUp' || e.key === 'PageUp')) {
-                e.preventDefault();
-                setActiveLotIndex(prev => Math.max(0, prev - 1));
-            } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'PageDown')) {
-                e.preventDefault();
-                const total = calculatedQuote.lots?.length || 1;
-                setActiveLotIndex(prev => Math.min(total - 1, prev + 1));
+            // Détection des modificateurs : Alt (Option sur Mac), Ctrl, ou Cmd+Alt
+            const hasLotModifier = e.altKey || e.ctrlKey || (e.metaKey && e.altKey);
+            if (!hasLotModifier) return;
+
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            // Ne pas intercepter uniquement si l'utilisateur est dans un textarea (champ multiligne)
+            if (tag === 'textarea') return;
+
+            // Bloquer le comportement par défaut (défilement de page ou navigation texte macOS)
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Si le focus est dans un input classique (recherche, quantité, prix), défocusser proprement
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+
+            const total = calculatedQuote.lots?.length || 1;
+            if (isUp) {
+                handleSelectLot(Math.max(0, activeLotIndex - 1));
+            } else {
+                handleSelectLot(Math.min(total - 1, activeLotIndex + 1));
             }
         };
-        window.addEventListener('keydown', handleLotKeyDown);
-        return () => window.removeEventListener('keydown', handleLotKeyDown);
-    }, [calculatedQuote.lots]);
+
+        // Utiliser la phase de capture (true) pour intercepter l'événement avant tout composant enfant
+        window.addEventListener('keydown', handleLotKeyDown, true);
+        return () => window.removeEventListener('keydown', handleLotKeyDown, true);
+    }, [calculatedQuote.lots, activeLotIndex, inspectorItemIndex]);
 
     // Handlers pour modifier les lots & items
     const handleUpdateQuote = (patch) => {
@@ -6667,7 +7026,7 @@ function QuoteWorkspace({
                     <LotNavigator
                         lots={calculatedQuote.lots || []}
                         activeLotIndex={activeLotIndex}
-                        onSelectLot={(idx) => { setActiveLotIndex(idx); setInspectorItemIndex(null); setMobileShowLotList(false); }}
+                        onSelectLot={handleSelectLot}
                         onAddLot={handleAddLot}
                         onDuplicateLot={handleDuplicateLot}
                         onMoveLot={handleMoveLot}
@@ -6684,13 +7043,13 @@ function QuoteWorkspace({
                         devient une section nommée. */}
                     <section
                         aria-label="Ouvrages du lot sélectionné"
-                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[480px] xl:w-[520px] 2xl:w-[560px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
+                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[510px] xl:w-[560px] 2xl:w-[620px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
                     >
                         {/* Barre d'onglets de lots (Axe 1 : Navigation fluide & visible même avec inspecteur ouvert) */}
                         <LotTabsBar
                             lots={calculatedQuote.lots || []}
                             activeLotIndex={activeLotIndex}
-                            onSelectLot={(idx) => { setActiveLotIndex(idx); setMobileShowLotList(false); }}
+                            onSelectLot={handleSelectLot}
                             onAddLot={handleAddLot}
                             onOpenOverview={() => setIsLotsOverviewOpen(true)}
                             currency={companyInfo.currency}
@@ -6700,7 +7059,9 @@ function QuoteWorkspace({
                             lot={activeLot}
                             lotIndex={activeLotIndex}
                             lotsCount={calculatedQuote.lots?.length || 1}
-                            onSelectLot={(idx) => { setActiveLotIndex(idx); setMobileShowLotList(false); }}
+                            lots={calculatedQuote.lots || []}
+                            onSelectLot={handleSelectLot}
+                            onAddLot={handleAddLot}
                             onMoveLot={handleMoveLot}
                             onUpdateLot={handleUpdateActiveLot}
                             onOpenPicker={() => setIsPickerOpen(true)}
@@ -6748,6 +7109,10 @@ function QuoteWorkspace({
                             item={activeLot.items?.[inspectorItemIndex]}
                             lot={activeLot}
                             lots={calculatedQuote.lots || []}
+                            lotIndex={activeLotIndex}
+                            lotsCount={calculatedQuote.lots?.length || 1}
+                            onSelectLot={handleSelectLot}
+                            onAddLot={handleAddLot}
                             onMoveItemToLot={(itemIdx, targetLotIdx) => handleMoveItemToLot(itemIdx, activeLotIndex, targetLotIdx)}
                             itemIndex={inspectorItemIndex || 0}
                             itemCount={activeLot.items?.length || 0}
@@ -6769,8 +7134,10 @@ function QuoteWorkspace({
                 onClose={() => setIsLotsOverviewOpen(false)}
                 lots={calculatedQuote.lots || []}
                 activeLotIndex={activeLotIndex}
-                onSelectLot={(idx) => { setActiveLotIndex(idx); setMobileShowLotList(false); }}
+                onSelectLot={handleSelectLot}
                 currency={companyInfo.currency}
+                brouillonPropose={brouillonPropose}
+                onReprendreBrouillon={onReprendreBrouillon}
             />
 
             {/* Tiroir Sélecteur d'Ouvrages (Zoho-Style) */}
@@ -15169,6 +15536,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         }
                     })}
                     initialDirty={devisNonEnregistre}
+                    brouillonPropose={brouillonPropose}
+                    onReprendreBrouillon={reprendreBrouillon}
                     hybridQuote={hybridQuote}
                     setHybridQuote={setHybridQuote}
                     solutions={solutions}

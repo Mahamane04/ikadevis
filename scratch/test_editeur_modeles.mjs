@@ -635,7 +635,7 @@ export async function run() {
     return results;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const results = await run();
     for (const r of results) console.log(`  ${r.pass ? '✅' : '❌'} ${r.label}${r.detail ? ' — ' + r.detail : ''}`);
     process.exit(results.every((r) => r.pass) ? 0 : 1);
