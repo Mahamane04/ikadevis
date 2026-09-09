@@ -69,10 +69,20 @@ const lineMarginInfo = (item, currency = 'FCFA') => {
     const marge = qd.margeValeurConsomme;
     const pct = netHT > 0 ? (marge / netHT) * 100 : 0;
     const isLoss = marge < 0;
+    const isCritical = !isLoss && pct < 15;
     const sign = isLoss ? '' : '+';
+    const colorClass = isLoss
+        ? 'text-rose-600 font-black'
+        : isCritical
+            ? 'text-amber-600 font-bold'
+            : pct < 25
+                ? 'text-blue-600 font-bold'
+                : 'text-emerald-700 font-bold';
     return {
         pct,
         isLoss,
+        isCritical,
+        colorClass,
         label: `${sign}${Math.round(pct)}%`,
         tooltip: `Coût de revient : ${formatMoney(qd.totalRevientConsomme, currency)} · Marge : ${sign}${formatMoney(marge, currency)}`
     };

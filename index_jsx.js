@@ -3491,7 +3491,7 @@ function LotTabsBar({
                             }`}>
                                 {lot.code || String(idx + 1).padStart(2, '0')}
                             </span>
-                            <span className="truncate max-w-[110px] sm:max-w-[150px]">
+                            <span className="truncate max-w-[130px] sm:max-w-[170px]">
                                 {lot.name || `Lot ${idx + 1}`}
                             </span>
                             <span className="text-[10px] font-mono text-neutral-500 font-medium shrink-0">
@@ -3537,7 +3537,8 @@ function LotsOverviewModal({
     onSelectLot,
     currency = 'FCFA',
     brouillonPropose = null,
-    onReprendreBrouillon = null
+    onReprendreBrouillon = null,
+    globalMarginPct = null
 }) {
     if (!isOpen) return null;
     const totalDevisHT = lots.reduce((acc, l) => acc + (l.lotTotalHT || 0), 0);
@@ -3723,7 +3724,13 @@ function LotsOverviewModal({
                                                 <td className="py-2.5 px-3 text-center whitespace-nowrap">
                                                     {marginPct != null ? (
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                            marginPct < 15 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                                                            marginPct < 5
+                                                                ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                                                                : marginPct < 15
+                                                                    ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                                                                    : marginPct < 25
+                                                                        ? 'bg-blue-50 text-blue-700'
+                                                                        : 'bg-emerald-100 text-emerald-800'
                                                         }`}>
                                                             {marginPct}%
                                                         </span>
@@ -3737,7 +3744,7 @@ function LotsOverviewModal({
                                                             isActive
                                                                 ? 'bg-brand-600 text-white shadow-2xs'
                                                                 : 'bg-neutral-100 hover:bg-brand-50 hover:text-brand-700 text-neutral-700'
-                        }`}
+                                                        }`}
                                                         title={`Ouvrir le lot ${l.name || idx + 1}`}
                                                     >
                                                         <span>{isActive ? 'Actif' : 'Ouvrir'}</span>
@@ -3766,18 +3773,15 @@ function LotsOverviewModal({
                                                                     <tbody className="divide-y divide-neutral-100">
                                                                         {l.items.map((item, itemIdx) => {
                                                                             const unitPrice = item.unitPriceHT || 0;
-                                                                            const itemTotal = item.totalHT || (unitPrice * (item.qty || 1));
+                                                                            const itemTotal = item.totalHT || 0;
                                                                             const margin = lineMarginInfo(item, currency);
+                                                                            const facture = ligneFacturee(item);
                                                                             return (
                                                                                 <tr key={item.id || itemIdx} className="hover:bg-neutral-50/70 transition-colors">
-                                                                                    <td className="py-2 px-3">
-                                                                                        <div className="font-semibold text-neutral-800 text-xs">
-                                                                                            {item.name || 'Ouvrage sans nom'}
-                                                                                        </div>
-                                                                                        {item.calcForm && (
-                                                                                            <div className="text-[10px] text-neutral-500 font-mono mt-0.5">
-                                                                                                {formatItemMetre(item.calcForm)}
-                                                                                            </div>
+                                                                                    <td className="py-2 px-3 font-medium text-neutral-900">
+                                                                                        <p className="font-semibold text-xs leading-tight">{item.name}</p>
+                                                                                        {item.description && (
+                                                                                            <p className="text-[10px] text-neutral-400 truncate max-w-sm">{item.description}</p>
                                                                                         )}
                                                                                     </td>
                                                                                     <td className="py-2 px-2 text-center font-mono font-bold text-neutral-800">
@@ -3817,6 +3821,46 @@ function LotsOverviewModal({
                                     );
                                 })}
                             </tbody>
+                            {lots.length > 0 && (
+                                <tfoot className="bg-neutral-100/90 font-bold border-t-2 border-neutral-300 text-neutral-900">
+                                    <tr>
+                                        <td className="py-2.5 px-2 text-center"></td>
+                                        <td className="py-2.5 px-3">
+                                            <span className="text-xs uppercase tracking-wider text-neutral-800 font-extrabold">Total Général du Devis</span>
+                                        </td>
+                                        <td className="py-2.5 px-2 text-center text-xs font-mono font-bold text-neutral-800">
+                                            {totalItems}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-xs font-black text-neutral-900">
+                                            {formatMoney(totalDevisHT, currency)}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-neutral-700 text-xs font-bold">
+                                            100%
+                                        </td>
+                                        <td className="py-2.5 px-3 text-center">
+                                            {(() => {
+                                                const effectiveMargin = globalMarginPct != null
+                                                    ? Math.round(globalMarginPct)
+                                                    : (lots[0]?.lotMarginPct != null ? Math.round(lots[0].lotMarginPct) : 30);
+                                                return (
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                        effectiveMargin < 5
+                                                            ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                                                            : effectiveMargin < 15
+                                                                ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                                                                : effectiveMargin < 25
+                                                                    ? 'bg-blue-100 text-blue-800'
+                                                                    : 'bg-emerald-100 text-emerald-800'
+                                                    }`}>
+                                                        {effectiveMargin}%
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-center"></td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 </div>
@@ -4135,16 +4179,6 @@ function ActiveLotHeader({
                                 </h2>
                                 <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors"></i>
                             </div>
-                            {lots && lots.length > 1 && (
-                                <LotSelectorDropdown
-                                    lots={lots}
-                                    activeLotIndex={lotIndex}
-                                    onSelectLot={onSelectLot}
-                                    onAddLot={onAddLot}
-                                    currency={currency}
-                                    compact={true}
-                                />
-                            )}
                         </div>
                     )}
 
@@ -4469,8 +4503,8 @@ function WorkItemTable({
                         <col style={{ width: '40px' }} />
                         <col style={{ width: '30px' }} />
                         <col style={{ width: '70px' }} />
-                        <col style={{ width: '96px' }} />
-                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '118px' }} />
+                        <col style={{ width: '74px' }} />
                     </colgroup>
                     <thead>
                         <tr className="bg-neutral-50/80 border-b border-neutral-200 text-neutral-600 font-semibold uppercase tracking-wider text-[10px]">
@@ -4506,24 +4540,16 @@ function WorkItemTable({
                                         <div className="flex items-start gap-2 min-w-0">
                                             <div className="min-w-0 max-w-full flex-1 space-y-0.5">
                                                 {/* Édition Directe du Nom de l'Ouvrage */}
-                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                <div className="flex items-center min-w-0">
                                                     <input
                                                         type="text"
                                                         value={item.name || ''}
                                                         onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
                                                         placeholder="Désignation de l'ouvrage ou ligne..."
-                                                        className="flex-1 min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all truncate"
+                                                        className="w-full min-w-0 max-w-full font-bold text-xs text-neutral-900 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all truncate"
                                                         aria-label={`Désignation pour ${item.name}`}
                                                         title={item.name}
                                                     />
-                                                    {isActive && (
-                                                        <span
-                                                            className="inline-flex items-center gap-1 text-[8.5px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded tracking-wider shrink-0"
-                                                            title="Cet article est actuellement ouvert dans l'inspecteur technique à droite"
-                                                        >
-                                                            <i className="fa-solid fa-pen-ruler text-[7.5px]"></i> Édition
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 {/* Édition Directe du Descriptif Commercial */}
                                                 <input
@@ -4534,20 +4560,30 @@ function WorkItemTable({
                                                     className="w-full min-w-0 max-w-full text-[11px] text-neutral-400 focus:text-neutral-700 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all placeholder-neutral-300 truncate"
                                                     aria-label={`Description pour ${item.name}`}
                                                 />
-                                                {item.calcForm && (
-                                                    <div className="flex items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] flex-wrap min-w-0">
-                                                        <span className="font-mono text-neutral-500 truncate">
-                                                            {formatItemMetre(item.calcForm)}
-                                                        </span>
+                                                <div className="flex items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] flex-wrap min-w-0">
+                                                    {isActive && (
                                                         <span
-                                                            className="inline-flex items-center gap-1 text-[8.5px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.2 shrink-0"
-                                                            title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
+                                                            className="inline-flex items-center gap-1 text-[8.5px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded tracking-wider shrink-0"
+                                                            title="Cet article est actuellement ouvert dans l'inspecteur technique à droite"
                                                         >
-                                                            <i className="fa-solid fa-ruler-combined text-[7.5px]"></i>
-                                                            <span>Calculé selon le métrage</span>
+                                                            <i className="fa-solid fa-pen-ruler text-[7.5px]"></i> Édition
                                                         </span>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                    {item.calcForm && (
+                                                        <>
+                                                            <span className="font-mono text-neutral-500 truncate">
+                                                                {formatItemMetre(item.calcForm)}
+                                                            </span>
+                                                            <span
+                                                                className="inline-flex items-center gap-1 text-[8.5px] font-medium text-brand-700 bg-brand-50/90 border border-brand-200/80 rounded px-1.5 py-0.2 shrink-0"
+                                                                title="Prix unitaire recalculé automatiquement selon les dimensions et fournitures du métrage"
+                                                            >
+                                                                <i className="fa-solid fa-ruler-combined text-[7.5px]"></i>
+                                                                <span>Calculé selon le métrage</span>
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
                                                 {item.isCustom && (
                                                     <div className="flex flex-wrap items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] min-w-0">
                                                         <span className="font-bold uppercase tracking-wide text-amber-700 shrink-0">Ligne libre</span>
@@ -4671,9 +4707,9 @@ function WorkItemTable({
                                         {margin && (
                                             <span
                                                 title={margin.tooltip}
-                                                className={`block mt-0.5 text-[9.5px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
+                                                className={`block mt-0.5 text-[9.5px] font-bold font-mono ${margin.colorClass || (margin.isLoss ? 'text-red-600' : 'text-emerald-700')}`}
                                             >
-                                                {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
+                                                {(margin.isLoss || margin.isCritical) && <i className="fa-solid fa-triangle-exclamation mr-0.5 text-[8.5px]"></i>}
                                                 {margin.label}
                                             </span>
                                         )}
@@ -4684,7 +4720,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onOpenInspector(idx)}
-                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
+                                                className="w-5.5 h-5.5 rounded-md border border-neutral-200 hover:border-brand-400 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-[10px] transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
                                                 title="Voir et modifier les détails techniques & métrés"
                                                 aria-label={`Détails techniques de ${item.name}`}
                                             >
@@ -4694,7 +4730,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDuplicateItem(idx)}
-                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
+                                                className="w-5.5 h-5.5 rounded-md border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-[10px] transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
                                                 title="Dupliquer cette ligne"
                                                 aria-label={`Dupliquer ${item.name}`}
                                             >
@@ -4704,7 +4740,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteItem(idx)}
-                                                className="w-5 h-5 p-0.5 rounded border border-neutral-200 hover:bg-red-50 text-neutral-500 hover:text-red-600 text-[9.5px] transition-all shrink-0 flex items-center justify-center"
+                                                className="w-5.5 h-5.5 rounded-md border border-neutral-200 hover:border-rose-300 hover:bg-rose-50 text-neutral-400 hover:text-rose-600 text-[10px] transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
                                                 title="Supprimer cette ligne"
                                                 aria-label={`Supprimer ${item.name}`}
                                             >
@@ -4860,7 +4896,7 @@ function WorkItemPicker({
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Bibliothèque des Ouvrages Métiers">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-neutral-200 animate-scale-up">
                 {/* Header du Picker */}
                 <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/60">
@@ -5236,126 +5272,137 @@ function WorkItemInspector({
 
     return (
         <div className="flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
-                <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/70">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="btn-icon text-neutral-500 hover:text-neutral-800 shrink-0"
-                            aria-label="Retour aux ouvrages du lot"
-                        >
-                            <i className="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm shrink-0">
-                            <i className="fa-solid fa-sliders"></i>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-700 min-w-0 mb-0.5 flex-wrap">
-                                <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Navigation entre les lots">
-                                    {lots && lots.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectLot && onSelectLot(lotIndex - 1)}
-                                            disabled={lotIndex <= 0}
-                                            className="w-5 h-5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-neutral-500 text-[9px] transition-colors"
-                                            title="Lot précédent (⌥↑ / Ctrl+↑)"
-                                            aria-label="Lot précédent"
-                                        >
-                                            <i className="fa-solid fa-chevron-left text-[8px]"></i>
-                                        </button>
-                                    )}
+                <div className="p-3.5 sm:p-4 border-b border-neutral-200 bg-white space-y-2.5 shrink-0">
+                    {/* Rangée 1 : Navigation retour, Sélecteur direct de lot, Pagination d'ouvrage et Toggle Simple/Avancé */}
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="w-7 h-7 rounded-lg border border-neutral-200 hover:bg-white text-neutral-600 hover:text-neutral-900 flex items-center justify-center shrink-0 transition-colors shadow-2xs"
+                                aria-label="Retour aux ouvrages du lot"
+                                title="Fermer l'inspecteur (Échap)"
+                            >
+                                <i className="fa-solid fa-arrow-left text-xs"></i>
+                            </button>
 
-                                    <LotSelectorDropdown
-                                        lots={lots}
-                                        activeLotIndex={lotIndex}
-                                        onSelectLot={onSelectLot}
-                                        onAddLot={onAddLot}
-                                        currency={currency}
-                                        compact={true}
-                                    />
+                            <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Navigation entre les lots">
+                                {lots && lots.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelectLot && onSelectLot(lotIndex - 1)}
+                                        disabled={lotIndex <= 0}
+                                        className="hidden sm:flex w-5.5 h-5.5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed items-center justify-center text-neutral-500 text-[9px] transition-colors"
+                                        title="Lot précédent (⌥↑ / Ctrl+↑)"
+                                        aria-label="Lot précédent"
+                                    >
+                                        <i className="fa-solid fa-chevron-left text-[8px]"></i>
+                                    </button>
+                                )}
 
-                                    {lots && lots.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectLot && onSelectLot(lotIndex + 1)}
-                                            disabled={lotIndex >= (lots?.length || 1) - 1}
-                                            className="w-5 h-5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-neutral-500 text-[9px] transition-colors"
-                                            title="Lot suivant (⌥↓ / Ctrl+↓)"
-                                            aria-label="Lot suivant"
-                                        >
-                                            <i className="fa-solid fa-chevron-right text-[8px]"></i>
-                                        </button>
-                                    )}
-                                </div>
+                                <LotSelectorDropdown
+                                    lots={lots}
+                                    activeLotIndex={lotIndex}
+                                    onSelectLot={onSelectLot}
+                                    onAddLot={onAddLot}
+                                    currency={currency}
+                                    compact={true}
+                                />
 
-                                <i className="fa-solid fa-chevron-right text-[8px] text-neutral-400 shrink-0" aria-hidden="true"></i>
-                                <span className="text-neutral-500 shrink-0 font-medium">Ouvrage #{itemIndex + 1}</span>
-                                {lots && lots.length > 1 && onMoveItemToLot && (
-                                    <MoveItemPopover
-                                        lots={lots}
-                                        currentLotIndex={lots.findIndex(l => l.id === lot?.id)}
-                                        onMove={(targetIdx) => onMoveItemToLot(itemIndex, targetIdx)}
-                                    />
+                                {lots && lots.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelectLot && onSelectLot(lotIndex + 1)}
+                                        disabled={lotIndex >= (lots?.length || 1) - 1}
+                                        className="hidden sm:flex w-5.5 h-5.5 rounded border border-neutral-200 hover:bg-neutral-100 disabled:opacity-20 disabled:cursor-not-allowed items-center justify-center text-neutral-500 text-[9px] transition-colors"
+                                        title="Lot suivant (⌥↓ / Ctrl+↓)"
+                                        aria-label="Lot suivant"
+                                    >
+                                        <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                                    </button>
                                 )}
                             </div>
-                            <h3 className="font-bold text-sm text-neutral-900 line-clamp-1 leading-tight" title={`Détails : ${item.name}`}>Détails : {item.name}</h3>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            {itemCount > 1 && (
+                                <div className="flex items-center gap-1" role="group" aria-label="Navigation entre les ouvrages">
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.(Math.max(0, itemIndex - 1))}
+                                        disabled={itemIndex <= 0}
+                                        className="btn-icon w-6.5 h-6.5 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                        title="Ouvrage précédent (Alt + ←)"
+                                        aria-label="Ouvrage précédent"
+                                    >
+                                        <i className="fa-solid fa-chevron-left text-[9px]"></i>
+                                    </button>
+                                    <span
+                                        className="text-[10px] font-bold text-neutral-600 min-w-[30px] text-center cursor-help"
+                                        title="Feuilleter les ouvrages : Alt + ← / Alt + →"
+                                    >
+                                        {itemIndex + 1}/{itemCount}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.(Math.min(itemCount - 1, itemIndex + 1))}
+                                        disabled={itemIndex >= itemCount - 1}
+                                        className="btn-icon w-6.5 h-6.5 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                        title="Ouvrage suivant (Alt + →)"
+                                        aria-label="Ouvrage suivant"
+                                    >
+                                        <i className="fa-solid fa-chevron-right text-[9px]"></i>
+                                    </button>
+                                </div>
+                            )}
+                            {/* Progressive Disclosure Toggle */}
+                            <div className="bg-neutral-200/90 p-0.5 rounded-lg flex items-center text-[10px] font-semibold">
+                                <button
+                                    type="button"
+                                    onClick={() => setInspectorMode('simple')}
+                                    aria-label="Mode simple"
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                        inspectorMode === 'simple' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-eye mr-1"></i>Simple
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInspectorMode('advanced')}
+                                    aria-label="Mode avancé"
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                        inspectorMode === 'advanced' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-sliders mr-1"></i><span aria-hidden="true" className="sr-only">⚙️ Avancé</span>Avancé
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                        {itemCount > 1 && (
-                            <div className="flex items-center gap-1 mr-1" role="group" aria-label="Navigation entre les ouvrages">
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigate?.(Math.max(0, itemIndex - 1))}
-                                    disabled={itemIndex <= 0}
-                                    className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Ouvrage précédent (Alt + ←)"
-                                    aria-label="Ouvrage précédent"
-                                >
-                                    <i className="fa-solid fa-chevron-left text-[10px]"></i>
-                                </button>
-                                <span
-                                    className="text-[10px] font-bold text-neutral-600 min-w-[34px] text-center cursor-help"
-                                    title="Feuilleter les ouvrages : Alt + ← / Alt + →"
-                                >
-                                    {itemIndex + 1}/{itemCount}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigate?.(Math.min(itemCount - 1, itemIndex + 1))}
-                                    disabled={itemIndex >= itemCount - 1}
-                                    className="btn-icon w-7 h-7 border border-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Ouvrage suivant (Alt + →)"
-                                    aria-label="Ouvrage suivant"
-                                >
-                                    <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                                </button>
+                    {/* Rangée 2 : Titre principal de l'ouvrage et Déplacement de lot */}
+                    <div className="flex items-center justify-between gap-3 min-w-0 pt-0.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                                <i className="fa-solid fa-sliders"></i>
                             </div>
-                        )}
-                        {/* Progressive Disclosure Toggle */}
-                        <div className="bg-neutral-200 p-0.5 rounded-lg flex items-center text-[10px] font-semibold">
-                            <button
-                                type="button"
-                                onClick={() => setInspectorMode('simple')}
-                                aria-label="Mode simple"
-                                className={`px-2.5 py-1 rounded-md transition-all ${
-                                    inspectorMode === 'simple' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
-                                }`}
-                            >
-                                <i className="fa-solid fa-eye mr-1"></i>Simple
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setInspectorMode('advanced')}
-                                aria-label="Mode avancé"
-                                className={`px-2.5 py-1 rounded-md transition-all ${
-                                    inspectorMode === 'advanced' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
-                                }`}
-                            >
-                                <i className="fa-solid fa-sliders mr-1"></i><span aria-hidden="true" className="sr-only">⚙️ Avancé</span>Avancé
-                            </button>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-sm text-neutral-900 truncate leading-tight" title={`Détails : ${item.name}`}>
+                                    Détails : {item.name}
+                                </h3>
+                                <p className="text-[11px] text-neutral-500 font-medium truncate">
+                                    Ouvrage #{itemIndex + 1} &bull; {lot?.name || `Lot ${lotIndex + 1}`}
+                                </p>
+                            </div>
                         </div>
+                        {lots && lots.length > 1 && onMoveItemToLot && (
+                            <MoveItemPopover
+                                lots={lots}
+                                currentLotIndex={lots.findIndex(l => l.id === lot?.id)}
+                                onMove={(targetIdx) => onMoveItemToLot(itemIndex, targetIdx)}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -5504,16 +5551,41 @@ function WorkItemInspector({
                         </div>
 
                         {/* Récapitulatif Prix Simple */}
-                        <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 text-xs">
-                            <div className="flex justify-between font-bold text-emerald-800">
-                                <span>Coût Déboursé Estimé :</span>
-                                <span className="font-semibold">{formatMoney(quoteData.totalDebourseConsomme, currency)}</span>
-                            </div>
-                            <div className="flex justify-between font-semibold text-brand-600 text-sm border-t border-emerald-200 pt-2">
-                                <span>Prix de Vente Total HT :</span>
-                                <span>{formatMoney(quoteData.netHTConsomme, currency)}</span>
-                            </div>
-                        </div>
+                        {(() => {
+                            const debourse = quoteData?.totalDebourseConsomme || 0;
+                            const prixVente = quoteData?.netHTConsomme || 0;
+                            const margeMontant = Math.max(0, prixVente - debourse);
+                            const margePct = prixVente > 0 ? Math.round((margeMontant / prixVente) * 100) : 0;
+                            return (
+                                <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-2 text-xs">
+                                    <div className="flex justify-between font-bold text-neutral-700">
+                                        <span>Coût Déboursé Estimé :</span>
+                                        <span className="font-semibold font-mono">{formatMoney(debourse, currency)}</span>
+                                    </div>
+                                    <div className="flex justify-between font-semibold text-brand-600 text-sm border-t border-emerald-200/60 pt-2">
+                                        <span>Prix de Vente Total HT :</span>
+                                        <span className="font-bold font-mono">{formatMoney(prixVente, currency)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center font-bold text-emerald-800 text-xs border-t border-emerald-200/60 pt-1.5">
+                                        <span>Marge Bénéficiaire Réelle :</span>
+                                        <div className="flex items-center gap-1.5 font-mono">
+                                            <span>+{formatMoney(margeMontant, currency)}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                                margePct < 5
+                                                    ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                                                    : margePct < 15
+                                                        ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                                                        : margePct < 25
+                                                            ? 'bg-blue-100 text-blue-800'
+                                                            : 'bg-emerald-100 text-emerald-800'
+                                            }`}>
+                                                +{margePct}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         <div>
                             <label className="app-label">Description commerciale pour le devis client</label>
@@ -6168,7 +6240,16 @@ function QuoteTotalsBar({
 
                     <div className="pl-3 border-l-2 border-neutral-900 flex items-center gap-2">
                         <div>
-                            <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
+                                {!totauxDeplies && marginPct != null && (
+                                    <span className={`sm:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                                        isLowProfit ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' : 'bg-emerald-100 text-emerald-800'
+                                    }`}>
+                                        +{marginPct}%
+                                    </span>
+                                )}
+                            </div>
                             <span className="font-bold text-neutral-900 text-base sm:text-xl">{formatMoney(totalTTC, currency)}</span>
                         </div>
                         {/* Ne s'affiche que sous 640 px : ailleurs tout est déjà visible. */}
@@ -7043,7 +7124,7 @@ function QuoteWorkspace({
                         devient une section nommée. */}
                     <section
                         aria-label="Ouvrages du lot sélectionné"
-                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[510px] xl:w-[560px] 2xl:w-[620px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
+                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[540px] xl:w-[600px] 2xl:w-[660px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
                     >
                         {/* Barre d'onglets de lots (Axe 1 : Navigation fluide & visible même avec inspecteur ouvert) */}
                         <LotTabsBar
@@ -7138,6 +7219,7 @@ function QuoteWorkspace({
                 currency={companyInfo.currency}
                 brouillonPropose={brouillonPropose}
                 onReprendreBrouillon={onReprendreBrouillon}
+                globalMarginPct={calculatedQuote?.stats?.marginPct}
             />
 
             {/* Tiroir Sélecteur d'Ouvrages (Zoho-Style) */}
