@@ -4450,3 +4450,38 @@ Tester le parcours complet d'invitation :
 5. Vérifier l'apparition dans la liste des membres avec le bon rôle
 6. Tester changement de rôle et retrait
 
+---
+
+## 🎨 67. Optimisation UI/UX du Chiffrage (Navigation Permanente, Clarté & Focus, Outils Productivité) (2026-09-09)
+
+### 67.1 Contexte et Objectifs
+
+La page de **Chiffrage** constitue le cœur opérationnel d'ikadevis, où les estimateurs et artisans passent plus de 80% de leur temps. L'utilisateur a demandé d'optimiser au maximum l'ergonomie, la fluidité et la vitesse de travail sans modifier la base de données ni le backend (front-end pur) :
+1. **Navigation fluide entre lots** : pouvoir circuler immédiatement d'un lot à l'autre, y compris lorsque l'inspecteur latéral d'ouvrage est ouvert (résolvant le masquage historique du `LotNavigator`).
+2. **Épure visuelle & suppression du bruit** : regrouper et masquer les boutons secondaires non utiles en permanence afin de maximiser la concentration sur la saisie des métrés.
+3. **Outils d'accélération métier** : ajout d'une vue de synthèse globale des lots et de la capacité de déplacer un ouvrage d'un lot à l'autre en un clic.
+
+### 67.2 Évolutions livrées
+
+#### Axe 1 : Navigation lots permanente et raccourcis
+- **`LotTabsBar`** : Barre horizontale d'onglets de lots (scrollable horizontalement avec `overflow-x-auto custom-scroll`) insérée au sommet de la section d'ouvrages. Chaque onglet affiche le code lot (`01`, `02`), le nom du lot, son montant HT compact et son statut de sélection.
+  - **Invariant clé résolu** : Cette barre reste **pleinement visible et interactive même quand `WorkItemInspector` est ouvert** sur le volet droit.
+  - Intègre un bouton `+` discret pour ajouter un nouveau lot en un clic.
+  - Intègre un bouton `Synthèse` ouvrant la vue d'ensemble du devis.
+- **Chevrons séquentiels `‹` et `›`** : Placés de part et d'autre du badge de code lot dans `ActiveLotHeader` pour passer au lot précédent/suivant d'un seul clic, désactivés intelligemment aux extrémités.
+- **Raccourcis clavier universels** : Écoute globale de `Alt + ArrowUp` (ou `Alt + PageUp`) pour le lot précédent et `Alt + ArrowDown` (ou `Alt + PageDown`) pour le lot suivant, neutralisés automatiquement lorsque l'utilisateur tape dans un champ texte ou un sélecteur.
+
+#### Axe 2 : Épure visuelle et Focus Mode
+- **Menu contextuel `LotOptionsMenu` (`•••`)** : Dans `ActiveLotHeader`, regroupement des actions secondaires (Renommer le lot, Dupliquer ce lot, Monter/Descendre le lot, et Supprimer ce lot avec dialogue de confirmation) au sein d'un popover compact accessible et stylisé aux normes du design system. La barre d'en-tête de lot respire et met l'accent sur le titre, le montant HT et la marge.
+- **Débruitage de `QuoteHeader`** : Masquage du doublon "Assistant Nouveau Devis" dans le menu `⋮` sur écran desktop (puisque le bouton principal est déjà affiché juste à gauche), tout en le maintenant accessible sur mobile.
+- **Adoucissement visuel du tableau d'ouvrages** : Les boutons d'actions de chaque ligne (Inspecteur, Dupliquer, Supprimer) passent à 40% d'opacité au repos et 100% au survol ou au focus (`transition-opacity duration-150`), tandis que la ligne en cours d'inspection reste à 100% d'opacité.
+
+#### Axe 3 : Outils de productivité métier
+- **`LotsOverviewModal`** : Tableau de bord de synthèse de tous les lots du devis. Présente sous forme de tableau interactif : Code lot, Intitulé, Total HT, Part dans le devis (% avec barre de jauge visuelle), et Marge réelle. Chaque ligne permet de sauter directement au lot souhaité en un clic.
+- **`MoveItemPopover` (Déplacer l'ouvrage)** : Ajout d'une action directe dans le fil d'Ariane de l'inspecteur permettant de transférer l'ouvrage inspecté vers n'importe quel autre lot en un clic avec recalcul immédiat et renumérotation automatique des lignes.
+
+### 67.3 Validation et non-régression
+- **Suite automatisée dédiée** : [`scratch/test_chiffrage_uiux_optim.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_chiffrage_uiux_optim.mjs) (14/14 assertions au vert).
+- **Harnais global de tests** : [`scratch/test_master_saas_100.mjs`](file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/scratch/test_master_saas_100.mjs) : **537/537 assertions au vert, 0 régression sur 52 suites**.
+- **Étalons métier BTP** : A, B, C, D, E, F, G strictement conformes (tolérance zéro).
+- **Compilation & SW** : `npm run build` exécuté avec succès (esbuild 746.1kb, Tailwind CSS minifié, service worker pré-cache `ikadevis-20260909a`).
