@@ -10577,14 +10577,37 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     )}
                     {cfg.entete.afficherNomEntreprise && (<>
                         <p className="text-xs font-bold text-neutral-800">{devis.companyInfoSnapshot?.name || societe.name}</p>
-                        <p className="text-xs text-neutral-500 font-medium">{devis.companyInfoSnapshot?.tagline || societe.tagline}</p>
+                        {(devis.companyInfoSnapshot?.managerName || societe.managerName) && (
+                            <p className="text-xs text-neutral-700 font-medium">{devis.companyInfoSnapshot?.managerName || societe.managerName}</p>
+                        )}
+                        {(devis.companyInfoSnapshot?.tagline || societe.tagline) && (
+                            <p className="text-xs text-neutral-500 font-medium">{devis.companyInfoSnapshot?.tagline || societe.tagline}</p>
+                        )}
                     </>)}
-                    {cfg.entete.afficherAdresse && (
+                    {cfg.entete.afficherAdresse && (devis.companyInfoSnapshot?.address || societe.address) && (
                         <p className="text-xs text-neutral-500 font-medium">Adresse: {devis.companyInfoSnapshot?.address || societe.address}</p>
                     )}
-                    <p className="text-xs text-neutral-500 font-medium">Contact: {devis.companyInfoSnapshot?.email || societe.email} &bull; Tel: {devis.companyInfoSnapshot?.phone || societe.phone}</p>
-{cfg.entete.afficherMentionsLegales && (
-                        <p className="text-[11px] text-neutral-500">NIF: {devis.companyInfoSnapshot?.nif || societe.nif} &bull; RCCM: {devis.companyInfoSnapshot?.rccm || societe.rccm}</p>
+                    {([
+                        (devis.companyInfoSnapshot?.email || societe.email) ? `Contact: ${devis.companyInfoSnapshot?.email || societe.email}` : null,
+                        (devis.companyInfoSnapshot?.phone || societe.phone) ? `Tel: ${devis.companyInfoSnapshot?.phone || societe.phone}` : null
+                    ].filter(Boolean).length > 0) && (
+                        <p className="text-xs text-neutral-500 font-medium">
+                            {[
+                                (devis.companyInfoSnapshot?.email || societe.email) ? `Contact: ${devis.companyInfoSnapshot?.email || societe.email}` : null,
+                                (devis.companyInfoSnapshot?.phone || societe.phone) ? `Tel: ${devis.companyInfoSnapshot?.phone || societe.phone}` : null
+                            ].filter(Boolean).join(' • ')}
+                        </p>
+                    )}
+                    {cfg.entete.afficherMentionsLegales && ([
+                        (devis.companyInfoSnapshot?.nif || societe.nif) ? `NIF: ${devis.companyInfoSnapshot?.nif || societe.nif}` : null,
+                        (devis.companyInfoSnapshot?.rccm || societe.rccm) ? `RCCM: ${devis.companyInfoSnapshot?.rccm || societe.rccm}` : null
+                    ].filter(Boolean).length > 0) && (
+                        <p className="text-[11px] text-neutral-500">
+                            {[
+                                (devis.companyInfoSnapshot?.nif || societe.nif) ? `NIF: ${devis.companyInfoSnapshot?.nif || societe.nif}` : null,
+                                (devis.companyInfoSnapshot?.rccm || societe.rccm) ? `RCCM: ${devis.companyInfoSnapshot?.rccm || societe.rccm}` : null
+                            ].filter(Boolean).join(' • ')}
+                        </p>
                     )}
                 </div>
                 <div className={disposition.document}>
@@ -11042,10 +11065,15 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         </div>
                     )}
                     <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
-                    <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>
-                    <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>
-                    <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email} &bull; Tel: {ci.phone}</p>
-                    <p className="text-[11px] text-neutral-500">NIF: {ci.nif} &bull; RCCM: {ci.rccm}</p>
+                    {ci.managerName && <p className="text-xs text-neutral-700 font-medium">{ci.managerName}</p>}
+                    {ci.tagline && <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>}
+                    {ci.address && <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>}
+                    {[ci.email ? `Contact: ${ci.email}` : null, ci.phone ? `Tel: ${ci.phone}` : null].filter(Boolean).length > 0 && (
+                        <p className="text-xs text-neutral-500 font-medium">{[ci.email ? `Contact: ${ci.email}` : null, ci.phone ? `Tel: ${ci.phone}` : null].filter(Boolean).join(' • ')}</p>
+                    )}
+                    {[ci.nif ? `NIF: ${ci.nif}` : null, ci.rccm ? `RCCM: ${ci.rccm}` : null].filter(Boolean).length > 0 && (
+                        <p className="text-[11px] text-neutral-500">{[ci.nif ? `NIF: ${ci.nif}` : null, ci.rccm ? `RCCM: ${ci.rccm}` : null].filter(Boolean).join(' • ')}</p>
+                    )}
                 </div>
                 <div className={disposition.document}>
                     <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>Facture</h2>
@@ -12272,19 +12300,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const demoCompany = {
         name: 'IKADEVIS BTP',
+        managerName: '',
         tagline: 'BTP - Fabrications - Aménagement - Signalétique',
-        // Audit UX P1-8 (2026-08-31, complété le 2026-09-01) — le filigrane
-        // « DÉMONSTRATION » avait été posé, mais le NIF, le RCCM et le téléphone
-        // restaient PRÉREMPLIS avec des valeurs crédibles et fausses
-        // (2600123A · CI-ABJ-2026-B-12345 · +225 07 00 00 00), qui s'imprimaient
-        // telles quelles sur le PDF téléchargeable. Un filigrane ne protège pas
-        // d'un numéro fiscal inventé : il suffit de l'ignorer.
-        // Ces trois champs partent donc VIDES. Leurs `placeholder` sont déjà
-        // écrits dans le formulaire. Le téléphone reste BLOQUANT pour l'envoi ;
-        // le NIF et le RCCM sont, depuis le 2026-09-02, seulement signalés
-        // (voir CHAMPS_LEGAUX_RECOMMANDES). Le nom, l'email et l'adresse restent
-        // renseignés : sans eux le document de démonstration n'aurait plus
-        // d'en-tête à montrer.
         phone: '',
         email: 'contact@ikadevis.com',
         address: "Abidjan, Côte d'Ivoire",
@@ -12314,28 +12331,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         { label: 'Solde à la réception', pct: 10 }
     ];
     const emptyCompany = {
-        name: '', tagline: '', phone: '', email: '', address: '', nif: '', rccm: '',
+        name: '', managerName: '', tagline: '', phone: '', email: '', address: '', nif: '', rccm: '',
         currency: 'FCFA',
         paymentSchedule: defaultPaymentSchedule,
         quoteValidity: "30 jours à compter de la date d'émission.",
-        // 2026-08-20 — rôles autorisés à voir les documents INTERNES (étude de
-        // prix : coûts d'achat, coefficient, marge). 'owner' y a toujours accès
-        // et n'est pas listé : il est le seul à pouvoir régler cette liste, le
-        // retirer permettrait de se verrouiller soi-même hors de ses propres
-        // documents. Défaut demandé par l'utilisateur : admin.
         internalDocRoles: ['admin'],
-        // Gabarit du devis client par défaut : 'synthese' (une ligne par ouvrage,
-        // comportement historique) ou 'detaille' (chaque fourniture et
-        // main-d'œuvre, au prix de vente).
         clientQuoteTemplate: 'synthese',
-        // Taux de TVA proposés dans le devis. 0 = exonéré ; la mention légale
-        // correspondante s'imprime alors sur le document client.
         vatRates: [18, 10, 0],
         vatExemptionNote: '',
         commercialSettings: { ...defaultCommercialSettings },
-        // Identité des documents client : ces valeurs s'appliquent à l'aperçu,
-        // à l'impression et au PDF téléchargé. Elles restent neutres tant que
-        // l'entreprise ne les personnalise pas.
         brandColor: PDF_BRAND_COLOR_DEFAULT,
         pdfFont: 'modern',
         pdfHeaderAlignment: 'left'
@@ -12343,30 +12347,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const estModeDemoCompany = !sbUser || sbUser.id === 'guest';
     const defaultCompany = estModeDemoCompany ? demoCompany : emptyCompany;
 
-    // B3 — Champs légaux exigés avant tout envoi au client : sans eux, le
-    // devis engagerait l'entreprise sous une identité incomplète ou (pire,
-    // avant ce correctif) sous celle, fictive, de la démo.
+    // Directives d'identification légale (2026-09-10) :
+    // « les seuls champs obligatoires : le nom prénom et nom de la société,
+    // même le numéro de téléphone peut rester éphémère sauf en cas de l'usage
+    // de certaines fonctionnalités comme l'envoi par WhatsApp. »
     //
-    // Révisé le 2026-09-02 à la demande de l'utilisateur : « je ne veux pas
-    // que le NIF et le RCCM soient obligatoirement remplis pour que la
-    // facture soit émise ».
-    //
-    // Les six champs bloquaient à l'identique. Ils sont désormais séparés en
-    // deux familles, parce qu'ils ne jouent pas le même rôle :
-    //
-    //  • BLOQUANTS — raison sociale, adresse, téléphone, e-mail : sans eux le
-    //    client ne sait ni qui l'engage ni comment le joindre. Un document
-    //    parti sans ça n'est pas exploitable, c'est un défaut d'application.
-    //
-    //  • RECOMMANDÉS — NIF et RCCM : ce sont des mentions légales OHADA. Leur
-    //    absence est un risque FISCAL, qui appartient au chef d'entreprise et
-    //    non au logiciel. Ils restent donc signalés partout où ils manquent,
-    //    mais n'empêchent plus ni l'envoi d'un devis ni l'émission d'une
-    //    facture. L'utilisateur a été informé du risque avant ce changement.
-    const CHAMPS_LEGAUX_BLOQUANTS = ['name', 'address', 'phone', 'email'];
-    const CHAMPS_LEGAUX_RECOMMANDES = ['nif', 'rccm'];
+    // Seul le nom ou la raison sociale de l'entreprise est strictement requis pour
+    // identifier le document. L'adresse, l'e-mail, le téléphone, le NIF et le RCCM
+    // sont purement facultatifs et ne bloquent en aucun cas l'émission d'une facture,
+    // le téléchargement d'un PDF ou l'envoi d'un devis.
+    const CHAMPS_LEGAUX_BLOQUANTS = ['name'];
+    const CHAMPS_LEGAUX_RECOMMANDES = [];
     const getMissingLegalFields = (info) => CHAMPS_LEGAUX_BLOQUANTS.filter(k => !(info?.[k] || '').trim());
-    const champsLegauxRecommandesManquants = (info) => CHAMPS_LEGAUX_RECOMMANDES.filter(k => !(info?.[k] || '').trim());
+    const champsLegauxRecommandesManquants = () => [];
 
     // B2 (2026-08-18) — Garde-fou réutilisable pour TOUTE prestation de
     // main-d'œuvre, présente ou future (pas seulement maçonnerie/carrelage,
@@ -18697,7 +18690,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // diverger.
         const manquants = getMissingLegalFields(companyInfo);
         if (manquants.length > 0) {
-            showToast(`Complétez l'identité de l'entreprise avant d'émettre : ${manquants.join(', ')}`, "error");
+            showToast("Veuillez renseigner le nom de l'entreprise avant d'émettre la facture.", "error");
             openAccountSettings('entreprise');
             return false;
         }
@@ -20363,7 +20356,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <p className="text-xs text-amber-900 font-semibold flex items-center gap-2">
                                     <i className="fa-solid fa-circle-info"></i>
                                     {missingLegal.length > 0 && (
-                                        <span>Complétez votre identité d'entreprise avant d'envoyer ce devis au client — il manque : {missingLegal.map(f => ({ name: 'raison sociale', address: 'adresse', phone: 'téléphone', email: 'e-mail', nif: 'NIF', rccm: 'RCCM' }[f] || f)).join(', ')}.</span>
+                                        <span>Renseignez le nom de votre entreprise avant d'envoyer ce devis au client.</span>
                                     )}
                                     {missingLegal.length > 0 && scheduleInvalid && <span className="mx-1">&bull;</span>}
                                     {scheduleInvalid && (
