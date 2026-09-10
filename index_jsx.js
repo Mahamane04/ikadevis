@@ -238,6 +238,47 @@ const DEFAULT_DASHBOARD_CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// MODES DE RÈGLEMENT & PAIEMENT (Afrique de l'Ouest & BTP)
+// ═══════════════════════════════════════════════════════════════
+const MODES_PAIEMENT_BTP = [
+    { id: 'virement', label: 'Virement bancaire', icon: 'fa-building-columns', badgeClass: 'bg-sky-50 text-sky-700 border-sky-200' },
+    { id: 'wave', label: 'Wave', icon: 'fa-mobile-screen-button', badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+    { id: 'orange_money', label: 'Orange Money', icon: 'fa-mobile-retro', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200' },
+    { id: 'moov_money', label: 'Moov Money / MTN', icon: 'fa-signal', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+    { id: 'especes', label: 'Espèces / Caisse', icon: 'fa-money-bill-wave', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { id: 'cheque', label: 'Chèque bancaire', icon: 'fa-money-check-dollar', badgeClass: 'bg-purple-50 text-purple-700 border-purple-200' },
+    { id: 'carte', label: 'Carte bancaire', icon: 'fa-credit-card', badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
+];
+
+const getModePaiement = (modeId) => {
+    return MODES_PAIEMENT_BTP.find(m => m.id === modeId) || {
+        id: modeId || 'autre',
+        label: modeId || 'Autre',
+        icon: 'fa-money-bill-wave',
+        badgeClass: 'bg-neutral-50 text-neutral-700 border-neutral-200'
+    };
+};
+
+const getModePaiementInfo = (modeId) => {
+    const item = getModePaiement(modeId);
+    return {
+        ...item,
+        color: item.badgeClass || 'bg-neutral-100 text-neutral-700',
+        icon: item.icon?.includes(' ') ? item.icon : `fa-solid ${item.icon || 'fa-money-bill-wave'}`
+    };
+};
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? String(dateStr) : d.toLocaleDateString('fr-FR');
+    } catch(e) {
+        return String(dateStr);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════
 // LIGNE DE DEVIS : QUANTITÉ ET PRIX UNITAIRE RÉELLEMENT FACTURÉS
 // ═══════════════════════════════════════════════════════════════
 // Audit UX (2026-08-31) — le tableau de l'éditeur et le document client
@@ -9521,6 +9562,7 @@ const InvoiceService = {
             deduitTTC: 0,
             netAPayerTTC: totalHT + tva,
             montantRegle: 0,
+            payments: [],
             lignes,
             companyInfoSnapshot: { ...companyInfo },
             quoteDataSnapshot: qd
@@ -9642,6 +9684,114 @@ const InvoiceService = {
             numero: data.invoice_number,
             dateEmission: data.issued_at,
             garantieServeur: true
+        };
+    },
+
+    // 2026-09-10 — Enregistrer un règlement sur une facture émise (acomptes, situations, solde)
+    enregistrerReglement: async ({ facture, reglement, supabaseClient, sbUser, activeOrgId }) => {
+        const montantNum = Math.max(0, Math.round(Number(reglement.montant) || 0));
+        if (montantNum <= 0) {
+            throw new Error("Le montant du règlement doit être supérieur à zéro.");
+        }
+
+        const paiementsExistants = Array.isArray(facture.payments) ? [...facture.payments] : [];
+        const nouveauPaiement = {
+            id: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            date: reglement.date || new Date().toISOString().slice(0, 10),
+            montant: montantNum,
+            mode: reglement.mode || 'virement',
+            reference: (reglement.reference || '').trim(),
+            note: (reglement.note || '').trim(),
+            createdAt: new Date().toISOString()
+        };
+
+        const nouveauxPaiements = [...paiementsExistants, nouveauPaiement];
+        const nouveauMontantRegle = nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
+        const netAPayer = Number(facture.netAPayerTTC ?? facture.totalTTC ?? 0);
+        const soldeRestant = Math.max(0, netAPayer - nouveauMontantRegle);
+
+        let nouveauStatut = 'partially_paid';
+        if (soldeRestant === 0 && nouveauMontantRegle > 0) {
+            nouveauStatut = 'paid';
+        }
+
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrgId && facture.serverId);
+        if (estCloud) {
+            const rawNotes = (facture.notes || '').replace(/<!--PAYMENTS:.*?-->/g, '').trim();
+            const encodedPayments = `<!--PAYMENTS:${encodeURIComponent(JSON.stringify(nouveauxPaiements))}-->`;
+            const updatedNotes = rawNotes ? `${rawNotes}\n${encodedPayments}` : encodedPayments;
+
+            const { error } = await supabaseClient
+                .from('invoices')
+                .update({
+                    amount_paid: nouveauMontantRegle,
+                    status: nouveauStatut,
+                    notes: updatedNotes
+                })
+                .eq('id', facture.serverId)
+                .eq('organization_id', activeOrgId);
+
+            if (error) {
+                console.error("[InvoiceService] Erreur mise à jour règlement cloud:", error);
+                throw new Error(`Impossible de synchroniser le règlement : ${error.message}`);
+            }
+        }
+
+        return {
+            montantRegle: nouveauMontantRegle,
+            statut: nouveauStatut,
+            payments: nouveauxPaiements,
+            nouveauPaiement
+        };
+    },
+
+    // 2026-09-10 — Supprimer / Annuler un règlement en cas d'erreur de saisie
+    supprimerReglement: async ({ facture, paymentId, supabaseClient, sbUser, activeOrgId }) => {
+        const paiementsExistants = Array.isArray(facture.payments) ? facture.payments : [];
+        const nouveauxPaiements = paiementsExistants.filter(p => p.id !== paymentId);
+        const nouveauMontantRegle = nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
+        const netAPayer = Number(facture.netAPayerTTC ?? facture.totalTTC ?? 0);
+        const soldeRestant = Math.max(0, netAPayer - nouveauMontantRegle);
+
+        let nouveauStatut = facture.statut;
+        if (nouveauMontantRegle <= 0) {
+            nouveauStatut = facture.dateEnvoi ? 'sent' : 'issued';
+        } else if (soldeRestant === 0) {
+            nouveauStatut = 'paid';
+        } else {
+            nouveauStatut = 'partially_paid';
+        }
+
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrgId && facture.serverId);
+        if (estCloud) {
+            const rawNotes = (facture.notes || '').replace(/<!--PAYMENTS:.*?-->/g, '').trim();
+            const encodedPayments = nouveauxPaiements.length > 0 
+                ? `<!--PAYMENTS:${encodeURIComponent(JSON.stringify(nouveauxPaiements))}-->` 
+                : '';
+            const updatedNotes = rawNotes 
+                ? (encodedPayments ? `${rawNotes}\n${encodedPayments}` : rawNotes) 
+                : encodedPayments;
+
+            const { error } = await supabaseClient
+                .from('invoices')
+                .update({
+                    amount_paid: nouveauMontantRegle,
+                    status: nouveauStatut,
+                    notes: updatedNotes
+                })
+                .eq('id', facture.serverId)
+                .eq('organization_id', activeOrgId);
+
+            if (error) {
+                console.error("[InvoiceService] Erreur suppression règlement cloud:", error);
+                throw new Error(`Impossible de synchroniser la suppression en base : ${error.message}`);
+            }
+        }
+
+        return {
+            montantRegle: nouveauMontantRegle,
+            statut: nouveauStatut,
+            payments: nouveauxPaiements
         };
     }
 };
@@ -10984,6 +11134,27 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         <span>NET À PAYER :</span>
                         <span>{formatMoney(facture.netAPayerTTC, devise)}</span>
                     </div>
+                    {facture.montantRegle > 0 && (
+                        <>
+                            <div className="flex justify-between text-emerald-700 font-semibold text-xs pt-1">
+                                <span>Total des règlements perçus :</span>
+                                <span>-{formatMoney(facture.montantRegle, devise)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-sm border-t border-dashed border-neutral-300 pt-1.5 mt-1">
+                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800" : "text-emerald-700"}>
+                                    SOLDE RESTANT DÛ :
+                                </span>
+                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800 tabular-nums font-bold" : "text-emerald-700 tabular-nums font-extrabold"}>
+                                    {formatMoney(Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle), devise)}
+                                </span>
+                            </div>
+                            {facture.statut === 'paid' && (
+                                <div className="mt-2 text-center py-1.5 px-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-[11px] uppercase tracking-wider">
+                                    <i className="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> Facture Soldée & Acquittée
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -11017,6 +11188,381 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
         </div>
     );
 };
+
+// ══ MODALE DE SAISIE DE RÈGLEMENT DE FACTURE (2026-09-10) ════════════════
+function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
+    if (!facture) return null;
+    const totalTTC = facture.netAPayerTTC || facture.totalTTC || 0;
+    const dejaRegle = Number(facture.montantRegle) || 0;
+    const resteAPayer = Math.max(0, totalTTC - dejaRegle);
+
+    const [montant, setMontant] = useState(resteAPayer > 0 ? String(resteAPayer) : '');
+    const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+    const [mode, setMode] = useState('virement');
+    const [reference, setReference] = useState('');
+    const [note, setNote] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleQuickPreset = (val) => {
+        setMontant(String(Math.max(0, Math.round(val))));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const montantNum = Number(montant);
+        if (!montantNum || montantNum <= 0) {
+            alert("Veuillez saisir un montant de règlement valide et supérieur à zéro.");
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await onSubmit(facture, {
+                montant: montantNum,
+                date: date || new Date().toISOString().slice(0, 10),
+                mode,
+                reference: reference.trim(),
+                note: note.trim()
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in"
+             role="dialog" aria-modal="true" aria-labelledby="payment_modal_title">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] border border-neutral-100">
+                {/* Header */}
+                <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs">
+                            <i className="fa-solid fa-hand-holding-dollar text-xl text-white"></i>
+                        </div>
+                        <div>
+                            <h3 id="payment_modal_title" className="font-bold text-lg leading-tight text-white">
+                                Enregistrer un règlement
+                            </h3>
+                            <p className="text-xs text-emerald-100 opacity-90">
+                                Facture <span className="font-semibold text-white">{facture.numero || 'Brouillon'}</span> · {facture.clientName}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Fermer la fenêtre">
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                {/* Form Body */}
+                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scroll flex-1 space-y-4">
+                    {/* Synthèse créance */}
+                    <div className="bg-neutral-50 rounded-xl p-3.5 border border-neutral-200/80 flex items-center justify-between text-xs">
+                        <div>
+                            <span className="text-neutral-500 block">Total Net TTC</span>
+                            <span className="font-bold text-neutral-800 text-sm">{formatMoney(totalTTC, devise)}</span>
+                        </div>
+                        <div className="text-center">
+                            <span className="text-neutral-500 block">Déjà réglé</span>
+                            <span className="font-semibold text-emerald-600 text-sm">{formatMoney(dejaRegle, devise)}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-neutral-500 block">Reste à payer</span>
+                            <span className={`font-bold text-sm ${resteAPayer > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                {formatMoney(resteAPayer, devise)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Montant avec presets rapides */}
+                    <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                            <label htmlFor="reglement_montant" className="app-label !mb-0 font-bold text-neutral-700 text-xs">
+                                Montant de l'encaissement ({devise}) *
+                            </label>
+                            {resteAPayer > 0 && (
+                                <div className="flex gap-1.5">
+                                    <button type="button" onClick={() => handleQuickPreset(resteAPayer)}
+                                            className="px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors">
+                                        Solde ({formatMoney(resteAPayer, devise)})
+                                    </button>
+                                    <button type="button" onClick={() => handleQuickPreset(resteAPayer / 2)}
+                                            className="px-2 py-0.5 text-[11px] font-medium bg-neutral-100 text-neutral-700 hover:bg-neutral-200 rounded border border-neutral-200 transition-colors">
+                                        50%
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="relative">
+                            <input
+                                id="reglement_montant"
+                                type="number"
+                                step="any"
+                                min="1"
+                                required
+                                value={montant}
+                                onChange={(e) => setMontant(e.target.value)}
+                                placeholder="0"
+                                className="app-input text-base font-bold text-neutral-900 pr-16 tabular-nums"
+                            />
+                            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-neutral-400">
+                                {devise}
+                            </span>
+                        </div>
+                        {Number(montant) > resteAPayer && resteAPayer > 0 && (
+                            <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                                Le montant dépasse le solde restant dû ({formatMoney(resteAPayer, devise)}).
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Mode de paiement */}
+                    <div>
+                        <label className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                            Mode d'encaissement / canal *
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {MODES_PAIEMENT_BTP.map((m) => {
+                                const isSelected = mode === m.id;
+                                return (
+                                    <button
+                                        type="button"
+                                        key={m.id}
+                                        onClick={() => setMode(m.id)}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-left ${
+                                            isSelected
+                                                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20 shadow-xs'
+                                                : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300'
+                                        }`}
+                                    >
+                                        <i className={`${m.icon} ${isSelected ? 'text-emerald-600' : 'text-neutral-400'} text-sm`}></i>
+                                        <span className="truncate">{m.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Date et Référence */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label htmlFor="reglement_date" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                Date de règlement *
+                            </label>
+                            <input
+                                id="reglement_date"
+                                type="date"
+                                required
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="app-input text-xs"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="reglement_ref" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                Réf. transaction / chèque
+                            </label>
+                            <input
+                                id="reglement_ref"
+                                type="text"
+                                value={reference}
+                                onChange={(e) => setReference(e.target.value)}
+                                placeholder="Ex: VIR-84920, WAVE-TX-993..."
+                                className="app-input text-xs"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Notes / observations */}
+                    <div>
+                        <label htmlFor="reglement_note" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                            Observations / Note interne (optionnel)
+                        </label>
+                        <input
+                            id="reglement_note"
+                            type="text"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Ex: Acompte n°2 reçu par Wave Business"
+                            className="app-input text-xs"
+                        />
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div className="pt-3 border-t border-neutral-100 flex items-center justify-end gap-2.5">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="btn-ghost text-xs px-4 py-2"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || !Number(montant)}
+                            className="btn-primary text-xs px-5 py-2 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                    <span>Enregistrement...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-check"></i>
+                                    <span>Valider le règlement</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ══ MODALE DE QUITTANCE / REÇU DE RÈGLEMENT (2026-09-10) ═════════════════
+function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA', onClose }) {
+    if (!receiptData || !receiptData.facture || !receiptData.payment) return null;
+    const { facture, payment } = receiptData;
+    const modeInfo = getModePaiementInfo(payment.mode);
+    const totalTTC = facture.netAPayerTTC || facture.totalTTC || 0;
+    const montantDejaRegle = Number(facture.montantRegle) || 0;
+    const soldeRestant = Math.max(0, totalTTC - montantDejaRegle);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fade-in"
+             role="dialog" aria-modal="true" aria-labelledby="receipt_modal_title">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh] border border-neutral-200">
+                {/* Header bar non imprimable */}
+                <div className="px-5 py-3.5 bg-neutral-900 text-white flex justify-between items-center shrink-0 print:hidden">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                        <i className="fa-solid fa-receipt text-emerald-400"></i>
+                        <span id="receipt_modal_title">Quittance de règlement client</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handlePrint} className="btn-secondary text-xs px-3 py-1.5 text-neutral-800 bg-white hover:bg-neutral-100 flex items-center gap-1.5">
+                            <i className="fa-solid fa-print"></i> Imprimer
+                        </button>
+                        <button onClick={onClose} className="p-1.5 text-neutral-400 hover:text-white rounded-lg transition-colors" aria-label="Fermer">
+                            <i className="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Printable Receipt Body */}
+                <div className="p-8 overflow-y-auto custom-scroll flex-1 space-y-6 text-neutral-800 bg-white" id="quittance_document_printable">
+                    {/* Header entreprise */}
+                    <div className="flex justify-between items-start border-b border-neutral-200 pb-5">
+                        <div>
+                            <h2 className="font-black text-xl text-neutral-900 tracking-tight">
+                                {companyInfo?.name || 'ENTREPRISE BTP'}
+                            </h2>
+                            <p className="text-xs text-neutral-500 mt-1 max-w-xs leading-relaxed">
+                                {[companyInfo?.address, companyInfo?.city, companyInfo?.country].filter(Boolean).join(', ')}
+                            </p>
+                            {companyInfo?.phone && <p className="text-xs text-neutral-500">Tél : {companyInfo.phone}</p>}
+                            {companyInfo?.email && <p className="text-xs text-neutral-500">Email : {companyInfo.email}</p>}
+                            {companyInfo?.nif && <p className="text-xs text-neutral-400 font-mono mt-0.5">NIF : {companyInfo.nif}</p>}
+                        </div>
+                        <div className="text-right">
+                            <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold uppercase tracking-wider mb-2">
+                                Quittance de Règlement
+                            </div>
+                            <p className="text-xs font-mono text-neutral-500">Réf : {payment.id || ('REC-' + payment.date)}</p>
+                            <p className="text-xs text-neutral-500 mt-1">Date d'encaissement : <strong className="text-neutral-800">{formatDate(payment.date)}</strong></p>
+                        </div>
+                    </div>
+
+                    {/* Client & Référence Facture */}
+                    <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200/70 text-xs">
+                        <div>
+                            <span className="text-neutral-400 uppercase tracking-wider font-semibold block text-[10px]">Client versant</span>
+                            <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{facture.clientName || 'Client'}</span>
+                            {facture.projectRef && (
+                                <span className="text-neutral-500 block text-xs mt-0.5">Projet : {facture.projectRef}</span>
+                            )}
+                        </div>
+                        <div>
+                            <span className="text-neutral-400 uppercase tracking-wider font-semibold block text-[10px]">Facture de référence</span>
+                            <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{facture.numero || 'Facture'}</span>
+                            <span className="text-neutral-500 block text-xs mt-0.5">Émise le : {formatDate(facture.dateEmission || facture.dateCreation)}</span>
+                        </div>
+                    </div>
+
+                    {/* Cadre d'encaissement principal */}
+                    <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50/50 border-2 border-emerald-300 rounded-2xl text-center space-y-1">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                            Montant perçu et acquitté
+                        </span>
+                        <div className="text-3xl font-black text-emerald-800 font-mono tracking-tight">
+                            {formatMoney(payment.montant, devise)}
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-2 text-xs font-medium text-emerald-800">
+                            <i className={modeInfo.icon}></i>
+                            <span>Règlement par <strong>{modeInfo.label}</strong></span>
+                            {payment.reference && (
+                                <span className="text-neutral-500 font-mono">({payment.reference})</span>
+                            )}
+                        </div>
+                        {payment.note && (
+                            <p className="text-xs text-neutral-600 italic pt-1">
+                                « {payment.note} »
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Synthèse comptable de la facture */}
+                    <div className="border border-neutral-200 rounded-xl p-3.5 space-y-2 text-xs bg-white">
+                        <div className="font-bold text-neutral-700 mb-1 border-b border-neutral-100 pb-1 flex justify-between">
+                            <span>État de règlement de la facture</span>
+                            <span className={`font-semibold ${soldeRestant === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {soldeRestant === 0 ? 'Facture intégralement soldée' : 'Solde résiduel'}
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-neutral-600">
+                            <span>Montant net à payer (TTC) :</span>
+                            <span className="font-semibold text-neutral-800">{formatMoney(totalTTC, devise)}</span>
+                        </div>
+                        <div className="flex justify-between text-emerald-700 font-medium">
+                            <span>Cumul des règlements perçus :</span>
+                            <span className="font-bold">{formatMoney(montantDejaRegle, devise)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-dashed border-neutral-200 font-bold text-neutral-900 text-sm">
+                            <span>Solde restant dû :</span>
+                            <span className={soldeRestant > 0 ? 'text-amber-700 font-mono' : 'text-emerald-600 font-mono'}>
+                                {formatMoney(soldeRestant, devise)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Signature / Mention de décharge */}
+                    <div className="pt-4 flex justify-between items-end text-xs text-neutral-500 border-t border-neutral-100">
+                        <div>
+                            <p className="italic text-[11px]">Pour valoir quittance sous réserve d'encaissement effectif.</p>
+                            <p className="text-[10px] text-neutral-400 mt-0.5">Édité électroniquement par Micro Office BTP</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="font-bold text-neutral-800">Cachet & Signature</p>
+                            <div className="h-14 w-32 border-b border-neutral-300 mt-1 inline-block"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer bar */}
+                <div className="px-6 py-3 bg-neutral-50 border-t border-neutral-100 flex justify-end gap-2 shrink-0 print:hidden">
+                    <button onClick={onClose} className="btn-secondary text-xs px-4 py-2">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function App({ supabaseSession, supabaseClient, onSignOut }) {
     const sbUser = supabaseSession ? supabaseSession.user : null;
@@ -11890,6 +12436,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const [viewingInvoice, setViewingInvoice] = useState(null);
+    // 2026-09-10 — Suivi des règlements & encaissements de factures
+    const [paymentModalData, setPaymentModalData] = useState(null); // Facture sur laquelle saisir un paiement
+    const [receiptModalData, setReceiptModalData] = useState(null); // { facture, payment } pour afficher / imprimer la quittance
     // Liste+détail façon Zoho Books (2026-08-22) : le menu « Nouveau » qui
     // propose les devis facturables remplace l'ancienne carte toujours visible.
     const [isCreateInvoiceMenuOpen, setIsCreateInvoiceMenuOpen] = useState(false);
@@ -13049,7 +13598,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         deduitTTC: Number(r.deducted_ttc) || 0,
         netAPayerTTC: Number(r.net_to_pay_ttc) || 0,
         montantRegle: Number(r.amount_paid) || 0,
-        notes: r.notes || '',
+        notes: (r.notes || '').replace(/<!--PAYMENTS:.*?-->/g, '').trim(),
+        payments: (() => {
+            if (Array.isArray(r.payments)) return r.payments;
+            if (typeof r.notes === 'string' && r.notes.includes('<!--PAYMENTS:')) {
+                try {
+                    const match = r.notes.match(/<!--PAYMENTS:(.*?)-->/);
+                    if (match && match[1]) {
+                        return JSON.parse(decodeURIComponent(match[1]));
+                    }
+                } catch (e) {
+                    console.warn("Erreur parsing payments from notes", e);
+                }
+            }
+            return [];
+        })(),
         lignes: lineRows
             .filter(line => line.invoice_id === r.id)
             .sort((a, b) => (a.line_order || 0) - (b.line_order || 0))
@@ -18336,6 +18899,70 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     };
 
+    // 2026-09-10 — Enregistrer un règlement sur une facture émise (Wave, Orange Money, virement, etc.)
+    const enregistrerReglementFacture = async (facture, reglement) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+        try {
+            const res = await InvoiceService.enregistrerReglement({
+                facture,
+                reglement,
+                supabaseClient,
+                sbUser,
+                activeOrgId: activeOrganizationId
+            });
+
+            const factureAjour = {
+                ...facture,
+                montantRegle: res.montantRegle,
+                statut: res.statut,
+                payments: res.payments
+            };
+
+            updateInvoices(invoices.map(f => f.id === facture.id ? factureAjour : f));
+            if (viewingInvoice && viewingInvoice.id === facture.id) {
+                setViewingInvoice(factureAjour);
+            }
+            setPaymentModalData(null);
+            showToast(`Règlement de ${formatMoney(reglement.montant, companyInfo.currency || 'FCFA')} enregistré`, "success");
+
+            // Proposer d'afficher la quittance de règlement
+            setReceiptModalData({ facture: factureAjour, payment: res.nouveauPaiement });
+        } catch (err) {
+            console.error("Erreur enregistrement règlement:", err);
+            showToast(`Erreur : ${err.message}`, "error");
+        }
+    };
+
+    // 2026-09-10 — Supprimer un règlement (correction / annulation de saisie)
+    const supprimerReglementFacture = async (facture, paymentId) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+        try {
+            const res = await InvoiceService.supprimerReglement({
+                facture,
+                paymentId,
+                supabaseClient,
+                sbUser,
+                activeOrgId: activeOrganizationId
+            });
+
+            const factureAjour = {
+                ...facture,
+                montantRegle: res.montantRegle,
+                statut: res.statut,
+                payments: res.payments
+            };
+
+            updateInvoices(invoices.map(f => f.id === facture.id ? factureAjour : f));
+            if (viewingInvoice && viewingInvoice.id === facture.id) {
+                setViewingInvoice(factureAjour);
+            }
+            showToast("Règlement supprimé et solde actualisé", "info");
+        } catch (err) {
+            console.error("Erreur suppression règlement:", err);
+            showToast(`Erreur : ${err.message}`, "error");
+        }
+    };
+
     const renderInvoices = () => {
         const cur = companyInfo.currency || 'FCFA';
         const devisFacturables = savedQuotes.filter(q => !devisEstEntierementFacture(q));
@@ -18365,11 +18992,84 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         const hasActiveInvoice = Boolean(activeInvoice);
 
+        // 2026-09-10 — Calculs des indicateurs financiers globaux de facturation
+        const facturesEmises = invoices.filter(f => f.statut !== 'draft' && f.statut !== 'cancelled');
+        const totalFactureTTC = facturesEmises.reduce((sum, f) => sum + (Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0), 0);
+        const totalEncaisseTTC = facturesEmises.reduce((sum, f) => sum + (Number(f.montantRegle) || 0), 0);
+        const resteARecouvrerTTC = Math.max(0, totalFactureTTC - totalEncaisseTTC);
+        const tauxRecouvrement = totalFactureTTC > 0 ? Math.min(100, Math.round((totalEncaisseTTC / totalFactureTTC) * 100)) : 0;
+
         return (
-            <div className="w-full max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-5 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-                {/* Pattern liste+détail : Si aucune facture sélectionnée -> 100% pleine largeur.
-                    Si une facture sélectionnée -> 2 colonnes (liste compacte à gauche + inspecteur à droite). */}
-                <div data-testid="invoices-list" className={`${hasActiveInvoice ? 'hidden lg:flex lg:w-[380px] xl:w-[410px]' : 'flex w-full flex-1'} shrink-0 flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
+            <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-4 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
+                {/* 2026-09-10 — Synthèse financière de facturation et recouvrement */}
+                <div data-testid="invoices-kpi-strip" className={`${hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-3 shrink-0`}>
+                    {/* KPI 1 : Total Facturé Émis */}
+                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                            <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Total Facturé Émis</span>
+                            <div className="text-sm sm:text-base font-black text-neutral-900 truncate tabular-nums">
+                                {formatMoney(totalFactureTTC, cur)}
+                            </div>
+                            <span className="text-[10px] text-neutral-400 block truncate">{facturesEmises.length} facture(s) émise(s)</span>
+                        </div>
+                    </div>
+
+                    {/* KPI 2 : Total Encaissé / Réglé */}
+                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <i className="fa-solid fa-circle-check text-lg"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Total Encaissé</span>
+                            <div className="text-sm sm:text-base font-black text-emerald-700 truncate tabular-nums">
+                                {formatMoney(totalEncaisseTTC, cur)}
+                            </div>
+                            <span className="text-[10px] text-emerald-600/80 block truncate">Règlements validés</span>
+                        </div>
+                    </div>
+
+                    {/* KPI 3 : Reste à Recouvrer / Créances */}
+                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                            <i className="fa-solid fa-clock-rotate-left text-lg"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Créances Clients</span>
+                            <div className={`text-sm sm:text-base font-black truncate tabular-nums ${resteARecouvrerTTC > 0 ? 'text-amber-800' : 'text-neutral-700'}`}>
+                                {formatMoney(resteARecouvrerTTC, cur)}
+                            </div>
+                            <span className="text-[10px] text-amber-600/80 block truncate">Reste à encaisser</span>
+                        </div>
+                    </div>
+
+                    {/* KPI 4 : Taux de Recouvrement */}
+                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                            <i className="fa-solid fa-chart-pie text-lg"></i>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Recouvrement</span>
+                                <span className="text-xs font-bold text-indigo-700 font-mono">{tauxRecouvrement}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden mt-1.5">
+                                <div
+                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-300"
+                                    style={{ width: `${tauxRecouvrement}%` }}
+                                ></div>
+                            </div>
+                            <span className="text-[10px] text-neutral-400 block truncate mt-1">Efficacité de trésorerie</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
+                    {/* Pattern liste+détail : Si aucune facture sélectionnée -> 100% pleine largeur.
+                        Si une facture sélectionnée -> 2 colonnes (liste compacte à gauche + inspecteur à droite). */}
+                    <div data-testid="invoices-list" className={`${hasActiveInvoice ? 'hidden lg:flex lg:w-[380px] xl:w-[410px]' : 'flex w-full flex-1'} shrink-0 flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-200`}>
                     <div className="flex items-center justify-between px-1 gap-2">
                         <div className="min-w-0">
                             <h1 className="text-lg font-bold text-neutral-800">Factures</h1>
@@ -18490,6 +19190,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 </div>
                                             </div>
 
+                                            {/* Suivi du règlement si facture émise */}
+                                            {f.statut !== 'draft' && f.statut !== 'cancelled' && (() => {
+                                                const netTTC = f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC;
+                                                const regle = Number(f.montantRegle) || 0;
+                                                const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
+                                                return (
+                                                    <div className="mt-1.5 space-y-1">
+                                                        <div className="flex items-center justify-between text-[10px]">
+                                                            <span className={regle >= netTTC ? 'text-emerald-700 font-semibold' : regle > 0 ? 'text-amber-700 font-medium' : 'text-neutral-500'}>
+                                                                {regle >= netTTC ? 'Soldée' : regle > 0 ? `Réglé : ${formatMoney(regle, cur)}` : 'Non réglée'}
+                                                            </span>
+                                                            <span className="font-mono text-neutral-500">{pct}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1 bg-neutral-100 rounded-full overflow-hidden">
+                                                            <div className={`h-full transition-all duration-300 ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-transparent'}`} style={{ width: `${pct}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
                                             {/* Ligne 3 : Chantier & Source / Actions */}
                                             <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
                                                 <span className="truncate flex items-center gap-1 min-w-0" title={f.projectRef || 'Chantier non renseigné'}>
@@ -18578,7 +19298,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         {f.devisNumero && <span className="text-[10px] text-neutral-500">depuis {f.devisNumero}</span>}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right font-bold text-neutral-900 tabular-nums whitespace-nowrap">
-                                                        {formatMoney(f.totalTTC, cur)}
+                                                        <div>{formatMoney(f.totalTTC, cur)}</div>
+                                                        {f.statut !== 'draft' && f.statut !== 'cancelled' && (
+                                                            <div className="text-[10px] font-normal mt-0.5">
+                                                                {Number(f.montantRegle) >= (f.netAPayerTTC || f.totalTTC) ? (
+                                                                    <span className="text-emerald-600 font-semibold"><i className="fa-solid fa-check text-[9px] mr-0.5"></i>Soldée</span>
+                                                                ) : Number(f.montantRegle) > 0 ? (
+                                                                    <span className="text-amber-600 font-medium">Réglé : {formatMoney(f.montantRegle, cur)}</span>
+                                                                ) : (
+                                                                    <span className="text-neutral-400">Non réglée</span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
                                                         <Badge colorClass={st.classe}>{st.texte}</Badge>
@@ -18754,6 +19485,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </>
                                     ) : (
                                         <>
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={() => setPaymentModalData(activeInvoice)}
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 flex items-center gap-1.5"
+                                                aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
+                                            >
+                                                <i className="fa-solid fa-hand-holding-dollar"></i> Enregistrer un règlement
+                                            </button>
                                             {activeInvoice.statut === 'issued' && (
                                                 <button
                                                     onClick={() => envoyerFacture(activeInvoice)}
@@ -18820,6 +19560,133 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* 2026-09-10 — Suivi des règlements & Historique des versements */}
+                                {!estBrouillon && (() => {
+                                    const netTTC = activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC;
+                                    const regle = Number(activeInvoice.montantRegle) || 0;
+                                    const reste = Math.max(0, netTTC - regle);
+                                    const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
+                                    const paymentsList = Array.isArray(activeInvoice.payments) ? activeInvoice.payments : [];
+
+                                    return (
+                                        <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
+                                            {/* Header de suivi de règlement */}
+                                            <div className="p-4 bg-gradient-to-r from-neutral-50 to-emerald-50/30 border-b border-neutral-200/70 flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                                                        <i className="fa-solid fa-wallet"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-xs font-bold text-neutral-900">Suivi des encaissements & Règlements</h4>
+                                                        <p className="text-[11px] text-neutral-500">
+                                                            {regle >= netTTC ? 'Facture intégralement soldée' : regle > 0 ? 'Facture partiellement payée' : 'En attente de paiement'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        onClick={() => setPaymentModalData(activeInvoice)}
+                                                        className="btn-secondary py-1 px-3 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 flex items-center gap-1.5"
+                                                    >
+                                                        <i className="fa-solid fa-plus text-[10px]"></i> Saisir un encaissement
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Gauge de progression */}
+                                            <div className="p-4 space-y-3">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-neutral-600 font-medium">Avancement du règlement : <strong className="text-neutral-900 font-mono">{pct}%</strong></span>
+                                                    <div className="flex items-center gap-3 text-xs">
+                                                        <span className="text-emerald-700 font-semibold">Réglé : {formatMoney(regle, cur)}</span>
+                                                        <span className="text-neutral-300">|</span>
+                                                        <span className={`font-bold ${reste > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
+                                                            {reste > 0 ? `Reste : ${formatMoney(reste, cur)}` : 'Soldée (0 FCFA restant)'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-full h-2.5 bg-neutral-100 rounded-full overflow-hidden border border-neutral-200/50">
+                                                    <div
+                                                        className={`h-full transition-all duration-300 ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-neutral-300'}`}
+                                                        style={{ width: `${pct}%` }}
+                                                    ></div>
+                                                </div>
+
+                                                {/* Historique des paiements */}
+                                                {paymentsList.length > 0 ? (
+                                                    <div className="mt-3 pt-3 border-t border-neutral-100">
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                                                            Historique des versements ({paymentsList.length})
+                                                        </span>
+                                                        <div className="space-y-2">
+                                                            {paymentsList.map(p => {
+                                                                const modeInfo = getModePaiementInfo(p.mode);
+                                                                return (
+                                                                    <div key={p.id} className="flex items-center justify-between bg-neutral-50/80 p-2.5 rounded-lg border border-neutral-200/60 text-xs hover:bg-neutral-50 transition-colors">
+                                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                                            <span className={`w-7 h-7 rounded-md flex items-center justify-center text-xs shrink-0 ${modeInfo.color}`}>
+                                                                                <i className={modeInfo.icon}></i>
+                                                                            </span>
+                                                                            <div className="min-w-0">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="font-bold text-neutral-800 truncate">{modeInfo.label}</span>
+                                                                                    {p.reference && <span className="text-[10px] font-mono text-neutral-600 bg-white px-1.5 py-0.5 rounded border border-neutral-200">{p.reference}</span>}
+                                                                                </div>
+                                                                                <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
+                                                                                    <span>{formatDate(p.date)}</span>
+                                                                                    {p.note && <span className="truncate max-w-[200px]">· <em>« {p.note} »</em></span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                            <span className="font-bold font-mono text-emerald-700 text-xs tabular-nums">
+                                                                                +{formatMoney(p.montant, cur)}
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setReceiptModalData({ facture: activeInvoice, payment: p })}
+                                                                                className="btn-icon w-7 h-7 text-neutral-500 hover:text-emerald-700 hover:bg-emerald-50 rounded"
+                                                                                title="Imprimer / Télécharger la quittance de règlement"
+                                                                                aria-label="Voir la quittance"
+                                                                            >
+                                                                                <i className="fa-solid fa-receipt text-xs"></i>
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={isReadOnlyDueToDowngrade}
+                                                                                onClick={() => setConfirmDialog({
+                                                                                    isOpen: true,
+                                                                                    title: "Supprimer ce règlement ?",
+                                                                                    message: `Le versement de ${formatMoney(p.montant, cur)} sera déduit du montant réglé et le solde de la facture sera recalculé.`,
+                                                                                    isDanger: true,
+                                                                                    confirmLabel: "Supprimer",
+                                                                                    onConfirm: () => { closeConfirm(); supprimerReglementFacture(activeInvoice, p.id); }
+                                                                                })}
+                                                                                className="btn-icon w-7 h-7 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                                                title="Supprimer ce versement"
+                                                                                aria-label="Supprimer ce versement"
+                                                                            >
+                                                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-center py-2 text-xs text-neutral-400 italic">
+                                                        Aucun versement enregistré pour l'instant.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {documentDeLaFacture(activeInvoice)}
                             </div>
                         </div>
@@ -18827,6 +19694,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     })()}
                 </div>
                 )}
+                </div>
             </div>
         );
     };
@@ -23283,6 +24151,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* 2026-09-10 — Modales de règlement & quittance de facture */}
+            {paymentModalData && (
+                <InvoicePaymentModal
+                    facture={paymentModalData}
+                    devise={companyInfo.currency || 'FCFA'}
+                    onClose={() => setPaymentModalData(null)}
+                    onSubmit={enregistrerReglementFacture}
+                />
+            )}
+            {receiptModalData && (
+                <InvoicePaymentReceiptModal
+                    receiptData={receiptModalData}
+                    companyInfo={companyInfo}
+                    devise={companyInfo.currency || 'FCFA'}
+                    onClose={() => setReceiptModalData(null)}
+                />
             )}
 
             {/* 2026-09-06 — Situations de travaux : une facture par lot, au
