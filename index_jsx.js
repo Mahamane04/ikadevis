@@ -20584,7 +20584,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     value={invoiceStatusFilter}
                                     onChange={e => setInvoiceStatusFilter(e.target.value)}
                                     size="sm"
-                                    aria-label="Filtrer les factures par statut ou état de règlement"
+                                    aria-label="Filtrer les factures par statut"
                                     options={[
                                         { value: 'all', label: 'Tous les statuts' },
                                         { value: 'unpaid', label: '⏳ Non réglées (en attente)' },
