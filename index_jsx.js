@@ -278,6 +278,56 @@ const formatDate = (dateStr) => {
     }
 };
 
+// 2026-09-10 — Détection d'échéance dépassée pour les factures émises
+const isInvoiceOverdue = (f) => {
+    if (!f || f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
+    const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+    const regle = Number(f.montantRegle) || 0;
+    if (regle >= netTTC && netTTC > 0) return false;
+
+    const now = new Date();
+    if (f.dateEcheance) {
+        const d = new Date(f.dateEcheance);
+        return !isNaN(d.getTime()) && d < now;
+    }
+    const dateRef = f.dateEmission || f.date || f.dateCreation;
+    if (!dateRef) return false;
+    const d = new Date(dateRef);
+    if (isNaN(d.getTime())) return false;
+    const diffDays = (now.getTime() - d.getTime()) / (1000 * 3600 * 24);
+    return diffDays > 30;
+};
+
+// 2026-09-10 — Filtrage par période temporelle de facturation
+const matchesInvoicePeriod = (f, period) => {
+    if (!period || period === 'all') return true;
+    const dateStr = f.dateEmission || f.date || f.dateCreation;
+    if (!dateStr) return true;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return true;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    if (period === 'this_month') {
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }
+    if (period === 'this_quarter') {
+        const currentQuarter = Math.floor(currentMonth / 3);
+        const invQuarter = Math.floor(d.getMonth() / 3);
+        return d.getFullYear() === currentYear && invQuarter === currentQuarter;
+    }
+    if (period === 'this_year') {
+        return d.getFullYear() === currentYear;
+    }
+    if (period === 'last_year') {
+        return d.getFullYear() === currentYear - 1;
+    }
+    return true;
+};
+
+
 // ═══════════════════════════════════════════════════════════════
 // LIGNE DE DEVIS : QUANTITÉ ET PRIX UNITAIRE RÉELLEMENT FACTURÉS
 // ═══════════════════════════════════════════════════════════════
@@ -9583,6 +9633,18 @@ const InvoiceService = {
         return `FACT-${annee}-${String(max + 1).padStart(3, '0')}`;
     },
 
+    // 2026-09-10 — Séquenceur d'avoirs comptables (AV-AAAA-NNN)
+    numeroLocalSuivantAvoir: (factures) => {
+        const annee = new Date().getFullYear();
+        const motif = new RegExp(`AV-${annee}-(\\d+)`);
+        const max = (factures || []).reduce((m, f) => {
+            const t = String(f.numero || '').match(motif);
+            const n = t ? parseInt(t[1], 10) : 0;
+            return n > m ? n : m;
+        }, 0);
+        return `AV-${annee}-${String(max + 1).padStart(3, '0')}`;
+    },
+
     // Persiste le brouillon côté serveur (mode cloud uniquement). Étape
     // nécessaire AVANT émission : issue_invoice_v6 exige un p_invoice_id
     // existant, or brouillonDepuisDevis() ne construit qu'un objet local —
@@ -9792,6 +9854,128 @@ const InvoiceService = {
             montantRegle: nouveauMontantRegle,
             statut: nouveauStatut,
             payments: nouveauxPaiements
+        };
+    },
+
+    // 2026-09-10 — Émettre un Avoir rectificatif rattaché à une facture émise
+    creerAvoir: async ({ factureSource, typeAvoir, montantHT, totalTva, totalTTC, motif, precision, factures, supabaseClient, sbUser, activeOrgId }) => {
+        const estLocal = !supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrgId;
+        const numeroAvoir = InvoiceService.numeroLocalSuivantAvoir(factures);
+        const dateEmission = new Date().toISOString();
+
+        const lignesAvoir = [
+            {
+                ordre: 1,
+                designation: `Avoir sur facture N° ${factureSource.numero || 'Réf.'} — ${motif}`,
+                unite: 'u',
+                quantite: 1,
+                prixUnitaireHT: -montantHT,
+                totalHT: -montantHT,
+                metadata: {
+                    typeAvoir,
+                    corrects_invoice_number: factureSource.numero,
+                    corrects_invoice_id: factureSource.serverId || factureSource.id,
+                    motif,
+                    precision
+                }
+            }
+        ];
+
+        const avoirObj = {
+            id: `inv_avoir_${Date.now()}`,
+            numero: numeroAvoir,
+            statut: 'issued', // Un avoir validé est immédiatement émis et conforme
+            type: 'avoir',
+            devisId: factureSource.devisId || null,
+            devisServerId: factureSource.devisServerId || null,
+            clientId: factureSource.clientId || null,
+            projectId: factureSource.projectId || null,
+            devisNumero: factureSource.devisNumero || null,
+            clientName: factureSource.clientName,
+            projectRef: factureSource.projectRef,
+            dateCreation: dateEmission,
+            dateEmission: dateEmission,
+            tauxTva: factureSource.tauxTva || 0,
+            totalHT: -montantHT,
+            totalTva: -totalTva,
+            totalTTC: -totalTTC,
+            deduitTTC: 0,
+            netAPayerTTC: -totalTTC,
+            montantRegle: 0,
+            payments: [],
+            lignes: lignesAvoir,
+            companyInfoSnapshot: { ...(factureSource.companyInfoSnapshot || {}) },
+            quoteDataSnapshot: { ...(factureSource.quoteDataSnapshot || {}) },
+            correctsInvoiceNumber: factureSource.numero,
+            correctsInvoiceId: factureSource.serverId || factureSource.id,
+            motif,
+            precision,
+            notes: `Avoir rectificatif émis en référence à la facture ${factureSource.numero || ''}.\nMotif légal : ${motif}${precision ? '\n' + precision : ''}`
+        };
+
+        if (estLocal) {
+            return {
+                avoir: avoirObj,
+                isLocal: true,
+                serverId: null
+            };
+        }
+
+        // Mode Cloud : persistance dans la table invoices
+        const uuidOuNull = (v) => (estUuid(v) ? v : null);
+        const { data: invoiceRow, error: invoiceErr } = await supabaseClient
+            .from('invoices')
+            .insert({
+                organization_id: activeOrgId,
+                invoice_number: numeroAvoir,
+                quote_id: uuidOuNull(factureSource.devisServerId) || uuidOuNull(factureSource.devisId),
+                client_id: uuidOuNull(factureSource.clientId),
+                project_id: uuidOuNull(factureSource.projectId),
+                client_name: factureSource.clientName || 'Client Passage',
+                project_ref: factureSource.projectRef || null,
+                invoice_type: 'credit_note',
+                status: 'issued',
+                issued_at: dateEmission,
+                vat_rate: factureSource.tauxTva || 0,
+                total_ht: -montantHT,
+                total_vat: -totalTva,
+                total_ttc: -totalTTC,
+                deducted_ttc: 0,
+                net_to_pay_ttc: -totalTTC,
+                amount_paid: 0,
+                company_snapshot: avoirObj.companyInfoSnapshot,
+                created_by: sbUser.id,
+                notes: avoirObj.notes
+            })
+            .select('id')
+            .single();
+
+        if (invoiceErr) {
+            console.error("[InvoiceService] Erreur création avoir serveur:", invoiceErr);
+            throw new Error(invoiceErr.message || "Échec de l'enregistrement de l'avoir sur le serveur.");
+        }
+
+        const linesRows = lignesAvoir.map(l => ({
+            organization_id: activeOrgId,
+            invoice_id: invoiceRow.id,
+            line_order: l.ordre,
+            designation: l.designation,
+            unit: l.unite,
+            quantity: l.quantite,
+            unit_price_ht: l.prixUnitaireHT,
+            total_ht: l.totalHT,
+            metadata: l.metadata
+        }));
+
+        const { error: linesErr } = await supabaseClient.from('invoice_lines').insert(linesRows);
+        if (linesErr) {
+            console.warn("[InvoiceService] Erreur lignes avoir:", linesErr);
+        }
+
+        return {
+            avoir: { ...avoirObj, serverId: invoiceRow.id },
+            isLocal: false,
+            serverId: invoiceRow.id
         };
     }
 };
@@ -11076,16 +11260,28 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     )}
                 </div>
                 <div className={disposition.document}>
-                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>Facture</h2>
+                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: facture.type === 'avoir' ? '#7c3aed' : theme.brandColor }}>
+                        {facture.type === 'avoir' ? "Facture d'Avoir" : 'Facture'}
+                    </h2>
                     <p className="text-sm font-bold text-neutral-800 mt-1">
                         {facture.numero ? `N° : ${facture.numero}` : 'Brouillon (non numéroté)'}
                     </p>
                     <p className="text-xs text-neutral-500">
                         {facture.dateEmission
-                            ? `Émise le ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}`
-                            : 'Non émise'}
+                            ? `Émis${facture.type === 'avoir' ? '' : 'e'} le ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}`
+                            : 'Non émis'}
                     </p>
-                    {facture.devisNumero && (
+                    {facture.type === 'avoir' && (facture.correctsInvoiceNumber || facture.corrects_invoice_id) && (
+                        <p className="text-xs font-bold text-purple-700 mt-1">
+                            Facture rectifiée : {facture.correctsInvoiceNumber || "Facture d'origine"}
+                        </p>
+                    )}
+                    {facture.type === 'avoir' && facture.motif && (
+                        <p className="text-[11px] text-neutral-600 italic mt-0.5">
+                            Motif : {facture.motif}
+                        </p>
+                    )}
+                    {facture.type !== 'avoir' && facture.devisNumero && (
                         <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {facture.devisNumero}</p>
                     )}
                 </div>
@@ -11127,7 +11323,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
             <div className="flex justify-end pt-4 border-t border-neutral-200">
                 <div className="w-72 space-y-2 text-xs">
                     <div className="flex justify-between font-bold text-neutral-800 text-sm">
-                        <span>Total HT :</span>
+                        <span>{facture.type === 'avoir' ? 'Total Avoir HT :' : 'Total HT :'}</span>
                         <span>{formatMoney(facture.totalHT, devise)}</span>
                     </div>
                     {facture.tauxTva === 0 ? (
@@ -11159,9 +11355,16 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         </p>
                     )}
                     <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
-                        <span>NET À PAYER :</span>
-                        <span>{formatMoney(facture.netAPayerTTC, devise)}</span>
+                        <span>{facture.type === 'avoir' ? 'NET CRÉDITÉ TTC :' : 'NET À PAYER :'}</span>
+                        <span className={facture.type === 'avoir' ? 'text-purple-700 font-mono' : ''}>
+                            {formatMoney(facture.netAPayerTTC != null ? facture.netAPayerTTC : facture.totalTTC, devise)}
+                        </span>
                     </div>
+                    {facture.type === 'avoir' && (
+                        <p className="text-[10px] text-purple-700 italic text-right mt-1 font-medium">
+                            Montant déduit des sommes restant dues ou remboursé au client.
+                        </p>
+                    )}
                     {facture.montantRegle > 0 && (
                         <>
                             <div className="flex justify-between text-emerald-700 font-semibold text-xs pt-1">
@@ -11450,43 +11653,90 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
 }
 
 // ══ MODALE DE QUITTANCE / REÇU DE RÈGLEMENT (2026-09-10) ═════════════════
-function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA', onClose }) {
+// 2026-09-10 — Ajout du bouton « Télécharger le PDF » et alignement sur le
+// design système : header en dégradé de marque (même famille visuelle que
+// `InvoicePaymentModal`, son prédécesseur immédiat dans le parcours), pastille
+// de statut via le composant `Badge` partagé (plus de pastille dessinée à la
+// main — règle du système de design, voir tête de fichier), et modèle PDF
+// ACTIF appliqué automatiquement : `theme` (couleur de marque, police) et
+// `configuration` (marges, format papier, orientation) viennent du même
+// `configurationActive`/`themeDepuisConfiguration` que devis et factures,
+// portés sur l'élément via les `data-*` que lit `optionsPdfDe`.
+function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA', onClose, onDownloadPdf, theme, configuration }) {
     if (!receiptData || !receiptData.facture || !receiptData.payment) return null;
     const { facture, payment } = receiptData;
     const modeInfo = getModePaiementInfo(payment.mode);
     const totalTTC = facture.netAPayerTTC || facture.totalTTC || 0;
     const montantDejaRegle = Number(facture.montantRegle) || 0;
     const soldeRestant = Math.max(0, totalTTC - montantDejaRegle);
+    const [pdfGenerating, setPdfGenerating] = React.useState(false);
+    const cfg = fusionnerConfiguration(configuration);
+    const brandColor = theme?.brandColor || '#059669';
 
     const handlePrint = () => {
         window.print();
     };
 
+    const handleDownloadPdf = async () => {
+        const element = document.getElementById('quittance_document_printable');
+        if (!element) return;
+        setPdfGenerating(true);
+        try {
+            if (onDownloadPdf) {
+                await onDownloadPdf(element, `Quittance ${facture.numero || ''} ${facture.clientName || ''}`.trim(), 'quittance');
+            }
+        } finally {
+            setPdfGenerating(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fade-in"
              role="dialog" aria-modal="true" aria-labelledby="receipt_modal_title">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh] border border-neutral-200">
-                {/* Header bar non imprimable */}
-                <div className="px-5 py-3.5 bg-neutral-900 text-white flex justify-between items-center shrink-0 print:hidden">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                        <i className="fa-solid fa-receipt text-emerald-400"></i>
-                        <span id="receipt_modal_title">Quittance de règlement client</span>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh] border border-neutral-100">
+                {/* Header — même famille visuelle que InvoicePaymentModal (dégradé
+                    de marque + badge icône) : ce sont les deux étapes d'un même
+                    parcours, elles doivent se répondre. */}
+                <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex justify-between items-center shrink-0 print:hidden">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs">
+                            <i className="fa-solid fa-receipt text-xl text-white"></i>
+                        </div>
+                        <div>
+                            <h3 id="receipt_modal_title" className="font-bold text-lg leading-tight text-white">
+                                Quittance de règlement
+                            </h3>
+                            <p className="text-xs text-emerald-100 opacity-90">
+                                Facture <span className="font-semibold text-white">{facture.numero || 'Brouillon'}</span> · {facture.clientName}
+                            </p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handlePrint} className="btn-secondary text-xs px-3 py-1.5 text-neutral-800 bg-white hover:bg-neutral-100 flex items-center gap-1.5">
-                            <i className="fa-solid fa-print"></i> Imprimer
-                        </button>
-                        <button onClick={onClose} className="p-1.5 text-neutral-400 hover:text-white rounded-lg transition-colors" aria-label="Fermer">
-                            <i className="fa-solid fa-xmark text-lg"></i>
-                        </button>
-                    </div>
+                    <button onClick={onClose} className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Fermer la fenêtre">
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
                 </div>
 
-                {/* Printable Receipt Body */}
-                <div className="p-8 overflow-y-auto custom-scroll flex-1 space-y-6 text-neutral-800 bg-white" id="quittance_document_printable">
+                {/* Printable Receipt Body — data-zone-impression pour le
+                    téléchargement PDF par html2canvas / jsPDF ; data-marges-mm /
+                    data-format-papier / data-orientation viennent du modèle PDF
+                    actif, comme pour un devis ou une facture. */}
+                <div className="p-8 overflow-y-auto custom-scroll flex-1 space-y-6 text-neutral-800 bg-white"
+                     id="quittance_document_printable"
+                     data-zone-impression="quittance"
+                     data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
+                     data-format-papier={cfg.general.formatPapier || 'A4'}
+                     data-orientation={cfg.general.orientation || 'portrait'}
+                     data-numero-document={facture.numero || ''}
+                     data-entete-courant={[companyInfo?.name, facture.numero].filter(Boolean).join(' — ')}
+                     style={{ fontFamily: theme?.fontFamily || undefined }}>
                     {/* Header entreprise */}
                     <div className="flex justify-between items-start border-b border-neutral-200 pb-5">
                         <div>
+                            {companyInfo?.logo && (
+                                <div className="flex mb-2">
+                                    <img src={companyInfo.logo} alt={`Logo ${companyInfo.name || ''}`} className="object-contain" style={{ height: '40px', maxWidth: '160px' }} />
+                                </div>
+                            )}
                             <h2 className="font-black text-xl text-neutral-900 tracking-tight">
                                 {companyInfo?.name || 'ENTREPRISE BTP'}
                             </h2>
@@ -11498,16 +11748,20 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                             {companyInfo?.nif && <p className="text-xs text-neutral-400 font-mono mt-0.5">NIF : {companyInfo.nif}</p>}
                         </div>
                         <div className="text-right">
-                            <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold uppercase tracking-wider mb-2">
-                                Quittance de Règlement
+                            <div className="mb-2">
+                                <Badge colorClass="bg-emerald-100 text-emerald-800 border border-emerald-300" uppercase>
+                                    Quittance de Règlement
+                                </Badge>
                             </div>
                             <p className="text-xs font-mono text-neutral-500">Réf : {payment.id || ('REC-' + payment.date)}</p>
                             <p className="text-xs text-neutral-500 mt-1">Date d'encaissement : <strong className="text-neutral-800">{formatDate(payment.date)}</strong></p>
                         </div>
                     </div>
 
-                    {/* Client & Référence Facture */}
-                    <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200/70 text-xs">
+                    {/* Client & Référence Facture — liseré de la couleur de marque
+                        du modèle PDF actif, comme sur un devis ou une facture. */}
+                    <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200/70 text-xs"
+                         style={{ borderLeft: `3px solid ${brandColor}` }}>
                         <div>
                             <span className="text-neutral-400 uppercase tracking-wider font-semibold block text-[10px]">Client versant</span>
                             <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{facture.clientName || 'Client'}</span>
@@ -11581,12 +11835,284 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                     </div>
                 </div>
 
-                {/* Footer bar */}
-                <div className="px-6 py-3 bg-neutral-50 border-t border-neutral-100 flex justify-end gap-2 shrink-0 print:hidden">
-                    <button onClick={onClose} className="btn-secondary text-xs px-4 py-2">
+                {/* Footer bar — Imprimer en secondaire, Télécharger le PDF en
+                    action principale (`btn-primary`), Fermer neutre à gauche. */}
+                <div className="px-6 py-3 bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2 shrink-0 print:hidden">
+                    <button onClick={onClose} className="btn-ghost text-xs px-4 py-2">
                         Fermer
                     </button>
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            onClick={handlePrint}
+                            className="btn-secondary text-xs px-4 py-2 flex items-center gap-1.5"
+                            title="Imprimer la quittance"
+                            aria-label="Imprimer la quittance"
+                        >
+                            <i className="fa-solid fa-print"></i> Imprimer
+                        </button>
+                        <button
+                            onClick={handleDownloadPdf}
+                            disabled={pdfGenerating}
+                            className="btn-primary text-xs px-5 py-2 font-bold shadow-sm disabled:opacity-60 flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
+                            title="Télécharger cette quittance au format PDF"
+                            aria-label="Télécharger la quittance en PDF"
+                        >
+                            <i className={`fa-solid ${pdfGenerating ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                            <span>{pdfGenerating ? 'Génération…' : 'Télécharger le PDF'}</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ══ MODALE DE CRÉATION D'AVOIR RECTIFICATIF (2026-09-10) ══════════════════════
+function InvoiceCreditNoteModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
+    if (!facture) return null;
+    const maxHT = Math.max(0, Number(facture.totalHT) || 0);
+    const maxTTC = Math.max(0, Number(facture.netAPayerTTC != null ? facture.netAPayerTTC : facture.totalTTC) || 0);
+    const tauxTva = Number(facture.tauxTva) || 0;
+
+    const [typeAvoir, setTypeAvoir] = React.useState('total'); // 'total' | 'partiel'
+    const [montantHT, setMontantHT] = React.useState(maxHT);
+    const [motif, setMotif] = React.useState('Erreur de facturation / Chiffrage');
+    const [precision, setPrecision] = React.useState('');
+    const [envoiEnCours, setEnvoiEnCours] = React.useState(false);
+    const [erreur, setErreur] = React.useState('');
+
+    const motifsPredefinis = [
+        "Erreur de facturation / Chiffrage",
+        "Geste commercial / Remise",
+        "Travaux non exécutés",
+        "Pénalités de retard ou malfaçon",
+        "Annulation de commande"
+    ];
+
+    const montantCalculeHT = typeAvoir === 'total' ? maxHT : Math.max(0, Math.min(maxHT, Number(montantHT) || 0));
+    const montantCalculeTva = Math.round(montantCalculeHT * (tauxTva / 100));
+    const montantCalculeTTC = montantCalculeHT + montantCalculeTva;
+
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+        setErreur('');
+        if (montantCalculeHT <= 0) {
+            setErreur("Le montant de l'avoir doit être supérieur à zéro.");
+            return;
+        }
+        if (montantCalculeHT > maxHT) {
+            setErreur(`Le montant HT de l'avoir ne peut pas dépasser le montant d'origine (${formatMoney(maxHT, devise)}).`);
+            return;
+        }
+        if (!motif.trim()) {
+            setErreur("Veuillez renseigner un motif légal pour cet avoir.");
+            return;
+        }
+
+        setEnvoiEnCours(true);
+        try {
+            const ok = await onSubmit({
+                factureSource: facture,
+                typeAvoir,
+                montantHT: montantCalculeHT,
+                totalTva: montantCalculeTva,
+                totalTTC: montantCalculeTTC,
+                motif: motif.trim(),
+                precision: precision.trim()
+            });
+            if (ok) onClose();
+        } catch (err) {
+            setErreur(err.message || "Erreur lors de la création de l'avoir.");
+        } finally {
+            setEnvoiEnCours(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fade-in"
+             role="dialog" aria-modal="true" aria-labelledby="credit_note_modal_title">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] border border-neutral-100">
+                {/* Header dégradé pourpre/indigo */}
+                <div className="px-6 py-4 bg-gradient-to-r from-purple-700 via-indigo-700 to-indigo-800 text-white flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs">
+                            <i className="fa-solid fa-file-invoice text-xl text-white"></i>
+                        </div>
+                        <div>
+                            <h3 id="credit_note_modal_title" className="font-bold text-lg leading-tight text-white">
+                                Émettre un Avoir rectificatif
+                            </h3>
+                            <p className="text-xs text-purple-200">
+                                Facture <span className="font-semibold text-white">{facture.numero || 'Brouillon'}</span> · {facture.clientName}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Fermer la fenêtre">
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scroll flex-1 space-y-5">
+                    {/* Alerte explicative légale */}
+                    <div className="p-3 bg-purple-50/70 border border-purple-200/80 rounded-xl text-xs text-purple-900 flex items-start gap-2.5">
+                        <i className="fa-solid fa-scale-balanced text-purple-600 mt-0.5 shrink-0 text-sm"></i>
+                        <div>
+                            <p className="font-bold">Régularisation comptable conforme</p>
+                            <p className="text-[11px] text-purple-800/90 mt-0.5">
+                                La facture émise étant inaltérable, l'avoir crédite le compte du client et régularise le chiffre d'affaires déclaré.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Choix Type d'avoir : Total ou Partiel */}
+                    <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600">
+                            Type d'avoir
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setTypeAvoir('total'); setMontantHT(maxHT); }}
+                                className={`p-3 rounded-xl border text-left transition-all ${typeAvoir === 'total' ? 'border-purple-600 bg-purple-50/60 shadow-xs ring-2 ring-purple-500/20' : 'border-neutral-200 hover:border-neutral-300 bg-white'}`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-neutral-800">Avoir Total (100%)</span>
+                                    <i className={`fa-solid fa-circle-check text-sm ${typeAvoir === 'total' ? 'text-purple-600' : 'text-neutral-300'}`}></i>
+                                </div>
+                                <p className="text-[11px] text-neutral-500 mt-1">Annule la facture</p>
+                                <p className="text-xs font-extrabold text-purple-800 mt-2 font-mono">
+                                    -{formatMoney(maxTTC, devise)} TTC
+                                </p>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => { setTypeAvoir('partiel'); setMontantHT(Math.round(maxHT / 2) || 1); }}
+                                className={`p-3 rounded-xl border text-left transition-all ${typeAvoir === 'partiel' ? 'border-purple-600 bg-purple-50/60 shadow-xs ring-2 ring-purple-500/20' : 'border-neutral-200 hover:border-neutral-300 bg-white'}`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-neutral-800">Avoir Partiel</span>
+                                    <i className={`fa-solid fa-circle-check text-sm ${typeAvoir === 'partiel' ? 'text-purple-600' : 'text-neutral-300'}`}></i>
+                                </div>
+                                <p className="text-[11px] text-neutral-500 mt-1">Réduction de montant</p>
+                                <p className="text-xs font-extrabold text-neutral-700 mt-2 font-mono">Montant libre</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Saisie montant si Partiel */}
+                    {typeAvoir === 'partiel' && (
+                        <div className="p-3.5 bg-neutral-50 border border-neutral-200 rounded-xl space-y-3">
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-xs font-bold text-neutral-700">Montant HT crédité ({devise})</label>
+                                    <span className="text-[11px] text-neutral-500">Max : {formatMoney(maxHT, devise)} HT</span>
+                                </div>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max={maxHT}
+                                    step="any"
+                                    value={montantHT}
+                                    onChange={(e) => setMontantHT(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono font-bold"
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-between items-center text-xs pt-2 border-t border-neutral-200 text-neutral-600">
+                                <span>TVA ({tauxTva}%) : +{formatMoney(montantCalculeTva, devise)}</span>
+                                <span className="font-bold text-purple-900">Total Net TTC : -{formatMoney(montantCalculeTTC, devise)}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Motif obligatoire */}
+                    <div className="space-y-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600">
+                            Motif de l'avoir <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {motifsPredefinis.map((m, idx) => (
+                                <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => setMotif(m)}
+                                    className={`px-2 py-1 text-[11px] rounded-lg border transition-all ${motif === m ? 'bg-purple-100 border-purple-300 text-purple-900 font-bold' : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100'}`}
+                                >
+                                    {m}
+                                </button>
+                            ))}
+                        </div>
+                        <input
+                            type="text"
+                            value={motif}
+                            onChange={(e) => setMotif(e.target.value)}
+                            placeholder="Ex : Erreur de chiffrage ou geste commercial suite accord"
+                            className="w-full px-3 py-2 text-xs border border-neutral-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            required
+                        />
+                    </div>
+
+                    {/* Précision optionnelle */}
+                    <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-neutral-600">
+                            Détails ou note interne (optionnel)
+                        </label>
+                        <textarea
+                            value={precision}
+                            onChange={(e) => setPrecision(e.target.value)}
+                            rows={2}
+                            placeholder="Observations supplémentaires inscrites sur le document..."
+                            className="w-full px-3 py-2 text-xs border border-neutral-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                        />
+                    </div>
+
+                    {erreur && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                            <span>{erreur}</span>
+                        </div>
+                    )}
+
+                    {/* Récapitulatif final */}
+                    <div className="p-3 bg-purple-100/60 border border-purple-200 rounded-xl flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-bold text-purple-900 block">Crédit client généré :</span>
+                            <span className="text-[11px] text-purple-700">Déduit du chiffre d'affaires et du solde dû</span>
+                        </div>
+                        <span className="text-base font-black text-purple-900 font-mono">
+                            -{formatMoney(montantCalculeTTC, devise)} TTC
+                        </span>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div className="pt-2 flex justify-end gap-2.5">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-secondary text-xs px-4 py-2"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={envoiEnCours}
+                            className="btn-primary text-xs px-5 py-2 font-bold flex items-center gap-1.5 bg-purple-700 hover:bg-purple-800 text-white shadow-purple-500/20"
+                        >
+                            {envoiEnCours ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                    <span>Émission en cours…</span>
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-stamp"></i>
+                                    <span>Confirmer &amp; Émettre l'Avoir</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
@@ -12432,6 +12958,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // 2026-09-10 — Suivi des règlements & encaissements de factures
     const [paymentModalData, setPaymentModalData] = useState(null); // Facture sur laquelle saisir un paiement
     const [receiptModalData, setReceiptModalData] = useState(null); // { facture, payment } pour afficher / imprimer la quittance
+    const [creditNoteModalData, setCreditNoteModalData] = useState(null); // Facture sur laquelle émettre un avoir rectificatif
     // Liste+détail façon Zoho Books (2026-08-22) : le menu « Nouveau » qui
     // propose les devis facturables remplace l'ancienne carte toujours visible.
     const [isCreateInvoiceMenuOpen, setIsCreateInvoiceMenuOpen] = useState(false);
@@ -13246,6 +13773,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [savedQuoteSort, setSavedQuoteSort] = useState('recent');
     const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
     const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
+    const [invoicePeriodFilter, setInvoicePeriodFilter] = useState('all');
+    const [invoiceSort, setInvoiceSort] = useState('recent');
     // P0.15 (2026-08-17) — Clients (CRM) et Affaires & Projets passent de
     // grilles de cartes au même pattern liste+détail que Ressources & Prix /
     // Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur).
@@ -18756,6 +19285,109 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     };
 
+    // ══ AVOIRS RECTIFICATIFS (Notes de crédit) ══════════════════════════════
+    const emettreAvoirFacture = async (arg1, arg2) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return false; }
+        const factureOrigine = arg2 ? arg1 : (arg1?.factureSource || creditNoteModalData);
+        const payload = arg2 ? arg2 : arg1;
+        if (!factureOrigine) {
+            showToast("Facture d'origine introuvable pour cet avoir.", "error");
+            return false;
+        }
+        const motif = payload?.motif || '';
+        const precision = payload?.precision || '';
+        const typeAvoir = payload?.typeAvoir || 'total';
+        const totalHT = Number(payload?.totalHT ?? payload?.montantHT) || 0;
+        const totalTTC = Number(payload?.totalTTC) || Math.round(totalHT * (1 + (factureOrigine.tvaTaux || 18) / 100));
+        const lotsAvoir = payload?.lotsAvoir || [];
+
+        try {
+            const annee = new Date().getFullYear();
+            const avoirsExistants = (invoices || []).filter(f => f.type === 'avoir' && (f.numero || '').includes(`AV-${annee}`));
+            const seq = String(avoirsExistants.length + 1).padStart(4, '0');
+            const numeroAvoir = `AV-${annee}-${seq}`;
+            const dateDuJour = new Date().toISOString().split('T')[0];
+
+            const nouvelAvoir = {
+                id: 'inv-' + Date.now(),
+                type: 'avoir',
+                statut: 'issued', // Un avoir est un document officiel directement émis et inaltérable
+                numero: numeroAvoir,
+                date: dateDuJour,
+                dateEmission: dateDuJour,
+                devisId: factureOrigine.devisId,
+                devisNumero: factureOrigine.devisNumero,
+                clientId: factureOrigine.clientId,
+                clientName: factureOrigine.clientName,
+                projectRef: factureOrigine.projectRef,
+                correctsInvoiceId: factureOrigine.id,
+                correctsInvoiceNumber: factureOrigine.numero,
+                correctsInvoiceServerId: factureOrigine.serverId,
+                motif,
+                precision: precision || '',
+                typeAvoir,
+                totalHT: Math.abs(totalHT),
+                totalTTC: Math.abs(totalTTC),
+                netAPayerTTC: Math.abs(totalTTC),
+                montantRegle: 0,
+                tvaTaux: factureOrigine.tvaTaux != null ? factureOrigine.tvaTaux : 18,
+                lots: (lotsAvoir || []).map(l => ({
+                    lotCode: l.lotCode,
+                    lotName: l.lotName,
+                    totalHT: Math.abs(l.totalHT),
+                    motif: l.motif || ''
+                })),
+                companyInfoSnapshot: factureOrigine.companyInfoSnapshot || companyInfo
+            };
+
+            const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+            if (estCloud) {
+                const { data: inserted, error: insertErr } = await supabaseClient
+                    .from('invoices')
+                    .insert({
+                        organization_id: activeOrganizationId,
+                        user_id: sbUser.id,
+                        number: numeroAvoir,
+                        status: 'issued',
+                        issued_at: new Date().toISOString(),
+                        invoice_type: 'avoir',
+                        issue_date: dateDuJour,
+                        total_ht: Math.abs(totalHT),
+                        total_ttc: Math.abs(totalTTC),
+                        net_to_pay_ttc: Math.abs(totalTTC),
+                        client_id: factureOrigine.clientId,
+                        client_name: factureOrigine.clientName,
+                        project_ref: factureOrigine.projectRef,
+                        quote_id: factureOrigine.devisId,
+                        corrects_invoice_id: factureOrigine.serverId,
+                        meta: {
+                            motif,
+                            precision,
+                            typeAvoir,
+                            correctsInvoiceNumber: factureOrigine.numero
+                        }
+                    })
+                    .select('id')
+                    .single();
+
+                if (!insertErr && inserted?.id) {
+                    nouvelAvoir.serverId = inserted.id;
+                }
+            }
+
+            // Mettre à jour la liste des factures
+            const nouvellesFactures = [nouvelAvoir, ...invoices];
+            updateInvoices(nouvellesFactures);
+            setViewingInvoice(nouvelAvoir);
+            showToast(`Avoir ${numeroAvoir} émis avec succès pour la facture ${factureOrigine.numero}`, 'success');
+            return true;
+        } catch (err) {
+            console.error('Erreur lors de l’émission de l’avoir:', err);
+            showToast(`Émission de l'avoir impossible : ${err.message}`, 'error');
+            return false;
+        }
+    };
+
     // 2026-09-06 — Changer le type d'une facture BROUILLON (standard / acompte
     // / situation / solde). Interdit après émission : invoice_type est figé
     // par le trigger protect_issued_invoice au même titre que les montants.
@@ -18991,6 +19623,37 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     };
 
+    // 2026-09-10 — Émettre un avoir rectificatif sur une facture émise
+    const creerAvoirFacture = async ({ factureSource, typeAvoir, montantHT, totalTva, totalTTC, motif, precision }) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return false; }
+        try {
+            const res = await InvoiceService.creerAvoir({
+                factureSource,
+                typeAvoir,
+                montantHT,
+                totalTva,
+                totalTTC,
+                motif,
+                precision,
+                factures: invoices,
+                supabaseClient,
+                sbUser,
+                activeOrgId: activeOrganizationId
+            });
+
+            // Ajouter le nouvel avoir à la liste et l'ouvrir immédiatement en consultation
+            updateInvoices([res.avoir, ...invoices]);
+            setViewingInvoice(res.avoir);
+            setCreditNoteModalData(null);
+            showToast(`Avoir ${res.avoir.numero} émis avec succès (${formatMoney(totalTTC, companyInfo.currency || 'FCFA')})`, "success");
+            return true;
+        } catch (err) {
+            console.error("Erreur émission avoir:", err);
+            showToast(`Erreur : ${err.message}`, "error");
+            return false;
+        }
+    };
+
     const renderInvoices = () => {
         const cur = companyInfo.currency || 'FCFA';
         const devisFacturables = savedQuotes.filter(q => !devisEstEntierementFacture(q));
@@ -19000,7 +19663,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             sent: { texte: 'Envoyée', classe: 'bg-indigo-50 text-indigo-800 border-indigo-300' },
             partially_paid: { texte: 'Partiellement réglée', classe: 'bg-amber-50 text-amber-800 border-amber-300' },
             paid: { texte: 'Réglée', classe: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
-            cancelled: { texte: 'Annulée', classe: 'bg-red-50 text-red-800 border-red-300' }
+            cancelled: { texte: 'Annulée', classe: 'bg-red-50 text-red-800 border-red-300' },
+            avoir: { texte: 'Avoir émis', classe: 'bg-purple-50 text-purple-800 border-purple-300' }
+        };
+        const getStatutBadge = (f) => {
+            if (!f) return libelleStatut.draft;
+            if (f.type === 'avoir') return libelleStatut.avoir;
+            return libelleStatut[f.statut] || libelleStatut.draft;
         };
         const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
         // Toujours retrouver la version fraîche dans `invoices` (le statut change
@@ -19010,8 +19679,102 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             ? (invoices.find(f => f.id === viewingInvoice.id) || viewingInvoice)
             : null;
         const invoiceQuery = normalizeSearchText(invoiceSearchQuery);
-        const visibleInvoices = invoices.filter(f => invoiceStatusFilter === 'all' || f.statut === invoiceStatusFilter)
-            .filter(f => !invoiceQuery || [f.numero, f.clientName, f.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(invoiceQuery)));
+
+        // 2026-09-10 — Compteurs dynamiques pour les pastilles de filtrage rapide
+        const countBrouillons = invoices.filter(f => f.statut === 'draft').length;
+        const countNonReglees = invoices.filter(f => f.statut !== 'draft' && f.statut !== 'cancelled' && f.type !== 'avoir' && (Number(f.montantRegle) || 0) === 0).length;
+        const countPartielles = invoices.filter(f => {
+            if (f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
+            const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+            const regle = Number(f.montantRegle) || 0;
+            return regle > 0 && regle < netTTC;
+        }).length;
+        const countSoldees = invoices.filter(f => {
+            if (f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
+            const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+            const regle = Number(f.montantRegle) || 0;
+            return regle >= netTTC && netTTC > 0;
+        }).length;
+        const countEnRetard = invoices.filter(isInvoiceOverdue).length;
+        const countAvoirs = invoices.filter(f => f.type === 'avoir').length;
+
+        const visibleInvoices = invoices
+            .filter(f => {
+                // 1. Filtrage par statut / état de règlement
+                if (invoiceStatusFilter === 'all') return true;
+                if (invoiceStatusFilter === 'avoir') return f.type === 'avoir';
+                if (f.type === 'avoir') return false; // les autres filtres ciblent les factures de vente
+
+                const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+                const regle = Number(f.montantRegle) || 0;
+
+                if (invoiceStatusFilter === 'draft') return f.statut === 'draft';
+                if (invoiceStatusFilter === 'issued') return f.statut === 'issued';
+                if (invoiceStatusFilter === 'sent') return f.statut === 'sent';
+                if (invoiceStatusFilter === 'cancelled') return f.statut === 'cancelled';
+                if (invoiceStatusFilter === 'unpaid') {
+                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle === 0;
+                }
+                if (invoiceStatusFilter === 'partially_paid') {
+                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle > 0 && regle < netTTC;
+                }
+                if (invoiceStatusFilter === 'paid') {
+                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle >= netTTC && netTTC > 0;
+                }
+                if (invoiceStatusFilter === 'overdue') {
+                    return isInvoiceOverdue(f);
+                }
+                return f.statut === invoiceStatusFilter;
+            })
+            .filter(f => matchesInvoicePeriod(f, invoicePeriodFilter))
+            .filter(f => {
+                if (!invoiceQuery) return true;
+                const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+                const regle = Number(f.montantRegle) || 0;
+                const searchableFields = [
+                    f.numero,
+                    f.clientName,
+                    f.projectRef,
+                    f.motif,
+                    f.devisNumero,
+                    f.correctsInvoiceNumber,
+                    String(netTTC),
+                    String(f.totalTTC || ''),
+                    String(f.totalHT || ''),
+                    String(regle)
+                ];
+                return searchableFields.filter(Boolean).some(v => normalizeSearchText(v).includes(invoiceQuery));
+            })
+            .slice()
+            .sort((a, b) => {
+                if (invoiceSort === 'oldest') {
+                    const da = new Date(a.dateEmission || a.date || a.id || 0).getTime();
+                    const db = new Date(b.dateEmission || b.date || b.id || 0).getTime();
+                    return da - db;
+                }
+                if (invoiceSort === 'amount_desc') {
+                    const va = Number(a.netAPayerTTC != null ? a.netAPayerTTC : a.totalTTC) || 0;
+                    const vb = Number(b.netAPayerTTC != null ? b.netAPayerTTC : b.totalTTC) || 0;
+                    return vb - va;
+                }
+                if (invoiceSort === 'amount_asc') {
+                    const va = Number(a.netAPayerTTC != null ? a.netAPayerTTC : a.totalTTC) || 0;
+                    const vb = Number(b.netAPayerTTC != null ? b.netAPayerTTC : b.totalTTC) || 0;
+                    return va - vb;
+                }
+                if (invoiceSort === 'client_asc') {
+                    return String(a.clientName || '').localeCompare(String(b.clientName || ''), 'fr');
+                }
+                if (invoiceSort === 'due_desc') {
+                    const ra = Math.max(0, (Number(a.netAPayerTTC != null ? a.netAPayerTTC : a.totalTTC) || 0) - (Number(a.montantRegle) || 0));
+                    const rb = Math.max(0, (Number(b.netAPayerTTC != null ? b.netAPayerTTC : b.totalTTC) || 0) - (Number(b.montantRegle) || 0));
+                    return rb - ra;
+                }
+                // 'recent' par défaut :
+                const da = new Date(a.dateEmission || a.date || a.id || 0).getTime();
+                const db = new Date(b.dateEmission || b.date || b.id || 0).getTime();
+                return db - da;
+            });
 
         // 2026-09-06 — Remplacé par ouvrirNouvelleSituation (situations de
         // travaux) : toute création de facture passe désormais par le tableau
@@ -19020,10 +19783,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         const hasActiveInvoice = Boolean(activeInvoice);
 
-        // 2026-09-10 — Calculs des indicateurs financiers globaux de facturation
+        // 2026-09-10 — Calculs des indicateurs financiers globaux de facturation (déduction automatique des avoirs)
         const facturesEmises = invoices.filter(f => f.statut !== 'draft' && f.statut !== 'cancelled');
-        const totalFactureTTC = facturesEmises.reduce((sum, f) => sum + (Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0), 0);
-        const totalEncaisseTTC = facturesEmises.reduce((sum, f) => sum + (Number(f.montantRegle) || 0), 0);
+        const totalFactureTTC = facturesEmises.reduce((sum, f) => {
+            const val = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
+            return sum + (f.type === 'avoir' ? -Math.abs(val) : val);
+        }, 0);
+        const totalEncaisseTTC = facturesEmises.reduce((sum, f) => sum + (f.type === 'avoir' ? 0 : (Number(f.montantRegle) || 0)), 0);
         const resteARecouvrerTTC = Math.max(0, totalFactureTTC - totalEncaisseTTC);
         const tauxRecouvrement = totalFactureTTC > 0 ? Math.min(100, Math.round((totalEncaisseTTC / totalFactureTTC) * 100)) : 0;
 
@@ -19135,33 +19901,202 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </div>
                     </div>
 
-                    <div className="app-card p-2.5 space-y-2">
+                    <div className="app-card p-2.5 space-y-2.5">
+                        {/* 1. Barre de recherche avec icône et bouton effacer */}
                         <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs"></i>
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
                             <input
                                 type="search"
                                 value={invoiceSearchQuery}
                                 onChange={e => setInvoiceSearchQuery(e.target.value)}
-                                placeholder="Rechercher une facture, client ou chantier…"
-                                className="app-input pl-10 pr-3 py-2 text-xs"
+                                placeholder="Rechercher n°, client, chantier, montant…"
+                                className="app-input pl-9 pr-8 py-1.5 text-xs"
                                 aria-label="Rechercher dans les factures"
                             />
+                            {invoiceSearchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceSearchQuery('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs p-1"
+                                    title="Effacer la recherche"
+                                    aria-label="Effacer la recherche"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            )}
                         </div>
-                        <CustomSelect
-                            value={invoiceStatusFilter}
-                            onChange={e => setInvoiceStatusFilter(e.target.value)}
-                            size="sm"
-                            aria-label="Filtrer les factures par statut"
-                            options={[
-                                { value: 'all', label: 'Tous les statuts' },
-                                { value: 'draft', label: 'Brouillons' },
-                                { value: 'issued', label: 'Émises' },
-                                { value: 'sent', label: 'Envoyées' },
-                                { value: 'partially_paid', label: 'Partiellement réglées' },
-                                { value: 'paid', label: 'Payées' },
-                                { value: 'cancelled', label: 'Annulées' }
-                            ]}
-                        />
+
+                        {/* 2. Filtres & Tri (Grid compacte) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Statut / Règlement</label>
+                                <CustomSelect
+                                    value={invoiceStatusFilter}
+                                    onChange={e => setInvoiceStatusFilter(e.target.value)}
+                                    size="sm"
+                                    aria-label="Filtrer les factures par statut ou état de règlement"
+                                    options={[
+                                        { value: 'all', label: 'Tous les statuts' },
+                                        { value: 'unpaid', label: '⏳ Non réglées (en attente)' },
+                                        { value: 'partially_paid', label: '⚡ Partiellement réglées' },
+                                        { value: 'paid', label: '✓ Soldées / Payées' },
+                                        { value: 'overdue', label: '⚠️ En retard de paiement' },
+                                        { value: 'draft', label: '✏️ Brouillons' },
+                                        { value: 'issued', label: '📄 Émises' },
+                                        { value: 'sent', label: '✉️ Envoyées' },
+                                        { value: 'avoir', label: '🟣 Avoirs rectificatifs' },
+                                        { value: 'cancelled', label: '✕ Annulées' }
+                                    ]}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Période</label>
+                                <CustomSelect
+                                    value={invoicePeriodFilter}
+                                    onChange={e => setInvoicePeriodFilter(e.target.value)}
+                                    size="sm"
+                                    aria-label="Filtrer les factures par période temporelle"
+                                    options={[
+                                        { value: 'all', label: 'Toutes les dates' },
+                                        { value: 'this_month', label: 'Ce mois-ci' },
+                                        { value: 'this_quarter', label: 'Ce trimestre' },
+                                        { value: 'this_year', label: 'Cette année' },
+                                        { value: 'last_year', label: 'Année précédente' }
+                                    ]}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Trier par</label>
+                                <CustomSelect
+                                    value={invoiceSort}
+                                    onChange={e => setInvoiceSort(e.target.value)}
+                                    size="sm"
+                                    aria-label="Trier les factures"
+                                    options={[
+                                        { value: 'recent', label: 'Plus récentes d’abord' },
+                                        { value: 'oldest', label: 'Plus anciennes d’abord' },
+                                        { value: 'amount_desc', label: 'Montant TTC décroissant' },
+                                        { value: 'amount_asc', label: 'Montant TTC croissant' },
+                                        { value: 'client_asc', label: 'Client (A → Z)' },
+                                        { value: 'due_desc', label: 'Reste dû décroissant' }
+                                    ]}
+                                />
+                            </div>
+                        </div>
+
+                        {/* 3. Pastilles de filtrage rapide (Quick Pills) avec compteurs en temps réel */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pt-1 pb-0.5 -mx-0.5 px-0.5 text-[11px]">
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('all')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'all'
+                                        ? 'bg-neutral-800 text-white font-bold'
+                                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                }`}
+                            >
+                                <span>Toutes</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'all' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-600'}`}>{invoices.length}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('unpaid')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'unpaid'
+                                        ? 'bg-amber-600 text-white font-bold'
+                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'
+                                }`}
+                            >
+                                <span>Non réglées</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'unpaid' ? 'bg-amber-700 text-white' : 'bg-amber-200 text-amber-900'}`}>{countNonReglees}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('partially_paid')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'partially_paid'
+                                        ? 'bg-blue-600 text-white font-bold'
+                                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/60'
+                                }`}
+                            >
+                                <span>Partielles</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'partially_paid' ? 'bg-blue-700 text-white' : 'bg-blue-200 text-blue-900'}`}>{countPartielles}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('paid')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'paid'
+                                        ? 'bg-emerald-600 text-white font-bold'
+                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
+                                }`}
+                            >
+                                <span>Soldées</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'paid' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-900'}`}>{countSoldees}</span>
+                            </button>
+                            {countEnRetard > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceStatusFilter('overdue')}
+                                    className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                        invoiceStatusFilter === 'overdue'
+                                            ? 'bg-red-600 text-white font-bold'
+                                            : 'bg-red-50 text-red-800 hover:bg-red-100 border border-red-200/80 animate-pulse'
+                                    }`}
+                                >
+                                    <span>⚠️ En retard</span>
+                                    <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'overdue' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-900'}`}>{countEnRetard}</span>
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('avoir')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'avoir'
+                                        ? 'bg-purple-600 text-white font-bold'
+                                        : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200/60'
+                                }`}
+                            >
+                                <span>Avoirs</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'avoir' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-900'}`}>{countAvoirs}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setInvoiceStatusFilter('draft')}
+                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    invoiceStatusFilter === 'draft'
+                                        ? 'bg-neutral-600 text-white font-bold'
+                                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                }`}
+                            >
+                                <span>Brouillons</span>
+                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'draft' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-600'}`}>{countBrouillons}</span>
+                            </button>
+                        </div>
+
+                        {/* 4. Récapitulatif des filtres actifs avec action de réinitialisation */}
+                        {(invoiceSearchQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent') && (
+                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+                                <span className="flex items-center gap-1.5 font-medium">
+                                    <i className="fa-solid fa-filter text-brand-600 text-[11px]"></i>
+                                    <span><strong>{visibleInvoices.length}</strong> résultat(s) sur {invoices.length}</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setInvoiceSearchQuery('');
+                                        setInvoiceStatusFilter('all');
+                                        setInvoicePeriodFilter('all');
+                                        setInvoiceSort('recent');
+                                    }}
+                                    className="text-xs font-bold text-brand-700 hover:underline flex items-center gap-1"
+                                    title="Réinitialiser tous les filtres"
+                                >
+                                    <i className="fa-solid fa-arrow-rotate-left text-[10px]"></i>
+                                    <span>Réinitialiser</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Le Mode Démo ne peut offrir aucune garantie légale : la
@@ -19180,7 +20115,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             /* Mode 2 colonnes (Master-Detail) : liste de tuiles épurées, zéro chevauchement horizontal */
                             <div className="flex flex-col gap-2.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
                                 {visibleInvoices.map(f => {
-                                    const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                    const st = getStatutBadge(f);
                                     const isActive = !!(activeInvoice && activeInvoice.id === f.id);
                                     const selectInvoice = () => setViewingInvoice(f);
                                     return (
@@ -19200,10 +20135,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         >
                                             {/* Ligne 1 : Numéro & Montant TTC */}
                                             <div className="flex items-center justify-between gap-2 min-w-0">
-                                                <span className="font-mono text-xs font-bold text-brand-700 truncate">
-                                                    {f.numero || 'Brouillon'}
-                                                </span>
-                                                <span className="font-bold text-xs text-neutral-900 tabular-nums shrink-0">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    {f.type === 'avoir' && (
+                                                        <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded shrink-0">AVOIR</span>
+                                                    )}
+                                                    <span className="font-mono text-xs font-bold text-brand-700 truncate">
+                                                        {f.numero || 'Brouillon'}
+                                                    </span>
+                                                </div>
+                                                <span className={`font-bold text-xs tabular-nums shrink-0 ${f.type === 'avoir' ? 'text-purple-700' : 'text-neutral-900'}`}>
                                                     {formatMoney(f.totalTTC, cur)}
                                                 </span>
                                             </div>
@@ -19213,13 +20153,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <span className="font-semibold text-xs text-neutral-900 truncate" title={f.clientName || 'Société non renseignée'}>
                                                     {f.clientName || 'Société non renseignée'}
                                                 </span>
-                                                <div className="shrink-0">
+                                                <div className="shrink-0 flex items-center gap-1">
+                                                    {isInvoiceOverdue(f) && (
+                                                        <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded shrink-0 border border-red-200" title="Échéance de paiement dépassée">
+                                                            <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
+                                                        </span>
+                                                    )}
                                                     <Badge colorClass={st.classe}>{st.texte}</Badge>
                                                 </div>
                                             </div>
 
                                             {/* Suivi du règlement si facture émise */}
-                                            {f.statut !== 'draft' && f.statut !== 'cancelled' && (() => {
+                                            {f.statut !== 'draft' && f.statut !== 'cancelled' && f.type !== 'avoir' && (() => {
                                                 const netTTC = f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC;
                                                 const regle = Number(f.montantRegle) || 0;
                                                 const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
@@ -19245,7 +20190,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <span className="truncate">{f.projectRef || 'Chantier non renseigné'}</span>
                                                 </span>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    {f.devisNumero && (
+                                                    {f.correctsInvoiceNumber && (
+                                                        <span className="text-[10px] text-purple-700 font-medium">sur {f.correctsInvoiceNumber}</span>
+                                                    )}
+                                                    {f.devisNumero && !f.correctsInvoiceNumber && (
                                                         <span className="text-[10px] text-neutral-500">depuis {f.devisNumero}</span>
                                                     )}
                                                     {f.statut === 'draft' && (
@@ -19296,7 +20244,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100">
                                         {visibleInvoices.map(f => {
-                                            const st = libelleStatut[f.statut] || libelleStatut.draft;
+                                            const st = getStatutBadge(f);
                                             const isActive = !!(activeInvoice && activeInvoice.id === f.id);
                                             const selectInvoice = () => setViewingInvoice(f);
                                             return (
@@ -19322,12 +20270,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                                                        <span className="font-mono text-xs font-bold text-brand-700 block">{f.numero || 'Brouillon'}</span>
-                                                        {f.devisNumero && <span className="text-[10px] text-neutral-500">depuis {f.devisNumero}</span>}
+                                                        <div className="flex items-center gap-1.5">
+                                                            {f.type === 'avoir' && (
+                                                                <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded shrink-0">AVOIR</span>
+                                                            )}
+                                                            <span className="font-mono text-xs font-bold text-brand-700">{f.numero || 'Brouillon'}</span>
+                                                        </div>
+                                                        {f.correctsInvoiceNumber && <span className="text-[10px] text-purple-700 block font-medium">sur {f.correctsInvoiceNumber}</span>}
+                                                        {f.devisNumero && !f.correctsInvoiceNumber && <span className="text-[10px] text-neutral-500 block">depuis {f.devisNumero}</span>}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right font-bold text-neutral-900 tabular-nums whitespace-nowrap">
-                                                        <div>{formatMoney(f.totalTTC, cur)}</div>
-                                                        {f.statut !== 'draft' && f.statut !== 'cancelled' && (
+                                                        <div className={f.type === 'avoir' ? 'text-purple-700' : ''}>{formatMoney(f.totalTTC, cur)}</div>
+                                                        {f.statut !== 'draft' && f.statut !== 'cancelled' && f.type !== 'avoir' && (
                                                             <div className="text-[10px] font-normal mt-0.5">
                                                                 {Number(f.montantRegle) >= (f.netAPayerTTC || f.totalTTC) ? (
                                                                     <span className="text-emerald-600 font-semibold"><i className="fa-solid fa-check text-[9px] mr-0.5"></i>Soldée</span>
@@ -19340,7 +20294,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
-                                                        <Badge colorClass={st.classe}>{st.texte}</Badge>
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            {isInvoiceOverdue(f) && (
+                                                                <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded shrink-0 border border-red-200" title="Échéance de paiement dépassée">
+                                                                    <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
+                                                                </span>
+                                                            )}
+                                                            <Badge colorClass={st.classe}>{st.texte}</Badge>
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right whitespace-nowrap">
                                                         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
@@ -19401,10 +20362,31 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mx-auto mb-3 border border-brand-100">
                                 <i className="fa-solid fa-file-invoice-dollar"></i>
                             </div>
-                            <p className="text-sm font-bold text-neutral-800">{(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Aucune facture correspondante' : 'Aucune facture pour le moment'}</p>
-                            <p className="text-xs text-neutral-500 mt-1 max-w-[15rem] mx-auto leading-relaxed">
-                                {(invoiceQuery || invoiceStatusFilter !== 'all') ? 'Modifiez votre recherche ou votre filtre pour afficher d’autres factures.' : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
+                            <p className="text-sm font-bold text-neutral-800">
+                                {(invoiceQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent')
+                                    ? 'Aucune facture correspondante'
+                                    : 'Aucune facture pour le moment'}
                             </p>
+                            <p className="text-xs text-neutral-500 mt-1 max-w-[17rem] mx-auto leading-relaxed">
+                                {(invoiceQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent')
+                                    ? 'Modifiez votre recherche ou vos filtres pour afficher d’autres factures.'
+                                    : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
+                            </p>
+                            {(invoiceQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent') && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setInvoiceSearchQuery('');
+                                        setInvoiceStatusFilter('all');
+                                        setInvoicePeriodFilter('all');
+                                        setInvoiceSort('recent');
+                                    }}
+                                    className="btn-secondary mt-3 text-xs py-1.5 px-3 inline-flex items-center gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50"
+                                >
+                                    <i className="fa-solid fa-arrow-rotate-left text-[11px]"></i>
+                                    <span>Réinitialiser tous les filtres</span>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -19426,12 +20408,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <span className="text-xs font-bold font-mono text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1.5 rounded-lg shrink-0">
                                                     {activeInvoice.numero}
                                                 </span>
-                                                <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
-                                                    {(libelleStatut[activeInvoice.statut] || libelleStatut.draft).texte}
+                                                <Badge className="shrink-0" colorClass={getStatutBadge(activeInvoice).classe}>
+                                                    {getStatutBadge(activeInvoice).texte}
                                                 </Badge>
                                             </>
                                         ) : (
-                                            <Badge className="shrink-0" colorClass={(libelleStatut[activeInvoice.statut] || libelleStatut.draft).classe}>
+                                            <Badge className="shrink-0" colorClass={getStatutBadge(activeInvoice).classe}>
                                                 <i className="fa-solid fa-file-pen mr-1.5 text-[10px]"></i> Brouillon non émis
                                             </Badge>
                                         )}
@@ -19511,8 +20493,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     'facture'
                                                 )}
                                                 disabled={pdfEnCours === 'facture'}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold disabled:opacity-60 flex items-center gap-1.5"
-                                                title="Télécharger ce brouillon en PDF — il porte la mention « non numéroté »"
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm disabled:opacity-60 flex items-center gap-1.5"
+                                                title="Télécharger ce brouillon en PDF — template actif appliqué automatiquement"
                                                 aria-label="Télécharger le brouillon de facture en PDF"
                                             >
                                                 <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
@@ -19540,16 +20522,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         </>
                                     ) : (
                                         <>
-                                            <button
-                                                type="button"
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                onClick={() => setPaymentModalData(activeInvoice)}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 flex items-center gap-1.5"
-                                                aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
-                                            >
-                                                <i className="fa-solid fa-hand-holding-dollar"></i>
-                                                <span>Enregistrer un règlement</span>
-                                            </button>
+                                            {activeInvoice.type !== 'avoir' && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    onClick={() => setPaymentModalData(activeInvoice)}
+                                                    className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 flex items-center gap-1.5"
+                                                    aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
+                                                >
+                                                    <i className="fa-solid fa-hand-holding-dollar"></i>
+                                                    <span>Enregistrer un règlement</span>
+                                                </button>
+                                            )}
                                             {activeInvoice.statut === 'issued' && (
                                                 <button
                                                     type="button"
@@ -19604,8 +20588,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     'facture'
                                                 )}
                                                 disabled={pdfEnCours === 'facture'}
-                                                className="btn-secondary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60 flex items-center gap-1.5"
-                                                title="Télécharger la facture au format PDF"
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm disabled:opacity-60 flex items-center gap-1.5"
+                                                title="Télécharger la facture au format PDF — template actif appliqué automatiquement"
                                                 aria-label="Télécharger la facture en PDF"
                                             >
                                                 <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
@@ -19615,8 +20599,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 <i className="fa-solid fa-print"></i>
                                                 <span>Imprimer</span>
                                             </button>
-                                            <span className="text-[10px] text-neutral-500 px-1 ml-auto" title="Une facture émise est figée : correction par avoir uniquement.">
+                                            {activeInvoice.type !== 'avoir' && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    onClick={() => setCreditNoteModalData(activeInvoice)}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer"
+                                                    title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
+                                                    aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
+                                                >
+                                                    <i className="fa-solid fa-file-invoice text-purple-600"></i>
+                                                    <span>Créer un Avoir</span>
+                                                </button>
+                                            )}
+                                            <span className="text-[10px] text-neutral-500 px-1 ml-auto flex items-center gap-1" title={activeInvoice.type === 'avoir' ? "Avoir comptable officiel certifié" : "Une facture émise est figée : correction par avoir uniquement."}>
                                                 <i className="fa-solid fa-lock"></i>
+                                                <span className="hidden sm:inline">{activeInvoice.type === 'avoir' ? "Inaltérable" : "Figée"}</span>
                                             </span>
                                         </>
                                     )}
@@ -19624,6 +20622,24 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
 
                             <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                                {activeInvoice.type === 'avoir' && (
+                                    <div className="mb-4 border-2 border-purple-300 bg-purple-50 rounded-xl p-3.5 flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 border border-purple-200">
+                                            <i className="fa-solid fa-file-invoice text-sm"></i>
+                                        </div>
+                                        <div className="text-xs text-purple-900 min-w-0">
+                                            <p className="font-bold uppercase tracking-wide flex items-center gap-2">
+                                                <span>Avoir comptable rectificatif</span>
+                                                <span className="bg-purple-200/80 text-purple-900 font-mono text-[10px] px-2 py-0.5 rounded-full">{activeInvoice.numero}</span>
+                                            </p>
+                                            <p className="text-[11px] text-purple-800 mt-1">
+                                                Ce document compense et rectifie la facture <strong>{activeInvoice.correctsInvoiceNumber || 'd’origine'}</strong>.
+                                                {activeInvoice.motif && <> Motif légal : <strong>{activeInvoice.motif}</strong>.</>}
+                                                {activeInvoice.precision && <> ({activeInvoice.precision})</>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                                 {estBrouillon && (
                                     <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                         <div className="flex items-start gap-3">
@@ -19657,7 +20673,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 )}
 
                                 {/* 2026-09-10 — Suivi des règlements & Historique des versements */}
-                                {!estBrouillon && (() => {
+                                {!estBrouillon && activeInvoice.type !== 'avoir' && (() => {
                                     const netTTC = activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC;
                                     const regle = Number(activeInvoice.montantRegle) || 0;
                                     const reste = Math.max(0, netTTC - regle);
@@ -24263,6 +25279,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     companyInfo={companyInfo}
                     devise={companyInfo.currency || 'FCFA'}
                     onClose={() => setReceiptModalData(null)}
+                    onDownloadPdf={telechargerElementPdf}
+                    theme={themeDepuisConfiguration(configurationActive)}
+                    configuration={configurationActive}
+                />
+            )}
+            {creditNoteModalData && (
+                <InvoiceCreditNoteModal
+                    facture={creditNoteModalData}
+                    devise={companyInfo.currency || 'FCFA'}
+                    onClose={() => setCreditNoteModalData(null)}
+                    onSubmit={emettreAvoirFacture}
                 />
             )}
 
