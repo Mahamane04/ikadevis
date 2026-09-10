@@ -18689,8 +18689,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     // ══ FACTURES (2026-08-20, § 30) ═══════════════════════════════════════
-    const emettreFacture = async (facture) => {
-        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return; }
+    const emettreFacture = async (facture, etMarquerEnvoyee = false) => {
+        if (isReadOnlyDueToDowngrade) { showToast("Action bloquée en Lecture Seule", "error"); return false; }
         // Les mentions légales obligatoires d'une facture sont les mêmes que
         // celles déjà exigées avant d'envoyer un devis : on réutilise le
         // contrôle existant plutôt que d'en écrire un second qui pourrait
@@ -18699,7 +18699,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (manquants.length > 0) {
             showToast(`Complétez l'identité de l'entreprise avant d'émettre : ${manquants.join(', ')}`, "error");
             openAccountSettings('entreprise');
-            return;
+            return false;
         }
         try {
             const res = await InvoiceService.emettre({
@@ -18736,12 +18736,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 }
             }
 
+            const cibleStatut = etMarquerEnvoyee ? 'sent' : 'issued';
+            const dateEnvoi = etMarquerEnvoyee ? new Date().toISOString() : null;
+
+            if (estCloud && etMarquerEnvoyee) {
+                await supabaseClient
+                    .from('invoices')
+                    .update({ status: 'sent', sent_at: dateEnvoi })
+                    .eq('id', facture.serverId)
+                    .eq('organization_id', activeOrganizationId);
+            }
+
             updateInvoices(invoices.map(f => f.id === facture.id
-                ? { ...f, numero: res.numero, statut: 'issued', dateEmission: res.dateEmission, ...retenueMaj }
+                ? { ...f, numero: res.numero, statut: cibleStatut, dateEmission: res.dateEmission, dateEnvoi, sent_at: dateEnvoi, ...retenueMaj }
                 : f));
-            showToast(`Facture ${res.numero} émise — elle ne peut plus être modifiée.`, "success");
+            showToast(
+                etMarquerEnvoyee
+                    ? `Facture ${res.numero} émise et marquée comme envoyée au client.`
+                    : `Facture ${res.numero} émise — elle ne peut plus être modifiée.`,
+                "success"
+            );
+            return true;
         } catch (err) {
             showToast(`Émission impossible : ${err.message}`, "error");
+            return false;
         }
     };
 
@@ -18768,7 +18786,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const envoyerFacture = async (facture) => {
         if (isReadOnlyDueToDowngrade) { showToast('Action bloquée en Lecture Seule', 'error'); return; }
         if (facture.statut === 'draft') {
-            showToast("Émettez d'abord la facture avant de l'envoyer.", 'error');
+            await emettreFacture(facture, true);
             return;
         }
         const dateEnvoi = new Date().toISOString();
@@ -18785,9 +18803,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }
         updateInvoices(invoices.map(f => f.id === facture.id
-            ? { ...f, statut: 'sent', dateEnvoi }
+            ? { ...f, statut: 'sent', dateEnvoi, sent_at: dateEnvoi }
             : f));
-        showToast(`Facture ${facture.numero} marquée comme envoyée.`, 'success');
+        showToast(`Facture ${facture.numero} marquée comme envoyée au client.`, 'success');
+    };
+
+    const marquerFactureNonEnvoyee = async (facture) => {
+        if (isReadOnlyDueToDowngrade) { showToast('Action bloquée en Lecture Seule', 'error'); return; }
+        const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId && facture.serverId);
+        if (estCloud) {
+            const { error } = await supabaseClient
+                .from('invoices')
+                .update({ status: 'issued', sent_at: null })
+                .eq('id', facture.serverId)
+                .eq('organization_id', activeOrganizationId);
+            if (error) {
+                showToast(`Modification impossible : ${error.message}`, 'error');
+                return;
+            }
+        }
+        updateInvoices(invoices.map(f => f.id === facture.id
+            ? { ...f, statut: 'issued', dateEnvoi: null, sent_at: null }
+            : f));
+        showToast(`Facture ${facture.numero} repositionnée en statut Émise.`, 'info');
     };
 
     // 2026-09-06 — Ouvre le tableau "Nouvelle situation" : un devis reste
@@ -19313,6 +19351,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right whitespace-nowrap">
                                                         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                                            {f.statut === 'issued' && (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                    onClick={() => envoyerFacture(f)}
+                                                                    className="btn-secondary py-1 px-2 text-[11px] font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1"
+                                                                    title="Marquer comme envoyée au client"
+                                                                >
+                                                                    <i className="fa-solid fa-paper-plane text-[10px]"></i>
+                                                                    <span>Envoyée</span>
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 type="button"
                                                                 onClick={selectInvoice}
@@ -19373,7 +19423,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             const estBrouillon = activeInvoice.statut === 'draft';
                             return (
                             <div className="app-card flex flex-col">
-                                <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
+                                <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white sticky top-0 z-20 shadow-2xs">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="lg:hidden shrink-0"><button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                             <i className="fa-solid fa-arrow-left"></i>
@@ -19439,26 +19489,41 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     confirmLabel: "Émettre",
                                                     onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice); }
                                                 })}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold"
+                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold flex items-center gap-1.5"
                                                 aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
                                             >
-                                                <i className="fa-solid fa-paper-plane"></i> Émettre
+                                                <i className="fa-solid fa-file-circle-check"></i>
+                                                <span>Émettre</span>
                                             </button>
-                                            {/* Le libellé dit « brouillon », pas « facture » : le
-                                                fichier obtenu n'est pas une pièce comptable, et le
-                                                nom du fichier le répète. */}
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={() => setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: "Émettre & Marquer comme envoyée",
+                                                    message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
+                                                    confirmLabel: "Marquer comme envoyée",
+                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
+                                                })}
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                                                title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client hors du SaaS"
+                                                aria-label="Marquer comme envoyée"
+                                            >
+                                                <i className="fa-solid fa-paper-plane text-indigo-600"></i>
+                                                <span>Marquer comme envoyée</span>
+                                            </button>
                                             <button
                                                 onClick={() => telechargerDocument(
                                                     `Brouillon facture ${activeInvoice.clientName}`,
                                                     'facture'
                                                 )}
                                                 disabled={pdfEnCours === 'facture'}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold disabled:opacity-60"
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold disabled:opacity-60 flex items-center gap-1.5"
                                                 title="Télécharger ce brouillon en PDF — il porte la mention « non numéroté »"
                                                 aria-label="Télécharger le brouillon de facture en PDF"
                                             >
-                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} mr-1.5`}></i>
-                                                {pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le brouillon'}
+                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
+                                                <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le brouillon'}</span>
                                             </button>
                                             <button
                                                 disabled={isReadOnlyDueToDowngrade}
@@ -19473,7 +19538,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         if (await supprimerFacture(f)) showToast("Brouillon supprimé");
                                                     }
                                                 })}
-                                                className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50"
+                                                className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50 ml-auto"
                                                 title="Supprimer le brouillon"
                                                 aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
                                             >
@@ -19489,15 +19554,33 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                 className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 flex items-center gap-1.5"
                                                 aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
                                             >
-                                                <i className="fa-solid fa-hand-holding-dollar"></i> Enregistrer un règlement
+                                                <i className="fa-solid fa-hand-holding-dollar"></i>
+                                                <span>Enregistrer un règlement</span>
                                             </button>
                                             {activeInvoice.statut === 'issued' && (
                                                 <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
                                                     onClick={() => envoyerFacture(activeInvoice)}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                                                    aria-label={`Envoyer la facture ${activeInvoice.numero}`}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                                                    title="Indiquer que la facture a été transmise au client (téléchargée et envoyée sans passer par le SaaS)"
+                                                    aria-label={`Marquer la facture ${activeInvoice.numero} comme envoyée`}
                                                 >
-                                                    <i className="fa-solid fa-paper-plane mr-1.5"></i> Envoyer
+                                                    <i className="fa-solid fa-paper-plane text-indigo-600"></i>
+                                                    <span>Marquer comme envoyée</span>
+                                                </button>
+                                            )}
+                                            {activeInvoice.statut === 'sent' && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnlyDueToDowngrade}
+                                                    onClick={() => marquerFactureNonEnvoyee(activeInvoice)}
+                                                    className="py-1.5 px-3 text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg flex items-center gap-1.5 transition-colors"
+                                                    title="Facture enregistrée comme transmise au client. Cliquer pour réinitialiser en statut Émise si nécessaire"
+                                                    aria-label="Facture marquée comme envoyée"
+                                                >
+                                                    <i className="fa-solid fa-check-double text-indigo-600"></i>
+                                                    <span>Marquée comme envoyée</span>
                                                 </button>
                                             )}
                                             <button
@@ -19515,11 +19598,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                         destinataire: fiche?.phone || ''
                                                     });
                                                 }}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1.5"
                                                 title="Envoyer cette facture par WhatsApp ou par e-mail"
                                                 aria-label={`Envoyer la facture ${activeInvoice.numero || 'brouillon'} par WhatsApp ou e-mail`}
                                             >
-                                                <i className="fa-solid fa-share-nodes mr-1.5"></i> Envoyer au client
+                                                <i className="fa-solid fa-share-nodes"></i>
+                                                <span>Partager</span>
                                             </button>
                                             <button
                                                 onClick={() => telechargerDocument(
@@ -19527,17 +19611,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     'facture'
                                                 )}
                                                 disabled={pdfEnCours === 'facture'}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60"
+                                                className="btn-secondary py-1.5 px-3.5 text-xs font-bold disabled:opacity-60 flex items-center gap-1.5"
                                                 title="Télécharger la facture au format PDF"
                                                 aria-label="Télécharger la facture en PDF"
                                             >
                                                 <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                                {pdfEnCours === 'facture' ? ' Génération…' : ' Télécharger le PDF'}
+                                                <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
                                             </button>
-                                            <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
-                                                <i className="fa-solid fa-print"></i> Imprimer
+                                            <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
+                                                <i className="fa-solid fa-print"></i>
+                                                <span>Imprimer</span>
                                             </button>
-                                            <span className="text-[10px] text-neutral-500 px-1" title="Une facture émise est figée : correction par avoir uniquement.">
+                                            <span className="text-[10px] text-neutral-500 px-1 ml-auto" title="Une facture émise est figée : correction par avoir uniquement.">
                                                 <i className="fa-solid fa-lock"></i>
                                             </span>
                                         </>
@@ -19547,13 +19632,33 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                             <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                                 {estBrouillon && (
-                                    <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl px-4 py-2.5 flex items-start gap-3">
-                                        <i className="fa-solid fa-pen-ruler text-amber-700 mt-0.5"></i>
-                                        <div>
-                                            <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
-                                            <p className="text-[11px] text-amber-800">
-                                                Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
-                                            </p>
+                                    <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="flex items-start gap-3">
+                                            <i className="fa-solid fa-pen-ruler text-amber-700 mt-0.5"></i>
+                                            <div>
+                                                <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
+                                                <p className="text-[11px] text-amber-800">
+                                                    Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={() => setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: "Émettre & Marquer comme envoyée",
+                                                    message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
+                                                    confirmLabel: "Marquer comme envoyée",
+                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
+                                                })}
+                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-white border-indigo-300 hover:bg-indigo-50 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                                                title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client"
+                                            >
+                                                <i className="fa-solid fa-paper-plane text-xs text-indigo-600"></i>
+                                                <span>Marquer comme envoyée</span>
+                                            </button>
                                         </div>
                                     </div>
                                 )}
