@@ -87,6 +87,22 @@ async function run() {
         console.log('✓ Has "Enregistrer un règlement" button:', hasPaymentBtn);
         if (!hasPaymentBtn) throw new Error('Button "Enregistrer un règlement" not found in inspector');
 
+        // 5b. Verify Export CSV button exists in header
+        const hasExportCsvBtn = await page.evaluate(() => {
+            const btn = document.querySelector('button[aria-label="Exporter les factures en CSV"]');
+            return Boolean(btn);
+        });
+        console.log('✓ Has Export CSV button in header:', hasExportCsvBtn);
+        if (!hasExportCsvBtn) throw new Error('Export CSV button not found in header');
+
+        // 5c. Verify Relancer button exists for unpaid invoice
+        const hasRelanceBtn = await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button'));
+            return btns.some(b => b.textContent.includes('Relancer') || b.getAttribute('aria-label')?.includes('Relancer'));
+        });
+        console.log('✓ Has "Relancer" button for unpaid balance:', hasRelanceBtn);
+        if (!hasRelanceBtn) throw new Error('Button "Relancer" not found for unpaid invoice');
+
         // Take initial screenshot
         await page.screenshot({ path: path.join(ARTIFACT_DIR, 'audit_invoices_kpi_initial.png') });
 
@@ -137,6 +153,20 @@ async function run() {
         });
         console.log('✓ Receipt modal opened with correct reference:', isReceiptOpen);
         if (!isReceiptOpen) throw new Error('Receipt modal did not open with payment details');
+
+        // Check PDF download button on receipt modal
+        const receiptPdfBtnInfo = await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button'));
+            const downloadBtn = btns.find(b => b.textContent.includes('Télécharger le PDF') && b.getAttribute('aria-label')?.includes('quittance'));
+            return {
+                found: Boolean(downloadBtn),
+                isPrimary: downloadBtn ? downloadBtn.className.includes('btn-primary') : false
+            };
+        });
+        console.log('✓ Receipt Modal PDF Download Button:', receiptPdfBtnInfo);
+        if (!receiptPdfBtnInfo.found || !receiptPdfBtnInfo.isPrimary) {
+            throw new Error('PDF Download button missing or not btn-primary on Receipt modal');
+        }
 
         await page.screenshot({ path: path.join(ARTIFACT_DIR, 'audit_invoice_payment_receipt_modal.png') });
 
