@@ -17548,27 +17548,31 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const enabledWidgets = dashboardConfig.widgets || DEFAULT_DASHBOARD_CONFIG.widgets;
 
         const DashboardMetric = ({ label, value, detail, icon, tone = 'brand' }) => (
-            <div className="app-card p-4 sm:p-5 flex items-start justify-between gap-4 border border-neutral-200/80 shadow-2xs hover:border-neutral-300 transition-all">
-                <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-neutral-500">{label}</p>
-                    <p className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 tabular-nums font-mono">{value}</p>
-                    <p className="mt-1 text-xs text-neutral-500 truncate">{detail}</p>
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-neutral-200/80 shadow-2xs hover:border-neutral-300 hover:shadow-xs transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                    <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-neutral-500 truncate">{label}</p>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        tone === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                        tone === 'amber' ? 'bg-amber-50 text-amber-600' :
+                        tone === 'violet' ? 'bg-violet-50 text-violet-600' :
+                        'bg-brand-50 text-brand-600'
+                    }`}>
+                        <i className={`fa-solid ${icon} text-xs`}></i>
+                    </div>
                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' :
-                    tone === 'amber' ? 'bg-amber-50 text-amber-700' :
-                    tone === 'violet' ? 'bg-violet-50 text-violet-600' :
-                    'bg-brand-50 text-brand-600'
-                }`}>
-                    <i className={`fa-solid ${icon} text-base`}></i>
+                <div>
+                    <p className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 tabular-nums truncate">
+                        {value}
+                    </p>
+                    <p className="mt-1 text-[11px] text-neutral-500 truncate">{detail}</p>
                 </div>
             </div>
         );
 
         return (
-            <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-5 h-full min-h-0 overflow-y-auto custom-scroll pr-1 pb-6">
-                {/* En-tête du Tableau de bord avec salutation, filtre temporel & personnalisation */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
+            <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-5 h-full min-h-0 overflow-y-auto custom-scroll pr-1 pb-8">
+                {/* 1. EN-TÊTE COCKPIT EXÉCUTIF (Aéré & Sans Redondance) */}
+                <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 sm:py-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Tableau de bord de pilotage</span>
@@ -17583,91 +17587,77 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        {/* Filtre de période */}
-                        <div className="flex items-center bg-neutral-100 p-1 rounded-xl border border-neutral-200/60 text-xs">
-                            <button
-                                type="button"
-                                onClick={() => setDashboardPeriodFilter('all')}
-                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'all' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            >
-                                Tout
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDashboardPeriodFilter('month')}
-                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'month' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            >
-                                Ce mois
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDashboardPeriodFilter('quarter')}
-                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'quarter' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            >
-                                Trimestre
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDashboardPeriodFilter('year')}
-                                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${activePeriod === 'year' ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            >
-                                Année
-                            </button>
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                        {/* Filtre de période segmenté */}
+                        <div className="flex items-center bg-neutral-100/90 p-1 rounded-xl border border-neutral-200/70 text-xs">
+                            {[
+                                { key: 'all', label: 'Tout' },
+                                { key: 'month', label: 'Ce mois' },
+                                { key: 'quarter', label: 'Trimestre' },
+                                { key: 'year', label: 'Année' }
+                            ].map(p => (
+                                <button
+                                    key={p.key}
+                                    type="button"
+                                    onClick={() => setDashboardPeriodFilter(p.key)}
+                                    className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                                        activePeriod === p.key
+                                            ? 'bg-white text-neutral-900 shadow-2xs font-bold'
+                                            : 'text-neutral-500 hover:text-neutral-800'
+                                    }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
                         </div>
 
                         {/* Bouton Personnaliser le Dashboard */}
                         <button
                             type="button"
                             onClick={() => setIsDashboardCustomizeOpen(true)}
-                            className="btn-secondary text-xs py-2 px-3 shrink-0 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            className="btn-secondary text-xs py-1.5 px-3 shrink-0 flex items-center gap-1.5 shadow-2xs cursor-pointer"
                             aria-label="Modifier et personnaliser le tableau de bord"
                             title="Modifier les widgets et objectifs du tableau de bord"
                         >
-                            <i className="fa-solid fa-sliders text-neutral-500"></i>
+                            <i className="fa-solid fa-sliders text-neutral-500 text-xs"></i>
                             <span>Personnaliser</span>
                         </button>
-
-                        {/* Bouton Nouveau devis */}
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('calculator')}
-                            className="btn-primary text-xs py-2 px-3.5 shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            aria-label="Créer un nouveau devis"
-                        >
-                            <i className="fa-solid fa-plus text-xs"></i>
-                            <span>Nouveau devis</span>
-                        </button>
                     </div>
-                </div>
+                </header>
 
-                {/* WIDGET 1 : OBJECTIF MENSUEL & JAUGE D'AVANCEMENT */}
+                {/* 2. OBJECTIF MENSUEL (Jauge Épurée Haute Lisibilité) */}
                 {enabledWidgets.monthlyGoal !== false && (
-                    <div className="app-card p-5 bg-gradient-to-br from-white via-white to-brand-50/20 border border-neutral-200/80 shadow-2xs relative overflow-hidden">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="space-y-1 max-w-xl">
+                    <section className="shrink-0 bg-white p-5 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-2xs relative overflow-hidden">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                            <div className="space-y-2 flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Objectif Mensuel de Chiffre d'Affaires</span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-brand-50 text-brand-700 rounded-full capitalize">{monthName}</span>
+                                    <span className="text-[10px] uppercase font-bold tracking-[0.14em] text-neutral-500">Objectif Mensuel de Chiffre d'Affaires</span>
+                                    <span className="text-[10px] font-bold px-2.5 py-0.5 bg-brand-50 text-brand-700 rounded-full capitalize">{monthName}</span>
                                 </div>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-2xl sm:text-3xl font-bold font-mono text-neutral-900 tabular-nums">{formatMoney(monthAchieved, companyInfo.currency)}</span>
-                                    <span className="text-xs sm:text-sm text-neutral-500">réalisés sur {formatMoney(monthlyGoal, companyInfo.currency)} visés</span>
+                                <div className="space-y-1">
+                                    <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 tabular-nums">
+                                        {formatMoney(monthAchieved, companyInfo.currency)}
+                                    </div>
+                                    <p className="text-xs sm:text-sm text-neutral-500 font-medium">
+                                        réalisés sur <strong className="text-neutral-800 font-bold">{formatMoney(monthlyGoal, companyInfo.currency)}</strong> visés ce mois-ci
+                                    </p>
                                 </div>
                                 <p className="text-xs text-neutral-500">
                                     {goalRemaining === 0 ? (
-                                        <span className="text-emerald-700 font-semibold"><i className="fa-solid fa-circle-check mr-1"></i> Objectif du mois atteint avec succès ! Félicitations.</span>
+                                        <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                                            <i className="fa-solid fa-circle-check text-emerald-600"></i> Objectif du mois atteint avec succès ! Félicitations.
+                                        </span>
                                     ) : (
-                                        <span>Il reste <strong className="font-mono text-neutral-800">{formatMoney(goalRemaining, companyInfo.currency)}</strong> pour atteindre la cible de {monthName}.</span>
+                                        <span>Il reste <strong className="text-neutral-900 font-bold">{formatMoney(goalRemaining, companyInfo.currency)}</strong> pour atteindre la cible de {monthName}.</span>
                                     )}
                                 </p>
                             </div>
 
-                            <div className="flex md:flex-col items-center md:items-end justify-between gap-2 shrink-0">
+                            <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2.5 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-neutral-100">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-neutral-500">Progression</span>
-                                    <span className={`text-sm sm:text-base font-extrabold px-3 py-0.5 rounded-full font-mono ${
+                                    <span className="text-xs font-semibold text-neutral-500">Progression</span>
+                                    <span className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full ${
                                         goalPct >= 100 ? 'bg-emerald-100 text-emerald-800' : goalPct >= 50 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
                                     }`}>
                                         {goalPct}%
@@ -17684,26 +17674,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         </div>
 
-                        {/* Barre de progression dégradée */}
-                        <div className="mt-4 w-full h-3 bg-neutral-100 rounded-full overflow-hidden p-0.5 border border-neutral-200/50">
+                        {/* Jauge progressive moderne */}
+                        <div className="mt-4 w-full h-2.5 bg-neutral-100 rounded-full overflow-hidden p-0.5 border border-neutral-200/50">
                             <div
                                 className="h-full rounded-full bg-gradient-to-r from-brand-600 via-blue-500 to-emerald-500 transition-all duration-500"
                                 style={{ width: `${Math.max(2, goalPct)}%` }}
                             ></div>
                         </div>
-                    </div>
+                    </section>
                 )}
 
-                {/* WIDGET 2 : ACTIONS RAPIDES EN 1 CLIC */}
+                {/* 3. ACTIONS RAPIDES (Raccourcis 1 Clic Épurés & Fluides) */}
                 {enabledWidgets.quickActions !== false && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <section aria-label="Raccourcis rapides" className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <button
                             type="button"
                             onClick={() => setActiveView('calculator')}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:bg-brand-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-calculator text-base"></i>
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-calculator text-sm"></i>
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-brand-700 transition-colors">Nouveau devis</p>
@@ -17714,10 +17704,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:bg-amber-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-folder-plus text-base"></i>
+                            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-folder-plus text-sm"></i>
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-amber-800 transition-colors">Nouveau chantier</p>
@@ -17728,10 +17718,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:bg-violet-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-user-plus text-base"></i>
+                            <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-user-plus text-sm"></i>
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-violet-800 transition-colors">Ajouter un client</p>
@@ -17742,26 +17732,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={() => setActiveView('invoices')}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:bg-emerald-50/40 transition-all text-left flex items-center gap-3 shadow-2xs group cursor-pointer"
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-file-invoice-dollar text-base"></i>
+                            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
                                 <p className="text-[11px] text-neutral-500 truncate">Facturer un acompte</p>
                             </div>
                         </button>
-                    </div>
+                    </section>
                 )}
 
-                {/* WIDGET 3 : CARTES KPIS ESSENTIELLES */}
+                {/* 4. CARTES KPIS ESSENTIELLES (Sans Rupture de Ligne sur la Devise) */}
                 {enabledWidgets.kpis !== false && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <section aria-label="Indicateurs clés" className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                         <DashboardMetric
                             label="Chiffre d'Affaires Chiffré"
                             value={formatMoney(totalChiffre, companyInfo.currency)}
-                            detail={`${filteredQuotes.length} devis au total`}
+                            detail={`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`}
                             icon="fa-coins"
                             tone="brand"
                         />
@@ -17786,12 +17776,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             icon="fa-chart-line"
                             tone="emerald"
                         />
-                    </div>
+                    </section>
                 )}
 
-                {/* WIDGET 4 : PIPELINE COMMERCIAL DES DEVIS & CONVERSION */}
+                {/* 5. PIPELINE COMMERCIAL (Ruban Continu & Compact) */}
                 {enabledWidgets.pipeline !== false && (
-                    <div className="app-card p-5 border border-neutral-200/80 shadow-2xs space-y-4">
+                    <section className="shrink-0 bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                                 <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
@@ -17808,42 +17798,42 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                         </div>
 
-                        {/* Cartes des 4 étapes */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200/60">
-                                <div className="flex items-center justify-between">
+                        {/* Grille continue des 4 étapes */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-neutral-200/70 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-neutral-200/70 bg-neutral-50/40">
+                            <div className="p-3.5 flex flex-col justify-between bg-white/60">
+                                <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">1. Brouillon</span>
-                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-neutral-200 text-neutral-700 rounded-full">{draftQuotes.length}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-neutral-100 text-neutral-700 rounded-full">{draftQuotes.length}</span>
                                 </div>
-                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-neutral-800 tabular-nums">{formatMoney(draftTotal, companyInfo.currency)}</p>
+                                <p className="mt-2 text-sm sm:text-base font-bold text-neutral-800 tabular-nums truncate">{formatMoney(draftTotal, companyInfo.currency)}</p>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-200/50">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 flex flex-col justify-between bg-blue-50/20">
+                                <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">2. Prêt / Vérifié</span>
-                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full">{readyQuotes.length}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded-full">{readyQuotes.length}</span>
                                 </div>
-                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-blue-900 tabular-nums">{formatMoney(readyTotal, companyInfo.currency)}</p>
+                                <p className="mt-2 text-sm sm:text-base font-bold text-blue-900 tabular-nums truncate">{formatMoney(readyTotal, companyInfo.currency)}</p>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-violet-50/50 border border-violet-200/50">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 flex flex-col justify-between bg-violet-50/20">
+                                <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider">3. Envoyé Client</span>
-                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-violet-200 text-violet-800 rounded-full">{sentQuotes.length}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-violet-100 text-violet-800 rounded-full">{sentQuotes.length}</span>
                                 </div>
-                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-violet-900 tabular-nums">{formatMoney(sentTotal, companyInfo.currency)}</p>
+                                <p className="mt-2 text-sm sm:text-base font-bold text-violet-900 tabular-nums truncate">{formatMoney(sentTotal, companyInfo.currency)}</p>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200/60">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 flex flex-col justify-between bg-emerald-50/30">
+                                <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">4. Accepté / Gagné</span>
-                                    <span className="text-xs font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">{acceptedQuotes.length}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">{acceptedQuotes.length}</span>
                                 </div>
-                                <p className="mt-2 text-sm sm:text-base font-bold font-mono text-emerald-900 tabular-nums">{formatMoney(acceptedTotal, companyInfo.currency)}</p>
+                                <p className="mt-2 text-sm sm:text-base font-bold text-emerald-900 tabular-nums truncate">{formatMoney(acceptedTotal, companyInfo.currency)}</p>
                             </div>
                         </div>
 
-                        {/* Barre de répartition segmentée */}
+                        {/* Barre de répartition proportionnelle */}
                         {filteredQuotes.length > 0 && (
                             <div className="w-full h-2 rounded-full overflow-hidden flex bg-neutral-100 p-0.5 gap-0.5">
                                 {draftQuotes.length > 0 && <div style={{ width: `${(draftQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-neutral-400 h-full rounded-xs" title={`Brouillons : ${draftQuotes.length}`}></div>}
@@ -17852,15 +17842,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {acceptedQuotes.length > 0 && <div style={{ width: `${(acceptedQuotes.length / filteredQuotes.length) * 100}%` }} className="bg-emerald-500 h-full rounded-xs" title={`Acceptés : ${acceptedQuotes.length}`}></div>}
                             </div>
                         )}
-                    </div>
+                    </section>
                 )}
 
-                {/* GRILLE : DEVIS RÉCENTS & CHANTIERS EN COURS */}
-                {((enabledWidgets.recentQuotes !== false) || (enabledWidgets.activeProjects !== false)) && (
-                    <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-5 min-h-0">
+                {/* 6. HUB OPÉRATIONNEL (Grille Équilibrée : Devis & Chantiers / Facturation) */}
+                {((enabledWidgets.recentQuotes !== false) || (enabledWidgets.activeProjects !== false) || (enabledWidgets.recentInvoices !== false)) && (
+                    <div className="shrink-0 grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-5 min-h-0">
                         {/* WIDGET 5 : DEVIS RÉCENTS */}
                         {enabledWidgets.recentQuotes !== false && (
-                            <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
+                            <section className="bg-white rounded-2xl overflow-hidden border border-neutral-200/80 shadow-2xs flex flex-col">
                                 <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
                                     <div>
                                         <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
@@ -17871,23 +17861,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <button onClick={() => setActiveView('savedQuotes')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir tous</button>
                                 </div>
-                                <div className="divide-y divide-neutral-100">
+                                <div className="divide-y divide-neutral-100 flex-1">
                                     {recentQuotes.length === 0 ? (
-                                        <div className="p-8 text-center text-sm text-neutral-500">Aucun devis enregistré.</div>
+                                        <div className="p-8 text-center text-xs text-neutral-400 italic">Aucun devis enregistré.</div>
                                     ) : recentQuotes.map(q => {
                                         const [statusLabel, statusClass] = statutDevis(q.status);
                                         const quoteAmount = q.quoteData?.totalTTCConsomme || q.totalTTC || 0;
                                         return (
-                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
+                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 <div className="min-w-0">
                                                     <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{q.clientName || 'Client non renseigné'}</p>
                                                     <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0">
-                                                    <span className="font-bold text-xs font-mono text-neutral-900 tabular-nums">
+                                                    <span className="font-bold text-xs text-neutral-900 tabular-nums">
                                                         {formatMoney(quoteAmount, companyInfo.currency)}
                                                     </span>
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusClass}`}>{statusLabel}</span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}`}>{statusLabel}</span>
                                                     <i className="fa-solid fa-chevron-right text-[10px] text-neutral-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all"></i>
                                                 </div>
                                             </button>
@@ -17897,70 +17887,77 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </section>
                         )}
 
-                        {/* WIDGET 6 : CHANTIERS EN COURS */}
-                        {enabledWidgets.activeProjects !== false && (
-                            <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
-                                <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
-                                    <div>
-                                        <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
-                                            <i className="fa-solid fa-folder-tree text-brand-600 text-xs"></i>
-                                            <span>Chantiers en cours</span>
-                                        </h3>
-                                        <p className="text-xs text-neutral-500 mt-0.5">Dossiers opérationnels actifs</p>
+                        {/* COLONNE DROITE : CHANTIERS & FACTURATION ACTIVE */}
+                        <div className="flex flex-col gap-5">
+                            {/* WIDGET 6 : CHANTIERS EN COURS */}
+                            {enabledWidgets.activeProjects !== false && (
+                                <section className="bg-white rounded-2xl overflow-hidden border border-neutral-200/80 shadow-2xs">
+                                    <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                                <i className="fa-solid fa-folder-tree text-brand-600 text-xs"></i>
+                                                <span>Chantiers en cours</span>
+                                            </h3>
+                                            <p className="text-xs text-neutral-500 mt-0.5">Dossiers opérationnels actifs</p>
+                                        </div>
+                                        <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir tous</button>
                                     </div>
-                                    <button onClick={() => setActiveView('projects')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir tous</button>
-                                </div>
-                                <div className="divide-y divide-neutral-100">
-                                    {activeProjects.length === 0 ? (
-                                        <div className="p-8 text-center text-sm text-neutral-500">Aucun chantier actif.</div>
-                                    ) : activeProjects.slice(0, 4).map(p => (
-                                        <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-4 flex items-center gap-3 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
-                                            <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                                <i className="fa-solid fa-folder-tree text-xs"></i>
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{p.name}</p>
-                                                <p className="text-xs text-neutral-500 truncate mt-0.5">{p.clientName || 'Client non renseigné'}</p>
-                                            </div>
-                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full shrink-0">{getProjectStatusBadge(p.status).label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                    </div>
-                )}
+                                    <div className="divide-y divide-neutral-100">
+                                        {activeProjects.length === 0 ? (
+                                            <div className="p-8 text-center text-xs text-neutral-400 italic">Aucun chantier actif.</div>
+                                        ) : activeProjects.slice(0, 3).map(p => (
+                                            <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex items-center gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                                <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                                    <i className="fa-solid fa-folder-tree text-xs"></i>
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{p.name}</p>
+                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{p.clientName || 'Client non renseigné'}</p>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">{getProjectStatusBadge(p.status).label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
-                {/* WIDGET 7 : FACTURATION RÉCENTE & RÈGLEMENTS */}
-                {enabledWidgets.recentInvoices !== false && recentInvoices.length > 0 && (
-                    <section className="app-card overflow-hidden border border-neutral-200/80 shadow-2xs">
-                        <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
-                            <div>
-                                <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
-                                    <i className="fa-solid fa-file-invoice-dollar text-brand-600 text-xs"></i>
-                                    <span>Facturation récente & Règlements</span>
-                                </h3>
-                                <p className="text-xs text-neutral-500 mt-0.5">Dernières factures émises et encaissements</p>
-                            </div>
-                            <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir toutes</button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-neutral-100">
-                            {recentInvoices.map(f => (
-                                <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="p-4 text-left hover:bg-neutral-50 transition-colors cursor-pointer group">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p>
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                            f.statut === 'paid' ? 'bg-emerald-100 text-emerald-800' : f.statut === 'partially_paid' ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-600'
-                                        }`}>
-                                            {f.statut === 'paid' ? 'Payée' : f.statut === 'partially_paid' ? 'Partielle' : 'Émise'}
-                                        </span>
+                            {/* WIDGET 7 : FACTURATION RÉCENTE & RÈGLEMENTS */}
+                            {enabledWidgets.recentInvoices !== false && recentInvoices.length > 0 && (
+                                <section className="bg-white rounded-2xl overflow-hidden border border-neutral-200/80 shadow-2xs">
+                                    <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
+                                                <i className="fa-solid fa-file-invoice-dollar text-brand-600 text-xs"></i>
+                                                <span>Facturation récente</span>
+                                            </h3>
+                                            <p className="text-xs text-neutral-500 mt-0.5">Dernières factures émises</p>
+                                        </div>
+                                        <button onClick={() => setActiveView('invoices')} className="text-xs font-semibold text-brand-600 hover:text-brand-800 -my-1.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-brand-50 cursor-pointer">Voir toutes</button>
                                     </div>
-                                    <p className="text-xs text-neutral-500 mt-1">{f.numero || 'Facture brouillon'}</p>
-                                    <p className="text-sm font-bold font-mono text-neutral-900 tabular-nums mt-2">{formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}</p>
-                                </button>
-                            ))}
+                                    <div className="divide-y divide-neutral-100">
+                                        {recentInvoices.map(f => (
+                                            <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-xs text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p>
+                                                    <p className="text-[11px] text-neutral-500 truncate mt-0.5">{f.numero || 'Brouillon'}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2.5 shrink-0">
+                                                    <span className="font-bold text-xs text-neutral-900 tabular-nums">
+                                                        {formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}
+                                                    </span>
+                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                        f.statut === 'paid' ? 'bg-emerald-100 text-emerald-800' : f.statut === 'partially_paid' ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-600'
+                                                    }`}>
+                                                        {f.statut === 'paid' ? 'Payée' : f.statut === 'partially_paid' ? 'Partielle' : 'Émise'}
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </div>
-                    </section>
+                    </div>
                 )}
             </div>
         );
