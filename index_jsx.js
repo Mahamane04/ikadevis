@@ -558,13 +558,18 @@ function AuthScreen({ onAuthSuccess }) {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [cguAcceptees, setCguAcceptees] = useState(false);
 
+    const getAuthRedirectUrl = () => {
+        const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+        return origin.endsWith('/') ? origin : `${origin}/`;
+    };
+
     const handleGoogleAuth = async () => {
         setError(null); setInfo(null); setGoogleLoading(true);
         try {
             if (!sb) throw new Error('Client Supabase non initialisé — vérifiez que vendor/supabase.min.js est chargé.');
             const { error: err } = await sb.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin }
+                options: { redirectTo: getAuthRedirectUrl() }
             });
             if (err) throw err;
             // Pas de onAuthSuccess ici : le navigateur quitte la page pour Google,
@@ -597,7 +602,7 @@ function AuthScreen({ onAuthSuccess }) {
                     setMode('login');
                 }
             } else if (mode === 'reset') {
-                const { error: err } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+                const { error: err } = await sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() });
                 if (err) throw err;
                 setInfo('Email de réinitialisation envoyé. Vérifiez votre boîte de réception.');
                 setMode('login');
