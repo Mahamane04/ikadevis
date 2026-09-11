@@ -19788,17 +19788,30 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
 
-// ══ MODALE DE PRÉVISUALISATION DU PDF FACTURE (2026-09-10) ═══════════════════
-function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo }) {
+// ══ MODALE DE PRÉVISUALISATION DU PDF FACTURE (2026-09-10 / 2026-09-11) ═══════
+function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo, configuration, theme }) {
     if (!facture) return null;
     const [zoom, setZoom] = React.useState(100);
     const [downloading, setDownloading] = React.useState(false);
+    const previewContainerRef = React.useRef(null);
+
+    const cfg = configuration || configurationActiveFacture;
+    const th = theme || themeDepuisConfiguration(cfg);
+    const disposition = getPdfHeaderLayout(cfg?.entete?.alignement || 'left');
+    const ci = {
+        ...(facture.companyInfoSnapshot || companyInfo),
+        logo: cfg?.entete?.afficherLogo !== false ? (facture.companyInfoSnapshot?.logo || companyInfo?.logo) : ''
+    };
+    const devise = facture.companyInfoSnapshot?.currency || companyInfo?.currency || 'FCFA';
+    const m = cfg?.general?.margesMm || { haut: 8, bas: 8, gauche: 8, droit: 8 };
+    const pc = (mm) => `${(Math.max(0, Math.min(40, Number(mm) || 0)) / 210) * 100}%`;
 
     const handleDownload = async () => {
         setDownloading(true);
         try {
             const nomFichier = `Facture_${facture.numero || facture.clientName || 'BTP'}.pdf`;
-            const zone = document.querySelector('[data-zone-impression="facture"]');
+            const zone = (previewContainerRef.current && previewContainerRef.current.querySelector('[data-zone-impression]'))
+                || document.querySelector('[data-zone-impression="1"]');
             if (zone && onDownloadPdf) {
                 await onDownloadPdf(zone, nomFichier, facture.id);
             } else {
@@ -19815,7 +19828,7 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo }) {
             {/* Top Toolbar */}
             <div className="h-14 px-6 bg-neutral-900 border-b border-neutral-800 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-neutral-800 text-neutral-300 flex items-center justify-center font-bold">
                         <i className="fa-solid fa-eye text-sm"></i>
                     </div>
                     <div>
@@ -19890,107 +19903,29 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo }) {
                 </div>
             </div>
 
-            {/* Document Preview Viewport */}
+            {/* Document Preview Viewport — fidèle au modèle configuré dans les Paramètres */}
             <div className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center bg-neutral-900/60 custom-scroll">
                 <div
+                    ref={previewContainerRef}
                     className="origin-top transition-transform duration-150 bg-white rounded-lg shadow-2xl overflow-hidden border border-neutral-300/40"
-                    style={{ transform: `scale(${zoom / 100})`, width: '210mm', minHeight: '297mm' }}
+                    style={{
+                        transform: `scale(${zoom / 100})`,
+                        width: '210mm',
+                        minHeight: '297mm',
+                        paddingTop: pc(m.haut),
+                        paddingBottom: pc(m.bas),
+                        paddingLeft: pc(m.gauche),
+                        paddingRight: pc(m.droit)
+                    }}
                 >
-                    <div data-zone-impression="facture" className="p-8 sm:p-12">
-                        {/* Header Facture */}
-                        <div className="flex justify-between items-start pb-6 border-b border-neutral-200">
-                            <div>
-                                <h1 className="text-2xl font-black text-neutral-900 tracking-tight uppercase">
-                                    {facture.type === 'avoir' ? 'Facture d\'Avoir' : 'Facture'}
-                                </h1>
-                                <p className="text-sm font-bold text-emerald-700 font-mono mt-0.5">
-                                    N° {facture.numero || 'Brouillon'}
-                                </p>
-                                <p className="text-xs text-neutral-500 mt-1">
-                                    Date : {facture.date || facture.dateCreation?.slice(0, 10) || new Date().toISOString().slice(0, 10)}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <h2 className="text-base font-extrabold text-neutral-900">{companyInfo?.name || 'IKADEVIS BTP'}</h2>
-                                <p className="text-xs text-neutral-600">{companyInfo?.activity || 'Travaux de Construction & Rénovation'}</p>
-                                <p className="text-xs text-neutral-500">{companyInfo?.address || 'Abidjan, Côte d\'Ivoire'}</p>
-                                <p className="text-xs text-neutral-500">{companyInfo?.phone} · {companyInfo?.email}</p>
-                            </div>
-                        </div>
-
-                        {/* Client Info */}
-                        <div className="my-6 p-4 rounded-xl bg-neutral-50 border border-neutral-200 flex justify-between gap-4">
-                            <div>
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">Destinataire :</span>
-                                <p className="text-sm font-bold text-neutral-900">{facture.clientName}</p>
-                                <p className="text-xs text-neutral-600 mt-0.5">Chantier / Projet : <strong>{facture.projectRef || 'Standard'}</strong></p>
-                                {facture.devisNumero && <p className="text-[11px] text-neutral-500 mt-0.5">Devis de référence : {facture.devisNumero}</p>}
-                            </div>
-                            <div className="text-right">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-1">Règlement :</span>
-                                <p className="text-xs text-neutral-700">Échéance : <strong>{facture.echeance || 'À réception'}</strong></p>
-                                <p className="text-xs font-semibold text-emerald-700 mt-0.5">
-                                    Net à payer : {formatMoney(facture.netAPayerTTC != null ? facture.netAPayerTTC : (facture.totalTTC || 0), companyInfo?.currency || 'FCFA')}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Articles / Lots */}
-                        <div className="border border-neutral-200 rounded-xl overflow-hidden mb-6">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-neutral-100/70 border-b border-neutral-200 text-[10px] font-bold text-neutral-600 uppercase">
-                                    <tr>
-                                        <th className="py-2 px-3">Désignation</th>
-                                        <th className="py-2 px-3 text-center">Unité</th>
-                                        <th className="py-2 px-3 text-right">Qté</th>
-                                        <th className="py-2 px-3 text-right">P.U. HT</th>
-                                        <th className="py-2 px-3 text-right">Total HT</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-neutral-200 text-neutral-800">
-                                    {(facture.lignes || []).map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="py-2.5 px-3 font-medium">{l.designation}</td>
-                                            <td className="py-2.5 px-3 text-center text-neutral-500">{l.unite || 'U'}</td>
-                                            <td className="py-2.5 px-3 text-right font-mono">{l.quantite || 1}</td>
-                                            <td className="py-2.5 px-3 text-right font-mono">{formatMoney(l.prixUnitaireHT || l.totalHT, companyInfo?.currency || 'FCFA')}</td>
-                                            <td className="py-2.5 px-3 text-right font-bold font-mono">{formatMoney(l.totalHT, companyInfo?.currency || 'FCFA')}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Totaux */}
-                        <div className="flex justify-end mb-6">
-                            <div className="w-72 bg-neutral-50 border border-neutral-200 rounded-xl p-3.5 space-y-1.5 text-xs">
-                                <div className="flex justify-between text-neutral-600">
-                                    <span>Total HT :</span>
-                                    <span className="font-semibold font-mono">{formatMoney(facture.totalHT || 0, companyInfo?.currency || 'FCFA')}</span>
-                                </div>
-                                <div className="flex justify-between text-neutral-600">
-                                    <span>TVA ({facture.tauxTva || 18}%) :</span>
-                                    <span className="font-semibold font-mono">{formatMoney(facture.totalTva || 0, companyInfo?.currency || 'FCFA')}</span>
-                                </div>
-                                <div className="flex justify-between pt-2 border-t border-neutral-200 font-extrabold text-neutral-900 text-sm">
-                                    <span>Total TTC :</span>
-                                    <span className="text-emerald-700 font-mono">{formatMoney(facture.netAPayerTTC != null ? facture.netAPayerTTC : facture.totalTTC, companyInfo?.currency || 'FCFA')}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Signature / Mention de bas de page */}
-                        <div className="pt-6 border-t border-neutral-200 flex justify-between items-end text-[11px] text-neutral-500">
-                            <div>
-                                <p className="font-bold text-neutral-800">{companyInfo?.legalName || companyInfo?.name || 'Entreprise BTP'}</p>
-                                <p>RCCM : {companyInfo?.rccm || 'CI-ABJ-XXXX'} · N° CC : {companyInfo?.taxId || 'XXXXXX'}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-bold text-neutral-800">Bon pour accord & Signature</p>
-                                <div className="h-16 w-36 border-b border-neutral-300 mt-2 inline-block"></div>
-                            </div>
-                        </div>
-                    </div>
+                    <DocumentFacture
+                        facture={facture}
+                        ci={ci}
+                        theme={th}
+                        disposition={disposition}
+                        devise={devise}
+                        configuration={cfg}
+                    />
                 </div>
             </div>
         </div>
@@ -26353,6 +26288,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     onClose={() => setPreviewInvoiceModal(null)}
                     onDownloadPdf={telechargerElementPdf}
                     companyInfo={companyInfo}
+                    configuration={configurationActiveFacture}
+                    theme={themeDepuisConfiguration(configurationActiveFacture)}
                 />
             )}
             {emailComposerModal && (
