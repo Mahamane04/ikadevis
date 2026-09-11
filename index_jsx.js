@@ -11210,7 +11210,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     // détaillé donnait 12 px là où le devis en donne 14 — deux documents issus
     // du même modèle qui ne respiraient pas pareil. Écart relevé par le
     // contrôle de parité, pas à l'œil.
-    const padFacture = densiteFacture === 'aeree' ? 'p-5' : densiteFacture === 'compacte' ? 'p-2' : 'p-3.5';
+    const padFacture = densiteFacture === 'aeree' ? 'py-4 px-5' : densiteFacture === 'compacte' ? 'py-2.5 px-3' : 'py-3.5 px-4';
     const separateursFacture = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
     const corpsFacture = separateursFacture === 'lignes' ? 'divide-y divide-neutral-100' : '';
     const fondLigneFacture = (rang) => (separateursFacture === 'zebre' && rang % 2 === 1 ? { backgroundColor: '#f8fafc' } : undefined);
@@ -11228,7 +11228,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const ALIGNEMENTS_PIED_FACTURE = { left: 'text-left', center: 'text-center', right: 'text-right' };
     return (
         <div
-            className={`document-echelle bg-white p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
+            className={`document-echelle bg-white p-6 sm:p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -11248,51 +11248,48 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
             <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
                 <div className={disposition.company}>
                     {ci.logo && (
-                        <div className={`flex mb-2 ${disposition.logo}`}>
-                            <img src={ci.logo} alt={`Logo ${ci.name}`} className="object-contain"
-                                 style={{ height: `${(40 * tailleLogoFacture) / 100}px`, maxWidth: `${(160 * tailleLogoFacture) / 100}px` }} />
+                        <div className="mb-4">
+                            <img
+                                src={ci.logo}
+                                alt={ci.name}
+                                className="object-contain"
+                                style={{ maxHeight: `${tailleLogoFacture}px`, maxWidth: `${tailleLogoFacture * 2}px` }}
+                            />
                         </div>
                     )}
-                    <p className="text-xs font-bold text-neutral-800">{ci.name}</p>
-                    {ci.managerName && <p className="text-xs text-neutral-700 font-medium">{ci.managerName}</p>}
-                    {ci.tagline && <p className="text-xs text-neutral-500 font-medium">{ci.tagline}</p>}
+                    <h3 className="text-base font-bold text-neutral-900">{ci.name}</h3>
+                    {ci.activity && <p className="text-xs text-neutral-500 font-medium">{ci.activity}</p>}
                     {ci.address && <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>}
-                    {[ci.email ? `Contact: ${ci.email}` : null, ci.phone ? `Tel: ${ci.phone}` : null].filter(Boolean).length > 0 && (
-                        <p className="text-xs text-neutral-500 font-medium">{[ci.email ? `Contact: ${ci.email}` : null, ci.phone ? `Tel: ${ci.phone}` : null].filter(Boolean).join(' • ')}</p>
-                    )}
-                    {[ci.nif ? `NIF: ${ci.nif}` : null, ci.rccm ? `RCCM: ${ci.rccm}` : null].filter(Boolean).length > 0 && (
-                        <p className="text-[11px] text-neutral-500">{[ci.nif ? `NIF: ${ci.nif}` : null, ci.rccm ? `RCCM: ${ci.rccm}` : null].filter(Boolean).join(' • ')}</p>
+                    {ci.email && <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email}</p>}
+                    {([
+                        ci.phone ? `Tel: ${ci.phone}` : null,
+                        ci.taxId ? `N° CC: ${ci.taxId}` : null,
+                        ci.rccm ? `RCCM: ${ci.rccm}` : null
+                    ].filter(Boolean).length > 0) && (
+                        <p className="text-[11px] text-neutral-500">
+                            {[
+                                ci.phone ? `Tel: ${ci.phone}` : null,
+                                ci.taxId ? `N° CC: ${ci.taxId}` : null,
+                                ci.rccm ? `RCCM: ${ci.rccm}` : null
+                            ].filter(Boolean).join(' • ')}
+                        </p>
                     )}
                 </div>
                 <div className={disposition.document}>
-                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: facture.type === 'avoir' ? '#7c3aed' : theme.brandColor }}>
+                    <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>
                         {facture.type === 'avoir' ? "Facture d'Avoir" : 'Facture'}
                     </h2>
-                    <p className="text-sm font-bold text-neutral-800 mt-1">
-                        {facture.numero ? `N° : ${facture.numero}` : 'Brouillon (non numéroté)'}
-                    </p>
+                    <p className="text-sm font-bold text-neutral-800 mt-1">N° : {facture.numero || 'Brouillon'}</p>
                     <p className="text-xs text-neutral-500">
-                        {facture.dateEmission
-                            ? `Émis${facture.type === 'avoir' ? '' : 'e'} le ${new Date(facture.dateEmission).toLocaleDateString('fr-FR')}`
-                            : 'Non émis'}
+                        {facture.dateEmission ? `Émise le ${facture.dateEmission}` : (facture.date || 'Non émis')}
                     </p>
-                    {facture.type === 'avoir' && (facture.correctsInvoiceNumber || facture.corrects_invoice_id) && (
-                        <p className="text-xs font-bold text-purple-700 mt-1">
-                            Facture rectifiée : {facture.correctsInvoiceNumber || "Facture d'origine"}
-                        </p>
-                    )}
-                    {facture.type === 'avoir' && facture.motif && (
-                        <p className="text-[11px] text-neutral-600 italic mt-0.5">
-                            Motif : {facture.motif}
-                        </p>
-                    )}
-                    {facture.type !== 'avoir' && facture.devisNumero && (
+                    {facture.devisNumero && (
                         <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {facture.devisNumero}</p>
                     )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 border border-neutral-200" style={{ borderRadius: rayonFacture }}>
+            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 sm:p-5 border border-neutral-200" style={{ borderRadius: rayonFacture }}>
                 <div>
                     <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
                     <p className="font-semibold text-neutral-900 text-base">{facture.clientName}</p>
@@ -11303,9 +11300,9 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 </div>
             </div>
 
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-sm border-collapse">
                 <thead>
-                    <tr className={`font-bold uppercase ${aplats ? 'text-white' : 'text-neutral-900'}`}
+                    <tr className={`font-bold uppercase text-xs tracking-wider ${aplats ? 'text-white' : 'text-neutral-900'}`}
                         style={aplats ? { backgroundColor: theme.brandColor } : { borderBottom: `2px solid ${theme.brandColor}` }}>
                         <th className={padFacture} style={{ borderTopLeftRadius: rayonFacture, borderBottomLeftRadius: rayonFacture }}>Désignation</th>
                         <th className={`${padFacture} text-center`}>Quantité</th>
@@ -11316,17 +11313,17 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 <tbody className={corpsFacture}>
                     {(facture.lignes || []).map((l, i) => (
                         <tr key={i} style={fondLigneFacture(i)}>
-                            <td className={`${padFacture} font-bold text-neutral-900`}>{l.designation}</td>
-                            <td className={`${padFacture} text-center font-medium`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
-                            <td className={`${padFacture} text-right font-medium`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
+                            <td className={`${padFacture} font-semibold text-neutral-900`}>{l.designation}</td>
+                            <td className={`${padFacture} text-center font-medium text-neutral-600`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                            <td className={`${padFacture} text-right font-medium text-neutral-700`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
                             <td className={`${padFacture} text-right font-bold text-neutral-900`}>{formatMoney(l.totalHT, devise)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
-            <div className="flex justify-end pt-4 border-t border-neutral-200">
-                <div className="w-72 space-y-2 text-xs">
+            <div className="flex justify-end pt-5 border-t border-neutral-200">
+                <div className="w-80 space-y-2 text-sm">
                     <div className="flex justify-between font-bold text-neutral-800 text-sm">
                         <span>{facture.type === 'avoir' ? 'Total Avoir HT :' : 'Total HT :'}</span>
                         <span>{formatMoney(facture.totalHT, devise)}</span>
@@ -11335,7 +11332,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         <div className="text-neutral-500">
                             <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
                             {ci.vatExemptionNote && (
-                                <p className="text-[10px] text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
+                                <p className="text-xs text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
                             )}
                         </div>
                     ) : (
@@ -11355,11 +11352,11 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         brouillon — pas les réglages courants, qui peuvent avoir
                         changé depuis l'émission. */}
                     {facture.type === 'solde' && facture.deduitTTC > 0 && (
-                        <p className="text-[10px] text-neutral-500 italic -mt-1">
+                        <p className="text-xs text-neutral-500 italic -mt-1">
                             Retenue de {ci.commercialSettings?.retentionRate ?? 0}% — à libérer {ci.commercialSettings?.retentionDuration || '12 mois'} après la date d'émission.
                         </p>
                     )}
-                    <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2">
+                    <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2.5">
                         <span>{facture.type === 'avoir' ? 'NET CRÉDITÉ TTC :' : 'NET À PAYER :'}</span>
                         <span className={facture.type === 'avoir' ? 'text-purple-700 font-mono' : ''}>
                             {formatMoney(facture.netAPayerTTC != null ? facture.netAPayerTTC : facture.totalTTC, devise)}
@@ -11419,13 +11416,13 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                             <span className="text-[10px] text-neutral-500 font-medium">Conditions contractuelles</span>
                         </div>
                         <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-neutral-50 border-b border-neutral-200 text-xs font-semibold text-neutral-500 uppercase">
                                     <tr>
-                                        <th className="py-1.5 px-3">Jalon / Tranche</th>
-                                        <th className="py-1.5 px-3 text-center">Part (%)</th>
-                                        <th className="py-1.5 px-3 text-right">Montant TTC</th>
-                                        <th className="py-1.5 px-3 text-center">Statut</th>
+                                        <th className="py-2 px-3.5">Jalon / Tranche</th>
+                                        <th className="py-2 px-3.5 text-center">Part (%)</th>
+                                        <th className="py-2 px-3.5 text-right">Montant TTC</th>
+                                        <th className="py-2 px-3.5 text-center">Statut</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
@@ -11448,17 +11445,17 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
 
                                         return (
                                             <tr key={idx} className="hover:bg-neutral-50/50">
-                                                <td className="py-1.5 px-3 font-medium text-neutral-900">
+                                                <td className="py-2 px-3.5 font-medium text-neutral-900">
                                                     {st.label || `Tranche ${idx + 1}`}
                                                 </td>
-                                                <td className="py-1.5 px-3 text-center font-mono text-neutral-600">
+                                                <td className="py-2 px-3.5 text-center font-mono text-neutral-600">
                                                     {pct}%
                                                 </td>
-                                                <td className="py-1.5 px-3 text-right font-bold text-neutral-900 font-mono">
+                                                <td className="py-2 px-3.5 text-right font-bold text-neutral-900 font-mono">
                                                     {formatMoney(montantTranche, devise)}
                                                 </td>
-                                                <td className="py-1.5 px-3 text-center">
-                                                    <span className={`text-[9px] px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                                                <td className="py-2 px-3.5 text-center">
+                                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full border ${badgeColor}`}>
                                                         {statutTranche}
                                                     </span>
                                                 </td>
@@ -11479,7 +11476,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     ci.commercialSettings?.moovMoneyNumber && `Moov Money : ${ci.commercialSettings.moovMoneyNumber}`
                 ].filter(Boolean);
                 return (ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift || mobileMoney.length) ? (
-                    <div className="pt-4 border-t border-neutral-100 text-[10px] text-neutral-500">
+                    <div className="pt-4 border-t border-neutral-100 text-xs text-neutral-500">
                         <p className="font-bold text-neutral-700 mb-1"><i className="fa-solid fa-building-columns mr-1.5" style={{ color: theme.brandColor }}></i>Coordonnées de règlement</p>
                         {(ci.commercialSettings?.bankName || ci.commercialSettings?.bankAccount || ci.commercialSettings?.bankSwift) && (
                             <p>{[ci.commercialSettings?.bankName, ci.commercialSettings?.bankAccount, ci.commercialSettings?.bankSwift].filter(Boolean).join(' · ')}</p>
@@ -11495,7 +11492,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 même jour ne doivent pas se présenter différemment. */}
             {texteDuPiedFacture && (
                 <div data-hors-pdf="1" data-pied-en-flux="1"
-                     className={`pt-4 border-t border-neutral-100 text-[10px] text-neutral-500 whitespace-pre-line ${ALIGNEMENTS_PIED_FACTURE[cfg.pied.alignement] || 'text-left'}`}>
+                     className={`pt-4 border-t border-neutral-100 text-xs text-neutral-500 whitespace-pre-line ${ALIGNEMENTS_PIED_FACTURE[cfg.pied.alignement] || 'text-left'}`}>
                     {texteDuPiedFacture.replace(/\*\*/g, '')}
                 </div>
             )}
@@ -19886,7 +19883,7 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo, con
                         type="button"
                         onClick={handleDownload}
                         disabled={downloading}
-                        className="btn-primary px-4 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 disabled:opacity-60"
+                        className="btn-primary px-4 py-1.5 text-xs font-bold bg-neutral-900 hover:bg-black text-white shadow-sm flex items-center gap-1.5 disabled:opacity-60"
                     >
                         <i className={`fa-solid ${downloading ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
                         <span>{downloading ? 'Génération…' : 'Télécharger le PDF'}</span>

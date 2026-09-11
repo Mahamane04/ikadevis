@@ -118,6 +118,12 @@ async function capture() {
         await new Promise(r => setTimeout(r, 700));
 
         // 2. Split view with "Document Facture" tab active
+        await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button'));
+            const tabBtn = btns.find(b => b.textContent.includes('Document Facture'));
+            if (tabBtn) tabBtn.click();
+        });
+        await new Promise(r => setTimeout(r, 600));
         await page.screenshot({ path: path.join(ARTIFACT_DIR, 'redesign_invoices_split_tab_document.png') });
         console.log('✓ Captured redesign_invoices_split_tab_document.png');
 
