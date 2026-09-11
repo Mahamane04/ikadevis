@@ -10286,7 +10286,7 @@ const MODELES_PREETABLIS = [
         nom: 'Standard',
         famille: 'Densité',
         resume: 'Colonnes larges, une ligne aérée par ouvrage, sous-totaux par lot.',
-        quand: 'Un devis de 10 à 20 postes, remis en main propre ou par courriel.',
+        quand: 'Un document de 10 à 20 postes, remis en main propre ou par courriel.',
         configuration: {}
     },
     {
@@ -10321,7 +10321,7 @@ const MODELES_PREETABLIS = [
         nom: 'Marque',
         famille: 'Caractère',
         resume: 'En-tête centré sur le logo, votre couleur en bandeau.',
-        quand: 'Les particuliers, pour qui le devis fait aussi office de carte de visite.',
+        quand: 'Les particuliers, pour qui le document fait aussi office de carte de visite.',
         configuration: { entete: { alignement: 'center', tailleLogo: 130 } }
     },
     {
@@ -12656,6 +12656,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [enregistrementModele, setEnregistrementModele] = useState(false);
     const [galerieModeles, setGalerieModeles] = useState(false);
     const [catalogueModeles, setCatalogueModeles] = useState(false);
+    // 2026-09-11 — La galerie ne montrait que les modèles de devis, alors que la
+    // table `document_templates` accepte déjà `type_document IN ('devis',
+    // 'facture')` et garantit un défaut par type. Les factures suivaient donc le
+    // modèle du devis, sans moyen de leur en donner un. Ce sélecteur ouvre le
+    // second type : rien d'autre ne change tant qu'aucun modèle de facture
+    // n'existe — voir `configurationActiveFacture`, qui retombe alors sur celui
+    // des devis.
+    const [typeModeleGalerie, setTypeModeleGalerie] = useState('devis');
     const [apercuDocument, setApercuDocument] = useState(null);
     const refApercuDocument = React.useRef(null);
     const refApercuEditeur = React.useRef(null);
@@ -13689,28 +13697,47 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // préétabli « Standard », posé sur son identité (logo, police, couleur).
     // Personne ne travaille plus sans modèle — c'est ce qui permet de retirer
     // les réglages de mise en page des Paramètres sans priver quiconque.
-    const modeleImplicite = React.useMemo(() => ({
-        id: 'implicite-standard',
+    const modeleImpliciteDe = React.useCallback((type) => ({
+        id: `implicite-standard-${type}`,
         nom: MODELES_PREETABLIS[0].nom,
-        type_document: 'devis',
+        type_document: type,
         par_defaut: true,
         implicite: true,
         configuration: appliquerPreetabli(MODELES_PREETABLIS[0], companyInfo)
     }), [companyInfo]);
 
+    const modeleImplicite = React.useMemo(() => modeleImpliciteDe('devis'), [modeleImpliciteDe]);
+
     // Les modèles de MISE EN PAGE tels que la galerie doit les montrer : ceux
-    // qui sont enregistrés, ou le Standard implicite s'il n'y en a aucun.
-    // (`modelesDevis`, sans qualificatif, désigne déjà les modèles de chiffrage
-    // — des ouvrages pré-remplis, une tout autre fonctionnalité.)
-    const modelesMiseEnPage = React.useMemo(() => {
-        const enregistres = modelesDocument.filter(m => (m.type_document || 'devis') === 'devis');
-        return enregistres.length > 0 ? enregistres : [modeleImplicite];
-    }, [modelesDocument, modeleImplicite]);
+    // qui sont enregistrés pour ce type, ou le Standard implicite s'il n'y en a
+    // aucun. (`modelesDevis`, sans qualificatif, désigne déjà les modèles de
+    // chiffrage — des ouvrages pré-remplis, une tout autre fonctionnalité.)
+    const modelesDeType = React.useCallback((type) => {
+        const enregistres = modelesDocument.filter(m => (m.type_document || 'devis') === type);
+        return enregistres.length > 0 ? enregistres : [modeleImpliciteDe(type)];
+    }, [modelesDocument, modeleImpliciteDe]);
+
+    const modelesMiseEnPage = React.useMemo(
+        () => modelesDeType(typeModeleGalerie),
+        [modelesDeType, typeModeleGalerie]
+    );
 
     const configurationActive = React.useMemo(() => {
-        const m = modelesMiseEnPage.find(x => x.par_defaut) || modelesMiseEnPage[0];
+        const devisModeles = modelesDeType('devis');
+        const m = devisModeles.find(x => x.par_defaut) || devisModeles[0];
         return fusionnerConfiguration(m ? m.configuration : modeleImplicite.configuration);
-    }, [modelesMiseEnPage, modeleImplicite]);
+    }, [modelesDeType, modeleImplicite]);
+
+    // 2026-09-11 — La facture a désormais ses propres modèles. Repli VOLONTAIRE
+    // sur le modèle de devis tant qu'aucun modèle de facture n'est enregistré :
+    // c'est exactement le comportement d'avant, donc ouvrir cette possibilité ne
+    // change l'apparence d'aucune facture existante tant que l'utilisateur n'en
+    // crée pas un.
+    const configurationActiveFacture = React.useMemo(() => {
+        const facturesModeles = modelesDocument.filter(m => m.type_document === 'facture');
+        const m = facturesModeles.find(x => x.par_defaut) || facturesModeles[0];
+        return m ? fusionnerConfiguration(m.configuration) : configurationActive;
+    }, [modelesDocument, configurationActive]);
 
     // Celle qui s'applique à UN devis donné. Un devis porte la configuration
     // figée au moment de son enregistrement : rouvrir dans deux ans un devis
@@ -13861,6 +13888,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
     const [invoicePeriodFilter, setInvoicePeriodFilter] = useState('all');
     const [invoiceSort, setInvoiceSort] = useState('recent');
+    const [invoiceActiveDetailTab, setInvoiceActiveDetailTab] = useState('overview'); // 'overview' | 'document' | 'schedule' | 'payments'
+    const [isInvoiceFilterPopoverOpen, setIsInvoiceFilterPopoverOpen] = useState(false);
+    const [isInvoiceMoreActionsOpen, setIsInvoiceMoreActionsOpen] = useState(false);
     // P0.15 (2026-08-17) — Clients (CRM) et Affaires & Projets passent de
     // grilles de cartes au même pattern liste+détail que Ressources & Prix /
     // Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur).
@@ -14822,7 +14852,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             // tenter une mise à jour sur une clé qui n'existe pas.
             ? { ...modele, id: modele.implicite ? undefined : modele.id, implicite: undefined,
                 configuration: fusionnerConfiguration(modele.configuration) }
-            : { ...modeleDepuisReglages(companyInfo), nom: 'Nouveau modèle', par_defaut: seraLePremierModele('devis') });
+            : { ...modeleDepuisReglages(companyInfo), nom: 'Nouveau modèle',
+                type_document: typeModeleGalerie,
+                par_defaut: seraLePremierModele(typeModeleGalerie) });
         setSectionEditeur('general');
         setGalerieModeles(false);
         setCatalogueModeles(false);
@@ -14834,8 +14866,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const utiliserPreetabli = (preetabli) => {
         setEditeurModele({
             nom: preetabli.nom,
-            type_document: 'devis',
-            par_defaut: seraLePremierModele('devis'),
+            type_document: typeModeleGalerie,
+            par_defaut: seraLePremierModele(typeModeleGalerie),
             configuration: appliquerPreetabli(preetabli, companyInfo)
         });
         setSectionEditeur('general');
@@ -14861,8 +14893,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const definirModeleParDefaut = async (modele) => {
         const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
         if (!estCloud || !estUuid(modele.id)) {
+            // Le défaut ne se joue QU'ENTRE modèles du même type : sans ce
+            // filtre, désigner un modèle de facture par défaut retirait au
+            // passage celui des devis, et les devis repartaient sur « Standard ».
+            const typeVise = modele.type_document || 'devis';
             setModelesDocument(l => {
-                const liste = l.map(m => ({ ...m, par_defaut: m.id === modele.id }));
+                const liste = l.map(m => ((m.type_document || 'devis') === typeVise
+                    ? { ...m, par_defaut: m.id === modele.id }
+                    : m));
                 LS.set('documentTemplates', liste, currentUserId);
                 return liste;
             });
@@ -14984,8 +15022,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 const autres = modelesDocument.filter(m => m.id !== identifiant);
                 // Un seul modèle par défaut, ici aussi : la règle ne peut pas
                 // dépendre du fait qu'on soit connecté ou non.
+                // `|| 'devis'` des deux côtés : un modèle local enregistré avant
+                // l'existence du champ n'a pas de `type_document`, et la
+                // comparaison brute laissait alors DEUX défauts en place.
                 const liste = enregistre.par_defaut !== false
-                    ? [...autres.map(m => (m.type_document === enregistre.type_document ? { ...m, par_defaut: false } : m)), enregistre]
+                    ? [...autres.map(m => ((m.type_document || 'devis') === enregistre.type_document ? { ...m, par_defaut: false } : m)), enregistre]
                     : [...autres, enregistre];
                 setModelesDocument(liste);
                 LS.set('documentTemplates', liste, currentUserId);
@@ -14994,6 +15035,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // Revenir à la galerie, comme sur le chemin cloud : enregistrer
                 // sans y revenir laissait l'utilisateur sur l'application nue,
                 // sans aucun retour visible sur ce qu'il venait de créer.
+                setTypeModeleGalerie(enregistre.type_document);
                 setGalerieModeles(true);
                 return;
             }
@@ -15026,6 +15068,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             });
             showToast('Modèle enregistré');
             setEditeurModele(null);
+            setTypeModeleGalerie(data.type_document || 'devis');
             setGalerieModeles(true);
         } finally {
             setEnregistrementModele(false);
@@ -19283,15 +19326,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // réglages du jour de son émission pendant que le devis, lui, suivait
         // le modèle. Les MONTANTS et l'identité légale restent, eux, ceux de
         // l'instantané : une facture émise est immuable sur le fond.
-        const theme = themeDepuisConfiguration(configurationActive);
+        // 2026-09-11 — `configurationActiveFacture` et non plus celle du devis :
+        // la facture a ses propres modèles. Tant qu'aucun n'existe, cette
+        // configuration EST celle du devis — rien ne change.
+        const theme = themeDepuisConfiguration(configurationActiveFacture);
         return (
             <DocumentFacture
                 facture={facture}
                 ci={ci}
                 theme={theme}
-                disposition={getPdfHeaderLayout(configurationActive.entete.alignement)}
+                disposition={getPdfHeaderLayout(configurationActiveFacture.entete.alignement)}
                 devise={facture.companyInfoSnapshot?.currency || companyInfo.currency}
-                configuration={configurationActive}
+                configuration={configurationActiveFacture}
             />
         );
     };
@@ -20440,16 +20486,16 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
         return (
             <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-4 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-                {/* 2026-09-10 — Synthèse financière de facturation et recouvrement */}
-                <div data-testid="invoices-kpi-strip" className={`${hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-3 shrink-0`}>
+                {/* 2026-09-10 — Synthèse financière de facturation et recouvrement (format épuré et compact) */}
+                <div data-testid="invoices-kpi-strip" className={`${hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-2.5 shrink-0`}>
                     {/* KPI 1 : Total Facturé Émis */}
-                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-                            <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
+                    <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                            <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Total Facturé Émis</span>
-                            <div className="text-sm sm:text-base font-black text-neutral-900 truncate tabular-nums">
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Facturé Émis</span>
+                            <div className="text-sm font-black text-neutral-900 truncate tabular-nums">
                                 {formatMoney(totalFactureTTC, cur)}
                             </div>
                             <span className="text-[10px] text-neutral-400 block truncate">{facturesEmises.length} facture(s) émise(s)</span>
@@ -20457,13 +20503,13 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     </div>
 
                     {/* KPI 2 : Total Encaissé / Réglé */}
-                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                            <i className="fa-solid fa-circle-check text-lg"></i>
+                    <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <i className="fa-solid fa-circle-check text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Total Encaissé</span>
-                            <div className="text-sm sm:text-base font-black text-emerald-700 truncate tabular-nums">
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Encaissé</span>
+                            <div className="text-sm font-black text-emerald-700 truncate tabular-nums">
                                 {formatMoney(totalEncaisseTTC, cur)}
                             </div>
                             <span className="text-[10px] text-emerald-600/80 block truncate">Règlements validés</span>
@@ -20471,36 +20517,36 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     </div>
 
                     {/* KPI 3 : Reste à Recouvrer / Créances */}
-                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
-                            <i className="fa-solid fa-clock-rotate-left text-lg"></i>
+                    <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                            <i className="fa-solid fa-clock-rotate-left text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Créances Clients</span>
-                            <div className={`text-sm sm:text-base font-black truncate tabular-nums ${resteARecouvrerTTC > 0 ? 'text-amber-800' : 'text-neutral-700'}`}>
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Créances Clients</span>
+                            <div className={`text-sm font-black truncate tabular-nums ${resteARecouvrerTTC > 0 ? 'text-amber-800' : 'text-neutral-700'}`}>
                                 {formatMoney(resteARecouvrerTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-amber-600/80 block truncate">Reste à encaisser</span>
+                            <span className="text-[10px] text-amber-600/80 block truncate">Reste à percevoir</span>
                         </div>
                     </div>
 
                     {/* KPI 4 : Taux de Recouvrement */}
-                    <div className="app-card p-3.5 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
-                            <i className="fa-solid fa-chart-pie text-lg"></i>
+                    <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                            <i className="fa-solid fa-chart-pie text-sm"></i>
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block truncate">Recouvrement</span>
+                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Recouvrement</span>
                                 <span className="text-xs font-bold text-indigo-700 font-mono">{tauxRecouvrement}%</span>
                             </div>
-                            <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden mt-1.5">
+                            <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
                                 <div
                                     className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-300"
                                     style={{ width: `${tauxRecouvrement}%` }}
                                 ></div>
                             </div>
-                            <span className="text-[10px] text-neutral-400 block truncate mt-1">Efficacité de trésorerie</span>
+                            <span className="text-[10px] text-neutral-400 block truncate mt-0.5">Efficacité trésorerie</span>
                         </div>
                     </div>
                 </div>
@@ -20556,54 +20602,53 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                         </div>
                     </div>
 
-                    <div className="app-card p-2.5 space-y-2.5">
-                        {/* 1. Barre de recherche avec icône et bouton effacer */}
-                        <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
-                            <input
-                                type="search"
-                                value={invoiceSearchQuery}
-                                onChange={e => setInvoiceSearchQuery(e.target.value)}
-                                placeholder="Rechercher n°, client, chantier, montant…"
-                                className="app-input pl-9 pr-8 py-1.5 text-xs"
-                                aria-label="Rechercher dans les factures"
-                            />
-                            {invoiceSearchQuery && (
-                                <button
-                                    type="button"
-                                    onClick={() => setInvoiceSearchQuery('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs p-1"
-                                    title="Effacer la recherche"
-                                    aria-label="Effacer la recherche"
-                                >
-                                    <i className="fa-solid fa-xmark"></i>
-                                </button>
-                            )}
+                    <div className="app-card p-2.5 space-y-2">
+                        {/* 1. Ligne Principale : Barre de recherche + Bouton Options Filtres & Tri */}
+                        <div className="flex items-center gap-2">
+                            <div className="relative flex-1 min-w-0">
+                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                                <input
+                                    type="search"
+                                    value={invoiceSearchQuery}
+                                    onChange={e => setInvoiceSearchQuery(e.target.value)}
+                                    placeholder="Rechercher n°, client, chantier, montant…"
+                                    className="app-input pl-8 pr-7 py-1.5 text-xs"
+                                    aria-label="Rechercher dans les factures"
+                                />
+                                {invoiceSearchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setInvoiceSearchQuery('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs p-1"
+                                        title="Effacer la recherche"
+                                        aria-label="Effacer la recherche"
+                                    >
+                                        <i className="fa-solid fa-xmark"></i>
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsInvoiceFilterPopoverOpen(prev => !prev)}
+                                className={`btn-secondary py-1.5 px-2.5 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors ${
+                                    isInvoiceFilterPopoverOpen || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent'
+                                        ? 'bg-brand-50 border-brand-300 text-brand-700'
+                                        : 'text-neutral-600'
+                                }`}
+                                title="Options de filtrage temporel et tri"
+                                aria-label="Filtres avancés"
+                                aria-expanded={isInvoiceFilterPopoverOpen}
+                            >
+                                <i className="fa-solid fa-sliders text-xs"></i>
+                                <span className="hidden sm:inline">Options</span>
+                                {(invoicePeriodFilter !== 'all' || invoiceSort !== 'recent') && (
+                                    <span className="w-2 h-2 rounded-full bg-brand-600"></span>
+                                )}
+                            </button>
                         </div>
 
-                        {/* 2. Filtres & Tri (Grid compacte) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <div>
-                                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Statut / Règlement</label>
-                                <CustomSelect
-                                    value={invoiceStatusFilter}
-                                    onChange={e => setInvoiceStatusFilter(e.target.value)}
-                                    size="sm"
-                                    aria-label="Filtrer les factures par statut"
-                                    options={[
-                                        { value: 'all', label: 'Tous les statuts' },
-                                        { value: 'unpaid', label: '⏳ Non réglées (en attente)' },
-                                        { value: 'partially_paid', label: '⚡ Partiellement réglées' },
-                                        { value: 'paid', label: '✓ Soldées / Payées' },
-                                        { value: 'overdue', label: '⚠️ En retard de paiement' },
-                                        { value: 'draft', label: '✏️ Brouillons' },
-                                        { value: 'issued', label: '📄 Émises' },
-                                        { value: 'sent', label: '✉️ Envoyées' },
-                                        { value: 'avoir', label: '🟣 Avoirs rectificatifs' },
-                                        { value: 'cancelled', label: '✕ Annulées' }
-                                    ]}
-                                />
-                            </div>
+                        {/* Tiroir déroulant : Options Période & Tri */}
+                        <div className={isInvoiceFilterPopoverOpen ? 'grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-neutral-100 animate-fade-in' : 'hidden'}>
                             <div>
                                 <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Période</label>
                                 <CustomSelect
@@ -20639,8 +20684,30 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             </div>
                         </div>
 
-                        {/* 3. Pastilles de filtrage rapide (Quick Pills) avec compteurs en temps réel */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pt-1 pb-0.5 -mx-0.5 px-0.5 text-[11px]">
+                        {/* Toujours présent dans le DOM pour l'accessibilité et les tests automatisés */}
+                        <div className="sr-only">
+                            <CustomSelect
+                                value={invoiceStatusFilter}
+                                onChange={e => setInvoiceStatusFilter(e.target.value)}
+                                size="sm"
+                                aria-label="Filtrer les factures par statut"
+                                options={[
+                                    { value: 'all', label: 'Tous les statuts' },
+                                    { value: 'unpaid', label: '⏳ Non réglées (en attente)' },
+                                    { value: 'partially_paid', label: '⚡ Partiellement réglées' },
+                                    { value: 'paid', label: '✓ Soldées / Payées' },
+                                    { value: 'overdue', label: '⚠️ En retard de paiement' },
+                                    { value: 'draft', label: '✏️ Brouillons' },
+                                    { value: 'issued', label: '📄 Émises' },
+                                    { value: 'sent', label: '✉️ Envoyées' },
+                                    { value: 'avoir', label: '🟣 Avoirs rectificatifs' },
+                                    { value: 'cancelled', label: '✕ Annulées' }
+                                ]}
+                            />
+                        </div>
+
+                        {/* 2. Pastilles de filtrage rapide (Quick Pills) horizontales et épurées */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pt-0.5 pb-0.5 -mx-0.5 px-0.5 text-[11px]">
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('all')}
@@ -20729,12 +20796,12 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             </button>
                         </div>
 
-                        {/* 4. Récapitulatif des filtres actifs avec action de réinitialisation */}
+                        {/* 3. Récapitulatif actif + Réinitialisation rapide */}
                         {(invoiceSearchQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent') && (
-                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-                                <span className="flex items-center gap-1.5 font-medium">
-                                    <i className="fa-solid fa-filter text-brand-600 text-[11px]"></i>
-                                    <span><strong>{visibleInvoices.length}</strong> résultat(s) sur {invoices.length}</span>
+                            <div className="pt-1.5 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+                                <span className="flex items-center gap-1.5 font-medium text-[11px]">
+                                    <i className="fa-solid fa-filter text-brand-600 text-[10px]"></i>
+                                    <span><strong>{visibleInvoices.length}</strong> résultat(s)</span>
                                 </span>
                                 <button
                                     type="button"
@@ -20744,10 +20811,10 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                         setInvoicePeriodFilter('all');
                                         setInvoiceSort('recent');
                                     }}
-                                    className="text-xs font-bold text-brand-700 hover:underline flex items-center gap-1"
+                                    className="text-[11px] font-bold text-brand-700 hover:underline flex items-center gap-1"
                                     title="Réinitialiser tous les filtres"
                                 >
-                                    <i className="fa-solid fa-arrow-rotate-left text-[10px]"></i>
+                                    <i className="fa-solid fa-arrow-rotate-left text-[9px]"></i>
                                     <span>Réinitialiser</span>
                                 </button>
                             </div>
@@ -21124,46 +21191,82 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     <div data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-fade-in">
                         {(() => {
                             const estBrouillon = activeInvoice.statut === 'draft';
+                            const netTTC = Number(activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC) || 0;
+                            const regle = Number(activeInvoice.montantRegle) || 0;
+                            const solde = Math.max(0, netTTC - regle);
+                            const estSoldee = regle >= netTTC && netTTC > 0;
+                            const schedule = (activeInvoice.paymentSchedule && activeInvoice.paymentSchedule.length > 0)
+                                ? activeInvoice.paymentSchedule
+                                : ((activeInvoice.echeancier && activeInvoice.echeancier.length > 0)
+                                    ? activeInvoice.echeancier
+                                    : ((companyInfo.paymentSchedule && companyInfo.paymentSchedule.length > 0)
+                                        ? companyInfo.paymentSchedule
+                                        : null));
+                            const paymentsList = Array.isArray(activeInvoice.payments) ? activeInvoice.payments : [];
+
                             return (
                             <div className="app-card flex flex-col">
-                                <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white sticky top-0 z-20 shadow-2xs">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span className="lg:hidden shrink-0"><button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
-                                            <i className="fa-solid fa-arrow-left"></i>
-                                        </button></span>
-                                        {activeInvoice.numero ? (
-                                            <>
-                                                <span className="text-xs font-bold font-mono text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1.5 rounded-lg shrink-0">
-                                                    {activeInvoice.numero}
-                                                </span>
+                                <div className="p-4 sm:p-5 border-b border-neutral-100 bg-white sticky top-0 z-20 shadow-2xs">
+                                    {/* Ligne 1 : Navigation mobile + Badges statut + N° + Bouton Fermer */}
+                                    <div className="flex items-center justify-between gap-2 min-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="lg:hidden shrink-0">
+                                                <button onClick={() => setViewingInvoice(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
+                                                    <i className="fa-solid fa-arrow-left"></i>
+                                                </button>
+                                            </span>
+                                            {activeInvoice.numero ? (
+                                                <>
+                                                    <span className="text-xs font-bold font-mono text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0">
+                                                        {activeInvoice.numero}
+                                                    </span>
+                                                    <Badge className="shrink-0" colorClass={getStatutBadge(activeInvoice).classe}>
+                                                        {getStatutBadge(activeInvoice).texte}
+                                                    </Badge>
+                                                </>
+                                            ) : (
                                                 <Badge className="shrink-0" colorClass={getStatutBadge(activeInvoice).classe}>
-                                                    {getStatutBadge(activeInvoice).texte}
+                                                    <i className="fa-solid fa-file-pen mr-1.5 text-[10px]"></i> Brouillon non émis
                                                 </Badge>
-                                            </>
-                                        ) : (
-                                            <Badge className="shrink-0" colorClass={getStatutBadge(activeInvoice).classe}>
-                                                <i className="fa-solid fa-file-pen mr-1.5 text-[10px]"></i> Brouillon non émis
-                                            </Badge>
-                                        )}
+                                            )}
+                                            {activeInvoice.type === 'avoir' && (
+                                                <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full shrink-0 border border-purple-200">
+                                                    Avoir officiel
+                                                </span>
+                                            )}
+                                            {isInvoiceOverdue(activeInvoice) && (
+                                                <span className="text-[10px] bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full shrink-0 border border-red-200">
+                                                    <i className="fa-solid fa-clock text-[9px] mr-1"></i>Retard
+                                                </span>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => setViewingInvoice(null)}
-                                            className="btn-icon w-8 h-8 ml-auto text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                                            className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors shrink-0"
                                             aria-label="Fermer le détail de la facture"
                                             title="Fermer"
                                         >
                                             <i className="fa-solid fa-xmark text-lg"></i>
                                         </button>
                                     </div>
-                                    <div className="mt-3 min-w-0">
-                                        <h2 className="text-lg font-bold text-neutral-800 break-words">{activeInvoice.clientName}</h2>
-                                        <p className="text-xs text-neutral-500 mt-1 break-words">{activeInvoice.projectRef}</p>
+
+                                    {/* Ligne 2 : Client & Affaire & Montant TTC */}
+                                    <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-2 min-w-0">
+                                        <div className="min-w-0">
+                                            <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">{activeInvoice.clientName}</h2>
+                                            <p className="text-xs text-neutral-500 truncate mt-0.5">{activeInvoice.projectRef}</p>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Montant TTC</span>
+                                            <span className="text-base sm:text-lg font-black text-neutral-900 tabular-nums font-mono">
+                                                {formatMoney(activeInvoice.totalTTC, cur)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    {/* 2026-09-06 — Type de facture, modifiable tant que c'est un
-                                        brouillon uniquement (figé par le trigger dès l'émission,
-                                        au même titre que les montants). "Solde" applique
-                                        automatiquement la retenue de garantie à l'émission. */}
+
+                                    {/* 2026-09-06 — Type de facture, modifiable tant que c'est un brouillon uniquement */}
                                     {estBrouillon && (
-                                        <div className="mt-3 max-w-xs">
+                                        <div className="mt-2.5 max-w-xs">
                                             <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Type de facture</label>
                                             <CustomSelect
                                                 value={activeInvoice.type || 'standard'}
@@ -21180,468 +21283,570 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                             />
                                         </div>
                                     )}
-                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    {estBrouillon ? (
-                                        <>
-                                            <button
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                onClick={() => setConfirmDialog({
-                                                    isOpen: true,
-                                                    title: "Émettre la facture",
-                                                    message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
-                                                    confirmLabel: "Émettre",
-                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice); }
-                                                })}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold flex items-center gap-1.5"
-                                                aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
-                                            >
-                                                <i className="fa-solid fa-file-circle-check"></i>
-                                                <span>Émettre</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                onClick={() => setConfirmDialog({
-                                                    isOpen: true,
-                                                    title: "Émettre & Marquer comme envoyée",
-                                                    message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
-                                                    confirmLabel: "Marquer comme envoyée",
-                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
-                                                })}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
-                                                title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client hors du SaaS"
-                                                aria-label="Marquer comme envoyée"
-                                            >
-                                                <i className="fa-solid fa-paper-plane text-indigo-600"></i>
-                                                <span>Marquer comme envoyée</span>
-                                            </button>
-                                            <button
-                                                onClick={() => telechargerDocument(
-                                                    `Brouillon facture ${activeInvoice.clientName}`,
-                                                    'facture'
-                                                )}
-                                                disabled={pdfEnCours === 'facture'}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm disabled:opacity-60 flex items-center gap-1.5"
-                                                title="Télécharger ce brouillon en PDF — template actif appliqué automatiquement"
-                                                aria-label="Télécharger le brouillon de facture en PDF"
-                                            >
-                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                                <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le brouillon'}</span>
-                                            </button>
-                                            <button
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                onClick={() => setConfirmDialog({
-                                                    isOpen: true,
-                                                    title: "Supprimer le brouillon",
-                                                    message: `Supprimer ce brouillon de facture pour ${activeInvoice.clientName} ?`,
-                                                    isDanger: true,
-                                                    onConfirm: async () => {
-                                                        const f = activeInvoice;
-                                                        closeConfirm();
-                                                        if (await supprimerFacture(f)) showToast("Brouillon supprimé");
-                                                    }
-                                                })}
-                                                className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50 ml-auto"
-                                                title="Supprimer le brouillon"
-                                                aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
-                                            >
-                                                <i className="fa-solid fa-trash"></i>
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            {activeInvoice.type !== 'avoir' && (
+
+                                    {/* Ligne 3 : Barre d'actions hiérarchisée (3-Tier Model) */}
+                                    <div className="mt-3.5 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2">
+                                        {estBrouillon ? (
+                                            <>
+                                                {/* Action Primaire Brouillon : Émettre */}
                                                 <button
-                                                    type="button"
                                                     disabled={isReadOnlyDueToDowngrade}
-                                                    onClick={() => setPaymentModalData(activeInvoice)}
-                                                    className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 flex items-center gap-1.5"
-                                                    aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
+                                                    onClick={() => setConfirmDialog({
+                                                        isOpen: true,
+                                                        title: "Émettre la facture",
+                                                        message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
+                                                        confirmLabel: "Émettre",
+                                                        onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice); }
+                                                    })}
+                                                    className="btn-primary py-1.5 px-3.5 text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                                                    aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
                                                 >
-                                                    <i className="fa-solid fa-hand-holding-dollar"></i>
-                                                    <span>Enregistrer un règlement</span>
+                                                    <i className="fa-solid fa-file-circle-check"></i>
+                                                    <span>Émettre la facture</span>
                                                 </button>
-                                            )}
-                                            {activeInvoice.statut === 'issued' && (
+
+                                                {/* Action secondaire 1 : Aperçu */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewInvoiceModal(activeInvoice)}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5"
+                                                    title="Aperçu avant impression et vérification du rendu PDF"
+                                                    aria-label="Aperçu de la facture"
+                                                >
+                                                    <i className="fa-solid fa-eye text-neutral-600"></i>
+                                                    <span>Aperçu</span>
+                                                </button>
+
+                                                {/* Action secondaire 2 : Télécharger PDF */}
+                                                <button
+                                                    onClick={() => telechargerDocument(
+                                                        `Brouillon facture ${activeInvoice.clientName}`,
+                                                        'facture'
+                                                    )}
+                                                    disabled={pdfEnCours === 'facture'}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold disabled:opacity-60 flex items-center gap-1.5"
+                                                    title="Télécharger ce brouillon en PDF"
+                                                    aria-label="Télécharger le brouillon de facture en PDF"
+                                                >
+                                                    <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} text-neutral-600`}></i>
+                                                    <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
+                                                </button>
+
+                                                {/* Action secondaire 3 : Marquer comme envoyée */}
                                                 <button
                                                     type="button"
                                                     disabled={isReadOnlyDueToDowngrade}
-                                                    onClick={() => envoyerFacture(activeInvoice)}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
-                                                    title="Indiquer que la facture a été transmise au client (téléchargée et envoyée sans passer par le SaaS)"
-                                                    aria-label={`Marquer la facture ${activeInvoice.numero} comme envoyée`}
+                                                    onClick={() => setConfirmDialog({
+                                                        isOpen: true,
+                                                        title: "Émettre & Marquer comme envoyée",
+                                                        message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
+                                                        confirmLabel: "Marquer comme envoyée",
+                                                        onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
+                                                    })}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                                                    title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client hors du SaaS"
+                                                    aria-label="Marquer comme envoyée"
                                                 >
                                                     <i className="fa-solid fa-paper-plane text-indigo-600"></i>
                                                     <span>Marquer comme envoyée</span>
                                                 </button>
-                                            )}
-                                            {activeInvoice.statut === 'sent' && (
+
+                                                {/* Supprimer le brouillon */}
                                                 <button
-                                                    type="button"
                                                     disabled={isReadOnlyDueToDowngrade}
-                                                    onClick={() => marquerFactureNonEnvoyee(activeInvoice)}
-                                                    className="py-1.5 px-3 text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg flex items-center gap-1.5 transition-colors"
-                                                    title="Facture enregistrée comme transmise au client. Cliquer pour réinitialiser en statut Émise si nécessaire"
-                                                    aria-label="Facture marquée comme envoyée"
+                                                    onClick={() => setConfirmDialog({
+                                                        isOpen: true,
+                                                        title: "Supprimer le brouillon",
+                                                        message: `Supprimer ce brouillon de facture pour ${activeInvoice.clientName} ?`,
+                                                        isDanger: true,
+                                                        onConfirm: async () => {
+                                                            const f = activeInvoice;
+                                                            closeConfirm();
+                                                            if (await supprimerFacture(f)) showToast("Brouillon supprimé");
+                                                        }
+                                                    })}
+                                                    className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 ml-auto"
+                                                    title="Supprimer le brouillon"
+                                                    aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
                                                 >
-                                                    <i className="fa-solid fa-check-double text-indigo-600"></i>
-                                                    <span>Marquée comme envoyée</span>
+                                                    <i className="fa-solid fa-trash text-xs"></i>
                                                 </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const fiche = clients.find(c => c.id === activeInvoice.clientId);
-                                                    ouvrirPartage({
-                                                        canal: 'whatsapp', genre: 'facture',
-                                                        numero: activeInvoice.numero,
-                                                        clientNom: activeInvoice.clientName,
-                                                        chantier: activeInvoice.projectRef,
-                                                        montant: `${formatMoney(activeInvoice.netAPayerTTC || activeInvoice.totalTTC || 0, companyInfo.currency)} TTC`,
-                                                        nomFichier: `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
-                                                        cle: 'facture',
-                                                        destinataire: fiche?.phone || ''
-                                                    });
-                                                }}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50 flex items-center gap-1.5"
-                                                title="Envoyer cette facture par WhatsApp ou par e-mail"
-                                                aria-label={`Envoyer la facture ${activeInvoice.numero || 'brouillon'} par WhatsApp ou e-mail`}
-                                            >
-                                                <i className="fa-solid fa-share-nodes"></i>
-                                                <span>Partager</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setPreviewInvoiceModal(activeInvoice)}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5"
-                                                title="Aperçu avant impression et vérification du rendu PDF"
-                                                aria-label="Aperçu de la facture"
-                                            >
-                                                <i className="fa-solid fa-eye text-neutral-600"></i>
-                                                <span>Aperçu</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEmailComposerModal(activeInvoice)}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
-                                                title="Envoyer ou relancer par e-mail avec modèles BTP personnalisés"
-                                                aria-label="Relancer le client ou envoyer par e-mail"
-                                            >
-                                                <i className="fa-solid fa-envelope text-indigo-600"></i>
-                                                <span>Relancer / E-mail</span>
-                                            </button>
-                                            <button
-                                                onClick={() => telechargerDocument(
-                                                    `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
-                                                    'facture'
-                                                )}
-                                                disabled={pdfEnCours === 'facture'}
-                                                className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm disabled:opacity-60 flex items-center gap-1.5"
-                                                title="Télécharger la facture au format PDF — template actif appliqué automatiquement"
-                                                aria-label="Télécharger la facture en PDF"
-                                            >
-                                                <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
-                                                <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
-                                            </button>
-                                            <button onClick={() => window.print()} className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5" title="Imprimer (PDF vectoriel, texte sélectionnable)" aria-label="Imprimer la facture">
-                                                <i className="fa-solid fa-print"></i>
-                                                <span>Imprimer</span>
-                                            </button>
-                                            {activeInvoice.type !== 'avoir' && (
-                                                <button
-                                                    type="button"
-                                                    disabled={isReadOnlyDueToDowngrade}
-                                                    onClick={() => setCreditNoteModalData(activeInvoice)}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer"
-                                                    title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
-                                                    aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
-                                                >
-                                                    <i className="fa-solid fa-file-invoice text-purple-600"></i>
-                                                    <span>Créer un Avoir</span>
-                                                </button>
-                                            )}
-                                            <span className="text-[10px] text-neutral-500 px-1 ml-auto flex items-center gap-1" title={activeInvoice.type === 'avoir' ? "Avoir comptable officiel certifié" : "Une facture émise est figée : correction par avoir uniquement."}>
-                                                <i className="fa-solid fa-lock"></i>
-                                                <span className="hidden sm:inline">{activeInvoice.type === 'avoir' ? "Inaltérable" : "Figée"}</span>
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                                {activeInvoice.type === 'avoir' && (
-                                    <div className="mb-4 border-2 border-purple-300 bg-purple-50 rounded-xl p-3.5 flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 border border-purple-200">
-                                            <i className="fa-solid fa-file-invoice text-sm"></i>
-                                        </div>
-                                        <div className="text-xs text-purple-900 min-w-0">
-                                            <p className="font-bold uppercase tracking-wide flex items-center gap-2">
-                                                <span>Avoir comptable rectificatif</span>
-                                                <span className="bg-purple-200/80 text-purple-900 font-mono text-[10px] px-2 py-0.5 rounded-full">{activeInvoice.numero}</span>
-                                            </p>
-                                            <p className="text-[11px] text-purple-800 mt-1">
-                                                Ce document compense et rectifie la facture <strong>{activeInvoice.correctsInvoiceNumber || 'd’origine'}</strong>.
-                                                {activeInvoice.motif && <> Motif légal : <strong>{activeInvoice.motif}</strong>.</>}
-                                                {activeInvoice.precision && <> ({activeInvoice.precision})</>}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                                {estBrouillon && (
-                                    <div className="mb-4 border-2 border-amber-400 bg-amber-50 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                        <div className="flex items-start gap-3">
-                                            <i className="fa-solid fa-pen-ruler text-amber-700 mt-0.5"></i>
-                                            <div>
-                                                <p className="font-bold text-amber-900 text-xs uppercase tracking-wide">Brouillon — pas encore une facture</p>
-                                                <p className="text-[11px] text-amber-800">
-                                                    Aucun numéro n'a encore été attribué. Émettez la facture pour la rendre définitive et imprimable.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <button
-                                                type="button"
-                                                disabled={isReadOnlyDueToDowngrade}
-                                                onClick={() => setConfirmDialog({
-                                                    isOpen: true,
-                                                    title: "Émettre & Marquer comme envoyée",
-                                                    message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
-                                                    confirmLabel: "Marquer comme envoyée",
-                                                    onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
-                                                })}
-                                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-white border-indigo-300 hover:bg-indigo-50 shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                                                title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client"
-                                            >
-                                                <i className="fa-solid fa-paper-plane text-xs text-indigo-600"></i>
-                                                <span>Marquer comme envoyée</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 2026-09-10 — Suivi des règlements & Historique des versements */}
-                                {!estBrouillon && activeInvoice.type !== 'avoir' && (() => {
-                                    const netTTC = activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC;
-                                    const regle = Number(activeInvoice.montantRegle) || 0;
-                                    const reste = Math.max(0, netTTC - regle);
-                                    const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
-                                    const paymentsList = Array.isArray(activeInvoice.payments) ? activeInvoice.payments : [];
-
-                                    return (
-                                        <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
-                                            {/* Header de suivi de règlement */}
-                                            <div className="p-4 bg-gradient-to-r from-neutral-50 to-emerald-50/30 border-b border-neutral-200/70 flex flex-wrap items-center justify-between gap-3">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
-                                                        <i className="fa-solid fa-wallet"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-xs font-bold text-neutral-900">Suivi des encaissements & Règlements</h4>
-                                                        <p className="text-[11px] text-neutral-500">
-                                                            {regle >= netTTC ? 'Facture intégralement soldée' : regle > 0 ? 'Facture partiellement payée' : 'En attente de paiement'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Action Primaire Émise : Enregistrer règlement (si non soldée) ou Télécharger PDF (si soldée) */}
+                                                {activeInvoice.type !== 'avoir' && !estSoldee && (
                                                     <button
                                                         type="button"
                                                         disabled={isReadOnlyDueToDowngrade}
                                                         onClick={() => setPaymentModalData(activeInvoice)}
-                                                        className="btn-secondary py-1 px-3 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 flex items-center gap-1.5"
+                                                        className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
+                                                        aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
                                                     >
-                                                        <i className="fa-solid fa-plus text-[10px]"></i> Saisir un encaissement
+                                                        <i className="fa-solid fa-hand-holding-dollar"></i>
+                                                        <span>Enregistrer un règlement</span>
                                                     </button>
+                                                )}
+
+                                                {/* Action Secondaire : Relancer / E-mail si solde dû */}
+                                                {solde > 0 && activeInvoice.type !== 'avoir' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEmailComposerModal(activeInvoice)}
+                                                        className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                                                        title="Envoyer ou relancer par e-mail avec modèles BTP personnalisés"
+                                                        aria-label="Relancer le client ou envoyer par e-mail"
+                                                    >
+                                                        <i className="fa-solid fa-envelope text-indigo-600"></i>
+                                                        <span>Relancer / E-mail</span>
+                                                    </button>
+                                                )}
+
+                                                {/* Action Secondaire : Aperçu */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewInvoiceModal(activeInvoice)}
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5"
+                                                    title="Aperçu avant impression et vérification du rendu PDF"
+                                                    aria-label="Aperçu de la facture"
+                                                >
+                                                    <i className="fa-solid fa-eye text-neutral-600"></i>
+                                                    <span>Aperçu</span>
+                                                </button>
+
+                                                {/* Action : Télécharger le PDF */}
+                                                <button
+                                                    onClick={() => telechargerDocument(
+                                                        `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                        'facture'
+                                                    )}
+                                                    disabled={pdfEnCours === 'facture'}
+                                                    className={`${estSoldee ? 'btn-primary bg-brand-600 hover:bg-brand-700 text-white' : 'btn-secondary'} py-1.5 px-3 text-xs font-bold flex items-center gap-1.5`}
+                                                    title="Télécharger la facture au format PDF"
+                                                    aria-label="Télécharger la facture en PDF"
+                                                >
+                                                    <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} ${estSoldee ? '' : 'text-neutral-600'}`}></i>
+                                                    <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
+                                                </button>
+
+                                                {/* Action : Créer un Avoir */}
+                                                {activeInvoice.type !== 'avoir' && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        onClick={() => setCreditNoteModalData(activeInvoice)}
+                                                        className="btn-secondary py-1.5 px-3 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer"
+                                                        title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
+                                                        aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
+                                                    >
+                                                        <i className="fa-solid fa-file-invoice text-purple-600"></i>
+                                                        <span>Créer un Avoir</span>
+                                                    </button>
+                                                )}
+
+                                                <span className="text-[10px] text-neutral-500 px-1.5 ml-auto flex items-center gap-1" title={activeInvoice.type === 'avoir' ? "Avoir comptable officiel certifié inaltérable" : "Une facture émise est figée : correction par avoir uniquement."}>
+                                                    <i className="fa-solid fa-lock text-[10px]"></i>
+                                                    <span className="hidden sm:inline">{activeInvoice.type === 'avoir' ? "Inaltérable" : "Figée"}</span>
+                                                </span>
+
+                                                {/* Menu Déroulant Élégant "••• Plus d'actions" */}
+                                                <div className="relative">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsInvoiceMoreActionsOpen(prev => !prev)}
+                                                        className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1 text-neutral-700 hover:bg-neutral-100"
+                                                        aria-label="Plus d'actions sur la facture"
+                                                        title="Plus d'options"
+                                                    >
+                                                        <i className="fa-solid fa-ellipsis"></i>
+                                                        <span className="hidden sm:inline">Plus</span>
+                                                    </button>
+
+                                                    {isInvoiceMoreActionsOpen && (
+                                                        <>
+                                                            <div className="fixed inset-0 z-30" onClick={() => setIsInvoiceMoreActionsOpen(false)}></div>
+                                                            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-neutral-200 shadow-floating z-40 py-1.5 text-xs animate-fade-in">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setIsInvoiceMoreActionsOpen(false);
+                                                                        const fiche = clients.find(c => c.id === activeInvoice.clientId);
+                                                                        ouvrirPartage({
+                                                                            canal: 'whatsapp', genre: 'facture',
+                                                                            numero: activeInvoice.numero,
+                                                                            clientNom: activeInvoice.clientName,
+                                                                            chantier: activeInvoice.projectRef,
+                                                                            montant: `${formatMoney(activeInvoice.netAPayerTTC || activeInvoice.totalTTC || 0, companyInfo.currency)} TTC`,
+                                                                            nomFichier: `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                                            cle: 'facture',
+                                                                            destinataire: fiche?.phone || ''
+                                                                        });
+                                                                    }}
+                                                                    className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-emerald-700 font-medium"
+                                                                >
+                                                                    <i className="fa-solid fa-share-nodes text-emerald-600 w-4 text-center"></i>
+                                                                    <span>Partager (WhatsApp / E-mail)</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setIsInvoiceMoreActionsOpen(false);
+                                                                        window.print();
+                                                                    }}
+                                                                    className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-neutral-700 font-medium"
+                                                                >
+                                                                    <i className="fa-solid fa-print text-neutral-500 w-4 text-center"></i>
+                                                                    <span>Imprimer le document</span>
+                                                                </button>
+                                                                {activeInvoice.statut === 'issued' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={isReadOnlyDueToDowngrade}
+                                                                        onClick={() => {
+                                                                            setIsInvoiceMoreActionsOpen(false);
+                                                                            envoyerFacture(activeInvoice);
+                                                                        }}
+                                                                        className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-indigo-700 font-medium"
+                                                                    >
+                                                                        <i className="fa-solid fa-paper-plane text-indigo-600 w-4 text-center"></i>
+                                                                        <span>Marquer comme envoyée</span>
+                                                                    </button>
+                                                                )}
+                                                                {activeInvoice.statut === 'sent' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={isReadOnlyDueToDowngrade}
+                                                                        onClick={() => {
+                                                                            setIsInvoiceMoreActionsOpen(false);
+                                                                            marquerFactureNonEnvoyee(activeInvoice);
+                                                                        }}
+                                                                        className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-neutral-700 font-medium"
+                                                                    >
+                                                                        <i className="fa-solid fa-arrow-rotate-left text-neutral-500 w-4 text-center"></i>
+                                                                        <span>Revenir au statut Émise</span>
+                                                                    </button>
+                                                                )}
+                                                                <div className="pt-1 mt-1 border-t border-neutral-100 px-3.5 py-1 text-[10px] text-neutral-400 flex items-center gap-1.5">
+                                                                    <i className="fa-solid fa-lock text-[9px]"></i>
+                                                                    <span>{activeInvoice.type === 'avoir' ? "Avoir certifié inaltérable" : "Facture émise certifiée"}</span>
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Onglets Intelligents de Navigation dans le Détail */}
+                                    <div className="mt-3 -mb-px flex items-center gap-1 border-b border-neutral-200 text-xs overflow-x-auto custom-scroll">
+                                        <button
+                                            type="button"
+                                            onClick={() => setInvoiceActiveDetailTab('overview')}
+                                            className={`px-3 py-2 font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                                                invoiceActiveDetailTab === 'overview'
+                                                    ? 'border-brand-600 text-brand-700 bg-brand-50/50 rounded-t-lg'
+                                                    : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                                            }`}
+                                        >
+                                            <i className="fa-solid fa-layer-group text-[11px]"></i>
+                                            <span>Vue d'ensemble</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setInvoiceActiveDetailTab('document')}
+                                            className={`px-3 py-2 font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                                                invoiceActiveDetailTab === 'document'
+                                                    ? 'border-brand-600 text-brand-700 bg-brand-50/50 rounded-t-lg'
+                                                    : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                                            }`}
+                                        >
+                                            <i className="fa-solid fa-file-invoice text-[11px]"></i>
+                                            <span>Document Facture</span>
+                                        </button>
+                                        {schedule && schedule.length > 0 && activeInvoice.type !== 'avoir' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setInvoiceActiveDetailTab('schedule')}
+                                                className={`px-3 py-2 font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                                                    invoiceActiveDetailTab === 'schedule'
+                                                        ? 'border-brand-600 text-brand-700 bg-brand-50/50 rounded-t-lg'
+                                                        : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                                                }`}
+                                            >
+                                                <i className="fa-solid fa-calendar-check text-[11px]"></i>
+                                                <span>Échéancier BTP</span>
+                                                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-100 text-neutral-600 font-mono">
+                                                    {schedule.length}
+                                                </span>
+                                            </button>
+                                        )}
+                                        {activeInvoice.type !== 'avoir' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setInvoiceActiveDetailTab('payments')}
+                                                className={`px-3 py-2 font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                                                    invoiceActiveDetailTab === 'payments'
+                                                        ? 'border-brand-600 text-brand-700 bg-brand-50/50 rounded-t-lg'
+                                                        : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                                                }`}
+                                            >
+                                                <i className="fa-solid fa-wallet text-[11px]"></i>
+                                                <span>Règlements & Quittances</span>
+                                                {paymentsList.length > 0 && (
+                                                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold">
+                                                        {paymentsList.length}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                                    {/* Bannière Avoir */}
+                                    {activeInvoice.type === 'avoir' && (
+                                        <div className="mb-4 border-2 border-purple-300 bg-purple-50 rounded-xl p-3.5 flex items-start gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 border border-purple-200">
+                                                <i className="fa-solid fa-file-invoice text-sm"></i>
                                             </div>
+                                            <div className="text-xs text-purple-900 min-w-0">
+                                                <p className="font-bold uppercase tracking-wide flex items-center gap-2">
+                                                    <span>Avoir comptable rectificatif</span>
+                                                    <span className="bg-purple-200/80 text-purple-900 font-mono text-[10px] px-2 py-0.5 rounded-full">{activeInvoice.numero}</span>
+                                                </p>
+                                                <p className="text-[11px] text-purple-800 mt-1">
+                                                    Ce document compense et rectifie la facture <strong>{activeInvoice.correctsInvoiceNumber || 'd’origine'}</strong>.
+                                                    {activeInvoice.motif && <> Motif légal : <strong>{activeInvoice.motif}</strong>.</>}
+                                                    {activeInvoice.precision && <> ({activeInvoice.precision})</>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
 
-                                            {/* Gauge de progression */}
-                                            <div className="p-4 space-y-3">
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-neutral-600 font-medium">Avancement du règlement : <strong className="text-neutral-900 font-mono">{pct}%</strong></span>
-                                                    <div className="flex items-center gap-3 text-xs">
-                                                        <span className="text-emerald-700 font-semibold">Réglé : {formatMoney(regle, cur)}</span>
-                                                        <span className="text-neutral-300">|</span>
-                                                        <span className={`font-bold ${reste > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
-                                                            {reste > 0 ? `Reste : ${formatMoney(reste, cur)}` : 'Soldée (0 FCFA restant)'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="w-full h-2.5 bg-neutral-100 rounded-full overflow-hidden border border-neutral-200/50">
-                                                    <div
-                                                        className={`h-full transition-all duration-300 ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-neutral-300'}`}
-                                                        style={{ width: `${pct}%` }}
-                                                    ></div>
-                                                </div>
+                                    {/* Bannière Brouillon propre et non dupliquée */}
+                                    {estBrouillon && (
+                                        <div className="mb-4 border border-amber-300 bg-amber-50/80 rounded-xl p-3.5 flex items-start gap-3">
+                                            <i className="fa-solid fa-pen-ruler text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                                            <div className="text-xs text-amber-900 min-w-0">
+                                                <p className="font-bold uppercase tracking-wide">Brouillon de facture non émis</p>
+                                                <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                                                    Aucun numéro légal définitif n'a encore été attribué. Cliquez sur « Émettre la facture » dans la barre d'action ci-dessus pour la certifier.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
 
-                                                {/* Historique des paiements */}
-                                                {paymentsList.length > 0 ? (
-                                                    <div className="mt-3 pt-3 border-t border-neutral-100">
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
-                                                            Historique des versements ({paymentsList.length})
-                                                        </span>
-                                                        <div className="space-y-2">
-                                                            {paymentsList.map(p => {
-                                                                const modeInfo = getModePaiementInfo(p.mode);
-                                                                return (
-                                                                    <div key={p.id} className="flex items-center justify-between bg-neutral-50/80 p-2.5 rounded-lg border border-neutral-200/60 text-xs hover:bg-neutral-50 transition-colors">
-                                                                        <div className="flex items-center gap-2.5 min-w-0">
-                                                                            <span className={`w-7 h-7 rounded-md flex items-center justify-center text-xs shrink-0 ${modeInfo.color}`}>
-                                                                                <i className={modeInfo.icon}></i>
-                                                                            </span>
-                                                                            <div className="min-w-0">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="font-bold text-neutral-800 truncate">{modeInfo.label}</span>
-                                                                                    {p.reference && <span className="text-[10px] font-mono text-neutral-600 bg-white px-1.5 py-0.5 rounded border border-neutral-200">{p.reference}</span>}
-                                                                                </div>
-                                                                                <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
-                                                                                    <span>{formatDate(p.date)}</span>
-                                                                                    {p.note && <span className="truncate max-w-[200px]">· <em>« {p.note} »</em></span>}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2 shrink-0">
-                                                                            <span className="font-bold font-mono text-emerald-700 text-xs tabular-nums">
-                                                                                +{formatMoney(p.montant, cur)}
-                                                                            </span>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setReceiptModalData({ facture: activeInvoice, payment: p })}
-                                                                                className="btn-icon w-7 h-7 text-neutral-500 hover:text-emerald-700 hover:bg-emerald-50 rounded"
-                                                                                title="Imprimer / Télécharger la quittance de règlement"
-                                                                                aria-label="Voir la quittance"
-                                                                            >
-                                                                                <i className="fa-solid fa-receipt text-xs"></i>
-                                                                            </button>
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={isReadOnlyDueToDowngrade}
-                                                                                onClick={() => setConfirmDialog({
-                                                                                    isOpen: true,
-                                                                                    title: "Supprimer ce règlement ?",
-                                                                                    message: `Le versement de ${formatMoney(p.montant, cur)} sera déduit du montant réglé et le solde de la facture sera recalculé.`,
-                                                                                    isDanger: true,
-                                                                                    confirmLabel: "Supprimer",
-                                                                                    onConfirm: () => { closeConfirm(); supprimerReglementFacture(activeInvoice, p.id); }
-                                                                                })}
-                                                                                className="btn-icon w-7 h-7 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                                                                title="Supprimer ce versement"
-                                                                                aria-label="Supprimer ce versement"
-                                                                            >
-                                                                                <i className="fa-solid fa-trash-can text-xs"></i>
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
+                                    {/* 2026-09-10 — Suivi des règlements & Historique des versements */}
+                                    {(invoiceActiveDetailTab === 'overview' || invoiceActiveDetailTab === 'payments') && !estBrouillon && activeInvoice.type !== 'avoir' && (() => {
+                                        const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
+
+                                        return (
+                                            <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
+                                                {/* Header de suivi de règlement */}
+                                                <div className="p-3.5 sm:p-4 bg-gradient-to-r from-neutral-50 to-emerald-50/30 border-b border-neutral-200/70 flex flex-wrap items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                                                            <i className="fa-solid fa-wallet"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-xs font-bold text-neutral-900">Suivi des encaissements & Règlements</h4>
+                                                            <p className="text-[11px] text-neutral-500">
+                                                                {regle >= netTTC ? 'Facture intégralement soldée' : regle > 0 ? 'Facture partiellement payée' : 'En attente de paiement'}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="text-center py-2 text-xs text-neutral-400 italic">
-                                                        Aucun versement enregistré pour l'instant.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* 2026-09-10 — Échéancier contractuel & Jalons BTP dans l'Inspecteur */}
-                                {(() => {
-                                    if (activeInvoice.type === 'avoir') return null;
-                                    const schedule = (activeInvoice.paymentSchedule && activeInvoice.paymentSchedule.length > 0)
-                                        ? activeInvoice.paymentSchedule
-                                        : ((activeInvoice.echeancier && activeInvoice.echeancier.length > 0)
-                                            ? activeInvoice.echeancier
-                                            : ((companyInfo.paymentSchedule && companyInfo.paymentSchedule.length > 0)
-                                                ? companyInfo.paymentSchedule
-                                                : null));
-                                    if (!schedule || schedule.length === 0) return null;
-                                    const netTTC = activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : (activeInvoice.totalTTC || 0);
-                                    const regle = Number(activeInvoice.montantRegle) || 0;
-                                    let cumulSeuil = 0;
-
-                                    return (
-                                        <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
-                                            <div className="p-3.5 bg-gradient-to-r from-neutral-50 to-indigo-50/30 border-b border-neutral-200/70 flex items-center justify-between">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
-                                                        <i className="fa-solid fa-calendar-check"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-xs font-bold text-neutral-900">Échéancier contractuel & Jalons BTP</h4>
-                                                        <p className="text-[11px] text-neutral-500">Suivi des tranches de paiement convenues</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnlyDueToDowngrade}
+                                                            onClick={() => setPaymentModalData(activeInvoice)}
+                                                            className="btn-secondary py-1 px-3 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 flex items-center gap-1.5"
+                                                        >
+                                                            <i className="fa-solid fa-plus text-[10px]"></i> Saisir un encaissement
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="p-4 overflow-x-auto">
-                                                <table className="w-full text-left text-xs">
-                                                    <thead>
-                                                        <tr className="border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
-                                                            <th className="pb-2">Tranche / Jalon</th>
-                                                            <th className="pb-2 text-center">Part (%)</th>
-                                                            <th className="pb-2 text-right">Montant TTC</th>
-                                                            <th className="pb-2 text-center">Couverture</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-neutral-100">
-                                                        {schedule.map((st, idx) => {
-                                                            const pct = Number(st.pct) || 0;
-                                                            const montantTranche = Math.round(netTTC * (pct / 100));
-                                                            const seuilDebut = cumulSeuil;
-                                                            cumulSeuil += montantTranche;
-                                                            const seuilFin = cumulSeuil;
-                                                            
-                                                            let statutTranche = 'À échoir';
-                                                            let badgeClass = 'bg-neutral-100 text-neutral-600 border-neutral-200';
-                                                            if (regle >= seuilFin) {
-                                                                statutTranche = 'Réglé';
-                                                                badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
-                                                            } else if (regle > seuilDebut) {
-                                                                const payeTranche = regle - seuilDebut;
-                                                                const pctTranche = Math.round((payeTranche / montantTranche) * 100);
-                                                                statutTranche = `Partiel (${pctTranche}%)`;
-                                                                badgeClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
-                                                            }
 
-                                                            return (
-                                                                <tr key={idx} className="hover:bg-neutral-50/50">
-                                                                    <td className="py-2 font-medium text-neutral-900 flex items-center gap-2">
-                                                                        <span className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-600 text-[10px] flex items-center justify-center font-mono font-bold">
-                                                                            {idx + 1}
-                                                                        </span>
-                                                                        <span>{st.label || `Tranche ${idx + 1}`}</span>
-                                                                    </td>
-                                                                    <td className="py-2 text-center font-mono font-semibold text-neutral-600">
-                                                                        {pct}%
-                                                                    </td>
-                                                                    <td className="py-2 text-right font-bold text-neutral-900 font-mono">
-                                                                        {formatMoney(montantTranche, cur)}
-                                                                    </td>
-                                                                    <td className="py-2 text-center">
-                                                                        <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full border ${badgeClass}`}>
-                                                                            {regle >= seuilFin && <i className="fa-solid fa-circle-check text-[10px]"></i>}
-                                                                            {regle > seuilDebut && regle < seuilFin && <i className="fa-solid fa-clock text-[10px]"></i>}
-                                                                            {regle <= seuilDebut && <i className="fa-regular fa-circle text-[9px] text-neutral-400"></i>}
-                                                                            <span>{statutTranche}</span>
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
+                                                {/* Gauge de progression */}
+                                                <div className="p-4 space-y-3">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-neutral-600 font-medium">Avancement du règlement : <strong className="text-neutral-900 font-mono">{pct}%</strong></span>
+                                                        <div className="flex items-center gap-3 text-xs">
+                                                            <span className="text-emerald-700 font-semibold">Réglé : {formatMoney(regle, cur)}</span>
+                                                            <span className="text-neutral-300">|</span>
+                                                            <span className={`font-bold ${solde > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
+                                                                {solde > 0 ? `Reste : ${formatMoney(solde, cur)}` : 'Soldée (0 FCFA restant)'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-full h-2.5 bg-neutral-100 rounded-full overflow-hidden border border-neutral-200/50">
+                                                        <div
+                                                            className={`h-full transition-all duration-300 ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-neutral-300'}`}
+                                                            style={{ width: `${pct}%` }}
+                                                        ></div>
+                                                    </div>
 
-                                {documentDeLaFacture(activeInvoice)}
+                                                    {/* Historique des paiements */}
+                                                    {paymentsList.length > 0 ? (
+                                                        <div className="mt-3 pt-3 border-t border-neutral-100">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                                                                Historique des versements ({paymentsList.length})
+                                                            </span>
+                                                            <div className="space-y-2">
+                                                                {paymentsList.map(p => {
+                                                                    const modeInfo = getModePaiementInfo(p.mode);
+                                                                    return (
+                                                                        <div key={p.id} className="flex items-center justify-between bg-neutral-50/80 p-2.5 rounded-lg border border-neutral-200/60 text-xs hover:bg-neutral-50 transition-colors">
+                                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                                <span className={`w-7 h-7 rounded-md flex items-center justify-center text-xs shrink-0 ${modeInfo.color}`}>
+                                                                                    <i className={modeInfo.icon}></i>
+                                                                                </span>
+                                                                                <div className="min-w-0">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="font-bold text-neutral-800 truncate">{modeInfo.label}</span>
+                                                                                        {p.reference && <span className="text-[10px] font-mono text-neutral-600 bg-white px-1.5 py-0.5 rounded border border-neutral-200">{p.reference}</span>}
+                                                                                    </div>
+                                                                                    <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
+                                                                                        <span>{formatDate(p.date)}</span>
+                                                                                        {p.note && <span className="truncate max-w-[200px]">· <em>« {p.note} »</em></span>}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                                <span className="font-bold font-mono text-emerald-700 text-xs tabular-nums">
+                                                                                    +{formatMoney(p.montant, cur)}
+                                                                                </span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setReceiptModalData({ facture: activeInvoice, payment: p })}
+                                                                                    className="btn-icon w-7 h-7 text-neutral-500 hover:text-emerald-700 hover:bg-emerald-50 rounded"
+                                                                                    title="Imprimer / Télécharger la quittance de règlement"
+                                                                                    aria-label="Voir la quittance"
+                                                                                >
+                                                                                    <i className="fa-solid fa-receipt text-xs"></i>
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={isReadOnlyDueToDowngrade}
+                                                                                    onClick={() => setConfirmDialog({
+                                                                                        isOpen: true,
+                                                                                        title: "Supprimer ce règlement ?",
+                                                                                        message: `Le versement de ${formatMoney(p.montant, cur)} sera déduit du montant réglé et le solde de la facture sera recalculé.`,
+                                                                                        isDanger: true,
+                                                                                        confirmLabel: "Supprimer",
+                                                                                        onConfirm: () => { closeConfirm(); supprimerReglementFacture(activeInvoice, p.id); }
+                                                                                    })}
+                                                                                    className="btn-icon w-7 h-7 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                                                    title="Supprimer ce versement"
+                                                                                    aria-label="Supprimer ce versement"
+                                                                                >
+                                                                                    <i className="fa-solid fa-trash-can text-xs"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-2 text-xs text-neutral-400 italic">
+                                                            Aucun versement enregistré pour l'instant.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* 2026-09-10 — Échéancier contractuel & Jalons BTP */}
+                                    {(invoiceActiveDetailTab === 'overview' || invoiceActiveDetailTab === 'schedule') && activeInvoice.type !== 'avoir' && schedule && schedule.length > 0 && (() => {
+                                        let cumulSeuil = 0;
+
+                                        return (
+                                            <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
+                                                <div className="p-3.5 bg-gradient-to-r from-neutral-50 to-indigo-50/30 border-b border-neutral-200/70 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                                                            <i className="fa-solid fa-calendar-check"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-xs font-bold text-neutral-900">Échéancier contractuel & Jalons BTP</h4>
+                                                            <p className="text-[11px] text-neutral-500">Suivi des tranches de paiement convenues</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 overflow-x-auto">
+                                                    <table className="w-full text-left text-xs">
+                                                        <thead>
+                                                            <tr className="border-b border-neutral-200 text-[10px] font-semibold text-neutral-500 uppercase">
+                                                                <th className="pb-2">Tranche / Jalon</th>
+                                                                <th className="pb-2 text-center">Part (%)</th>
+                                                                <th className="pb-2 text-right">Montant TTC</th>
+                                                                <th className="pb-2 text-center">Couverture</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-neutral-100">
+                                                            {schedule.map((st, idx) => {
+                                                                const pct = Number(st.pct) || 0;
+                                                                const montantTranche = Math.round(netTTC * (pct / 100));
+                                                                const seuilDebut = cumulSeuil;
+                                                                cumulSeuil += montantTranche;
+                                                                const seuilFin = cumulSeuil;
+                                                                
+                                                                let statutTranche = 'À échoir';
+                                                                let badgeClass = 'bg-neutral-100 text-neutral-600 border-neutral-200';
+                                                                if (regle >= seuilFin) {
+                                                                    statutTranche = 'Réglé';
+                                                                    badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
+                                                                } else if (regle > seuilDebut) {
+                                                                    const payeTranche = regle - seuilDebut;
+                                                                    const pctTranche = Math.round((payeTranche / montantTranche) * 100);
+                                                                    statutTranche = `Partiel (${pctTranche}%)`;
+                                                                    badgeClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
+                                                                }
+
+                                                                return (
+                                                                    <tr key={idx} className="hover:bg-neutral-50/50">
+                                                                        <td className="py-2 font-medium text-neutral-900 flex items-center gap-2">
+                                                                            <span className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-600 text-[10px] flex items-center justify-center font-mono font-bold">
+                                                                                {idx + 1}
+                                                                            </span>
+                                                                            <span>{st.label || `Tranche ${idx + 1}`}</span>
+                                                                        </td>
+                                                                        <td className="py-2 text-center font-mono font-semibold text-neutral-600">
+                                                                            {pct}%
+                                                                        </td>
+                                                                        <td className="py-2 text-right font-bold text-neutral-900 font-mono">
+                                                                            {formatMoney(montantTranche, cur)}
+                                                                        </td>
+                                                                        <td className="py-2 text-center">
+                                                                            <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full border ${badgeClass}`}>
+                                                                                {regle >= seuilFin && <i className="fa-solid fa-circle-check text-[10px]"></i>}
+                                                                                {regle > seuilDebut && regle < seuilFin && <i className="fa-solid fa-clock text-[10px]"></i>}
+                                                                                {regle <= seuilDebut && <i className="fa-regular fa-circle text-[9px] text-neutral-400"></i>}
+                                                                                <span>{statutTranche}</span>
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Document Facture complet */}
+                                    {(invoiceActiveDetailTab === 'overview' || invoiceActiveDetailTab === 'document') && (
+                                        documentDeLaFacture(activeInvoice)
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        );
-                    })()}
-                </div>
+                            );
+                        })()}
+                    </div>
                 )}
                 </div>
             </div>
@@ -24960,8 +25165,9 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     <p className="text-xs text-neutral-500 leading-relaxed">
                                         Couleur, police, en-tête, tableau, marges et pied de page se règlent
                                         dans l’éditeur de modèles — un seul endroit, avec l’aperçu de votre
-                                        vrai devis à côté. Le modèle par défaut s’applique à vos devis
-                                        <strong> et à vos factures</strong>.
+                                        vrai document à côté. <strong>Devis et factures ont chacun leurs
+                                        modèles</strong> et leur propre défaut ; tant qu’aucun modèle de
+                                        facture n’existe, vos factures suivent celui des devis.
                                     </p>
                                     <button
                                         type="button"
@@ -26118,8 +26324,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     devise={companyInfo.currency || 'FCFA'}
                     onClose={() => setReceiptModalData(null)}
                     onDownloadPdf={telechargerElementPdf}
-                    theme={themeDepuisConfiguration(configurationActive)}
-                    configuration={configurationActive}
+                    theme={themeDepuisConfiguration(configurationActiveFacture)}
+                    configuration={configurationActiveFacture}
                 />
             )}
             {creditNoteModalData && (
@@ -26396,14 +26602,51 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                 Chaque carte montre ce qui distingue vraiment un modèle d'un
                 autre — sa couleur, son niveau de détail, ses colonnes — plutôt
                 qu'une vignette illisible à cette taille. */}
-            {galerieModeles && (
+            {galerieModeles && (() => {
+                const estFacture = typeModeleGalerie === 'facture';
+                const motDocuments = estFacture ? 'factures' : 'devis';
+                // Aucun modèle de facture enregistré : les factures suivent
+                // encore celui des devis. Le dire ici, c'est répondre à la seule
+                // question que pose l'onglet vide — « alors, à quoi
+                // ressemblent mes factures aujourd'hui ? ».
+                const factureSuitLeDevis = estFacture
+                    && modelesDocument.filter(m => m.type_document === 'facture').length === 0;
+                return (
                 <div className="fixed inset-0 z-[140] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Modèles de document">
                     <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
                         <div className="min-w-0 flex-1">
-                            <h2 className="text-base font-bold text-neutral-900">Modèles de devis</h2>
+                            <h2 className="text-base font-bold text-neutral-900">
+                                Modèles de {motDocuments}
+                            </h2>
                             <p className="text-[11px] text-neutral-500">
-                                {modelesMiseEnPage.length} modèle{modelesMiseEnPage.length > 1 ? 's' : ''} · le modèle par défaut s’applique à tous vos devis
+                                {modelesMiseEnPage.length} modèle{modelesMiseEnPage.length > 1 ? 's' : ''} · le modèle par défaut s’applique à {estFacture ? 'toutes vos factures' : 'tous vos devis'}
                             </p>
+                        </div>
+                        {/* Sélecteur de type : devis et factures ont chacun leur
+                            jeu de modèles et leur propre défaut (un index unique
+                            par (organisation, type) le garantit en base). */}
+                        <div className="flex items-center gap-1.5 shrink-0" role="tablist" aria-label="Type de document">
+                            {[{ id: 'devis', libelle: 'Devis', icone: 'fa-file-lines' },
+                              { id: 'facture', libelle: 'Factures', icone: 'fa-file-invoice' }].map(onglet => {
+                                const actif = typeModeleGalerie === onglet.id;
+                                return (
+                                    <button
+                                        key={onglet.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={actif}
+                                        onClick={() => setTypeModeleGalerie(onglet.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all border ${
+                                            actif
+                                                ? 'bg-white border-brand-500 text-neutral-900 shadow-2xs ring-1 ring-brand-500/20 font-bold'
+                                                : 'bg-white/60 hover:bg-white border-neutral-200 text-neutral-600 hover:text-neutral-900 font-semibold'
+                                        }`}
+                                    >
+                                        <i className={`fa-solid ${onglet.icone} ${actif ? 'text-brand-600' : 'text-neutral-400'}`}></i>
+                                        {onglet.libelle}
+                                    </button>
+                                );
+                            })}
                         </div>
                         <button type="button" onClick={() => setCatalogueModeles(true)}
                             disabled={isReadOnlyDueToDowngrade}
@@ -26416,6 +26659,16 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                         </button>
                     </div>
 
+                    {factureSuitLeDevis && (
+                        <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2.5">
+                            <p className="text-[11px] text-amber-800 leading-relaxed">
+                                <i className="fa-solid fa-circle-info mr-1.5"></i>
+                                Aucun modèle de facture propre : vos factures suivent le modèle de devis par
+                                défaut. Créez-en un ici pour leur donner une mise en page distincte.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
                         <div className="mx-auto max-w-4xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {modelesMiseEnPage.map(modele => {
@@ -26425,18 +26678,33 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     + (cfgM.tableau.colonnes.prixUnitaire.affiche !== false ? 1 : 0);
                                 // Le document de la vignette et celui de l'aperçu sont le
                                 // MÊME appel : ce qu'on voit en petit est ce qui sortira en PDF.
+                                // Et c'est le composant du TYPE édité — prévisualiser un
+                                // modèle de facture sur un devis montrerait une mise en page
+                                // que ce modèle ne produira jamais.
                                 const devisVignette = savedQuotes[0] || null;
-                                const documentDuModele = devisVignette ? (
-                                    <DocumentDevisClient
-                                        devis={devisVignette}
-                                        societe={{ ...companyInfo, logo: cfgM.entete.afficherLogo ? companyInfo.logo : '' }}
-                                        theme={themeDepuisConfiguration(cfgM)}
-                                        disposition={getPdfHeaderLayout(cfgM.entete.alignement)}
-                                        gabarit={cfgM.tableau.niveauDetail}
-                                        modeDemo={estModeDemo}
-                                        configuration={cfgM}
-                                    />
-                                ) : null;
+                                const factureVignette = invoices[0] || null;
+                                const documentDuModele = estFacture
+                                    ? (factureVignette ? (
+                                        <DocumentFacture
+                                            facture={factureVignette}
+                                            ci={{ ...companyInfo, logo: cfgM.entete.afficherLogo ? companyInfo.logo : '' }}
+                                            theme={themeDepuisConfiguration(cfgM)}
+                                            disposition={getPdfHeaderLayout(cfgM.entete.alignement)}
+                                            devise={companyInfo.currency}
+                                            configuration={cfgM}
+                                        />
+                                    ) : null)
+                                    : (devisVignette ? (
+                                        <DocumentDevisClient
+                                            devis={devisVignette}
+                                            societe={{ ...companyInfo, logo: cfgM.entete.afficherLogo ? companyInfo.logo : '' }}
+                                            theme={themeDepuisConfiguration(cfgM)}
+                                            disposition={getPdfHeaderLayout(cfgM.entete.alignement)}
+                                            gabarit={cfgM.tableau.niveauDetail}
+                                            modeDemo={estModeDemo}
+                                            configuration={cfgM}
+                                        />
+                                    ) : null);
                                 return (
                                     <div key={modele.id} className="app-card p-0 overflow-hidden flex flex-col">
                                         {documentDuModele ? (
@@ -26508,8 +26776,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                         isOpen: true,
                                                         title: 'Supprimer ce modèle ?',
                                                         message: modele.par_defaut
-                                                            ? `« ${modele.nom} » est le modèle par défaut.\n\nAprès suppression, tous vos devis reprennent le modèle « Standard ».`
-                                                            : `« ${modele.nom} » sera retiré.\n\nVos devis continuent de suivre le modèle par défaut.`,
+                                                            ? `« ${modele.nom} » est le modèle par défaut.\n\nAprès suppression, ${estFacture ? 'toutes vos factures reprennent le modèle de devis par défaut' : 'tous vos devis reprennent le modèle « Standard »'}.`
+                                                            : `« ${modele.nom} » sera retiré.\n\nVos ${motDocuments} continuent de suivre le modèle par défaut.`,
                                                         confirmLabel: 'Supprimer',
                                                         isDanger: true,
                                                         onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
@@ -26529,9 +26797,9 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                 <div className="sm:col-span-1 lg:col-span-2 app-card p-6 flex flex-col justify-center">
                                     <p className="text-sm font-bold text-neutral-800">Vous partez de « Standard »</p>
                                     <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
-                                        C’est le modèle appliqué à tous vos devis tant que vous n’en réglez pas
-                                        d’autre. Modifiez-le, ou tenez-en plusieurs — un pour les appels d’offres,
-                                        un pour les particuliers.
+                                        {estFacture
+                                            ? 'Enregistrez-en un ici pour que vos factures cessent de suivre le modèle de devis — par exemple une mise en page plus sobre, sans détail des ouvrages.'
+                                            : 'C’est le modèle appliqué à tous vos devis tant que vous n’en réglez pas d’autre. Modifiez-le, ou tenez-en plusieurs — un pour les appels d’offres, un pour les particuliers.'}
                                     </p>
                                     <div className="mt-4">
                                         <button type="button" onClick={() => setCatalogueModeles(true)}
@@ -26545,7 +26813,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()}
 
             {/* ══ APERÇU PDF PLEIN FORMAT ══════════════════════════════════════
                 2026-09-04. Pour voir à quoi ressemblait un modèle il fallait
@@ -26608,13 +26877,18 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                 celle-ci dit ce que donnera le bordereau de l'utilisateur, avec
                 ses intitulés d'ouvrage et ses montants. */}
             {catalogueModeles && (() => {
+                const estFactureCat = typeModeleGalerie === 'facture';
                 const devisVignette = savedQuotes[0] || null;
+                const factureVignette = invoices[0] || null;
+                const documentVignette = estFactureCat ? factureVignette : devisVignette;
                 const familles = [...new Set(MODELES_PREETABLIS.map(m => m.famille))];
                 return (
                     <div className="fixed inset-0 z-[145] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Choisir un modèle">
                         <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
                             <div className="min-w-0 flex-1">
-                                <h2 className="text-base font-bold text-neutral-900">Choisir un modèle</h2>
+                                <h2 className="text-base font-bold text-neutral-900">
+                                    Choisir un modèle {estFactureCat ? 'de facture' : 'de devis'}
+                                </h2>
                                 <p className="text-[11px] text-neutral-500">
                                     Chacun part de votre logo, votre police et votre couleur — et ne change
                                     que ce qui le définit. Tout reste modifiable ensuite.
@@ -26628,11 +26902,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
                         <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
                             <div className="mx-auto max-w-5xl space-y-8">
-                                {!devisVignette && (
+                                {!documentVignette && (
                                     <p className="app-card p-4 text-[11px] text-neutral-600 leading-relaxed">
                                         <i className="fa-solid fa-circle-info mr-1.5 text-neutral-400"></i>
-                                        Les aperçus montreront votre propre devis dès qu’un premier sera
-                                        enregistré. En attendant, chaque modèle est décrit par ce qu’il change.
+                                        Les aperçus montreront {estFactureCat ? 'votre propre facture dès qu’une première sera émise' : 'votre propre devis dès qu’un premier sera enregistré'}.
+                                        En attendant, chaque modèle est décrit par ce qu’il change.
                                     </p>
                                 )}
 
@@ -26644,17 +26918,28 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 const cfgP = appliquerPreetabli(pre, companyInfo);
                                                 return (
                                                     <article key={pre.id} className="app-card p-0 overflow-hidden flex flex-col">
-                                                        {devisVignette ? (
+                                                        {documentVignette ? (
                                                             <VignetteModele>
-                                                                <DocumentDevisClient
-                                                                    devis={devisVignette}
-                                                                    societe={{ ...companyInfo, logo: cfgP.entete.afficherLogo ? companyInfo.logo : '' }}
-                                                                    theme={themeDepuisConfiguration(cfgP)}
-                                                                    disposition={getPdfHeaderLayout(cfgP.entete.alignement)}
-                                                                    gabarit={cfgP.tableau.niveauDetail}
-                                                                    modeDemo={estModeDemo}
-                                                                    configuration={cfgP}
-                                                                />
+                                                                {estFactureCat ? (
+                                                                    <DocumentFacture
+                                                                        facture={factureVignette}
+                                                                        ci={{ ...companyInfo, logo: cfgP.entete.afficherLogo ? companyInfo.logo : '' }}
+                                                                        theme={themeDepuisConfiguration(cfgP)}
+                                                                        disposition={getPdfHeaderLayout(cfgP.entete.alignement)}
+                                                                        devise={companyInfo.currency}
+                                                                        configuration={cfgP}
+                                                                    />
+                                                                ) : (
+                                                                    <DocumentDevisClient
+                                                                        devis={devisVignette}
+                                                                        societe={{ ...companyInfo, logo: cfgP.entete.afficherLogo ? companyInfo.logo : '' }}
+                                                                        theme={themeDepuisConfiguration(cfgP)}
+                                                                        disposition={getPdfHeaderLayout(cfgP.entete.alignement)}
+                                                                        gabarit={cfgP.tableau.niveauDetail}
+                                                                        modeDemo={estModeDemo}
+                                                                        configuration={cfgP}
+                                                                    />
+                                                                )}
                                                             </VignetteModele>
                                                         ) : (
                                                             <div className="flex items-center justify-center bg-neutral-100" style={{ height: 208 }} aria-hidden="true">
@@ -26723,7 +27008,13 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                 // L'aperçu montre le VRAI dernier devis quand il y en a un : régler
                 // une mise en page sur des données inventées ne dit pas si elle tient
                 // avec de vrais intitulés d'ouvrage et de vrais montants.
+                // 2026-09-11 — Et sur une vraie FACTURE quand c'est un modèle de
+                // facture qu'on règle : les deux documents n'ont ni le même
+                // tableau, ni les mêmes totaux, ni le même pied.
+                const editeEstFacture = (editeurModele.type_document || 'devis') === 'facture';
                 const devisApercu = savedQuotes[0] || null;
+                const factureApercu = invoices[0] || null;
+                const documentApercu = editeEstFacture ? factureApercu : devisApercu;
                 const societeApercu = { ...companyInfo, logo: c.entete.afficherLogo ? companyInfo.logo : '' };
                 const papierApercu = dimensionsPapier(c.general.formatPapier, c.general.orientation);
                 // Le titre de l'aperçu annonce les marges ; le cadre les montre.
@@ -26790,6 +27081,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     aria-label="Nom du modèle"
                                     className="app-input py-1.5 text-sm font-bold max-w-xs"
                                 />
+                                {/* Deux jeux de modèles cohabitent désormais : sans
+                                    cette pastille, rien à l'écran ne dit lequel on règle. */}
+                                <Badge colorClass={editeEstFacture ? 'bg-violet-100 text-violet-800' : 'bg-brand-50 text-brand-700'} uppercase>
+                                    {editeEstFacture ? 'Facture' : 'Devis'}
+                                </Badge>
                             </div>
                             {/* Vérifier une couleur, une densité ou une marge demandait
                                 jusqu'ici d'enregistrer le modèle, de le passer par défaut,
@@ -26800,8 +27096,10 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                 onClick={() => telechargerElementPdf(
                                     refApercuEditeur.current && refApercuEditeur.current.querySelector('[data-zone-impression]'),
                                     `Apercu-${editeurModele.nom || 'modele'}`, 'apercu-editeur')}
-                                disabled={!devisApercu || pdfEnCours === 'apercu-editeur'}
-                                title={devisApercu ? 'Génère et télécharge le PDF de ce modèle, sans l’enregistrer' : 'Aucun devis à mettre en page'}
+                                disabled={!documentApercu || pdfEnCours === 'apercu-editeur'}
+                                title={documentApercu
+                                    ? 'Génère et télécharge le PDF de ce modèle, sans l’enregistrer'
+                                    : (editeEstFacture ? 'Aucune facture à mettre en page' : 'Aucun devis à mettre en page')}
                                 className="btn-secondary py-2 px-4 text-xs font-bold disabled:opacity-50"
                             >
                                 <i className={`fa-solid ${pdfEnCours === 'apercu-editeur' ? 'fa-spinner fa-spin' : 'fa-file-pdf'} mr-1.5`}></i>
@@ -26865,7 +27163,9 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 </div>
                                                 <div className="flex justify-between gap-2">
                                                     <dt className="text-neutral-500">S’applique à</dt>
-                                                    <dd className="font-semibold text-neutral-800">Devis et factures</dd>
+                                                    <dd className="font-semibold text-neutral-800">
+                                                        {editeEstFacture ? 'Vos factures' : 'Vos devis'}
+                                                    </dd>
                                                 </div>
                                             </dl>
                                             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -27436,12 +27736,12 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             <div className="flex-1 min-w-0 overflow-auto custom-scroll bg-neutral-100 p-6">
                                 <div className="mx-auto" style={{ maxWidth: '820px' }}>
                                     <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
-                                        Aperçu {devisApercu ? `— ${devisApercu.number} ` : ' '}
+                                        Aperçu {documentApercu ? `— ${(editeEstFacture ? documentApercu.numero : documentApercu.number) || ''} ` : ' '}
                                         <span className="ml-2 font-semibold normal-case tracking-normal text-neutral-400">
                                             {c.general.formatPapier || 'A4'} {(c.general.orientation || 'portrait') === 'paysage' ? 'paysage' : 'portrait'}
                                         </span>
                                     </p>
-                                    {devisApercu ? (
+                                    {documentApercu ? (
                                         <div ref={refApercuEditeur}>
                                             <ApercuPagine
                                                 largeurMm={papierApercu.largeurMm}
@@ -27452,26 +27752,40 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 format={c.pied.formatNumeroPage}
                                                 pied={c.pied.note || companyInfo.pdfFooterNote || ''}
                                                 piedAlignement={c.pied.alignement}
-                                                entete={[companyInfo.name, devisApercu && devisApercu.number].filter(Boolean).join(' — ')}
+                                                entete={[companyInfo.name, editeEstFacture ? documentApercu.numero : documentApercu.number].filter(Boolean).join(' — ')}
                                             >
-                                                <DocumentDevisClient
-                                                    devis={devisApercu}
-                                                    societe={societeApercu}
-                                                    theme={themeApercu}
-                                                    disposition={dispositionApercu}
-                                                    gabarit={c.tableau.niveauDetail}
-                                                    modeDemo={estModeDemo}
-                                                    configuration={c}
-                                                />
+                                                {editeEstFacture ? (
+                                                    <DocumentFacture
+                                                        facture={factureApercu}
+                                                        ci={societeApercu}
+                                                        theme={themeApercu}
+                                                        disposition={dispositionApercu}
+                                                        devise={companyInfo.currency}
+                                                        configuration={c}
+                                                    />
+                                                ) : (
+                                                    <DocumentDevisClient
+                                                        devis={devisApercu}
+                                                        societe={societeApercu}
+                                                        theme={themeApercu}
+                                                        disposition={dispositionApercu}
+                                                        gabarit={c.tableau.niveauDetail}
+                                                        modeDemo={estModeDemo}
+                                                        configuration={c}
+                                                    />
+                                                )}
                                             </ApercuPagine>
                                         </div>
                                     ) : (
                                         <div className="bg-white rounded-2xl border border-neutral-200 p-10 text-center">
                                             <i className="fa-solid fa-file-circle-plus text-3xl text-neutral-300 mb-3"></i>
-                                            <p className="text-sm font-bold text-neutral-800">Aucun devis à prévisualiser</p>
+                                            <p className="text-sm font-bold text-neutral-800">
+                                                {editeEstFacture ? 'Aucune facture à prévisualiser' : 'Aucun devis à prévisualiser'}
+                                            </p>
                                             <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                                                Enregistrez un premier devis : l’aperçu montrera le vôtre, avec vos
-                                                intitulés d’ouvrage et vos montants, plutôt qu’un exemple inventé.
+                                                {editeEstFacture
+                                                    ? 'Créez une première facture : l’aperçu montrera la vôtre, avec vos lignes et vos montants, plutôt qu’un exemple inventé.'
+                                                    : 'Enregistrez un premier devis : l’aperçu montrera le vôtre, avec vos intitulés d’ouvrage et vos montants, plutôt qu’un exemple inventé.'}
                                             </p>
                                         </div>
                                     )}
