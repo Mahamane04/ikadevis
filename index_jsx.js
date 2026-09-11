@@ -21373,168 +21373,173 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 </button>
                                             </>
                                         ) : (
-                                            <>
-                                                {/* Action Primaire Émise : Enregistrer règlement (si non soldée) ou Télécharger PDF (si soldée) */}
-                                                {activeInvoice.type !== 'avoir' && !estSoldee && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={isReadOnlyDueToDowngrade}
-                                                        onClick={() => setPaymentModalData(activeInvoice)}
-                                                        className="btn-primary py-1.5 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5"
-                                                        aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
-                                                    >
-                                                        <i className="fa-solid fa-hand-holding-dollar"></i>
-                                                        <span>Enregistrer un règlement</span>
-                                                    </button>
-                                                )}
-
-                                                {/* Action Secondaire : Relancer / E-mail si solde dû */}
-                                                {solde > 0 && activeInvoice.type !== 'avoir' && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEmailComposerModal(activeInvoice)}
-                                                        className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
-                                                        title="Envoyer ou relancer par e-mail avec modèles BTP personnalisés"
-                                                        aria-label="Relancer le client ou envoyer par e-mail"
-                                                    >
-                                                        <i className="fa-solid fa-envelope text-indigo-600"></i>
-                                                        <span>Relancer / E-mail</span>
-                                                    </button>
-                                                )}
-
-                                                {/* Action Secondaire : Aperçu */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPreviewInvoiceModal(activeInvoice)}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5"
-                                                    title="Aperçu avant impression et vérification du rendu PDF"
-                                                    aria-label="Aperçu de la facture"
-                                                >
-                                                    <i className="fa-solid fa-eye text-neutral-600"></i>
-                                                    <span>Aperçu</span>
-                                                </button>
-
-                                                {/* Action : Télécharger le PDF */}
-                                                <button
-                                                    onClick={() => telechargerDocument(
-                                                        `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
-                                                        'facture'
+                                            <div className="flex items-center justify-between gap-2 w-full flex-wrap">
+                                                {/* Actions principales et secondaires à gauche */}
+                                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                                                    {/* Action Primaire Émise : Enregistrer règlement (si non soldée) ou Télécharger PDF (si soldée) */}
+                                                    {activeInvoice.type !== 'avoir' && !estSoldee && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnlyDueToDowngrade}
+                                                            onClick={() => setPaymentModalData(activeInvoice)}
+                                                            className="btn-primary py-1.5 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 shrink-0"
+                                                            aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
+                                                        >
+                                                            <i className="fa-solid fa-hand-holding-dollar"></i>
+                                                            <span>Enregistrer un règlement</span>
+                                                        </button>
                                                     )}
-                                                    disabled={pdfEnCours === 'facture'}
-                                                    className={`${estSoldee ? 'btn-primary bg-brand-600 hover:bg-brand-700 text-white' : 'btn-secondary'} py-1.5 px-3 text-xs font-bold flex items-center gap-1.5`}
-                                                    title="Télécharger la facture au format PDF"
-                                                    aria-label="Télécharger la facture en PDF"
-                                                >
-                                                    <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} ${estSoldee ? '' : 'text-neutral-600'}`}></i>
-                                                    <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
-                                                </button>
 
-                                                {/* Action : Créer un Avoir */}
-                                                {activeInvoice.type !== 'avoir' && (
+                                                    {/* Action Secondaire : Relancer si solde dû */}
+                                                    {solde > 0 && activeInvoice.type !== 'avoir' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEmailComposerModal(activeInvoice)}
+                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5 shrink-0"
+                                                            title="Envoyer ou relancer par e-mail avec modèles BTP personnalisés"
+                                                            aria-label="Relancer le client ou envoyer par e-mail"
+                                                        >
+                                                            <i className="fa-solid fa-envelope text-indigo-600"></i>
+                                                            <span>Relancer</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Action Secondaire : Aperçu */}
                                                     <button
                                                         type="button"
-                                                        disabled={isReadOnlyDueToDowngrade}
-                                                        onClick={() => setCreditNoteModalData(activeInvoice)}
-                                                        className="btn-secondary py-1.5 px-3 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer"
-                                                        title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
-                                                        aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
+                                                        onClick={() => setPreviewInvoiceModal(activeInvoice)}
+                                                        className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1.5 shrink-0"
+                                                        title="Aperçu avant impression et vérification du rendu PDF"
+                                                        aria-label="Aperçu de la facture"
                                                     >
-                                                        <i className="fa-solid fa-file-invoice text-purple-600"></i>
-                                                        <span>Créer un Avoir</span>
+                                                        <i className="fa-solid fa-eye text-neutral-600"></i>
+                                                        <span>Aperçu</span>
                                                     </button>
-                                                )}
 
-                                                <span className="text-[10px] text-neutral-500 px-1.5 ml-auto flex items-center gap-1" title={activeInvoice.type === 'avoir' ? "Avoir comptable officiel certifié inaltérable" : "Une facture émise est figée : correction par avoir uniquement."}>
-                                                    <i className="fa-solid fa-lock text-[10px]"></i>
-                                                    <span className="hidden sm:inline">{activeInvoice.type === 'avoir' ? "Inaltérable" : "Figée"}</span>
-                                                </span>
-
-                                                {/* Menu Déroulant Élégant "••• Plus d'actions" */}
-                                                <div className="relative">
+                                                    {/* Action : Télécharger le PDF */}
                                                     <button
-                                                        type="button"
-                                                        onClick={() => setIsInvoiceMoreActionsOpen(prev => !prev)}
-                                                        className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1 text-neutral-700 hover:bg-neutral-100"
-                                                        aria-label="Plus d'actions sur la facture"
-                                                        title="Plus d'options"
+                                                        onClick={() => telechargerDocument(
+                                                            `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                            'facture'
+                                                        )}
+                                                        disabled={pdfEnCours === 'facture'}
+                                                        className={`${estSoldee ? 'btn-primary bg-brand-600 hover:bg-brand-700 text-white' : 'btn-secondary'} py-1.5 px-2.5 text-xs font-bold flex items-center gap-1.5 shrink-0`}
+                                                        title="Télécharger la facture au format PDF"
+                                                        aria-label="Télécharger la facture en PDF"
                                                     >
-                                                        <i className="fa-solid fa-ellipsis"></i>
-                                                        <span className="hidden sm:inline">Plus</span>
+                                                        <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} ${estSoldee ? '' : 'text-neutral-600'}`}></i>
+                                                        <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
                                                     </button>
 
-                                                    {isInvoiceMoreActionsOpen && (
-                                                        <>
-                                                            <div className="fixed inset-0 z-30" onClick={() => setIsInvoiceMoreActionsOpen(false)}></div>
-                                                            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-neutral-200 shadow-floating z-40 py-1.5 text-xs animate-fade-in">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setIsInvoiceMoreActionsOpen(false);
-                                                                        const fiche = clients.find(c => c.id === activeInvoice.clientId);
-                                                                        ouvrirPartage({
-                                                                            canal: 'whatsapp', genre: 'facture',
-                                                                            numero: activeInvoice.numero,
-                                                                            clientNom: activeInvoice.clientName,
-                                                                            chantier: activeInvoice.projectRef,
-                                                                            montant: `${formatMoney(activeInvoice.netAPayerTTC || activeInvoice.totalTTC || 0, companyInfo.currency)} TTC`,
-                                                                            nomFichier: `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
-                                                                            cle: 'facture',
-                                                                            destinataire: fiche?.phone || ''
-                                                                        });
-                                                                    }}
-                                                                    className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-emerald-700 font-medium"
-                                                                >
-                                                                    <i className="fa-solid fa-share-nodes text-emerald-600 w-4 text-center"></i>
-                                                                    <span>Partager (WhatsApp / E-mail)</span>
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setIsInvoiceMoreActionsOpen(false);
-                                                                        window.print();
-                                                                    }}
-                                                                    className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-neutral-700 font-medium"
-                                                                >
-                                                                    <i className="fa-solid fa-print text-neutral-500 w-4 text-center"></i>
-                                                                    <span>Imprimer le document</span>
-                                                                </button>
-                                                                {activeInvoice.statut === 'issued' && (
+                                                    {/* Action : Créer un Avoir */}
+                                                    {activeInvoice.type !== 'avoir' && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnlyDueToDowngrade}
+                                                            onClick={() => setCreditNoteModalData(activeInvoice)}
+                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer shrink-0"
+                                                            title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
+                                                            aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
+                                                        >
+                                                            <i className="fa-solid fa-file-invoice text-purple-600"></i>
+                                                            <span>Créer un Avoir</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Zone Droite fixe : Badge Inaltérable + Menu Déroulant "••• Plus d'actions" */}
+                                                <div className="ml-auto flex items-center gap-2 shrink-0">
+                                                    <span className="text-[10px] text-neutral-500 px-1 flex items-center gap-1" title={activeInvoice.type === 'avoir' ? "Avoir comptable officiel certifié inaltérable" : "Une facture émise est figée : correction par avoir uniquement."}>
+                                                        <i className="fa-solid fa-lock text-[10px]"></i>
+                                                        <span className="hidden sm:inline">{activeInvoice.type === 'avoir' ? "Inaltérable" : "Figée"}</span>
+                                                    </span>
+
+                                                    <div className="relative">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsInvoiceMoreActionsOpen(prev => !prev)}
+                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1 text-neutral-700 hover:bg-neutral-100"
+                                                            aria-label="Plus d'actions sur la facture"
+                                                            title="Plus d'options"
+                                                        >
+                                                            <i className="fa-solid fa-ellipsis"></i>
+                                                            <span className="hidden sm:inline">Plus</span>
+                                                        </button>
+
+                                                        {isInvoiceMoreActionsOpen && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-40" onClick={() => setIsInvoiceMoreActionsOpen(false)}></div>
+                                                                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-neutral-200 shadow-floating z-50 py-1.5 text-xs animate-fade-in">
                                                                     <button
                                                                         type="button"
-                                                                        disabled={isReadOnlyDueToDowngrade}
                                                                         onClick={() => {
                                                                             setIsInvoiceMoreActionsOpen(false);
-                                                                            envoyerFacture(activeInvoice);
+                                                                            const fiche = clients.find(c => c.id === activeInvoice.clientId);
+                                                                            ouvrirPartage({
+                                                                                canal: 'whatsapp', genre: 'facture',
+                                                                                numero: activeInvoice.numero,
+                                                                                clientNom: activeInvoice.clientName,
+                                                                                chantier: activeInvoice.projectRef,
+                                                                                montant: `${formatMoney(activeInvoice.netAPayerTTC || activeInvoice.totalTTC || 0, companyInfo.currency)} TTC`,
+                                                                                nomFichier: `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                                                cle: 'facture',
+                                                                                destinataire: fiche?.phone || ''
+                                                                            });
                                                                         }}
-                                                                        className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-indigo-700 font-medium"
+                                                                        className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-emerald-700 font-medium"
                                                                     >
-                                                                        <i className="fa-solid fa-paper-plane text-indigo-600 w-4 text-center"></i>
-                                                                        <span>Marquer comme envoyée</span>
+                                                                        <i className="fa-solid fa-share-nodes text-emerald-600 w-4 text-center"></i>
+                                                                        <span>Partager (WhatsApp / E-mail)</span>
                                                                     </button>
-                                                                )}
-                                                                {activeInvoice.statut === 'sent' && (
                                                                     <button
                                                                         type="button"
-                                                                        disabled={isReadOnlyDueToDowngrade}
                                                                         onClick={() => {
                                                                             setIsInvoiceMoreActionsOpen(false);
-                                                                            marquerFactureNonEnvoyee(activeInvoice);
+                                                                            window.print();
                                                                         }}
                                                                         className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-neutral-700 font-medium"
                                                                     >
-                                                                        <i className="fa-solid fa-arrow-rotate-left text-neutral-500 w-4 text-center"></i>
-                                                                        <span>Revenir au statut Émise</span>
+                                                                        <i className="fa-solid fa-print text-neutral-500 w-4 text-center"></i>
+                                                                        <span>Imprimer le document</span>
                                                                     </button>
-                                                                )}
-                                                                <div className="pt-1 mt-1 border-t border-neutral-100 px-3.5 py-1 text-[10px] text-neutral-400 flex items-center gap-1.5">
-                                                                    <i className="fa-solid fa-lock text-[9px]"></i>
-                                                                    <span>{activeInvoice.type === 'avoir' ? "Avoir certifié inaltérable" : "Facture émise certifiée"}</span>
+                                                                    {activeInvoice.statut === 'issued' && (
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={isReadOnlyDueToDowngrade}
+                                                                            onClick={() => {
+                                                                                setIsInvoiceMoreActionsOpen(false);
+                                                                                envoyerFacture(activeInvoice);
+                                                                            }}
+                                                                            className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-indigo-700 font-medium"
+                                                                        >
+                                                                            <i className="fa-solid fa-paper-plane text-indigo-600 w-4 text-center"></i>
+                                                                            <span>Marquer comme envoyée</span>
+                                                                        </button>
+                                                                    )}
+                                                                    {activeInvoice.statut === 'sent' && (
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={isReadOnlyDueToDowngrade}
+                                                                            onClick={() => {
+                                                                                setIsInvoiceMoreActionsOpen(false);
+                                                                                marquerFactureNonEnvoyee(activeInvoice);
+                                                                            }}
+                                                                            className="w-full text-left px-3.5 py-2 hover:bg-neutral-50 flex items-center gap-2 text-neutral-700 font-medium"
+                                                                        >
+                                                                            <i className="fa-solid fa-arrow-rotate-left text-neutral-500 w-4 text-center"></i>
+                                                                            <span>Revenir au statut Émise</span>
+                                                                        </button>
+                                                                    )}
+                                                                    <div className="pt-1 mt-1 border-t border-neutral-100 px-3.5 py-1 text-[10px] text-neutral-400 flex items-center gap-1.5">
+                                                                        <i className="fa-solid fa-lock text-[9px]"></i>
+                                                                        <span>{activeInvoice.type === 'avoir' ? "Avoir certifié inaltérable" : "Facture émise certifiée"}</span>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </>
-                                                    )}
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </>
+                                            </div>
                                         )}
                                     </div>
 
