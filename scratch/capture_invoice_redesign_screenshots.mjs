@@ -163,6 +163,21 @@ async function capture() {
         await page.screenshot({ path: path.join(ARTIFACT_DIR, 'redesign_invoices_mobile_390.png') });
         console.log('✓ Captured redesign_invoices_mobile_390.png');
 
+        // 7. Company Settings Document Preview Modal (Desktop 1440px)
+        await page.setViewport({ width: 1440, height: 900 });
+        await page.evaluate(() => {
+            window.location.hash = '#settings/documents';
+        });
+        await new Promise(r => setTimeout(r, 1000));
+        await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button'));
+            const previewBtn = btns.find(b => b.textContent.includes('Aperçu du document'));
+            if (previewBtn) previewBtn.click();
+        });
+        await new Promise(r => setTimeout(r, 800));
+        await page.screenshot({ path: path.join(ARTIFACT_DIR, 'redesign_invoices_company_doc_preview.png') });
+        console.log('✓ Captured redesign_invoices_company_doc_preview.png');
+
         console.log('🎉 All redesign screenshots captured successfully!');
     } finally {
         await close();

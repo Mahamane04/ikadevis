@@ -12850,6 +12850,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [quotePrefixInput, setQuotePrefixInput] = useState('DEV-');
     const [invoicePrefixInput, setInvoicePrefixInput] = useState('FACT-');
     const [prefixSaving, setPrefixSaving] = useState({ quote: false, invoice: false });
+    const [isCompanyDocPreviewOpen, setIsCompanyDocPreviewOpen] = useState(false);
 
     useEffect(() => {
         if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) return;
@@ -12911,6 +12912,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         defaultDepositRate: 0,
         retentionRate: 0,
         retentionDuration: '12 mois',
+        legalForm: 'SARL',
+        capital: '',
+        city: '',
+        country: "Côte d'Ivoire",
+        website: '',
+        tradeActivity: 'BTP & Génie Civil',
+        taxRegime: 'Régime Réel Normal (RNI)',
         quoteEmailSubject: 'Votre devis {{Numero_Devis}} — {{Entreprise}}',
         quoteEmailBody: 'Bonjour {{Nom_Client}},\n\nVeuillez trouver votre devis {{Numero_Devis}} d’un montant de {{Montant_Devis}}.\n\nNous restons à votre disposition.\n\nCordialement,\n{{Entreprise}}',
         invoiceEmailSubject: 'Votre facture {{Numero_Facture}} — {{Entreprise}}',
@@ -20116,6 +20124,134 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
     );
 }
 
+// ══ MODALE D'APERÇU DU DOCUMENT ENTREPRISE / EN-TÊTE OFFICIEL ═══════
+function CompanyDocPreviewModal({ companyInfo, onClose }) {
+    if (!companyInfo) return null;
+    const cur = companyInfo.currency || 'FCFA';
+
+    return (
+        <div className="fixed inset-0 bg-neutral-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[130] animate-fade-in"
+             role="dialog" aria-modal="true" aria-labelledby="company_doc_preview_title">
+            <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/90 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="px-6 py-4 bg-neutral-900 text-white flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-800 text-neutral-200 flex items-center justify-center font-bold text-sm border border-neutral-700">
+                            <i className="fa-solid fa-building"></i>
+                        </div>
+                        <div>
+                            <h3 id="company_doc_preview_title" className="text-sm font-bold text-white">
+                                Identité & En-tête des documents
+                            </h3>
+                            <p className="text-[11px] text-neutral-400">
+                                Informations légales imprimées sur vos devis, factures et quittances
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors"
+                        title="Fermer"
+                    >
+                        <i className="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                {/* Body: Simulation de papier à en-tête */}
+                <div className="p-6 overflow-y-auto custom-scroll bg-neutral-100/60 space-y-4">
+                    <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-6 space-y-6">
+                        {/* Haut de page: Logo & Coordonnées */}
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 border-b border-neutral-200/80">
+                            <div className="flex items-start gap-4">
+                                {companyInfo.logo ? (
+                                    <img
+                                        src={companyInfo.logo}
+                                        alt={companyInfo.name || 'Entreprise'}
+                                        className="max-h-16 max-w-[140px] object-contain rounded-lg border border-neutral-200 p-1 bg-white"
+                                    />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-700 font-bold text-lg flex items-center justify-center border border-slate-200/80 shadow-2xs">
+                                        {(companyInfo.name || 'EP').substring(0, 2).toUpperCase()}
+                                    </div>
+                                )}
+                                <div>
+                                    <h4 className="text-base font-bold text-neutral-900">
+                                        {companyInfo.name || 'Nom de l’entreprise non configuré'}
+                                    </h4>
+                                    {companyInfo.tagline && (
+                                        <p className="text-xs text-neutral-500 mt-0.5">{companyInfo.tagline}</p>
+                                    )}
+                                    <div className="mt-2 space-y-0.5 text-xs text-neutral-600">
+                                        {companyInfo.address && <p><i className="fa-solid fa-location-dot w-4 text-neutral-400 text-[11px]"></i>{companyInfo.address}</p>}
+                                        {(companyInfo.city || companyInfo.country) && (
+                                            <p className="text-neutral-500 pl-4">{[companyInfo.city, companyInfo.country].filter(Boolean).join(', ')}</p>
+                                        )}
+                                        {companyInfo.phone && <p><i className="fa-solid fa-phone w-4 text-neutral-400 text-[11px]"></i>{companyInfo.phone}</p>}
+                                        {companyInfo.email && <p><i className="fa-solid fa-envelope w-4 text-neutral-400 text-[11px]"></i>{companyInfo.email}</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Colonne d'identifiants fiscaux */}
+                            <div className="sm:text-right text-xs text-neutral-600 space-y-1 bg-neutral-50 p-3 rounded-lg border border-neutral-200/60 min-w-[200px]">
+                                <p className="font-bold text-neutral-800 text-[11px] uppercase tracking-wider pb-1 border-b border-neutral-200">
+                                    Mentions Légales
+                                </p>
+                                {companyInfo.nif && (
+                                    <p><span className="text-neutral-500">NIF :</span> <strong className="font-mono text-neutral-800">{companyInfo.nif}</strong></p>
+                                )}
+                                {companyInfo.rccm && (
+                                    <p><span className="text-neutral-500">RCCM :</span> <strong className="font-mono text-neutral-800">{companyInfo.rccm}</strong></p>
+                                )}
+                                {companyInfo.tva && (
+                                    <p><span className="text-neutral-500">N° TVA :</span> <strong className="font-mono text-neutral-800">{companyInfo.tva}</strong></p>
+                                )}
+                                <p><span className="text-neutral-500">Devise de tenue :</span> <strong className="font-mono text-neutral-800">{cur}</strong></p>
+                                {!companyInfo.nif && !companyInfo.rccm && !companyInfo.tva && (
+                                    <p className="text-neutral-400 italic text-[11px]">Aucun identifiant fiscal renseigné</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Coordonnées bancaires */}
+                        {(companyInfo.iban || companyInfo.bank) && (
+                            <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-200/70 text-xs flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2">
+                                    <i className="fa-solid fa-building-columns text-slate-500"></i>
+                                    <div>
+                                        <span className="font-semibold text-neutral-800">Coordonnées Bancaires : </span>
+                                        {companyInfo.bank && <span className="text-neutral-700 font-medium">{companyInfo.bank} </span>}
+                                        {companyInfo.iban && <span className="font-mono text-neutral-800 text-[11px] font-semibold">{companyInfo.iban}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Mentions de bas de page */}
+                        {companyInfo.footerNotes && (
+                            <div className="text-[11px] text-neutral-500 italic pt-2 border-t border-neutral-100 text-center">
+                                {companyInfo.footerNotes}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="px-6 py-3.5 bg-white border-t border-neutral-200 flex items-center justify-end shrink-0">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="btn-primary px-5 py-1.5 text-xs font-bold"
+                    >
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
     const renderInvoices = () => {
         const cur = companyInfo.currency || 'FCFA';
         const devisFacturables = savedQuotes.filter(q => !devisEstEntierementFacture(q));
@@ -25217,24 +25353,38 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                         modèles</strong> et leur propre défaut ; tant qu’aucun modèle de
                                         facture n’existe, vos factures suivent celui des devis.
                                     </p>
-                                    <button
-                                        type="button"
-                                        onClick={ouvrirEditeurModele}
-                                        disabled={isReadOnlyDueToDowngrade}
-                                        className="mt-4 w-full rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-50 px-4 py-3.5 text-left transition-colors disabled:opacity-50 flex items-center gap-3"
-                                    >
-                                        <span className="w-9 h-9 rounded-lg bg-white border border-brand-200 text-brand-600 flex items-center justify-center shrink-0">
-                                            <i className="fa-solid fa-pen-ruler"></i>
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block text-[13px] font-bold text-neutral-900">Éditeur de modèles</span>
-                                            <span className="block text-[11px] text-neutral-600 leading-snug mt-0.5">
-                                                Régler l’en-tête, les titres, le tableau, les marges et le pied de page,
-                                                avec l’aperçu de votre devis à côté.
+                                    <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
+                                        <button
+                                            type="button"
+                                            onClick={ouvrirEditeurModele}
+                                            disabled={isReadOnlyDueToDowngrade}
+                                            className="flex-1 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-50 px-4 py-3 text-left transition-colors disabled:opacity-50 flex items-center gap-3"
+                                        >
+                                            <span className="w-8 h-8 rounded-lg bg-white border border-brand-200 text-brand-600 flex items-center justify-center shrink-0 text-xs">
+                                                <i className="fa-solid fa-pen-ruler"></i>
                                             </span>
-                                        </span>
-                                        <i className="fa-solid fa-arrow-right text-neutral-400 text-xs shrink-0"></i>
-                                    </button>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-xs font-bold text-neutral-900">Éditeur de modèles</span>
+                                                <span className="block text-[11px] text-neutral-600 leading-snug mt-0.5">
+                                                    Régler en-tête, polices, tableau et marges
+                                                </span>
+                                            </span>
+                                            <i className="fa-solid fa-arrow-right text-neutral-400 text-xs shrink-0"></i>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCompanyDocPreviewOpen(true)}
+                                            className="rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 px-4 py-3 text-left transition-colors flex items-center gap-3 shrink-0"
+                                        >
+                                            <span className="w-8 h-8 rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-700 flex items-center justify-center shrink-0 text-xs">
+                                                <i className="fa-solid fa-eye"></i>
+                                            </span>
+                                            <span className="min-w-0">
+                                                <span className="block text-xs font-bold text-neutral-900">Aperçu du document</span>
+                                                <span className="block text-[11px] text-neutral-500">Voir avec logo & coordonnées</span>
+                                            </span>
+                                        </button>
+                                    </div>
                                 </section>
 
                                 <div>
@@ -26422,6 +26572,12 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     onSend={(historique) => {
                         showToast("Message préparé et journalisé dans l'historique", "success");
                     }}
+                />
+            )}
+            {isCompanyDocPreviewOpen && (
+                <CompanyDocPreviewModal
+                    companyInfo={companyInfo}
+                    onClose={() => setIsCompanyDocPreviewOpen(false)}
                 />
             )}
 
