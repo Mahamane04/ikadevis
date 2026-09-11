@@ -25126,55 +25126,73 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             </div>
                             <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xs flex-1 min-h-0 flex flex-col overflow-hidden">
                         {accountSettingsTab === 'equipe' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
-                                <TeamSettingsPanel
-                                    organizationId={activeOrganizationId}
-                                    supabaseClient={supabaseClient}
-                                    currentUserId={sbUser?.id}
-                                    currentUserRole={activeOrganizationRole}
-                                    showToast={showToast}
-                                />
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
+                                    <TeamSettingsPanel
+                                        organizationId={activeOrganizationId}
+                                        supabaseClient={supabaseClient}
+                                        currentUserId={sbUser?.id}
+                                        currentUserRole={activeOrganizationRole}
+                                        showToast={showToast}
+                                    />
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'audit' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
-                                <AuditLogPanel organizationId={activeOrganizationId} supabaseClient={supabaseClient} />
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-5xl w-full mx-auto space-y-6">
+                                    <AuditLogPanel organizationId={activeOrganizationId} supabaseClient={supabaseClient} />
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'diagnostic' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50">
-                                <SystemDiagnosticPanel
-                                    isOnline={isOnline}
-                                    sbUser={sbUser}
-                                    solutionsCount={solutions.length}
-                                    materialsCount={materials.length}
-                                    quotesCount={savedQuotes.length}
-                                />
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
+                                    <SystemDiagnosticPanel
+                                        isOnline={isOnline}
+                                        sbUser={sbUser}
+                                        solutionsCount={solutions.length}
+                                        materialsCount={materials.length}
+                                        quotesCount={savedQuotes.length}
+                                    />
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'donnees' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-4">
-                                <div>
-                                    <h4 className="font-bold text-neutral-800 text-sm mb-1">Données locales</h4>
-                                    <p className="text-xs text-neutral-500">
-                                        Cet appareil garde une copie locale de votre catalogue et de vos devis
-                                        (utile hors-ligne). La réinitialiser restaure les données d'usine —
-                                        vos devis et modifications sur CET appareil seront perdus.
-                                    </p>
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
+                                    <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                                        <div className="flex items-start gap-3">
+                                            <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 border border-slate-200/60 flex items-center justify-center shrink-0">
+                                                <i className="fa-solid fa-database"></i>
+                                            </span>
+                                            <div>
+                                                <h3 className="text-sm font-bold text-neutral-800">Données locales & Cache</h3>
+                                                <p className="text-[11px] text-neutral-500 mt-0.5">
+                                                    Cet appareil garde une copie locale de votre catalogue et de vos devis
+                                                    (utile hors-ligne). La réinitialiser restaure les données d'usine —
+                                                    vos devis et modifications sur cet appareil seront perdus.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="pt-1">
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnlyDueToDowngrade}
+                                                onClick={resetToDefault}
+                                                className={`btn-secondary text-xs text-rose-600 border-rose-200 hover:bg-rose-50 py-2.5 px-4 shadow-2xs ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                aria-label="Réinitialiser les données locales"
+                                            >
+                                                <i className="fa-solid fa-arrow-rotate-left mr-1.5"></i> Réinitialiser les données locales
+                                            </button>
+                                        </div>
+                                    </section>
                                 </div>
-                                <button
-                                    type="button"
-                                    disabled={isReadOnlyDueToDowngrade}
-                                    onClick={resetToDefault}
-                                    className={`btn-secondary text-xs text-red-600 border-red-200 hover:bg-red-50 py-2 px-4 ${isReadOnlyDueToDowngrade ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    aria-label="Réinitialiser les données locales"
-                                >
-                                    <i className="fa-solid fa-arrow-rotate-left mr-1.5"></i> Réinitialiser les données locales
-                                </button>
                             </div>
                         )}
                         {accountSettingsTab === 'documents' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-6">
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
                                 {/* 2026-09-04 — Cette section portait « Identité visuelle du PDF »
                                     (couleur, police, disposition de l'en-tête) et annonçait
                                     « appliquée aux devis et factures ». C'était devenu FAUX : depuis
@@ -25505,10 +25523,12 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     </div>
                                 </div>
 
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'facturation' && (
-                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-6 bg-neutral-50/50 space-y-5">
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-5">
                                 <div>
                                     <p className="app-label mb-1">Facturation & communication</p>
                                     <p className="text-xs text-neutral-500">Préparez les informations qui doivent apparaître sur vos documents et les messages réutilisables pour vos clients.</p>
@@ -25617,6 +25637,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     </div>
                                     <p className="text-[11px] text-neutral-500">Variables disponibles : <code className="font-mono">{'{{Nom_Client}}'}</code>, <code className="font-mono">{'{{Numero_Devis}}'}</code>, <code className="font-mono">{'{{Numero_Facture}}'}</code>, <code className="font-mono">{'{{Montant_Devis}}'}</code>, <code className="font-mono">{'{{Montant_Facture}}'}</code>, <code className="font-mono">{'{{Entreprise}}'}</code>.</p>
                                 </section>
+                                </div>
                             </div>
                         )}
                         {/* Le bouton visible en bas de Documents confirme les réglages déjà
