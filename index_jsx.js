@@ -24507,6 +24507,30 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
         }
     };
 
+    const handleSaveActiveSettingsTab = () => {
+        if (isReadOnlyDueToDowngrade) return;
+        if (accountSettingsTab === 'entreprise') {
+            if (scheduleTotalPct !== 100) {
+                showToast("Le total de l'échéancier de paiement doit être égal à 100%.", "error");
+                return;
+            }
+            updateCompanyInfo({ ...companyInfo });
+            showToast("Paramètres entreprise enregistrés");
+        } else if (accountSettingsTab === 'documents') {
+            updateCompanyInfo({ ...companyInfo });
+            if (quotePrefixInput && quotePrefixInput.trim()) {
+                handleSaveDocumentPrefix('quote');
+            }
+            if (invoicePrefixInput && invoicePrefixInput.trim()) {
+                handleSaveDocumentPrefix('invoice');
+            }
+            showToast("Réglages Documents & PDF enregistrés");
+        } else if (accountSettingsTab === 'facturation') {
+            updateCompanyInfo({ ...companyInfo });
+            showToast("Réglages Facturation & envoi enregistrés");
+        }
+    };
+
     // Audit UX (2026-08-31) — le nettoyage ci-dessus ne s'exécutait QUE via le
     // bouton « ← Retour à l'application ». Quitter les Paramètres par la barre
     // latérale appelle setActiveView directement : le fragment #settings/…
@@ -25051,10 +25075,10 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                     <header className="bg-white border-b border-neutral-200 px-4 py-3 sm:py-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 shrink-0">
                         <div className="min-w-0">
                             <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-neutral-500 mb-0.5">Espace de configuration</p>
-                            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-neutral-900 truncate">Paramètres du compte</h1>
+                            <h1 className="text-base sm:text-xl md:text-2xl font-semibold tracking-tight text-neutral-900 truncate">Paramètres du compte</h1>
                             <p className="hidden sm:block text-xs text-neutral-500 mt-0.5">Personnalisez l’entreprise, vos documents et les réglages de votre espace.</p>
                         </div>
-                        <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs py-2 px-3 shrink-0 flex items-center gap-1.5" aria-label="Retourner au tableau de bord">
+                        <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-3.5 shrink-0 flex items-center gap-1.5 shadow-2xs hover:bg-neutral-50" aria-label="Retourner au tableau de bord">
                             <i className="fa-solid fa-arrow-left"></i> <span>Retour à l’application</span>
                         </button>
                     </header>
@@ -25599,20 +25623,26 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             enregistrés au fil de la saisie. Les sections de consultation
                             gardent seulement un retour clair vers l'application. */}
                         {accountSettingsTab !== 'entreprise' && (
-                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-200/80 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                                <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Retourner à l'application">
-                                    <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
-                                </button>
-                                {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && !isReadOnlyDueToDowngrade && (
-                                    <button type="button" onClick={() => { updateCompanyInfo({ ...companyInfo }); showToast(accountSettingsTab === 'documents' ? "Réglages Documents & PDF enregistrés" : "Réglages Facturation & envoi enregistrés"); }} className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label={accountSettingsTab === 'documents' ? 'Enregistrer les réglages Documents et PDF' : 'Enregistrer les réglages Facturation et envoi'}>
-                                        <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                            <div className="px-4 sm:px-6 py-3 border-t border-neutral-200/90 bg-white/95 backdrop-blur-xs shadow-2xs flex items-center justify-between gap-3 shrink-0">
+                                <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-500">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span>Synchronisation en temps réel</span>
+                                </div>
+                                <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                                    <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
+                                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
                                     </button>
-                                )}
+                                    {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && !isReadOnlyDueToDowngrade && (
+                                        <button type="button" onClick={() => { updateCompanyInfo({ ...companyInfo }); showToast(accountSettingsTab === 'documents' ? "Réglages Documents & PDF enregistrés" : "Réglages Facturation & envoi enregistrés"); }} className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-4 sm:px-5 shadow-xs hover:bg-black" aria-label={accountSettingsTab === 'documents' ? 'Enregistrer les réglages Documents et PDF' : 'Enregistrer les réglages Facturation et envoi'}>
+                                            <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )}
                         {accountSettingsTab === 'entreprise' && (
                         <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); showToast("Paramètres entreprise enregistrés"); } }} className="flex-1 min-h-0 flex flex-col">
-                            <div className="flex-1 min-h-0 p-4 sm:p-6 pb-20 sm:pb-24 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
+                            <div className="flex-1 min-h-0 p-4 sm:p-6 pb-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
                                 {/* Audit UX P1-8 (2026-09-01) — « avec un rappel “À compléter
                                     avant votre premier vrai devis” ». Affiché seulement quand
                                     il manque réellement quelque chose : un rappel permanent
@@ -25758,15 +25788,21 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     )}
                                 </div>
                             </div>
-                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-200/80 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                                <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Retourner à l'application">
-                                    <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour
-                                </button>
-                                {!isReadOnlyDueToDowngrade && (
-                                    <button type="submit" className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Enregistrer les paramètres de l'entreprise">
-                                        <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                            <div className="px-4 sm:px-6 py-3 border-t border-neutral-200/90 bg-white/95 backdrop-blur-xs shadow-2xs flex items-center justify-between gap-3 shrink-0">
+                                <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-500">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span>Synchronisation en temps réel</span>
+                                </div>
+                                <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                                    <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
+                                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
                                     </button>
-                                )}
+                                    {!isReadOnlyDueToDowngrade && (
+                                        <button type="submit" className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-4 sm:px-5 shadow-xs hover:bg-black" aria-label="Enregistrer les paramètres de l'entreprise">
+                                            <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </form>
                         )}
