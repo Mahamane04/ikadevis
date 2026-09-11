@@ -11205,12 +11205,9 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const tailleLogoFacture = Math.max(50, Math.min(200, Number(cfg.entete.tailleLogo) || 100));
     const rayonFacture = Math.max(0, Math.min(16, Number(cfg.general.rayonCoins) ?? 8));
     const densiteFacture = ['aeree', 'normale', 'compacte'].includes(cfg.tableau.densite) ? cfg.tableau.densite : 'normale';
-    // L'échelle de la SYNTHÈSE, pas celle du détaillé : une facture est une
-    // liste à plat, sans regroupement par nature. Prendre l'échelle du gabarit
-    // détaillé donnait 12 px là où le devis en donne 14 — deux documents issus
-    // du même modèle qui ne respiraient pas pareil. Écart relevé par le
-    // contrôle de parité, pas à l'œil.
-    const padFacture = densiteFacture === 'aeree' ? 'py-4 px-5' : densiteFacture === 'compacte' ? 'py-2.5 px-3' : 'py-3.5 px-4';
+    // L'échelle de la SYNTHÈSE, calibrée pour permettre aux factures usuelles (10-15 lignes)
+    // avec leur échéancier de tenir sur une seule page A4 élégante et lisible.
+    const padFacture = densiteFacture === 'aeree' ? 'py-2.5 px-3.5' : densiteFacture === 'compacte' ? 'py-1 px-2.5' : 'py-1.5 px-3';
     const separateursFacture = ['lignes', 'aucun', 'zebre'].includes(cfg.tableau.separateurs) ? cfg.tableau.separateurs : 'lignes';
     const corpsFacture = separateursFacture === 'lignes' ? 'divide-y divide-neutral-100' : '';
     const fondLigneFacture = (rang) => (separateursFacture === 'zebre' && rang % 2 === 1 ? { backgroundColor: '#f8fafc' } : undefined);
@@ -11228,7 +11225,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
     const ALIGNEMENTS_PIED_FACTURE = { left: 'text-left', center: 'text-center', right: 'text-right' };
     return (
         <div
-            className={`document-echelle bg-white p-6 sm:p-8 space-y-6 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
+            className={`document-echelle bg-white p-4 sm:p-6 space-y-3.5 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -11245,19 +11242,20 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                      backgroundColor: (cfg.general.couleurFond || '').trim() || undefined,
                      ...(styleImageFondFacture || {}) }}
         >
-            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
+            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-3`}>
                 <div className={disposition.company}>
-                    {ci.logo && (
-                        <div className="mb-4">
+                    {ci.logo ? (
+                        <div className="mb-1.5">
                             <img
                                 src={ci.logo}
                                 alt={ci.name}
                                 className="object-contain"
-                                style={{ maxHeight: `${tailleLogoFacture}px`, maxWidth: `${tailleLogoFacture * 2}px` }}
+                                style={{ maxHeight: `${Math.round((44 * tailleLogoFacture) / 100)}px`, maxWidth: `${Math.round((170 * tailleLogoFacture) / 100)}px` }}
                             />
                         </div>
+                    ) : (
+                        <h3 className="text-base font-bold text-neutral-900 mb-0.5">{ci.name}</h3>
                     )}
-                    <h3 className="text-base font-bold text-neutral-900">{ci.name}</h3>
                     {ci.activity && <p className="text-xs text-neutral-500 font-medium">{ci.activity}</p>}
                     {ci.address && <p className="text-xs text-neutral-500 font-medium">Adresse: {ci.address}</p>}
                     {ci.email && <p className="text-xs text-neutral-500 font-medium">Contact: {ci.email}</p>}
@@ -11279,7 +11277,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     <h2 className="text-2xl font-bold uppercase tracking-tight" style={{ color: theme.brandColor }}>
                         {facture.type === 'avoir' ? "Facture d'Avoir" : 'Facture'}
                     </h2>
-                    <p className="text-sm font-bold text-neutral-800 mt-1">N° : {facture.numero || 'Brouillon'}</p>
+                    <p className="text-sm font-bold text-neutral-800 mt-0.5">N° : {facture.numero || 'Brouillon'}</p>
                     <p className="text-xs text-neutral-500">
                         {facture.dateEmission ? `Émise le ${facture.dateEmission}` : (facture.date || 'Non émis')}
                     </p>
@@ -11289,20 +11287,20 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 bg-neutral-50 p-4 sm:p-5 border border-neutral-200" style={{ borderRadius: rayonFacture }}>
+            <div className="grid grid-cols-2 gap-3 bg-neutral-50/90 p-2.5 sm:p-3 border border-neutral-200" style={{ borderRadius: rayonFacture }}>
                 <div>
-                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Client</p>
-                    <p className="font-semibold text-neutral-900 text-base">{facture.clientName}</p>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-0.5">Client</p>
+                    <p className="font-bold text-neutral-900 text-sm sm:text-base">{facture.clientName}</p>
                 </div>
                 <div>
-                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Désignation chantier</p>
-                    <p className="font-bold text-neutral-800">{facture.projectRef}</p>
+                    <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-0.5">Désignation chantier</p>
+                    <p className="font-bold text-neutral-800 text-sm sm:text-base">{facture.projectRef}</p>
                 </div>
             </div>
 
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
-                    <tr className={`font-bold uppercase text-xs tracking-wider ${aplats ? 'text-white' : 'text-neutral-900'}`}
+                    <tr className={`font-bold uppercase text-[11px] tracking-wider ${aplats ? 'text-white' : 'text-neutral-900'}`}
                         style={aplats ? { backgroundColor: theme.brandColor } : { borderBottom: `2px solid ${theme.brandColor}` }}>
                         <th className={padFacture} style={{ borderTopLeftRadius: rayonFacture, borderBottomLeftRadius: rayonFacture }}>Désignation</th>
                         <th className={`${padFacture} text-center`}>Quantité</th>
@@ -11314,56 +11312,55 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     {(facture.lignes || []).map((l, i) => (
                         <tr key={i} style={fondLigneFacture(i)}>
                             <td className={`${padFacture} font-semibold text-neutral-900`}>{l.designation}</td>
-                            <td className={`${padFacture} text-center font-medium text-neutral-600`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
-                            <td className={`${padFacture} text-right font-medium text-neutral-700`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
-                            <td className={`${padFacture} text-right font-bold text-neutral-900`}>{formatMoney(l.totalHT, devise)}</td>
+                            <td className={`${padFacture} text-center font-medium text-neutral-600 tabular-nums`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                            <td className={`${padFacture} text-right font-medium text-neutral-700 tabular-nums`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
+                            <td className={`${padFacture} text-right font-bold text-neutral-900 tabular-nums`}>{formatMoney(l.totalHT, devise)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
-            <div className="flex justify-end pt-5 border-t border-neutral-200">
-                <div className="w-80 space-y-2 text-sm">
-                    <div className="flex justify-between font-bold text-neutral-800 text-sm">
+            <div className="flex justify-end pt-3 border-t border-neutral-200" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                <div className="w-80 space-y-1.5 text-xs sm:text-sm">
+                    <div className="flex justify-between font-semibold text-neutral-800">
                         <span>{facture.type === 'avoir' ? 'Total Avoir HT :' : 'Total HT :'}</span>
-                        <span>{formatMoney(facture.totalHT, devise)}</span>
+                        <span className="tabular-nums font-bold">{formatMoney(facture.totalHT, devise)}</span>
                     </div>
                     {facture.tauxTva === 0 ? (
                         <div className="text-neutral-500">
-                            <div className="flex justify-between"><span>TVA :</span><span className="font-bold">Exonéré</span></div>
+                            <div className="flex justify-between">
+                                <span>TVA :</span>
+                                <span className="font-bold text-neutral-700">Exonéré</span>
+                            </div>
                             {ci.vatExemptionNote && (
-                                <p className="text-xs text-neutral-500 mt-1 italic">{ci.vatExemptionNote}</p>
+                                <p className="text-[11px] text-neutral-500 mt-0.5 italic">{ci.vatExemptionNote}</p>
                             )}
                         </div>
                     ) : (
                         <div className="flex justify-between text-neutral-500">
                             <span>TVA ({facture.tauxTva}%) :</span>
-                            <span>+{formatMoney(facture.totalTva, devise)}</span>
+                            <span className="tabular-nums font-medium">+{formatMoney(facture.totalTva, devise)}</span>
                         </div>
                     )}
                     {facture.deduitTTC > 0 && (
                         <div className="flex justify-between text-neutral-500">
                             <span>{facture.type === 'solde' ? 'Retenue de garantie :' : 'Acomptes déjà facturés :'}</span>
-                            <span>-{formatMoney(facture.deduitTTC, devise)}</span>
+                            <span className="tabular-nums font-medium">-{formatMoney(facture.deduitTTC, devise)}</span>
                         </div>
                     )}
-                    {/* 2026-09-06 — Détail de la retenue : taux et durée lus dans
-                        l'instantané (ci), figés au moment de la création du
-                        brouillon — pas les réglages courants, qui peuvent avoir
-                        changé depuis l'émission. */}
                     {facture.type === 'solde' && facture.deduitTTC > 0 && (
-                        <p className="text-xs text-neutral-500 italic -mt-1">
+                        <p className="text-[11px] text-neutral-500 italic -mt-0.5">
                             Retenue de {ci.commercialSettings?.retentionRate ?? 0}% — à libérer {ci.commercialSettings?.retentionDuration || '12 mois'} après la date d'émission.
                         </p>
                     )}
-                    <div className="flex justify-between font-bold text-neutral-900 text-base border-t border-neutral-300 pt-2.5">
-                        <span>{facture.type === 'avoir' ? 'NET CRÉDITÉ TTC :' : 'NET À PAYER :'}</span>
-                        <span className={facture.type === 'avoir' ? 'text-purple-700 font-mono' : ''}>
+                    <div className="flex justify-between items-center font-bold text-neutral-900 border-t-2 border-neutral-900 pt-2 mt-1">
+                        <span className="uppercase tracking-tight text-xs sm:text-sm">{facture.type === 'avoir' ? 'NET CRÉDITÉ TTC :' : 'NET À PAYER :'}</span>
+                        <span className={`text-base sm:text-lg font-black tabular-nums ${facture.type === 'avoir' ? 'text-purple-700' : 'text-neutral-900'}`}>
                             {formatMoney(facture.netAPayerTTC != null ? facture.netAPayerTTC : facture.totalTTC, devise)}
                         </span>
                     </div>
                     {facture.type === 'avoir' && (
-                        <p className="text-[10px] text-purple-700 italic text-right mt-1 font-medium">
+                        <p className="text-[10px] text-purple-700 italic text-right mt-0.5 font-medium">
                             Montant déduit des sommes restant dues ou remboursé au client.
                         </p>
                     )}
@@ -11371,13 +11368,13 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                         <>
                             <div className="flex justify-between text-emerald-700 font-semibold text-xs pt-1">
                                 <span>Total des règlements perçus :</span>
-                                <span>-{formatMoney(facture.montantRegle, devise)}</span>
+                                <span className="tabular-nums font-bold">-{formatMoney(facture.montantRegle, devise)}</span>
                             </div>
-                            <div className="flex justify-between font-bold text-sm border-t border-dashed border-neutral-300 pt-1.5 mt-1">
+                            <div className="flex justify-between items-center font-bold text-xs border-t border-dashed border-neutral-300 pt-1.5 mt-1">
                                 <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800" : "text-emerald-700"}>
                                     SOLDE RESTANT DÛ :
                                 </span>
-                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800 tabular-nums font-bold" : "text-emerald-700 tabular-nums font-extrabold"}>
+                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800 tabular-nums font-bold text-sm" : "text-emerald-700 tabular-nums font-extrabold text-sm"}>
                                     {formatMoney(Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle), devise)}
                                 </span>
                             </div>
@@ -11407,22 +11404,22 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                 let cumulSeuil = 0;
 
                 return (
-                    <div className="pt-4 border-t border-neutral-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <div className="pt-3 border-t border-neutral-200" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }} data-eviter-coupure="1">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-2">
                                 <i className="fa-solid fa-calendar-check" style={{ color: theme.brandColor }}></i>
-                                Échéancier de règlement & Jalons convenus
+                                <span>Échéancier de règlement & Jalons convenus</span>
                             </h4>
                             <span className="text-[10px] text-neutral-500 font-medium">Conditions contractuelles</span>
                         </div>
-                        <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-neutral-50 border-b border-neutral-200 text-xs font-semibold text-neutral-500 uppercase">
+                        <div className="border border-neutral-200 rounded-lg overflow-hidden shadow-2xs">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-neutral-50 border-b border-neutral-200 text-[11px] font-semibold text-neutral-500 uppercase">
                                     <tr>
-                                        <th className="py-2 px-3.5">Jalon / Tranche</th>
-                                        <th className="py-2 px-3.5 text-center">Part (%)</th>
-                                        <th className="py-2 px-3.5 text-right">Montant TTC</th>
-                                        <th className="py-2 px-3.5 text-center">Statut</th>
+                                        <th className="py-1.5 px-3">Jalon / Tranche</th>
+                                        <th className="py-1.5 px-3 text-center">Part (%)</th>
+                                        <th className="py-1.5 px-3 text-right">Montant TTC</th>
+                                        <th className="py-1.5 px-3 text-center">Statut</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
@@ -11434,28 +11431,28 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                                         const seuilFin = cumulSeuil;
                                         
                                         let statutTranche = 'À échoir';
-                                        let badgeColor = 'bg-neutral-100 text-neutral-600 border-neutral-200';
+                                        let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
                                         if (regle >= seuilFin) {
                                             statutTranche = 'Réglé';
-                                            badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+                                            badgeColor = 'bg-emerald-50 text-emerald-800 border-emerald-200 font-bold';
                                         } else if (regle > seuilDebut) {
                                             statutTranche = 'Partiel';
-                                            badgeColor = 'bg-amber-50 text-amber-700 border-amber-200 font-bold';
+                                            badgeColor = 'bg-amber-50 text-amber-800 border-amber-200 font-bold';
                                         }
 
                                         return (
                                             <tr key={idx} className="hover:bg-neutral-50/50">
-                                                <td className="py-2 px-3.5 font-medium text-neutral-900">
+                                                <td className="py-1.5 px-3 font-medium text-neutral-900">
                                                     {st.label || `Tranche ${idx + 1}`}
                                                 </td>
-                                                <td className="py-2 px-3.5 text-center font-mono text-neutral-600">
+                                                <td className="py-1.5 px-3 text-center font-semibold text-neutral-700 tabular-nums">
                                                     {pct}%
                                                 </td>
-                                                <td className="py-2 px-3.5 text-right font-bold text-neutral-900 font-mono">
+                                                <td className="py-1.5 px-3 text-right font-bold text-neutral-900 tabular-nums">
                                                     {formatMoney(montantTranche, devise)}
                                                 </td>
-                                                <td className="py-2 px-3.5 text-center">
-                                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full border ${badgeColor}`}>
+                                                <td className="py-1.5 px-3 text-center">
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded border inline-flex items-center justify-center font-medium ${badgeColor}`}>
                                                         {statutTranche}
                                                     </span>
                                                 </td>
@@ -12221,8 +12218,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // vrai formulaire de création, cohérent avec le reste de l'app (Nouvel
     // Ouvrage, Nouveau composant...).
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
-    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '', status: 'active', notes: '' });
+    const [editingProjectId, setEditingProjectId] = useState(null);
     const [newProjectOriginModal, setNewProjectOriginModal] = useState(null);
+    const [projectStatusFilter, setProjectStatusFilter] = useState('all');
+    const [projectActiveTab, setProjectActiveTab] = useState('quotes');
+    const [clientActiveTab, setClientActiveTab] = useState('chantiers');
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
     // P0.16 (2026-08-17) — Le même formulaire sert à créer ET à modifier une
@@ -17871,13 +17872,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // lisible pour une valeur totalement inconnue plutôt que d'afficher le
     // code technique tel quel.
     const PROJECT_STATUS_LABELS = {
-        active: { label: 'En cours', className: 'bg-emerald-50 text-emerald-700' },
-        in_progress: { label: 'En cours', className: 'bg-emerald-50 text-emerald-700' },
-        on_hold: { label: 'En pause', className: 'bg-amber-50 text-amber-700' },
-        completed: { label: 'Terminée', className: 'bg-neutral-100 text-neutral-600' },
-        cancelled: { label: 'Annulée', className: 'bg-red-50 text-red-700' }
+        active: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
+        in_progress: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
+        on_hold: { label: 'En pause', className: 'bg-amber-50/80 text-amber-800 border border-amber-200/60' },
+        completed: { label: 'Terminé', className: 'bg-slate-100 text-slate-700 border border-slate-200/60' },
+        cancelled: { label: 'Annulé', className: 'bg-rose-50 text-rose-800 border border-rose-200/60' }
     };
-    const getProjectStatusBadge = (status) => PROJECT_STATUS_LABELS[status] || { label: 'Statut inconnu', className: 'bg-neutral-100 text-neutral-500' };
+    const getProjectStatusBadge = (status) => PROJECT_STATUS_LABELS[status] || { label: 'Statut inconnu', className: 'bg-neutral-100 text-neutral-600 border border-neutral-200/60' };
 
     // ═══════════════════════════════════════════════════════════════
     // MODALE DE PERSONNALISATION DU TABLEAU DE BORD (OPTION A)
@@ -19271,7 +19272,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             numeroDocument: element.getAttribute('data-numero-document') || '',
             piedTexte: element.getAttribute('data-pied-texte') || '',
             piedAlignement: element.getAttribute('data-pied-alignement') || 'left',
-            enteteTexte: element.getAttribute('data-entete-courant') || ''
+            enteteTexte: element.getAttribute('data-entete-courant') || '',
+            ajusterPageUnique: element.getAttribute('data-ajuster-page-unique') === '1'
         };
     };
 
@@ -24776,8 +24778,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                 <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
-                            <h3 className="font-bold text-neutral-800 text-lg">Nouveau Chantier</h3>
-                            <button onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
+                            <h3 className="font-bold text-neutral-800 text-lg">{editingProjectId ? 'Modifier le Chantier' : 'Nouveau Chantier'}</h3>
+                            <button onClick={() => { setIsNewProjectModalOpen(false); setEditingProjectId(null); setNewProjectOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                             <form id="newProjectForm" onSubmit={(e) => {
@@ -24786,32 +24788,55 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                 if (!name) { showToast("Le nom du chantier est requis.", "error"); return; }
                                 const selectedClient = clients.find(c => c.id === newProjectForm.clientId);
                                 if (!selectedClient) { showToast("Sélectionnez un client pour ce chantier.", "error"); return; }
-                                const newCode = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`;
-                                const newP = {
-                                    id: `prj-${Date.now()}`,
-                                    code: newCode,
-                                    name,
-                                    clientId: selectedClient.id,
-                                    clientName: selectedClient.name,
-                                    siteAddress: newProjectForm.siteAddress.trim(),
-                                    city: newProjectForm.city.trim() || 'Dakar',
-                                    status: 'active',
-                                    budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
-                                    createdAt: new Date().toISOString().split('T')[0]
-                                };
-                                updateProjects([newP, ...projects]);
-                                showToast(`Chantier ${newCode} créé avec succès !`, 'success');
-                                if (newProjectOriginModal === 'quote') {
-                                    setHybridQuote(prev => ({
-                                        ...prev,
+                                
+                                if (editingProjectId) {
+                                    const existing = projects.find(p => p.id === editingProjectId);
+                                    const updated = {
+                                        ...existing,
+                                        name,
                                         clientId: selectedClient.id,
                                         clientName: selectedClient.name,
-                                        projectId: newP.id,
-                                        projectRef: newP.name
-                                    }));
-                                    showToast(`Projet « ${newP.name} » sélectionné dans le devis`, 'success');
+                                        siteAddress: newProjectForm.siteAddress.trim(),
+                                        city: newProjectForm.city.trim() || 'Dakar',
+                                        status: newProjectForm.status || existing?.status || 'active',
+                                        budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+                                        notes: newProjectForm.notes ? newProjectForm.notes.trim() : ''
+                                    };
+                                    updateProjects(projects.map(p => p.id === editingProjectId ? updated : p));
+                                    if (existing && existing.name !== name) {
+                                        updateSavedQuotes(savedQuotes.map(q => (q.projectId === editingProjectId || q.projectRef === existing.name) ? { ...q, projectRef: name } : q));
+                                    }
+                                    showToast(`Chantier mis à jour avec succès !`, 'success');
+                                } else {
+                                    const newCode = `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`;
+                                    const newP = {
+                                        id: `prj-${Date.now()}`,
+                                        code: newCode,
+                                        name,
+                                        clientId: selectedClient.id,
+                                        clientName: selectedClient.name,
+                                        siteAddress: newProjectForm.siteAddress.trim(),
+                                        city: newProjectForm.city.trim() || 'Dakar',
+                                        status: newProjectForm.status || 'active',
+                                        budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+                                        notes: newProjectForm.notes ? newProjectForm.notes.trim() : '',
+                                        createdAt: new Date().toISOString().split('T')[0]
+                                    };
+                                    updateProjects([newP, ...projects]);
+                                    showToast(`Chantier ${newCode} créé avec succès !`, 'success');
+                                    if (newProjectOriginModal === 'quote') {
+                                        setHybridQuote(prev => ({
+                                            ...prev,
+                                            clientId: selectedClient.id,
+                                            clientName: selectedClient.name,
+                                            projectId: newP.id,
+                                            projectRef: newP.name
+                                        }));
+                                        showToast(`Projet « ${newP.name} » sélectionné dans le devis`, 'success');
+                                    }
                                 }
                                 setIsNewProjectModalOpen(false);
+                                setEditingProjectId(null);
                                 setNewProjectOriginModal(null);
                             }} className="space-y-4">
                                 <div>
@@ -24863,15 +24888,42 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                         <input type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
                                     </div>
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
+                                        <input type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="app-label">Statut du chantier</label>
+                                        <select
+                                            className="app-input font-medium bg-white"
+                                            value={newProjectForm.status || 'active'}
+                                            onChange={e => setNewProjectForm({ ...newProjectForm, status: e.target.value })}
+                                        >
+                                            <option value="active">En cours</option>
+                                            <option value="on_hold">En pause</option>
+                                            <option value="completed">Terminé</option>
+                                            <option value="cancelled">Annulé</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div>
-                                    <label className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
-                                    <input type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
+                                    <label className="app-label">Notes &amp; Observations de chantier</label>
+                                    <textarea
+                                        rows="3"
+                                        className="app-input text-xs font-normal"
+                                        placeholder="Spécificités techniques, consignes d'accès, jalons importants..."
+                                        value={newProjectForm.notes || ''}
+                                        onChange={e => setNewProjectForm({ ...newProjectForm, notes: e.target.value })}
+                                    ></textarea>
                                 </div>
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => { setIsNewProjectModalOpen(false); setNewProjectOriginModal(null); }} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
-                            <button type="submit" form="newProjectForm" className="btn-primary" aria-label="Créer le chantier"><i className="fa-solid fa-check mr-1"></i> Créer le chantier</button>
+                            <button type="button" onClick={() => { setIsNewProjectModalOpen(false); setEditingProjectId(null); setNewProjectOriginModal(null); }} className="btn-secondary" aria-label="Annuler la création">Annuler</button>
+                            <button type="submit" form="newProjectForm" className="btn-primary" aria-label={editingProjectId ? 'Enregistrer les modifications' : 'Créer le chantier'}>
+                                <i className="fa-solid fa-check mr-1"></i> {editingProjectId ? 'Enregistrer' : 'Créer le chantier'}
+                            </button>
                         </div>
                     </div>
                 </div>

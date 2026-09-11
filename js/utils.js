@@ -561,7 +561,19 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     // qu'un devis d'une page sorte exactement comme avant.
     const enteteTexte = String(options.enteteTexte || '').trim();
     const hauteurSansEntete = Math.max(1, hauteurUtile - bandePied);
-    const plusieursPages = imgH > hauteurSansEntete;
+    let plusieursPages = imgH > hauteurSansEntete;
+
+    // Ajustement intelligent page unique :
+    // Lorsqu'un document (facture, situation, avoir) dépasse modérément d'une seule page
+    // (jusqu'à 25% de débordement, typique des factures avec échéancier contractuel complet),
+    // on adapte automatiquement son échelle pour qu'il tienne intégralement et nettement
+    // sur une seule page A4 sans découpage orphelin.
+    let echelleAjustee = 1;
+    if (options.ajusterPageUnique && plusieursPages && imgH <= hauteurSansEntete * 1.25) {
+        echelleAjustee = hauteurSansEntete / imgH;
+        plusieursPages = false;
+    }
+
     const BANDE_ENTETE_MM = 7;
     const bandeEntete = (enteteTexte && plusieursPages) ? BANDE_ENTETE_MM : 0;
 
@@ -589,25 +601,31 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
     // canevas source. Pas de `pdf.clip()` — l'API existe dans le jsPDF embarqué,
     // mais le découpage de canevas ne dépend d'aucune primitive graphique et se
     // comporte donc identiquement partout.
-    const pxParMm = canvas.width / imgL;
+    const largeurRendue = imgL * echelleAjustee;
+    const margeGaucheRendue = mGauche + (imgL - largeurRendue) / 2;
+    const pxParMm = canvas.width / largeurRendue;
     const trancheHautPx = Math.max(1, Math.round(hauteurContenu * pxParMm));
-    // Fenêtre de remontée : jusqu'à 8 % de la page, borné à 24 mm. Au-delà on
-    // gaspillerait trop de papier pour éviter une coupure ; en deçà, un grand
-    // bloc sans interligne ne trouverait aucun point sûr.
-    const fenetreCoupure = Math.max(12, Math.min(Math.round(24 * pxParMm), Math.round(trancheHautPx * 0.08)));
+    // Fenêtre de remontée : jusqu'à 16 % de la page, borné à 45 mm.
+    // Évite de scinder un tableau ou d'isoler une ligne d'échéancier orpheline
+    // sur une page suivante quasi vide lorsque le contenu peut basculer proprement.
+    const fenetreCoupure = Math.max(12, Math.min(Math.round(45 * pxParMm), Math.round(trancheHautPx * 0.16)));
 
     // Les coupures sont calculées de proche en proche : reculer l'une décale
     // toutes les suivantes, ce qu'un multiple fixe ne saurait pas faire.
     const tranches = [];
-    let curseur = 0;
-    while (curseur < canvas.height && tranches.length < 60) {
-        let fin = Math.min(curseur + trancheHautPx, canvas.height);
-        if (fin < canvas.height) fin = chercherCoupureSure(canvas, fin, fenetreCoupure);
-        // Garde-fou : une recherche qui remonterait avant le curseur ferait
-        // une tranche vide, donc une boucle sans fin.
-        if (fin <= curseur) fin = Math.min(curseur + trancheHautPx, canvas.height);
-        tranches.push({ sy: curseur, sh: fin - curseur });
-        curseur = fin;
+    if (!plusieursPages && echelleAjustee < 1) {
+        tranches.push({ sy: 0, sh: canvas.height });
+    } else {
+        let curseur = 0;
+        while (curseur < canvas.height && tranches.length < 60) {
+            let fin = Math.min(curseur + trancheHautPx, canvas.height);
+            if (fin < canvas.height) fin = chercherCoupureSure(canvas, fin, fenetreCoupure);
+            // Garde-fou : une recherche qui remonterait avant le curseur ferait
+            // une tranche vide, donc une boucle sans fin.
+            if (fin <= curseur) fin = Math.min(curseur + trancheHautPx, canvas.height);
+            tranches.push({ sy: curseur, sh: fin - curseur });
+            curseur = fin;
+        }
     }
 
     for (let index = 0; index < tranches.length; index++) {
@@ -626,7 +644,7 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
 
         if (index > 0) pdf.addPage();
         pdf.addImage(tranche.toDataURL('image/jpeg', 0.92), 'JPEG',
-                     mGauche, hautContenu, imgL, sh / pxParMm);
+                     margeGaucheRendue, hautContenu, largeurRendue, sh / pxParMm);
         // Libéré aussitôt : un bordereau de huit pages tiendrait sinon huit
         // canevas pleine largeur en mémoire, ce qui compte sur un téléphone.
         tranche.width = 0;
