@@ -205,10 +205,23 @@ BEGIN
     WHERE organization_id = v_org
     FOR UPDATE;
 
+    -- Trouver le numéro de séquence maximal déjà utilisé sur les factures de l'organisation pour cette année
+    SELECT COALESCE(MAX(
+        CASE 
+            WHEN invoice_number ~ ('^' || COALESCE(v_prefix, 'FACT-') || v_year_now::text || '-[0-9]+$')
+            THEN SUBSTRING(invoice_number FROM '[0-9]+$')::int
+            ELSE 0
+        END
+    ), 0)
+    INTO v_max_existing
+    FROM public.invoices
+    WHERE organization_id = v_org;
+
+    -- Calculer le numéro suivant sans jamais entrer en collision avec l'existant
     IF v_seq_year IS DISTINCT FROM v_year_now THEN
-        v_next_seq := 1;
+        v_next_seq := v_max_existing + 1;
     ELSE
-        v_next_seq := v_last_seq + 1;
+        v_next_seq := GREATEST(COALESCE(v_last_seq, 0), v_max_existing) + 1;
     END IF;
 
     UPDATE public.organization_invoice_sequences
