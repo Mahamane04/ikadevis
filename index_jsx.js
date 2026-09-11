@@ -182,15 +182,15 @@ const CATEGORIES_ESTIMATION = [
 // la liste des devis, qui affichaient jusqu'ici deux vocabulaires (la liste
 // n'affichait aucun statut du tout).
 const STATUTS_DEVIS = {
-    draft: ['Brouillon', 'bg-neutral-100 text-neutral-600'],
-    review: ['À vérifier', 'bg-amber-50 text-amber-700'],
-    to_verify: ['À vérifier', 'bg-amber-50 text-amber-700'],
-    ready: ['Prêt', 'bg-blue-50 text-blue-700'],
-    sent: ['Envoyé', 'bg-violet-50 text-violet-700'],
-    approved: ['Approuvé', 'bg-emerald-50 text-emerald-700'],
-    accepted: ['Accepté', 'bg-emerald-50 text-emerald-700']
+    draft: ['Brouillon', 'bg-neutral-100 text-neutral-600 border border-neutral-200/60'],
+    review: ['À vérifier', 'bg-amber-50/80 text-amber-800 border border-amber-200/60'],
+    to_verify: ['À vérifier', 'bg-amber-50/80 text-amber-800 border border-amber-200/60'],
+    ready: ['Prêt', 'bg-sky-50/80 text-sky-800 border border-sky-200/60'],
+    sent: ['Envoyé', 'bg-slate-100 text-slate-700 border border-slate-200/60'],
+    approved: ['Approuvé', 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60'],
+    accepted: ['Accepté', 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60']
 };
-const statutDevis = (s) => STATUTS_DEVIS[s] || ['À suivre', 'bg-neutral-100 text-neutral-600'];
+const statutDevis = (s) => STATUTS_DEVIS[s] || ['À suivre', 'bg-neutral-100 text-neutral-600 border border-neutral-200/60'];
 
 // 2026-09-08 — Système de design, badges de statut/rôle. Signalé : chaque
 // écran (devis, factures, équipe, audit) réinventait sa propre pastille —
@@ -7631,11 +7631,11 @@ const ROLE_LABELS_EQUIPE = {
 // l'onglet Équipe des Paramètres — deux écrans, un seul rôle "owner" ne doit
 // pas avoir deux couleurs différentes selon celui qu'on regarde.
 const ROLE_BADGE_COLORS = {
-    owner: 'bg-amber-100 text-amber-800',
-    admin: 'bg-purple-100 text-purple-800',
-    estimator: 'bg-blue-100 text-blue-800',
-    commercial: 'bg-emerald-100 text-emerald-800',
-    viewer: 'bg-neutral-100 text-neutral-600'
+    owner: 'bg-amber-50/80 text-amber-800 border border-amber-200/60',
+    admin: 'bg-violet-50/80 text-violet-800 border border-violet-200/60',
+    estimator: 'bg-sky-50/80 text-sky-800 border border-sky-200/60',
+    commercial: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60',
+    viewer: 'bg-slate-100 text-slate-700 border border-slate-200/60'
 };
 
 function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, currentUserRole, showToast }) {
