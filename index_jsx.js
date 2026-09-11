@@ -20183,13 +20183,13 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
         const cur = companyInfo.currency || 'FCFA';
         const devisFacturables = savedQuotes.filter(q => !devisEstEntierementFacture(q));
         const libelleStatut = {
-            draft: { texte: 'Brouillon', classe: 'bg-neutral-100 text-neutral-700 border-neutral-300' },
-            issued: { texte: 'Émise', classe: 'bg-blue-50 text-blue-800 border-blue-300' },
-            sent: { texte: 'Envoyée', classe: 'bg-indigo-50 text-indigo-800 border-indigo-300' },
-            partially_paid: { texte: 'Partiellement réglée', classe: 'bg-amber-50 text-amber-800 border-amber-300' },
-            paid: { texte: 'Réglée', classe: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
-            cancelled: { texte: 'Annulée', classe: 'bg-red-50 text-red-800 border-red-300' },
-            avoir: { texte: 'Avoir émis', classe: 'bg-purple-50 text-purple-800 border-purple-300' }
+            draft: { texte: 'Brouillon', classe: 'bg-neutral-100 text-neutral-700 border-neutral-200/80' },
+            issued: { texte: 'Émise', classe: 'bg-slate-100 text-slate-700 border-slate-200/80' },
+            sent: { texte: 'Envoyée', classe: 'bg-slate-100 text-slate-700 border-slate-200/80' },
+            partially_paid: { texte: 'Partiellement réglée', classe: 'bg-amber-50/80 text-amber-800 border-amber-200/60' },
+            paid: { texte: 'Réglée', classe: 'bg-emerald-50/80 text-emerald-800 border-emerald-200/60' },
+            cancelled: { texte: 'Annulée', classe: 'bg-neutral-100 text-neutral-500 border-neutral-200/60' },
+            avoir: { texte: 'Avoir émis', classe: 'bg-purple-50/80 text-purple-800 border-purple-200/60' }
         };
         const getStatutBadge = (f) => {
             if (!f) return libelleStatut.draft;
@@ -20486,16 +20486,16 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
         return (
             <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-4 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
-                {/* 2026-09-10 — Synthèse financière de facturation et recouvrement (format épuré et compact) */}
+                {/* 2026-09-10 — Synthèse financière de facturation et recouvrement (palette harmonieuse et épurée) */}
                 <div data-testid="invoices-kpi-strip" className={`${hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-2.5 shrink-0`}>
                     {/* KPI 1 : Total Facturé Émis */}
                     <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/60">
                             <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
                         </div>
                         <div className="min-w-0">
                             <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Facturé Émis</span>
-                            <div className="text-sm font-black text-neutral-900 truncate tabular-nums">
+                            <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(totalFactureTTC, cur)}
                             </div>
                             <span className="text-[10px] text-neutral-400 block truncate">{facturesEmises.length} facture(s) émise(s)</span>
@@ -20504,45 +20504,45 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
                     {/* KPI 2 : Total Encaissé / Réglé */}
                     <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/60">
                             <i className="fa-solid fa-circle-check text-sm"></i>
                         </div>
                         <div className="min-w-0">
                             <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Encaissé</span>
-                            <div className="text-sm font-black text-emerald-700 truncate tabular-nums">
+                            <div className="text-sm font-black text-emerald-700 truncate tabular-nums font-mono">
                                 {formatMoney(totalEncaisseTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-emerald-600/80 block truncate">Règlements validés</span>
+                            <span className="text-[10px] text-neutral-400 block truncate">Règlements validés</span>
                         </div>
                     </div>
 
                     {/* KPI 3 : Reste à Recouvrer / Créances */}
                     <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/60">
                             <i className="fa-solid fa-clock-rotate-left text-sm"></i>
                         </div>
                         <div className="min-w-0">
                             <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Créances Clients</span>
-                            <div className={`text-sm font-black truncate tabular-nums ${resteARecouvrerTTC > 0 ? 'text-amber-800' : 'text-neutral-700'}`}>
+                            <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(resteARecouvrerTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-amber-600/80 block truncate">Reste à percevoir</span>
+                            <span className="text-[10px] text-neutral-400 block truncate">Reste à percevoir</span>
                         </div>
                     </div>
 
                     {/* KPI 4 : Taux de Recouvrement */}
                     <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/60">
                             <i className="fa-solid fa-chart-pie text-sm"></i>
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Recouvrement</span>
-                                <span className="text-xs font-bold text-indigo-700 font-mono">{tauxRecouvrement}%</span>
+                                <span className="text-xs font-bold text-neutral-900 font-mono">{tauxRecouvrement}%</span>
                             </div>
-                            <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
+                            <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden mt-1 border border-neutral-200/50">
                                 <div
-                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-300"
+                                    className="h-full bg-neutral-800 transition-all duration-300"
                                     style={{ width: `${tauxRecouvrement}%` }}
                                 ></div>
                             </div>
@@ -20706,93 +20706,99 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             />
                         </div>
 
-                        {/* 2. Pastilles de filtrage rapide (Quick Pills) horizontales et épurées */}
+                        {/* 2. Pastilles de filtrage rapide (Quick Pills) harmonisées et épurées */}
                         <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pt-0.5 pb-0.5 -mx-0.5 px-0.5 text-[11px]">
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('all')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'all'
-                                        ? 'bg-neutral-800 text-white font-bold'
-                                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
                                 <span>Toutes</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'all' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-600'}`}>{invoices.length}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'all' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{invoices.length}</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('unpaid')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'unpaid'
-                                        ? 'bg-amber-600 text-white font-bold'
-                                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
                                 <span>Non réglées</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'unpaid' ? 'bg-amber-700 text-white' : 'bg-amber-200 text-amber-900'}`}>{countNonReglees}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'unpaid' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{countNonReglees}</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('partially_paid')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'partially_paid'
-                                        ? 'bg-blue-600 text-white font-bold'
-                                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/60'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0"></span>
                                 <span>Partielles</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'partially_paid' ? 'bg-blue-700 text-white' : 'bg-blue-200 text-blue-900'}`}>{countPartielles}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'partially_paid' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{countPartielles}</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('paid')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'paid'
-                                        ? 'bg-emerald-600 text-white font-bold'
-                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                                 <span>Soldées</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'paid' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-900'}`}>{countSoldees}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'paid' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{countSoldees}</span>
                             </button>
                             {countEnRetard > 0 && (
                                 <button
                                     type="button"
                                     onClick={() => setInvoiceStatusFilter('overdue')}
-                                    className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                    className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                         invoiceStatusFilter === 'overdue'
-                                            ? 'bg-red-600 text-white font-bold'
-                                            : 'bg-red-50 text-red-800 hover:bg-red-100 border border-red-200/80 animate-pulse'
+                                            ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                            : 'bg-rose-50/80 text-rose-800 hover:bg-rose-100 border border-rose-200/60'
                                     }`}
                                 >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
                                     <span>⚠️ En retard</span>
-                                    <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'overdue' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-900'}`}>{countEnRetard}</span>
+                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'overdue' ? 'bg-neutral-700 text-neutral-200' : 'bg-rose-100 text-rose-900'}`}>{countEnRetard}</span>
                                 </button>
                             )}
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('avoir')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'avoir'
-                                        ? 'bg-purple-600 text-white font-bold'
-                                        : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200/60'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></span>
                                 <span>Avoirs</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'avoir' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-900'}`}>{countAvoirs}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'avoir' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{countAvoirs}</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setInvoiceStatusFilter('draft')}
-                                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 font-medium ${
+                                className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'draft'
-                                        ? 'bg-neutral-600 text-white font-bold'
-                                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                        ? 'bg-neutral-900 text-white font-bold shadow-2xs'
+                                        : 'bg-neutral-100/90 text-neutral-600 hover:bg-neutral-200/80'
                                 }`}
                             >
+                                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0"></span>
                                 <span>Brouillons</span>
-                                <span className={`text-[10px] px-1 py-0.2 rounded-full ${invoiceStatusFilter === 'draft' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-600'}`}>{countBrouillons}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${invoiceStatusFilter === 'draft' ? 'bg-neutral-700 text-neutral-200' : 'bg-neutral-200/80 text-neutral-600'}`}>{countBrouillons}</span>
                             </button>
                         </div>
 
@@ -20859,13 +20865,13 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                             <div className="flex items-center justify-between gap-2 min-w-0">
                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                     {f.type === 'avoir' && (
-                                                        <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded shrink-0">AVOIR</span>
+                                                        <span className="text-[10px] bg-violet-50 text-violet-800 font-semibold px-1.5 py-0.5 rounded border border-violet-200/60 shrink-0">AVOIR</span>
                                                     )}
-                                                    <span className="font-mono text-xs font-bold text-brand-700 truncate">
+                                                    <span className="font-mono text-xs font-bold text-neutral-800 truncate">
                                                         {f.numero || 'Brouillon'}
                                                     </span>
                                                 </div>
-                                                <span className={`font-bold text-xs tabular-nums shrink-0 ${f.type === 'avoir' ? 'text-purple-700' : 'text-neutral-900'}`}>
+                                                <span className={`font-bold text-xs tabular-nums shrink-0 ${f.type === 'avoir' ? 'text-violet-700' : 'text-neutral-900'}`}>
                                                     {formatMoney(f.totalTTC, cur)}
                                                 </span>
                                             </div>
@@ -20877,7 +20883,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 </span>
                                                 <div className="shrink-0 flex items-center gap-1">
                                                     {isInvoiceOverdue(f) && (
-                                                        <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded shrink-0 border border-red-200" title="Échéance de paiement dépassée">
+                                                        <span className="text-[10px] bg-rose-50 text-rose-800 font-semibold px-1.5 py-0.5 rounded shrink-0 border border-rose-200/60" title="Échéance de paiement dépassée">
                                                             <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
                                                         </span>
                                                     )}
@@ -21013,21 +21019,21 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                     <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                                                         <div className="flex items-center gap-1.5">
                                                             {f.type === 'avoir' && (
-                                                                <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded shrink-0">AVOIR</span>
+                                                                <span className="text-[10px] bg-violet-50 text-violet-800 font-semibold px-1.5 py-0.5 rounded border border-violet-200/60 shrink-0">AVOIR</span>
                                                             )}
-                                                            <span className="font-mono text-xs font-bold text-brand-700">{f.numero || 'Brouillon'}</span>
+                                                            <span className="font-mono text-xs font-bold text-neutral-800">{f.numero || 'Brouillon'}</span>
                                                         </div>
-                                                        {f.correctsInvoiceNumber && <span className="text-[10px] text-purple-700 block font-medium">sur {f.correctsInvoiceNumber}</span>}
+                                                        {f.correctsInvoiceNumber && <span className="text-[10px] text-violet-700 block font-medium">sur {f.correctsInvoiceNumber}</span>}
                                                         {f.devisNumero && !f.correctsInvoiceNumber && <span className="text-[10px] text-neutral-500 block">depuis {f.devisNumero}</span>}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-right font-bold text-neutral-900 tabular-nums whitespace-nowrap">
-                                                        <div className={f.type === 'avoir' ? 'text-purple-700' : ''}>{formatMoney(f.totalTTC, cur)}</div>
+                                                        <div className={f.type === 'avoir' ? 'text-violet-700' : ''}>{formatMoney(f.totalTTC, cur)}</div>
                                                         {f.statut !== 'draft' && f.statut !== 'cancelled' && f.type !== 'avoir' && (
                                                             <div className="text-[10px] font-normal mt-0.5">
                                                                 {Number(f.montantRegle) >= (f.netAPayerTTC || f.totalTTC) ? (
-                                                                    <span className="text-emerald-600 font-semibold"><i className="fa-solid fa-check text-[9px] mr-0.5"></i>Soldée</span>
+                                                                    <span className="text-emerald-700 font-semibold"><i className="fa-solid fa-check text-[9px] mr-0.5"></i>Soldée</span>
                                                                 ) : Number(f.montantRegle) > 0 ? (
-                                                                    <span className="text-amber-600 font-medium">Réglé : {formatMoney(f.montantRegle, cur)}</span>
+                                                                    <span className="text-amber-700 font-medium">Réglé : {formatMoney(f.montantRegle, cur)}</span>
                                                                 ) : (
                                                                     <span className="text-neutral-400">Non réglée</span>
                                                                 )}
@@ -21037,7 +21043,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                     <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
                                                         <div className="flex items-center justify-center gap-1">
                                                             {isInvoiceOverdue(f) && (
-                                                                <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded shrink-0 border border-red-200" title="Échéance de paiement dépassée">
+                                                                <span className="text-[10px] bg-rose-50 text-rose-800 font-semibold px-1.5 py-0.5 rounded shrink-0 border border-rose-200/60" title="Échéance de paiement dépassée">
                                                                     <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
                                                                 </span>
                                                             )}
@@ -21051,10 +21057,10 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                                     type="button"
                                                                     disabled={isReadOnlyDueToDowngrade}
                                                                     onClick={() => envoyerFacture(f)}
-                                                                    className="btn-secondary py-1 px-2 text-[11px] font-bold text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1"
+                                                                    className="btn-secondary py-1 px-2 text-[11px] font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1"
                                                                     title="Marquer comme envoyée au client"
                                                                 >
-                                                                    <i className="fa-solid fa-paper-plane text-[10px]"></i>
+                                                                    <i className="fa-solid fa-paper-plane text-neutral-500 text-[10px]"></i>
                                                                     <span>Envoyée</span>
                                                                 </button>
                                                             )}
@@ -21343,11 +21349,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                         confirmLabel: "Marquer comme envoyée",
                                                         onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
                                                     })}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-bold text-indigo-700 bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5"
                                                     title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client hors du SaaS"
                                                     aria-label="Marquer comme envoyée"
                                                 >
-                                                    <i className="fa-solid fa-paper-plane text-indigo-600"></i>
+                                                    <i className="fa-solid fa-paper-plane text-neutral-500"></i>
                                                     <span>Marquer comme envoyée</span>
                                                 </button>
 
@@ -21382,7 +21388,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                             type="button"
                                                             disabled={isReadOnlyDueToDowngrade}
                                                             onClick={() => setPaymentModalData(activeInvoice)}
-                                                            className="btn-primary py-1.5 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 shrink-0"
+                                                            className="btn-primary py-1.5 px-3 text-xs font-bold bg-neutral-900 hover:bg-black text-white shadow-2xs flex items-center gap-1.5 shrink-0"
                                                             aria-label={`Enregistrer un règlement pour la facture ${activeInvoice.numero}`}
                                                         >
                                                             <i className="fa-solid fa-hand-holding-dollar"></i>
@@ -21395,11 +21401,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                         <button
                                                             type="button"
                                                             onClick={() => setEmailComposerModal(activeInvoice)}
-                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5 shrink-0"
+                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5 shrink-0"
                                                             title="Envoyer ou relancer par e-mail avec modèles BTP personnalisés"
                                                             aria-label="Relancer le client ou envoyer par e-mail"
                                                         >
-                                                            <i className="fa-solid fa-envelope text-indigo-600"></i>
+                                                            <i className="fa-solid fa-envelope text-neutral-500"></i>
                                                             <span>Relancer</span>
                                                         </button>
                                                     )}
@@ -21408,11 +21414,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                     <button
                                                         type="button"
                                                         onClick={() => setPreviewInvoiceModal(activeInvoice)}
-                                                        className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1.5 shrink-0"
+                                                        className="btn-secondary py-1.5 px-2.5 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5 shrink-0"
                                                         title="Aperçu avant impression et vérification du rendu PDF"
                                                         aria-label="Aperçu de la facture"
                                                     >
-                                                        <i className="fa-solid fa-eye text-neutral-600"></i>
+                                                        <i className="fa-solid fa-eye text-neutral-500"></i>
                                                         <span>Aperçu</span>
                                                     </button>
 
@@ -21423,11 +21429,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                             'facture'
                                                         )}
                                                         disabled={pdfEnCours === 'facture'}
-                                                        className={`${estSoldee ? 'btn-primary bg-brand-600 hover:bg-brand-700 text-white' : 'btn-secondary'} py-1.5 px-2.5 text-xs font-bold flex items-center gap-1.5 shrink-0`}
+                                                        className={`${estSoldee ? 'btn-primary bg-neutral-900 hover:bg-black text-white' : 'btn-secondary text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90'} py-1.5 px-2.5 text-xs font-medium shadow-2xs flex items-center gap-1.5 shrink-0`}
                                                         title="Télécharger la facture au format PDF"
                                                         aria-label="Télécharger la facture en PDF"
                                                     >
-                                                        <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} ${estSoldee ? '' : 'text-neutral-600'}`}></i>
+                                                        <i className={`fa-solid ${pdfEnCours === 'facture' ? 'fa-circle-notch fa-spin' : 'fa-download'} ${estSoldee ? '' : 'text-neutral-500'}`}></i>
                                                         <span>{pdfEnCours === 'facture' ? 'Génération…' : 'Télécharger le PDF'}</span>
                                                     </button>
 
@@ -21437,11 +21443,11 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                             type="button"
                                                             disabled={isReadOnlyDueToDowngrade}
                                                             onClick={() => setCreditNoteModalData(activeInvoice)}
-                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 cursor-pointer shrink-0"
+                                                            className="btn-secondary py-1.5 px-2.5 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
                                                             title="Émettre un avoir rectificatif (annulation totale ou réduction de montant)"
                                                             aria-label={`Émettre un avoir pour la facture ${activeInvoice.numero}`}
                                                         >
-                                                            <i className="fa-solid fa-file-invoice text-purple-600"></i>
+                                                            <i className="fa-solid fa-file-invoice text-neutral-500"></i>
                                                             <span>Créer un Avoir</span>
                                                         </button>
                                                     )}
@@ -21599,7 +21605,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                 <i className="fa-solid fa-wallet text-[11px]"></i>
                                                 <span>Règlements & Quittances</span>
                                                 {paymentsList.length > 0 && (
-                                                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold">
+                                                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 font-mono font-medium">
                                                         {paymentsList.length}
                                                     </span>
                                                 )}
@@ -21611,16 +21617,16 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                 <div className="p-4 sm:p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
                                     {/* Bannière Avoir */}
                                     {activeInvoice.type === 'avoir' && (
-                                        <div className="mb-4 border-2 border-purple-300 bg-purple-50 rounded-xl p-3.5 flex items-start gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 border border-purple-200">
+                                        <div className="mb-4 border border-violet-200/80 bg-violet-50/50 rounded-xl p-3.5 flex items-start gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-violet-100/70 text-violet-700 flex items-center justify-center shrink-0 border border-violet-200/60">
                                                 <i className="fa-solid fa-file-invoice text-sm"></i>
                                             </div>
-                                            <div className="text-xs text-purple-900 min-w-0">
+                                            <div className="text-xs text-neutral-900 min-w-0">
                                                 <p className="font-bold uppercase tracking-wide flex items-center gap-2">
                                                     <span>Avoir comptable rectificatif</span>
-                                                    <span className="bg-purple-200/80 text-purple-900 font-mono text-[10px] px-2 py-0.5 rounded-full">{activeInvoice.numero}</span>
+                                                    <span className="bg-violet-100 text-violet-900 font-mono text-[10px] px-2 py-0.5 rounded-full border border-violet-200/60">{activeInvoice.numero}</span>
                                                 </p>
-                                                <p className="text-[11px] text-purple-800 mt-1">
+                                                <p className="text-[11px] text-neutral-600 mt-1">
                                                     Ce document compense et rectifie la facture <strong>{activeInvoice.correctsInvoiceNumber || 'd’origine'}</strong>.
                                                     {activeInvoice.motif && <> Motif légal : <strong>{activeInvoice.motif}</strong>.</>}
                                                     {activeInvoice.precision && <> ({activeInvoice.precision})</>}
@@ -21631,8 +21637,8 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
                                     {/* Bannière Brouillon propre et non dupliquée */}
                                     {estBrouillon && (
-                                        <div className="mb-4 border border-amber-300 bg-amber-50/80 rounded-xl p-3.5 flex items-start gap-3">
-                                            <i className="fa-solid fa-pen-ruler text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                                        <div className="mb-4 border border-amber-200/80 bg-amber-50/50 rounded-xl p-3.5 flex items-start gap-3">
+                                            <i className="fa-solid fa-pen-ruler text-amber-700 text-sm mt-0.5 shrink-0"></i>
                                             <div className="text-xs text-amber-900 min-w-0">
                                                 <p className="font-bold uppercase tracking-wide">Brouillon de facture non émis</p>
                                                 <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
@@ -21649,9 +21655,9 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                         return (
                                             <div className="mb-5 bg-white rounded-xl border border-neutral-200/90 shadow-xs overflow-hidden">
                                                 {/* Header de suivi de règlement */}
-                                                <div className="p-3.5 sm:p-4 bg-gradient-to-r from-neutral-50 to-emerald-50/30 border-b border-neutral-200/70 flex flex-wrap items-center justify-between gap-3">
+                                                <div className="p-3.5 sm:p-4 bg-neutral-50/70 border-b border-neutral-200/70 flex flex-wrap items-center justify-between gap-3">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                                                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm border border-slate-200/60">
                                                             <i className="fa-solid fa-wallet"></i>
                                                         </div>
                                                         <div>
@@ -21666,9 +21672,9 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                                             type="button"
                                                             disabled={isReadOnlyDueToDowngrade}
                                                             onClick={() => setPaymentModalData(activeInvoice)}
-                                                            className="btn-secondary py-1 px-3 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 flex items-center gap-1.5"
+                                                            className="btn-secondary py-1 px-3 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5"
                                                         >
-                                                            <i className="fa-solid fa-plus text-[10px]"></i> Saisir un encaissement
+                                                            <i className="fa-solid fa-plus text-[10px] text-neutral-500"></i> Saisir un encaissement
                                                         </button>
                                                     </div>
                                                 </div>
