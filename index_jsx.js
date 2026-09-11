@@ -12867,10 +12867,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     }, [supabaseClient, sbUser, activeOrganizationId]);
 
     const handleSaveDocumentPrefix = async (kind) => {
-        if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) return;
         const prefix = (kind === 'quote' ? quotePrefixInput : invoicePrefixInput).trim();
         if (!prefix || prefix.length > 12) {
             showToast("Le préfixe doit faire entre 1 et 12 caractères.", "error");
+            return;
+        }
+        if (!supabaseClient || !sbUser || sbUser.id === 'guest' || !activeOrganizationId) {
+            showToast(`Préfixe des ${kind === 'quote' ? 'devis' : 'factures'} mémorisé pour la session : ${prefix}`, "success");
             return;
         }
         setPrefixSaving(prev => ({ ...prev, [kind]: true }));
@@ -25045,14 +25048,14 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
             {activeView === 'settings' && (
                 <section className="settings-page-shell fixed inset-y-0 right-0 z-[60] bg-neutral-100 flex flex-col min-h-0 animate-fade-in" aria-label="Paramètres du compte">
-                    <header className="bg-white border-b border-neutral-200 px-4 py-4 sm:px-6 lg:px-8 flex flex-wrap items-start sm:items-center justify-between gap-4 shrink-0">
-                        <div>
-                            <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-brand-600 mb-1">Espace de configuration</p>
-                            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">Paramètres du compte</h1>
-                            <p className="text-xs sm:text-sm text-neutral-500 mt-1">Personnalisez l’entreprise, vos documents et les réglages de votre espace.</p>
+                    <header className="bg-white border-b border-neutral-200 px-4 py-3 sm:py-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 shrink-0">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-neutral-500 mb-0.5">Espace de configuration</p>
+                            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-neutral-900 truncate">Paramètres du compte</h1>
+                            <p className="hidden sm:block text-xs text-neutral-500 mt-0.5">Personnalisez l’entreprise, vos documents et les réglages de votre espace.</p>
                         </div>
-                        <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs py-2 px-3 shrink-0" aria-label="Retourner au tableau de bord">
-                            <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
+                        <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs py-2 px-3 shrink-0 flex items-center gap-1.5" aria-label="Retourner au tableau de bord">
+                            <i className="fa-solid fa-arrow-left"></i> <span>Retour à l’application</span>
                         </button>
                     </header>
                     <div className="flex-1 min-h-0 flex">
@@ -25066,12 +25069,20 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                         type="button"
                                         onClick={() => selectAccountSettingsSection(tab.id)}
                                         aria-current={isActive ? 'page' : undefined}
-                                        className={`w-full text-left px-3 py-3 rounded-xl flex items-start gap-3 transition-colors ${isActive ? 'bg-brand-50 text-brand-700 shadow-[inset_3px_0_0_0_#3b5bdb]' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}
+                                        className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition-all ${
+                                            isActive
+                                                ? 'bg-neutral-900 text-white shadow-xs'
+                                                : 'text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900'
+                                        }`}
                                     >
-                                        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${isActive ? 'bg-white text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}><i className={`fa-solid ${tab.icon} text-sm`}></i></span>
+                                        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
+                                            isActive ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-500'
+                                        }`}>
+                                            <i className={`fa-solid ${tab.icon} text-xs`}></i>
+                                        </span>
                                         <span className="min-w-0">
-                                            <span className="block text-xs font-bold leading-5">{tab.label}</span>
-                                            <span className="block text-[10px] text-neutral-500 mt-0.5 leading-4">{tab.description}</span>
+                                            <span className={`block text-xs font-bold leading-tight ${isActive ? 'text-white' : 'text-neutral-900'}`}>{tab.label}</span>
+                                            <span className={`block text-[10px] mt-0.5 leading-snug truncate ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>{tab.description}</span>
                                         </span>
                                     </button>
                                 );
@@ -25508,7 +25519,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     visée, pas une variante bancaire. */}
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
                                     <div className="flex items-start gap-3 mb-4">
-                                        <span className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-mobile-screen-button"></i></span>
+                                        <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 border border-slate-200/60 flex items-center justify-center shrink-0"><i className="fa-solid fa-mobile-screen-button"></i></span>
                                         <div>
                                             <h3 className="text-sm font-bold text-neutral-800">Paiement mobile</h3>
                                             <p className="text-[11px] text-neutral-500 mt-0.5">Numéros optionnels — affichés sur le devis/facture uniquement s'ils sont renseignés.</p>
@@ -25532,7 +25543,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
                                     <div className="flex items-start gap-3 mb-4">
-                                        <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0"><i className="fa-solid fa-hard-hat"></i></span>
+                                        <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 border border-slate-200/60 flex items-center justify-center shrink-0"><i className="fa-solid fa-hard-hat"></i></span>
                                         <div>
                                             <h3 className="text-sm font-bold text-neutral-800">Règles BTP par défaut</h3>
                                             <p className="text-[11px] text-neutral-500 mt-0.5">Ces valeurs servent de repères à la préparation de vos prochains documents.</p>
@@ -25556,7 +25567,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
                                     <div className="flex items-start gap-3">
-                                        <span className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-envelope"></i></span>
+                                        <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 border border-slate-200/60 flex items-center justify-center shrink-0"><i className="fa-solid fa-envelope"></i></span>
                                         <div>
                                             <h3 className="text-sm font-bold text-neutral-800">Modèles de messages</h3>
                                             <p className="text-[11px] text-neutral-500 mt-0.5">Les variables seront remplacées au moment de la préparation du message.</p>
@@ -25588,21 +25599,20 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                             enregistrés au fil de la saisie. Les sections de consultation
                             gardent seulement un retour clair vers l'application. */}
                         {accountSettingsTab !== 'entreprise' && (
-                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                                {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && !isReadOnlyDueToDowngrade ? (
-                                    <button type="button" onClick={() => { updateCompanyInfo({ ...companyInfo }); showToast(accountSettingsTab === 'documents' ? "Réglages Documents & PDF enregistrés" : "Réglages Facturation & envoi enregistrés"); }} className="btn-primary" aria-label={accountSettingsTab === 'documents' ? 'Enregistrer les réglages Documents et PDF' : 'Enregistrer les réglages Facturation et envoi'}>
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-200/80 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                                <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Retourner à l'application">
+                                    <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
+                                </button>
+                                {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && !isReadOnlyDueToDowngrade && (
+                                    <button type="button" onClick={() => { updateCompanyInfo({ ...companyInfo }); showToast(accountSettingsTab === 'documents' ? "Réglages Documents & PDF enregistrés" : "Réglages Facturation & envoi enregistrés"); }} className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label={accountSettingsTab === 'documents' ? 'Enregistrer les réglages Documents et PDF' : 'Enregistrer les réglages Facturation et envoi'}>
                                         <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
-                                    </button>
-                                ) : (
-                                    <button type="button" onClick={leaveAccountSettings} className="btn-secondary" aria-label="Retourner à l'application">
-                                        Retour à l’application
                                     </button>
                                 )}
                             </div>
                         )}
                         {accountSettingsTab === 'entreprise' && (
                         <form onSubmit={(e) => { e.preventDefault(); if (!isReadOnlyDueToDowngrade) { updateCompanyInfo({ ...companyInfo }); showToast("Paramètres entreprise enregistrés"); } }} className="flex-1 min-h-0 flex flex-col">
-                            <div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
+                            <div className="flex-1 min-h-0 p-4 sm:p-6 pb-20 sm:pb-24 overflow-y-auto custom-scroll bg-neutral-50/50 space-y-4">
                                 {/* Audit UX P1-8 (2026-09-01) — « avec un rappel “À compléter
                                     avant votre premier vrai devis” ». Affiché seulement quand
                                     il manque réellement quelque chose : un rappel permanent
@@ -25748,9 +25758,15 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     )}
                                 </div>
                             </div>
-                            <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
-                                <button type="button" onClick={leaveAccountSettings} className="btn-secondary" aria-label="Retourner à l'application">Retour</button>
-                                {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer les paramètres de l'entreprise"><i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications</button>}
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-200/80 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                                <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Retourner à l'application">
+                                    <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour
+                                </button>
+                                {!isReadOnlyDueToDowngrade && (
+                                    <button type="submit" className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-4" aria-label="Enregistrer les paramètres de l'entreprise">
+                                        <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                                    </button>
+                                )}
                             </div>
                         </form>
                         )}
