@@ -2426,8 +2426,8 @@ function AcmCalepinageVisualizer({
                                         y={y}
                                         width={w - 2}
                                         height={h - 2}
-                                        fill="#3b5bdb22"
-                                        stroke="#3b5bdb"
+                                        fill="#0082fb22"
+                                        stroke="#0082fb"
                                         strokeWidth="1.5"
                                         rx="2"
                                     />
@@ -24530,7 +24530,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 }} 
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#3b5bdb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
+                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#0082fb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
                 <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
                 <span className={`text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal ${isActive ? 'text-brand-600' : 'text-neutral-700'}`}>{label}</span>
             </button>
@@ -28299,7 +28299,7 @@ function AppShell() {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #0f172a 0%, #171717 50%, #0a1a3a 100%)'}}>
                 <div className="text-center">
-                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #3b5bdb, #1e3a8a)'}}>
+                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{background: 'linear-gradient(135deg, #0082fb, #004fb8)'}}>
                         <i className="fa-solid fa-spinner fa-spin text-white text-2xl"></i>
                     </div>
                     <p className="text-white font-bold">ikadevis</p>

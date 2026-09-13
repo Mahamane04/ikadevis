@@ -19,7 +19,7 @@
          Aucune ressource distante n'est chargée par cette page — tout est
          servi localement — la mise en cache est donc complète. -->
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0082fb">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,7 +29,7 @@
          au lieu de servir une version en cache (piège rencontré en vérifiant le
          restyle sidebar : un onglet de test ET un appareil utilisateur servaient
          tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260910b">
+    <link rel="stylesheet" href="tailwind.css?v=20260913a">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -40,8 +40,8 @@
         * { box-sizing: border-box; }
         body { 
             font-family: 'Open Sans', sans-serif; 
-            background-color: #f1f5f9; 
-            color: #0f172a;
+            background-color: #f1f5f8; 
+            color: #1c2b33;
             -webkit-font-smoothing: antialiased;
             margin: 0; padding: 0;
             overflow: hidden;
@@ -50,19 +50,19 @@
         .app-input, .app-select {
             width: 100%;
             padding: 0.75rem 1rem;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background-color: #ffffff;
+            border: 1px solid #e4e9ee;
             border-radius: 0.75rem;
             font-size: 0.875rem;
-            color: #1e293b;
+            color: #1c2b33;
             transition: all 0.2s ease;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
         }
         .app-input:focus, .app-select:focus {
             background-color: #ffffff;
-            border-color: #3b5bdb;
+            border-color: #0082fb;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.14);
+            box-shadow: 0 0 0 3px rgba(0, 130, 251, 0.16);
         }
 
         /* Les utilitaires de padding Tailwind perdaient contre la règle
@@ -97,7 +97,7 @@
             display: block;
             font-size: 0.65rem;
             font-weight: 600;
-            color: #5f6d80;
+            color: #5f6f7e;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.5rem;
@@ -119,13 +119,13 @@
 
         .btn-primary {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            background-color: #111827; color: white;
+            background-color: #0082fb; color: white;
             padding: 0.75rem 1.25rem; border-radius: 0.75rem;
             font-size: 0.875rem; font-weight: 600;
             transition: all 0.15s ease;
-            box-shadow: 0 1px 2px 0 rgba(16, 24, 40, 0.06);
+            box-shadow: 0 1px 2px 0 rgba(0, 130, 251, 0.2);
         }
-        .btn-primary:hover { background-color: #000000; transform: translateY(-1px); }
+        .btn-primary:hover { background-color: #0064e0; transform: translateY(-1px); }
 
         /* Icônes de marque en SVG (audit du 2026-09-02, poste « performance »).
            La police « Font Awesome Brands » pesait 108 Ko — pour DEUX glyphes,
@@ -172,19 +172,19 @@
 
         .btn-secondary {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            background-color: white; color: #475569;
-            border: 1px solid #e2e8f0;
+            background-color: white; color: #1c2b33;
+            border: 1px solid #e4e9ee;
             padding: 0.75rem 1.25rem; border-radius: 0.75rem;
             font-size: 0.875rem; font-weight: 600;
             transition: all 0.15s ease;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
         }
-        .btn-secondary:hover { background-color: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+        .btn-secondary:hover { background-color: #f1f5f8; border-color: #cbd5e1; color: #1c2b33; }
 
         .btn-icon {
             width: 2.5rem; height: 2.5rem;
             display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 0.5rem; color: #94a3b8;
+            border-radius: 0.5rem; color: #8f9ca8;
             transition: all 0.15s ease;
         }
         .btn-icon:hover { background-color: #fee2e2; color: #dc2626; }
@@ -192,7 +192,7 @@
         .app-card {
             background-color: white;
             border-radius: 1rem;
-            border: 1px solid rgba(226, 232, 240, 0.8);
+            border: 1px solid #e4e9ee;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
         }
 
@@ -212,31 +212,26 @@
         @media (max-width: 767px) {
             .app-table { min-width: 600px; }
         }
-        .app-th { padding: 0.75rem 1rem; font-weight: 600; color: #5f6d80; text-transform: uppercase; font-size: 0.65rem; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-        .app-td { padding: 1rem; color: #334155; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; }
+        .app-th { padding: 0.75rem 1rem; font-weight: 600; color: #5f6f7e; text-transform: uppercase; font-size: 0.65rem; background-color: #f8fafc; border-bottom: 1px solid #e4e9ee; }
+        .app-td { padding: 1rem; color: #2e3d48; border-bottom: 1px solid #f1f5f8; font-size: 0.875rem; }
 
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #8f9ca8; }
 
-        /* P0.9 (2026-08-17) — Restyle sidebar/tiroir de navigation, contenu et
-           logique inchangés (menus, routes, permissions). Variables isolées ici
-           pour ajuster facilement l'accent (bleu de référence) sans toucher au
-           reste de la palette brand-* (rouge) utilisée ailleurs dans l'app. */
+        /* Direction « Meta Design System » (2026-09-13) — Restyle sidebar/tiroir de navigation :
+           Fond blanc épuré, typographie Meta Deep Slate (#1C2B33), sélection Meta Blue (#0082FB) */
         :root {
             --sidebar-width: clamp(250px, 18vw, 300px);
             --sidebar-collapsed-width: 72px;
-            --sidebar-bg: #f8f8ff;
-            --sidebar-text: #252a44;
-            --sidebar-muted: #646a80;
-            /* Direction « Encre » : l'item actif n'est plus un aplat bleu plein
-               sur 52 px de haut — c'était l'élément le plus lourd de l'écran.
-               Fond très pâle, texte sombre, et un liseré d'accent à gauche. */
-            --sidebar-active: #eef1f8;
-            --sidebar-active-text: #1e2a4a;
-            --sidebar-accent: #3b5bdb;
-            --sidebar-hover: rgba(88, 98, 170, 0.06);
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #1c2b33;
+            --sidebar-muted: #5f6f7e;
+            --sidebar-active: #e7f3ff;
+            --sidebar-active-text: #0064e0;
+            --sidebar-accent: #0082fb;
+            --sidebar-hover: rgba(0, 130, 251, 0.05);
             --sidebar-radius: 11px;
         }
         .sidebar-shell { width: var(--sidebar-width); background-color: var(--sidebar-bg); }

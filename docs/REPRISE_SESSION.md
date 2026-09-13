@@ -180,20 +180,22 @@ remplacement ancré sur `<div className="px-6 py-4 border-b …">` a supprimé
 
 ---
 
-## 5. Direction visuelle « Encre »
+## 5. Direction visuelle « Meta Design System »
 
-Retenue le 2026-08-21 après comparaison de quatre maquettes.
+Retenue le 2026-09-13 d'après la charte officielle Meta.
 
 | Rôle | Valeur |
 |---|---|
-| **Action principale** | `#111827` (encre), survol `#000000` |
-| **Accent** `brand-500` | `#3b5bdb` — textes, bordures, fonds pâles, liseré du menu actif |
-| `brand-600` | `#2f49b0` |
+| **Action principale** | `#0082FB` (Meta Blue), survol `#0064E0` (Meta Dark Blue) |
+| **Fond d'application (Canvas)** | `#F1F5F8` (Meta Light Gray) |
+| **Typographie & Encre forte** | `#1C2B33` (Meta Deep Slate / Charcoal) |
+| **Bordures & Séparateurs** | `#E4E9EE` |
+| **Accent** `brand-500` | `#0082FB` — boutons d'action, liens, sélections, focus rings |
+| `brand-600` | `#0064E0` — états actifs / survol |
 | **Danger** `red-*` | **inchangé** — 116 usages sémantiques, ne pas repeindre |
-| Menu actif | fond `#eef1f8` + liseré `#3b5bdb` de 2 px |
+| Menu actif | fond `#E7F3FF` + liseré `#0082FB` de 2 px |
 
-Graisses ramenées de 900/800 à 700/600 ; ombres colorées supprimées.
-Contrastes tous vérifiés ≥ 4,5:1.
+Contrastes tous vérifiés ≥ 4,5:1 (WCAG AA).
 
 ---
 
