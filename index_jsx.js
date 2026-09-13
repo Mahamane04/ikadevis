@@ -24530,7 +24530,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 }} 
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-                          ${isActive ? 'text-brand-600 bg-brand-50 lg:shadow-[inset_3px_0_0_0_#0082fb]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
+                          ${isActive ? 'text-brand-600 bg-brand-50' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
                 <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
                 <span className={`text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal ${isActive ? 'text-brand-600' : 'text-neutral-700'}`}>{label}</span>
             </button>
