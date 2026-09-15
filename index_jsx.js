@@ -4525,10 +4525,17 @@ function WorkItemTable({
                                         ) : (
                                             <input
                                                 type="number" min="0" step="any"
-                                                value={item.qty || 1}
+                                                value={item.qty === '' ? '' : (item.qty !== undefined ? item.qty : 1)}
+                                                onFocus={(e) => e.target.select()}
                                                 onChange={(e) => {
-                                                    const val = parseFloat(e.target.value) || 1;
-                                                    onUpdateItem(idx, { qty: val, calcForm: { ...(item.calcForm || {}), qty: val } });
+                                                    const raw = e.target.value;
+                                                    const val = raw === '' ? '' : (parseFloat(raw) || 0);
+                                                    onUpdateItem(idx, { qty: val, calcForm: { ...(item.calcForm || {}), qty: val === '' ? 1 : val } });
+                                                }}
+                                                onBlur={(e) => {
+                                                    if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                                                        onUpdateItem(idx, { qty: 1, calcForm: { ...(item.calcForm || {}), qty: 1 } });
+                                                    }
                                                 }}
                                                 className="w-full text-center py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                                 aria-label={`Quantité pour ${item.name}`}
@@ -4545,19 +4552,24 @@ function WorkItemTable({
                                     <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
                                     <input
                                         type="number" min="0" step="any"
-                                        value={Math.round(facture.prixUnitaire)}
+                                        value={item.unitPriceHT === '' ? '' : (item.unitPriceHT !== undefined ? item.unitPriceHT : Math.round(facture.prixUnitaire))}
+                                        onFocus={(e) => e.target.select()}
                                         onChange={(e) => {
-                                            const val = parseFloat(e.target.value) || 0;
-                                            // Reporter la quantité et l'unité facturées : sans elles, la
-                                            // ligne repartait à « 1 forfait » et un prix saisi AU M² devenait
-                                            // silencieusement un prix TOTAL (12 000 au lieu de 120 000).
+                                            const raw = e.target.value;
+                                            const val = raw === '' ? '' : (parseFloat(raw) || 0);
+                                            const q = item.qty === '' ? 1 : (item.qty || facture.quantite);
                                             onUpdateItem(idx, {
                                                 unitPriceHT: val,
-                                                qty: facture.quantite,
+                                                qty: q,
                                                 unit: facture.unite,
-                                                totalHT: val * facture.quantite,
+                                                totalHT: (val === '' ? 0 : val) * q,
                                                 isCustom: true
                                             });
+                                        }}
+                                        onBlur={(e) => {
+                                            if (e.target.value === '') {
+                                                onUpdateItem(idx, { unitPriceHT: 0 });
+                                            }
                                         }}
                                         className="w-full text-right py-1.5 px-2 font-bold text-neutral-900 border border-neutral-200 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                                         aria-label={`Prix unitaire pour ${item.name}`}
@@ -4728,7 +4740,7 @@ function WorkItemTable({
                                             step="any"
                                             data-col="qty"
                                             data-row={idx}
-                                            value={item.qty || 1}
+                                            value={item.qty === '' ? '' : (item.qty !== undefined ? item.qty : 1)}
                                             onFocus={(e) => e.target.select()}
                                             onKeyDown={(e) => {
                                                 const inputs = Array.from(document.querySelectorAll('[data-testid="quote-items-desktop"] [data-col="qty"]'));
@@ -4748,11 +4760,17 @@ function WorkItemTable({
                                                 }
                                             }}
                                             onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 1;
+                                                const raw = e.target.value;
+                                                const val = raw === '' ? '' : (parseFloat(raw) || 0);
                                                 onUpdateItem(idx, {
                                                     qty: val,
-                                                    calcForm: { ...(item.calcForm || {}), qty: val }
+                                                    calcForm: { ...(item.calcForm || {}), qty: val === '' ? 1 : val }
                                                 });
+                                            }}
+                                            onBlur={(e) => {
+                                                if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                                                    onUpdateItem(idx, { qty: 1, calcForm: { ...(item.calcForm || {}), qty: 1 } });
+                                                }
                                             }}
                                             className="w-9 min-w-0 text-center py-1 px-0.5 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
                                             aria-label={`Quantité pour ${item.name}`}
@@ -4775,7 +4793,7 @@ function WorkItemTable({
                                             step="any"
                                             data-col="price"
                                             data-row={idx}
-                                            value={Math.round(facture.prixUnitaire)}
+                                            value={item.unitPriceHT === '' ? '' : (item.unitPriceHT !== undefined ? item.unitPriceHT : Math.round(facture.prixUnitaire))}
                                             onFocus={(e) => e.target.select()}
                                             onKeyDown={(e) => {
                                                 const inputs = Array.from(document.querySelectorAll('[data-testid="quote-items-desktop"] [data-col="price"]'));
@@ -4795,15 +4813,21 @@ function WorkItemTable({
                                                 }
                                             }}
                                             onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 0;
-                                                // Reporter la quantité et l'unité facturées
+                                                const raw = e.target.value;
+                                                const val = raw === '' ? '' : (parseFloat(raw) || 0);
+                                                const q = item.qty === '' ? 1 : (item.qty || facture.quantite);
                                                 onUpdateItem(idx, {
                                                     unitPriceHT: val,
-                                                    qty: facture.quantite,
+                                                    qty: q,
                                                     unit: facture.unite,
-                                                    totalHT: val * facture.quantite,
+                                                    totalHT: (val === '' ? 0 : val) * q,
                                                     isCustom: true
                                                 });
+                                            }}
+                                            onBlur={(e) => {
+                                                if (e.target.value === '') {
+                                                    onUpdateItem(idx, { unitPriceHT: 0 });
+                                                }
                                             }}
                                             className="w-full max-w-[64px] min-w-0 text-right py-1 px-1 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
                                             aria-label={`Prix unitaire pour ${item.name}`}
@@ -4913,7 +4937,8 @@ function WorkItemPicker({
     activeLotItems = [],
     onSelectSolution,
     onSelectBulkSolutions,
-    onCreateCustomSolution
+    onCreateCustomSolution,
+    activeLotName = 'Lot en cours'
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
@@ -4966,8 +4991,6 @@ function WorkItemPicker({
     const selectedCount = Object.values(bulkSelections).filter(v => v !== undefined).length;
     const allFilteredSelected = filteredSolutions.length > 0 && filteredSolutions.every(s => bulkSelections[s.id] !== undefined);
 
-    // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
-    // visuel et au libellé du bouton de fermeture.
     const handleToggleBulk = (solId) => {
         setBulkSelections(prev => ({
             ...prev,
@@ -5006,49 +5029,66 @@ function WorkItemPicker({
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Bibliothèque des Ouvrages Métiers">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-neutral-200 animate-scale-up">
-                {/* Header du Picker */}
-                <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-3 bg-neutral-50/60">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
+    const modalContent = (
+        <div
+            className="fixed inset-0 bg-neutral-900/70 sm:backdrop-blur-sm flex flex-col sm:items-center sm:justify-center z-[160] p-0 sm:p-6 animate-fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Bibliothèque des Ouvrages Métiers"
+        >
+            <div className="bg-white w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[92vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border sm:border-neutral-200 animate-scale-up">
+                {/* Header du Picker — Plein écran adapté mobile avec retour explicite */}
+                <div className="p-3 sm:p-5 border-b border-neutral-200 flex items-center justify-between gap-2 sm:gap-3 bg-neutral-50/80 shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-700 text-xs font-bold transition-all shadow-2xs shrink-0"
+                            aria-label="Retour au chiffrage"
+                            title="Fermer et revenir au devis"
+                        >
+                            <i className="fa-solid fa-arrow-left text-xs"></i>
+                            <span className="text-xs font-bold">Retour</span>
+                        </button>
+                        <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 hidden sm:flex items-center justify-center font-bold shrink-0">
                             <i className="fa-solid fa-wand-magic-sparkles text-xs"></i>
                         </div>
-                        <div>
-                            <h3 className="font-bold text-sm text-neutral-900">Bibliothèque des Ouvrages Métiers</h3>
-                            <p className="text-[11px] text-neutral-500">Sélectionnez un ouvrage à ajouter au lot en cours</p>
+                        <div className="min-w-0">
+                            <h3 className="font-bold text-xs sm:text-sm text-neutral-900 truncate">
+                                Bibliothèque des Ouvrages
+                            </h3>
+                            <p className="text-[10px] sm:text-[11px] text-neutral-500 truncate">
+                                {activeLotName ? `Lot : ${activeLotName}` : 'Sélectionnez un ouvrage'}
+                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <button
                             type="button"
                             onClick={() => setIsBulkMode(!isBulkMode)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
                                 isBulkMode ? 'bg-brand-50 border-brand-300 text-brand-700 shadow-xs' : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                             }`}
                         >
                             <i className="fa-solid fa-list-check"></i>
-                            <span>{isBulkMode ? '✓ Ajout Multiple (Actif)' : 'Ajout Multiple'}</span>
+                            <span className="hidden sm:inline">{isBulkMode ? '✓ Ajout Multiple (Actif)' : 'Ajout Multiple'}</span>
+                            <span className="sm:hidden">{isBulkMode ? '✓ Multiple' : 'Multiple'}</span>
                         </button>
-                        {/* La fenêtre ne se referme plus à chaque ajout : ce bouton
-                            devient donc le point de sortie, et il rappelle ce qui a
-                            été ajouté pour qu'on ne quitte jamais en doutant. */}
                         {nbAjoutes > 0 ? (
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="btn-primary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5"
+                                className="btn-primary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5 shadow-sm"
                                 aria-label={`Terminer — ${nbAjoutes} ouvrage${nbAjoutes > 1 ? 's' : ''} ajouté${nbAjoutes > 1 ? 's' : ''} au lot`}
                             >
                                 <i className="fa-solid fa-check"></i>
-                                Terminer ({nbAjoutes})
+                                <span>Terminer ({nbAjoutes})</span>
                             </button>
                         ) : (
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-500"
+                                className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 hidden sm:flex items-center justify-center text-neutral-500"
                                 aria-label="Fermer le sélecteur"
                             >
                                 <i className="fa-solid fa-xmark text-sm"></i>
@@ -5058,7 +5098,7 @@ function WorkItemPicker({
                 </div>
 
                 {/* Champ de Recherche */}
-                <div className="p-4 border-b border-neutral-100 space-y-3">
+                <div className="p-3 sm:p-4 border-b border-neutral-100 space-y-2.5 sm:space-y-3 bg-white shrink-0">
                     <div className="relative">
                         <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-sm"></i>
                         <input
@@ -5080,7 +5120,7 @@ function WorkItemPicker({
                     </div>
 
                     {/* Catégories Chips */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] custom-scroll">
                         {categories.map(cat => (
                             <button
                                 key={cat.id}
@@ -5099,7 +5139,7 @@ function WorkItemPicker({
                 </div>
 
                 {/* Liste des Résultats */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 custom-scroll">
                     {isBulkMode && filteredSolutions.length > 0 && (
                         <div className="flex items-center justify-between px-1 pb-1 text-xs text-neutral-600 border-b border-neutral-100">
                             <span className="font-medium text-[11px] text-neutral-500">
@@ -5126,7 +5166,7 @@ function WorkItemPicker({
                             <div
                                 key={sol.id}
                                 onClick={isBulkMode ? () => handleToggleBulk(sol.id) : undefined}
-                                className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 group ${
+                                className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 group ${
                                     isBulkMode ? 'cursor-pointer select-none' : ''
                                 } ${
                                     isBulkMode && isChecked
@@ -5141,7 +5181,7 @@ function WorkItemPicker({
                                             checked={isChecked}
                                             onChange={() => handleToggleBulk(sol.id)}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="w-4 h-4 mt-1 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
+                                            className="w-5 h-5 mt-0.5 rounded text-brand-600 focus:ring-brand-500 cursor-pointer shrink-0"
                                         />
                                     )}
                                     <div className="w-9 h-9 rounded-xl bg-neutral-100 group-hover:bg-brand-100 text-neutral-700 group-hover:text-brand-700 flex items-center justify-center text-sm shrink-0 transition-colors">
@@ -5149,12 +5189,12 @@ function WorkItemPicker({
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <h4 className="font-semibold text-xs text-neutral-900 truncate group-hover:text-brand-900">
+                                            <h4 className="font-bold text-xs sm:text-sm text-neutral-900 group-hover:text-brand-900 leading-snug break-words">
                                                 {sol.name}
                                             </h4>
                                             {isAlreadyInLot && (
                                                 <span
-                                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
+                                                    className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
                                                     title="Cet ouvrage figure déjà dans les lignes du lot actif"
                                                 >
                                                     <i className="fa-solid fa-check-double text-[9px]"></i>
@@ -5162,7 +5202,7 @@ function WorkItemPicker({
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-[11px] text-neutral-500 flex-wrap">
                                             <span className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
                                                 {libelleModes(sol.allowedModes || ['rectangle'], 'Rectangle')}
                                             </span>
@@ -5184,20 +5224,48 @@ function WorkItemPicker({
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center justify-end gap-2 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-neutral-100">
                                     {isBulkMode && isChecked && (
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={bulkSelections[sol.id] || 1}
-                                            onClick={(e) => e.stopPropagation()}
-                                            onChange={(e) => setBulkSelections({
-                                                ...bulkSelections,
-                                                [sol.id]: parseFloat(e.target.value) || 1
-                                            })}
-                                            className="w-16 py-1 px-2 text-center text-xs font-bold border border-brand-300 rounded-lg bg-white"
-                                            placeholder="Qté"
-                                        />
+                                        <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1 border border-brand-200" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const cur = bulkSelections[sol.id] || 1;
+                                                    if (cur > 1) {
+                                                        setBulkSelections({ ...bulkSelections, [sol.id]: cur - 1 });
+                                                    }
+                                                }}
+                                                className="w-7 h-7 rounded-lg bg-white text-neutral-700 hover:text-neutral-900 flex items-center justify-center text-xs font-bold shadow-2xs"
+                                                aria-label="Diminuer la quantité"
+                                            >
+                                                -
+                                            </button>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={bulkSelections[sol.id] || 1}
+                                                onClick={(e) => e.stopPropagation()}
+                                                onChange={(e) => setBulkSelections({
+                                                    ...bulkSelections,
+                                                    [sol.id]: Math.max(1, parseFloat(e.target.value) || 1)
+                                                })}
+                                                className="w-12 py-0.5 text-center text-xs font-bold bg-transparent outline-none"
+                                                placeholder="Qté"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const cur = bulkSelections[sol.id] || 1;
+                                                    setBulkSelections({ ...bulkSelections, [sol.id]: cur + 1 });
+                                                }}
+                                                className="w-7 h-7 rounded-lg bg-white text-neutral-700 hover:text-neutral-900 flex items-center justify-center text-xs font-bold shadow-2xs"
+                                                aria-label="Augmenter la quantité"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
                                     )}
                                     <button
                                         type="button"
@@ -5206,7 +5274,7 @@ function WorkItemPicker({
                                             onSelectSolution(sol);
                                             setNbAjoutes(n => n + 1);
                                         }}
-                                        className="btn-primary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5"
+                                        className="btn-primary text-xs py-2 px-3.5 font-semibold flex items-center gap-1.5 rounded-xl min-h-[36px]"
                                         title="Ajouter immédiatement cet ouvrage au lot actif"
                                     >
                                         <i className="fa-solid fa-plus"></i>
@@ -5238,9 +5306,9 @@ function WorkItemPicker({
                     )}
                 </div>
 
-                {/* Footer du Picker pour Mode Multiple */}
+                {/* Footer du Picker pour Mode Multiple — En avant-plan permanent avec safe-area padding */}
                 {isBulkMode && (
-                    <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between gap-3">
+                    <div className="p-3 sm:p-4 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between gap-3 shrink-0 pb-[env(safe-area-inset-bottom,1rem)] shadow-lg sm:shadow-none">
                         <span className="text-xs text-neutral-700 font-medium">
                             <strong className="font-bold text-neutral-900">{selectedCount}</strong> ouvrage{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}
                         </span>
@@ -5248,16 +5316,21 @@ function WorkItemPicker({
                             type="button"
                             onClick={handleConfirmBulk}
                             disabled={selectedCount === 0}
-                            className="btn-primary text-xs py-2 px-4 font-bold flex items-center gap-2 shadow-sm disabled:opacity-50"
+                            className="btn-primary text-xs py-2 px-4 font-bold flex items-center gap-2 shadow-sm disabled:opacity-50 min-h-[38px]"
                         >
                             <i className="fa-solid fa-layer-group"></i>
-                            <span>Insérer {selectedCount} ouvrage{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}</span>
+                            <span>Insérer {selectedCount} ouvrage{selectedCount > 1 ? 's' : ''}</span>
                         </button>
                     </div>
                 )}
             </div>
         </div>
     );
+
+    if (typeof document !== 'undefined' && document.body) {
+        return ReactDOM.createPortal(modalContent, document.body);
+    }
+    return modalContent;
 }
 
 function WorkItemInspector({
@@ -5354,13 +5427,13 @@ function WorkItemInspector({
         };
         if (activeMode === 'rectangle') {
             if (field === 'width' || field === 'height') {
-                const w = field === 'width' ? val : (parseFloat(updatedCalcForm.width) || 0);
-                const h = field === 'height' ? val : (parseFloat(updatedCalcForm.height) || 0);
+                const w = field === 'width' ? (val === '' ? 0 : (parseFloat(val) || 0)) : (parseFloat(updatedCalcForm.width) || 0);
+                const h = field === 'height' ? (val === '' ? 0 : (parseFloat(val) || 0)) : (parseFloat(updatedCalcForm.height) || 0);
                 if (w > 0 && h > 0) {
                     updatedCalcForm.surfaceDirect = parseFloat((w * h).toFixed(2));
                 }
             } else if (field === 'surfaceDirect') {
-                const s = parseFloat(val) || 0;
+                const s = val === '' ? 0 : (parseFloat(val) || 0);
                 if (s > 0 && (!updatedCalcForm.width || !updatedCalcForm.height || updatedCalcForm.width * updatedCalcForm.height !== s)) {
                     const side = Math.sqrt(s);
                     updatedCalcForm.width = parseFloat(side.toFixed(2));
@@ -5543,8 +5616,16 @@ function WorkItemInspector({
                                         <input
                                             type="number"
                                             min="1"
-                                            value={calcForm.qty || item.qty || 1}
-                                            onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
+                                            value={calcForm.qty === '' ? '' : (calcForm.qty !== undefined ? calcForm.qty : (item.qty === '' ? '' : (item.qty || 1)))}
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                handleParamChange('qty', raw === '' ? '' : (parseFloat(raw) || 0));
+                                            }}
+                                            onBlur={(e) => {
+                                                if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                                                    handleParamChange('qty', 1);
+                                                }
+                                            }}
                                             className="flex-1 min-w-0 max-w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900 text-center focus:border-brand-500"
                                         />
                                         <CustomSelect
@@ -5599,8 +5680,12 @@ function WorkItemInspector({
                                         <input
                                             type="number" min="0"
                                             step="any"
-                                            value={calcForm.width || 0}
-                                            onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
+                                            value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)}
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0));
+                                            }}
+                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }}
                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                         />
                                     </div>
@@ -5609,8 +5694,12 @@ function WorkItemInspector({
                                         <input
                                             type="number" min="0"
                                             step="any"
-                                            value={calcForm.height || 0}
-                                            onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
+                                            value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)}
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                handleParamChange('height', raw === '' ? '' : (parseFloat(raw) || 0));
+                                            }}
+                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('height', 0); }}
                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                         />
                                     </div>
@@ -5620,39 +5709,39 @@ function WorkItemInspector({
                                 <div className="grid grid-cols-3 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Hauteur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.height || 0} onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('height', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('height', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Profondeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.depth || 0} onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.depth === '' ? '' : (calcForm.depth !== undefined ? calcForm.depth : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('depth', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('depth', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
                             {activeMode === 'surface' && (
                                 <div className="pt-2">
                                     <label className="app-label">Surface directe (m²)</label>
-                                    <input type="number" min="0" step="any" value={calcForm.surfaceDirect || 0} onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input type="number" min="0" step="any" value={calcForm.surfaceDirect === '' ? '' : (calcForm.surfaceDirect !== undefined ? calcForm.surfaceDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('surfaceDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('surfaceDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'linear' && (
                                 <div className="pt-2">
                                     <label className="app-label">Longueur directe (ml)</label>
-                                    <input type="number" min="0" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'floor' && (
                                 <div className="grid grid-cols-2 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.width || 0} onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Longueur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.lengthDirect || 0} onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
@@ -5791,8 +5880,16 @@ function WorkItemInspector({
                                                     <input
                                                         type="number"
                                                         min="1"
-                                                        value={calcForm.qty || item.qty || 1}
-                                                        onChange={(e) => handleParamChange('qty', parseFloat(e.target.value) || 1)}
+                                                        value={calcForm.qty === '' ? '' : (calcForm.qty !== undefined ? calcForm.qty : (item.qty === '' ? '' : (item.qty || 1)))}
+                                                        onChange={(e) => {
+                                                            const raw = e.target.value;
+                                                            handleParamChange('qty', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                                                                handleParamChange('qty', 1);
+                                                            }
+                                                        }}
                                                         className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                                     />
                                                 </div>
@@ -5807,8 +5904,12 @@ function WorkItemInspector({
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            value={calcForm.width || 0}
-                                                            onChange={(e) => handleParamChange('width', parseFloat(e.target.value) || 0)}
+                                                            value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                            }}
+                                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }}
                                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                                         />
                                                     </div>
@@ -5821,8 +5922,12 @@ function WorkItemInspector({
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            value={calcForm.height || 0}
-                                                            onChange={(e) => handleParamChange('height', parseFloat(e.target.value) || 0)}
+                                                            value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                handleParamChange('height', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                            }}
+                                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('height', 0); }}
                                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                                         />
                                                     </div>
@@ -5835,8 +5940,12 @@ function WorkItemInspector({
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            value={calcForm.depth != null ? calcForm.depth : 0.15}
-                                                            onChange={(e) => handleParamChange('depth', parseFloat(e.target.value) || 0)}
+                                                            value={calcForm.depth === '' ? '' : (calcForm.depth !== undefined ? calcForm.depth : 0.15)}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                handleParamChange('depth', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                            }}
+                                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('depth', 0); }}
                                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                                         />
                                                     </div>
@@ -5849,8 +5958,12 @@ function WorkItemInspector({
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            value={calcForm.surfaceDirect || 0}
-                                                            onChange={(e) => handleParamChange('surfaceDirect', parseFloat(e.target.value) || 0)}
+                                                            value={calcForm.surfaceDirect === '' ? '' : (calcForm.surfaceDirect !== undefined ? calcForm.surfaceDirect : 0)}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                handleParamChange('surfaceDirect', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                            }}
+                                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('surfaceDirect', 0); }}
                                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                                         />
                                                     </div>
@@ -5863,8 +5976,12 @@ function WorkItemInspector({
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            value={calcForm.lengthDirect || 0}
-                                                            onChange={(e) => handleParamChange('lengthDirect', parseFloat(e.target.value) || 0)}
+                                                            value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                            }}
+                                                            onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }}
                                                             className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold"
                                                         />
                                                     </div>
@@ -6118,8 +6235,12 @@ function WorkItemInspector({
                                                 type="number"
                                                 min="0"
                                                 max={(calcForm.marginType || 'reel') === 'reel' ? 99 : 1000}
-                                                value={calcForm.margin !== undefined ? calcForm.margin : 30}
-                                                onChange={(e) => handleParamChange('margin', parseFloat(e.target.value) || 0)}
+                                                value={calcForm.margin === '' ? '' : (calcForm.margin !== undefined ? calcForm.margin : 30)}
+                                                onChange={(e) => {
+                                                    const raw = e.target.value;
+                                                    handleParamChange('margin', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                }}
+                                                onBlur={(e) => { if (e.target.value === '') handleParamChange('margin', 0); }}
                                                 className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                             />
                                             <p className="text-[10px] text-neutral-500 mt-1">
@@ -6136,8 +6257,12 @@ function WorkItemInspector({
                                                 type="number"
                                                 min="0"
                                                 max="50"
-                                                value={calcForm.overheadRate !== undefined ? calcForm.overheadRate : 5}
-                                                onChange={(e) => handleParamChange('overheadRate', parseFloat(e.target.value) || 0)}
+                                                value={calcForm.overheadRate === '' ? '' : (calcForm.overheadRate !== undefined ? calcForm.overheadRate : 5)}
+                                                onChange={(e) => {
+                                                    const raw = e.target.value;
+                                                    handleParamChange('overheadRate', raw === '' ? '' : (parseFloat(raw) || 0));
+                                                }}
+                                                onBlur={(e) => { if (e.target.value === '') handleParamChange('overheadRate', 0); }}
                                                 className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                             />
                                         </div>
@@ -6147,8 +6272,12 @@ function WorkItemInspector({
                                                 type="number"
                                                 min="0"
                                                 max="100"
-                                                value={calcForm.discountRate !== undefined ? calcForm.discountRate : 0}
-                                                onChange={(e) => handleParamChange('discountRate', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                                value={calcForm.discountRate === '' ? '' : (calcForm.discountRate !== undefined ? calcForm.discountRate : 0)}
+                                                onChange={(e) => {
+                                                    const raw = e.target.value;
+                                                    handleParamChange('discountRate', raw === '' ? '' : Math.min(100, Math.max(0, parseFloat(raw) || 0)));
+                                                }}
+                                                onBlur={(e) => { if (e.target.value === '') handleParamChange('discountRate', 0); }}
                                                 className="w-full p-2.5 border border-neutral-200 rounded-xl text-xs font-bold"
                                             />
                                         </div>
@@ -7339,6 +7468,7 @@ function QuoteWorkspace({
                 onClose={() => setIsPickerOpen(false)}
                 solutions={solutions}
                 recipes={recipes}
+                activeLotName={activeLot?.name}
                 activeLotItems={activeLot?.items || []}
                 onSelectSolution={handleSelectSolutionForLot}
                 onSelectBulkSolutions={handleSelectBulkSolutions}
@@ -24969,7 +25099,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <button
                             onClick={() => setIsMobilePlusMenuOpen(true)}
                             className={`flex flex-col items-center justify-center gap-1 min-w-[3rem] min-h-[2.75rem] px-2 rounded-xl transition-all active:scale-90 ${isMobilePlusMenuOpen ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'}`}
-                            aria-label="Recommandations de menu burger"
+                            aria-label="Ouvrir le menu de navigation"
                             title="Recommandations de menu burger"
                             aria-expanded={isMobilePlusMenuOpen}
                         >
@@ -25090,7 +25220,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                             {/* Section 3 : Actions Système */}
                             <div className="pt-2 border-t border-neutral-100 flex flex-col gap-2">
-                                {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || isPlatformAdmin) && (
+                                {isPlatformAdmin && (
                                     <button
                                         onClick={() => { setActiveView('platformAdmin'); setIsMobilePlusMenuOpen(false); }}
                                         className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 text-xs font-bold transition-all"
