@@ -3680,43 +3680,64 @@ function LotsOverviewModal({
     const brouillonNbOuvrages = brouillonPropose?.quote?.lots?.reduce((n, l) => n + ((l.items || []).length), 0) || 0;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-fade-in" role="dialog" aria-modal="true">
-            <div data-testid="lots-overview-modal" className="bg-white rounded-3xl shadow-floating border border-neutral-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
-                <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between bg-neutral-50/80">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
-                            <i className="fa-solid fa-chart-pie"></i>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-base text-neutral-900">Synthèse et répartition des lots</h3>
-                            <p className="text-xs text-neutral-500">{lots.length} lot(s) · {totalItems} ouvrage(s) au total</p>
-                        </div>
+        <div
+            data-testid="lots-overview-page"
+            className="fixed inset-0 z-[150] bg-neutral-100 overflow-y-auto flex flex-col w-full h-full animate-fade-in"
+            role="region"
+            aria-label="Synthèse et répartition des lots"
+        >
+            {/* Header Pleine Page avec navigation et retour explicite */}
+            <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200 px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3 shadow-xs shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800 text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 active:scale-95"
+                        aria-label="Retour au chiffrage"
+                        title="Revenir à l'éditeur de devis"
+                    >
+                        <i className="fa-solid fa-arrow-left text-brand-600"></i>
+                        <span>Retour</span>
+                    </button>
+                    <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 hidden sm:flex items-center justify-center font-bold text-sm shrink-0">
+                        <i className="fa-solid fa-chart-pie"></i>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {totalItems > 0 && (
-                            <button
-                                type="button"
-                                onClick={toggleAllLots}
-                                className="text-xs py-1.5 px-3 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-700 font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
-                                title="Déplier ou replier tous les ouvrages des lots"
-                                data-testid="lots-toggle-all-btn"
-                            >
-                                <i className={`fa-solid ${allExpanded ? 'fa-compress' : 'fa-expand'} text-xs text-brand-600`}></i>
-                                <span>{allExpanded ? 'Tout replier' : 'Tout déplier'}</span>
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="w-8 h-8 rounded-lg hover:bg-neutral-200 text-neutral-500 hover:text-neutral-800 flex items-center justify-center text-sm"
-                            aria-label="Fermer la synthèse des lots"
-                        >
-                            <i className="fa-solid fa-xmark"></i>
-                        </button>
+                    <div className="min-w-0">
+                        <h2 className="font-extrabold text-sm sm:text-base text-neutral-900 truncate leading-snug">
+                            Synthèse et répartition des lots
+                        </h2>
+                        <p className="text-[11px] sm:text-xs text-neutral-500 truncate">
+                            {lots.length} lot(s) · {totalItems} ouvrage(s) au total · <strong className="text-neutral-700 font-mono">{formatMoney(totalDevisHT, currency)} HT</strong>
+                        </p>
                     </div>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {totalItems > 0 && (
+                        <button
+                            type="button"
+                            onClick={toggleAllLots}
+                            className="text-xs py-2 px-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-700 font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                            title="Déplier ou replier tous les ouvrages des lots"
+                            data-testid="lots-toggle-all-btn"
+                        >
+                            <i className={`fa-solid ${allExpanded ? 'fa-compress' : 'fa-expand'} text-xs text-brand-600`}></i>
+                            <span className="hidden sm:inline">{allExpanded ? 'Tout replier' : 'Tout déplier'}</span>
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="btn-primary text-xs py-2 px-3.5 font-bold flex items-center gap-1.5 rounded-xl shadow-xs"
+                        title="Fermer et retourner au chiffrage"
+                    >
+                        <i className="fa-solid fa-check"></i>
+                        <span className="hidden sm:inline">Terminer</span>
+                    </button>
+                </div>
+            </header>
 
-                <div className="p-4 sm:p-5 overflow-y-auto custom-scroll flex-1 space-y-4">
+            {/* Corps de Page Plein Format */}
+            <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-5 pb-28">
                     {/* Alerte si un brouillon non enregistré contient plus d'ouvrages */}
                     {brouillonPropose && (
                         <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs">
@@ -3974,18 +3995,24 @@ function LotsOverviewModal({
                             )}
                         </table>
                     </div>
-                </div>
 
-                <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="btn-secondary text-xs py-1.5 px-4 font-semibold"
-                    >
-                        Fermer
-                    </button>
+                {/* Barre d'action de pied de page pour retour direct au chiffrage */}
+                <div className="p-4 bg-white rounded-2xl border border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+                    <div className="text-xs text-neutral-600 text-center sm:text-left">
+                        Total du devis : <strong className="font-mono text-neutral-900 text-sm">{formatMoney(totalDevisHT, currency)} HT</strong> ({lots.length} lot{lots.length > 1 ? 's' : ''}, {totalItems} ouvrage{totalItems > 1 ? 's' : ''})
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-primary text-xs sm:text-sm py-2 px-5 font-bold flex items-center justify-center gap-2 rounded-xl w-full sm:w-auto shadow-xs active:scale-95 transition-transform"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i>
+                            <span>Retourner au chiffrage</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
@@ -22179,8 +22206,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 // le banc test_documents_organization_currency échouait alors au
                 // clic sur « Changer d'organisation ».
                 return (
-                <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[120] p-4 overflow-y-auto lg:hidden" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
-                    <div className={opts?.asModal ? "saved-quote-detail-card bg-white rounded-3xl shadow-floating w-full max-w-4xl flex flex-col max-h-[92dvh] overflow-hidden my-auto" : "saved-quote-detail-card app-card flex flex-col w-full h-full min-h-0 overflow-hidden"}>
+                <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-100 flex flex-col z-[140] overflow-y-auto lg:hidden" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
+                    <div className={opts?.asModal ? "saved-quote-detail-card bg-white w-full min-h-full flex flex-col shadow-none" : "saved-quote-detail-card app-card flex flex-col w-full h-full min-h-0 overflow-hidden"}>
                         {/* En-tête refondu en DEUX bandes (2026-08-21).
 
                             Avant : tout sur une seule ligne. Mesuré dans le DOM —
@@ -22198,11 +22225,22 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             (destinataire / niveau de détail) reçoivent enfin un
                             intitulé. Jusqu'ici deux groupes d'apparence identique
                             se suivaient sans rien pour dire ce que chacun réglait. */}
-                        <div className="border-b border-neutral-100 bg-white shrink-0">
+                        <div className="border-b border-neutral-100 bg-white shrink-0 sticky top-0 z-20">
 
                             {/* Bande 1 — identité du document, puis actions. */}
                             <div className="saved-quote-detail-header-primary px-4 sm:px-6 pt-4 pb-3 bg-white">
-                                <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                    {opts?.asModal && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewingSavedQuote(null)}
+                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800 text-xs font-bold transition-all shadow-2xs shrink-0"
+                                            aria-label="Retour au chiffrage"
+                                        >
+                                            <i className="fa-solid fa-arrow-left text-brand-600 text-xs"></i>
+                                            <span>Retour</span>
+                                        </button>
+                                    )}
                                     <span className="text-sm font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg shrink-0">{viewingSavedQuote.number}</span>
                                     {/* Audit UX (2026-08-31) — ce libellé était posé en dur : un devis
                                         en cours d'édition, jamais enregistré, s'annonçait « DEVIS
