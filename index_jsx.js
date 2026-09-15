@@ -8547,18 +8547,7 @@ function GlobalTopBar({
         >
             {/* GAUCHE : MARQUE & LOGO UNIQUE IKADEVIS ALIGNÉ AVEC LA SIDEBAR */}
             <div className="global-topbar-brand mobile-header-brand flex items-center shrink-0 h-full lg:border-r lg:border-neutral-200/70 px-4 lg:px-6">
-                {/* BOUTON HAMBURGER VISIBLE UNIQUEMENT SUR MOBILE SMARTPHONE */}
-                <button
-                    type="button"
-                    onClick={onOpenMobileDrawer}
-                    className="global-mobile-menu-btn p-1.5 -ml-1 mr-2 text-neutral-600 hover:text-neutral-900 rounded-lg"
-                    aria-label="Ouvrir le menu de navigation"
-                    title="Menu"
-                >
-                    <i className="fa-solid fa-bars text-base"></i>
-                </button>
-
-                {/* LOGO IKADEVIS UNIQUE */}
+                {/* LOGO IKADEVIS — le hamburger est retiré sur mobile (nav basse gère tout) */}
                 <button
                     type="button"
                     onClick={() => {
@@ -8574,8 +8563,8 @@ function GlobalTopBar({
                 </button>
             </div>
 
-            {/* CENTRE / GAUCHE-CENTRE : RECHERCHE GLOBALE */}
-            <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4 lg:mx-6 relative">
+            {/* CENTRE : RECHERCHE GLOBALE — masquée sur mobile (chaque vue a sa propre recherche) */}
+            <div className="hidden md:flex flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4 lg:mx-6 relative">
                 <GlobalSearch
                     savedQuotes={savedQuotes}
                     invoices={invoices}
@@ -12814,6 +12803,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [resourceTab, setResourceTab] = useState('materials');
     const [resourceSearchQuery, setResourceSearchQuery] = useState('');
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+    const [isMobilePlusMenuOpen, setIsMobilePlusMenuOpen] = useState(false);
+    const [isEditingClientProject, setIsEditingClientProject] = useState(false);
     // PWA — l'événement d'installation est conservé jusqu'au clic explicite
     // de l'utilisateur. Safari iPhone ne l'expose pas : on propose alors une
     // aide courte avec le chemin « Partager > Sur l'écran d'accueil ».
@@ -22110,38 +22101,156 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     </button>
                                 </div>
 
-                                <div className="mt-3 min-w-0 flex flex-wrap items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <h3 className="font-semibold text-neutral-900 text-lg leading-tight break-words">{viewingSavedQuote.clientName}</h3>
-                                        <p className="text-xs text-neutral-500 mt-1 break-words">{viewingSavedQuote.projectRef} &bull; {viewingSavedQuote.date}</p>
+                                <div className="mt-3 min-w-0 flex flex-col gap-2.5">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className="font-semibold text-neutral-900 text-base sm:text-lg leading-tight break-words">
+                                                    {viewingSavedQuote.clientName || <span className="text-amber-600 font-medium italic">Client non renseigné</span>}
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsEditingClientProject(prev => !prev)}
+                                                    className="btn-secondary text-[11px] py-1 px-2.5 font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 shrink-0 rounded-lg"
+                                                    title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
+                                                    aria-label="Modifier le client et le projet"
+                                                >
+                                                    <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-user-pen'} text-[11px]`}></i>
+                                                    <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / projet'}</span>
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-neutral-500 mt-1 break-words">
+                                                {viewingSavedQuote.projectRef ? (
+                                                    <span><i className="fa-solid fa-folder text-[10px] mr-1 text-neutral-400"></i>{viewingSavedQuote.projectRef}</span>
+                                                ) : (
+                                                    <span className="italic text-neutral-400">Projet non renseigné</span>
+                                                )} &bull; {viewingSavedQuote.date}
+                                            </p>
+                                        </div>
+                                        {/* Le statut ne se changeait que depuis Chiffrage, sur une
+                                            pastille posée à côté des flèches Annuler / Rétablir. Or
+                                            c'est ICI qu'on télécharge et qu'on envoie — et un devis
+                                            naît « brouillon ». Résultat : tous les devis restaient
+                                            brouillons, et le tampon « BROUILLON » s'imprimait sur
+                                            100 % des documents envoyés aux clients. Un tampon posé
+                                            partout n'alerte plus personne. */}
+                                        <div className="shrink-0 w-36">
+                                            <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
+                                            <CustomSelect
+                                                value={viewingSavedQuote.status || 'draft'}
+                                                onChange={(e) => {
+                                                    const maj = { ...viewingSavedQuote, status: e.target.value };
+                                                    setViewingSavedQuote(maj);
+                                                    updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                                }}
+                                                size="sm"
+                                                aria-label="Statut du devis"
+                                                options={[
+                                                    { value: 'draft', label: 'Brouillon' },
+                                                    { value: 'to_verify', label: 'À vérifier' },
+                                                    { value: 'ready', label: 'Prêt' },
+                                                    { value: 'sent', label: 'Envoyé' },
+                                                    { value: 'accepted', label: 'Accepté' }
+                                                ]}
+                                            />
+                                        </div>
                                     </div>
-                                    {/* Le statut ne se changeait que depuis Chiffrage, sur une
-                                        pastille posée à côté des flèches Annuler / Rétablir. Or
-                                        c'est ICI qu'on télécharge et qu'on envoie — et un devis
-                                        naît « brouillon ». Résultat : tous les devis restaient
-                                        brouillons, et le tampon « BROUILLON » s'imprimait sur
-                                        100 % des documents envoyés aux clients. Un tampon posé
-                                        partout n'alerte plus personne. */}
-                                    <div className="shrink-0 w-36">
-                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
-                                        <CustomSelect
-                                            value={viewingSavedQuote.status || 'draft'}
-                                            onChange={(e) => {
-                                                const maj = { ...viewingSavedQuote, status: e.target.value };
-                                                setViewingSavedQuote(maj);
-                                                updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
-                                            }}
-                                            size="sm"
-                                            aria-label="Statut du devis"
-                                            options={[
-                                                { value: 'draft', label: 'Brouillon' },
-                                                { value: 'to_verify', label: 'À vérifier' },
-                                                { value: 'ready', label: 'Prêt' },
-                                                { value: 'sent', label: 'Envoyé' },
-                                                { value: 'accepted', label: 'Accepté' }
-                                            ]}
-                                        />
-                                    </div>
+
+                                    {/* Sélecteur direct Client & Projet sans retourner en arrière */}
+                                    {(!viewingSavedQuote.clientName || isEditingClientProject) && (
+                                        <div className="p-3 bg-brand-50/70 border border-brand-200/80 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in shadow-2xs">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-[11px] font-bold text-brand-900 flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-user-check text-brand-600 text-xs"></i>
+                                                        <span>Client du devis</span>
+                                                    </span>
+                                                    {!viewingSavedQuote.clientName && (
+                                                        <span className="text-[10px] text-amber-700 font-semibold bg-amber-100/80 px-1.5 py-0.5 rounded">
+                                                            À renseigner
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <ClientCombobox
+                                                    value={viewingSavedQuote.clientName || ''}
+                                                    clientId={viewingSavedQuote.clientId || null}
+                                                    clients={clients}
+                                                    onChange={(patch) => {
+                                                        const maj = { ...viewingSavedQuote, ...patch };
+                                                        setViewingSavedQuote(maj);
+                                                        if (savedQuotes.some(q => q.id === maj.id)) {
+                                                            updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                                        }
+                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                    }}
+                                                    onSelectClient={(client) => {
+                                                        const patch = { clientName: client.name, clientId: client.id, projectId: null, projectRef: '' };
+                                                        const maj = { ...viewingSavedQuote, ...patch };
+                                                        setViewingSavedQuote(maj);
+                                                        if (savedQuotes.some(q => q.id === maj.id)) {
+                                                            updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                                        }
+                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                    }}
+                                                    onRequestCreate={(name) => {
+                                                        setEditingClientId(null);
+                                                        setNewClientOriginModal('quote');
+                                                        setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                                        setIsNewClientModalOpen(true);
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-[11px] font-bold text-brand-900 flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-folder-tree text-brand-600 text-xs"></i>
+                                                        <span>Chantier / Projet</span>
+                                                    </span>
+                                                </div>
+                                                <ProjectCombobox
+                                                    value={viewingSavedQuote.projectRef || ''}
+                                                    projectId={viewingSavedQuote.projectId || null}
+                                                    projects={projects}
+                                                    clientId={viewingSavedQuote.clientId || null}
+                                                    clientName={viewingSavedQuote.clientName || ''}
+                                                    onChange={(patch) => {
+                                                        const maj = { ...viewingSavedQuote, ...patch };
+                                                        setViewingSavedQuote(maj);
+                                                        if (savedQuotes.some(q => q.id === maj.id)) {
+                                                            updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                                        }
+                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                    }}
+                                                    onSelectProject={(project) => {
+                                                        const patch = {
+                                                            projectRef: project.name,
+                                                            projectId: project.id,
+                                                            clientId: project.clientId || viewingSavedQuote.clientId || null,
+                                                            clientName: project.clientName || viewingSavedQuote.clientName || ''
+                                                        };
+                                                        const maj = { ...viewingSavedQuote, ...patch };
+                                                        setViewingSavedQuote(maj);
+                                                        if (savedQuotes.some(q => q.id === maj.id)) {
+                                                            updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+                                                        }
+                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                    }}
+                                                    onRequestCreate={(name, cId, cName) => {
+                                                        const matchedClient = clients.find(c => c.id === cId || (cName && c.name === cName));
+                                                        setNewProjectOriginModal('quote');
+                                                        setNewProjectForm({
+                                                            name: name || '',
+                                                            clientId: matchedClient?.id || '',
+                                                            siteAddress: '',
+                                                            city: matchedClient?.city || 'Dakar',
+                                                            budgetEstimated: ''
+                                                        });
+                                                        setIsNewProjectModalOpen(true);
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="saved-quote-top-actions mt-3 flex flex-wrap items-center gap-2">
@@ -24805,43 +24914,6 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     </div>
                 </aside>
 
-                {/* TIROIR MOBILE (< 768px) */}
-                {isMobileDrawerOpen && (
-                    <div className="fixed inset-0 z-[150] md:hidden flex" role="dialog" aria-modal="true" aria-label="Menu de navigation mobile">
-                        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileDrawerOpen(false)} aria-hidden="true"></div>
-                        <div className="relative flex flex-col w-[min(85vw,300px)] sidebar-shell h-full shadow-2xl z-10 animate-fade-in">
-                            <div className="p-4 flex items-center justify-between border-b border-neutral-100">
-                                <LogoSVG className="h-8 text-brand-500" />
-                                <button onClick={() => setIsMobileDrawerOpen(false)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Fermer le menu de navigation">
-                                    <i className="fa-solid fa-xmark text-xl"></i>
-                                </button>
-                            </div>
-                            <nav ref={drawerNavRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-[5px] custom-scroll" aria-label="Navigation mobile">
-                                <p className="sidebar-section-label">Pilotage</p>
-                                <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                                <p className="sidebar-section-label mt-4">Exploitation</p>
-                                <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                                <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                                <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} onClickExtra={() => setIsMobileDrawerOpen(false)} emphasis />
-                                <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                                <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} onClickExtra={() => setIsMobileDrawerOpen(false)} />
-                                <p className="sidebar-section-label mt-4">Configuration</p>
-                                <SidebarCatalogGroup mobile />
-                            </nav>
-                            <div className="p-4 border-t border-neutral-100 space-y-2">
-                                <PwaInstallButton />
-                                <button onClick={() => { openAccountSettings('entreprise'); setIsMobileDrawerOpen(false); }} className="w-full btn-secondary text-xs py-2 px-3 justify-center" aria-label="Paramètres du compte">
-                                    <i className="fa-solid fa-gear text-brand-500 mr-2"></i> Paramètres du Compte
-                                </button>
-                                {onSignOut && (
-                                    <button onClick={deconnexionGardee} className="w-full text-xs py-2 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold" aria-label="Déconnexion">
-                                        <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* CONTENEUR CONTENU PRINCIPAL */}
                 <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
@@ -24883,15 +24955,171 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         </div>
                     </main>
 
-                    {/* BOTTOM BAR MOBILE (< 768px) */}
-                    <nav data-nav-principale="1" className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,1rem)] pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.5rem]" aria-label="Barre de navigation rapide">
-                        <NavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} />
-                        <NavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
-                        <NavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} />
-                        <NavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} />
+                    {/* BOTTOM BAR MOBILE (< 768px) — 5 items */}
+                    <nav
+                        data-nav-principale="1"
+                        className="mobile-bottom-nav md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-40 flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom,0.5rem)] pt-1 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] min-h-[4.25rem]"
+                        aria-label="Barre de navigation rapide"
+                    >
+                        <NavItem id="dashboard"   icon="fa-chart-pie"          label="Accueil" />
+                        <NavItem id="calculator"  icon="fa-calculator"          label={LIBELLES_NAV.calculator} />
+                        <NavItem id="savedQuotes" icon="fa-folder-open"         label="Devis" />
+                        <NavItem id="invoices"    icon="fa-file-invoice-dollar" label="Factures" />
+                        {/* Menu burger / Recommandations de menu burger */}
+                        <button
+                            onClick={() => setIsMobilePlusMenuOpen(true)}
+                            className={`flex flex-col items-center justify-center gap-1 min-w-[3rem] min-h-[2.75rem] px-2 rounded-xl transition-all active:scale-90 ${isMobilePlusMenuOpen ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'}`}
+                            aria-label="Recommandations de menu burger"
+                            title="Recommandations de menu burger"
+                            aria-expanded={isMobilePlusMenuOpen}
+                        >
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isMobilePlusMenuOpen ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-500'}`}>
+                                <i className="fa-solid fa-bars text-sm" />
+                            </div>
+                            <span className="text-[10px] font-semibold leading-none">Menu</span>
+                        </button>
                     </nav>
                 </div>
             </div>
+
+            {/* ── MOBILE PLUS SHEET (RECOMMANDATIONS DE MENU BURGER & TOUS LES RÉGLAGES) ── */}
+            {isMobilePlusMenuOpen && (
+                <div
+                    className="fixed inset-0 z-[200] flex flex-col justify-end md:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Recommandations de menu burger"
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) setIsMobilePlusMenuOpen(false); }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setIsMobilePlusMenuOpen(false); }}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsMobilePlusMenuOpen(false)} />
+
+                    {/* Sheet panel */}
+                    <div className="relative bg-white rounded-t-3xl shadow-2xl pb-[env(safe-area-inset-bottom,1.25rem)] z-10 animate-slide-up max-h-[85vh] flex flex-col">
+                        {/* Drag handle */}
+                        <div className="flex justify-center pt-3 pb-1 shrink-0">
+                            <div className="w-10 h-1 rounded-full bg-neutral-300" />
+                        </div>
+
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 pt-2 pb-3 border-b border-neutral-100 shrink-0">
+                            <div>
+                                <h2 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                                    <i className="fa-solid fa-bars text-brand-600 text-sm"></i>
+                                    <span>Recommandations de menu burger</span>
+                                </h2>
+                                <p className="text-[11px] text-neutral-500 mt-0.5">Tous vos réglages et modules en un clic</p>
+                            </div>
+                            <button
+                                onClick={() => setIsMobilePlusMenuOpen(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition"
+                                aria-label="Fermer le menu"
+                            >
+                                <i className="fa-solid fa-xmark text-sm" />
+                            </button>
+                        </div>
+
+                        {/* Contenu complet avec défilement */}
+                        <div className="p-4 space-y-4 overflow-y-auto custom-scroll flex-1">
+                            {/* Section 1 : Exploitation & Modules métier */}
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Exploitation & Données</p>
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    {[
+                                        { id: 'projects',  icon: 'fa-folder-tree',  label: 'Chantiers & Projets' },
+                                        { id: 'clients',   icon: 'fa-users',        label: 'Clients & CRM' },
+                                        { id: 'recipes',   icon: 'fa-layer-group',  label: 'Ouvrages & Recettes' },
+                                        { id: 'materials', icon: 'fa-database',     label: 'Prix des Matériaux' },
+                                    ].map(({ id, icon, label }) => (
+                                        <button
+                                            key={id}
+                                            onClick={() => { setActiveView(id); setIsMobilePlusMenuOpen(false); }}
+                                            className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all active:scale-95 ${
+                                                activeView === id
+                                                    ? 'bg-brand-50 border-brand-200 text-brand-700'
+                                                    : 'bg-neutral-50 border-neutral-100 text-neutral-700 hover:bg-neutral-100'
+                                            }`}
+                                        >
+                                            <div className="w-8 h-8 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shrink-0 shadow-2xs">
+                                                <i className={`fa-solid ${icon} text-brand-600 text-xs`} />
+                                            </div>
+                                            <span className="text-xs font-bold leading-tight">{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Section 2 : Look & Paramètres */}
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Personnalisation & Look</p>
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    <button
+                                        onClick={() => {
+                                            setIsMobilePlusMenuOpen(false);
+                                            ouvrirEditeurModele();
+                                        }}
+                                        className="flex items-center gap-2.5 p-3 rounded-2xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 text-left transition-all active:scale-95"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shrink-0 shadow-2xs">
+                                            <i className="fa-solid fa-pen-ruler text-brand-600 text-xs" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <span className="block text-xs font-bold leading-tight">Modèles & Look</span>
+                                            <span className="block text-[10px] text-neutral-400">PDF & en-tête</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setIsMobilePlusMenuOpen(false);
+                                            openAccountSettings('entreprise');
+                                        }}
+                                        className="flex items-center gap-2.5 p-3 rounded-2xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 text-left transition-all active:scale-95"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shrink-0 shadow-2xs">
+                                            <i className="fa-solid fa-gear text-brand-600 text-xs" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <span className="block text-xs font-bold leading-tight">Paramètres</span>
+                                            <span className="block text-[10px] text-neutral-400">Entreprise & compte</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Section 3 : Actions Système */}
+                            <div className="pt-2 border-t border-neutral-100 flex flex-col gap-2">
+                                {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || isPlatformAdmin) && (
+                                    <button
+                                        onClick={() => { setActiveView('platformAdmin'); setIsMobilePlusMenuOpen(false); }}
+                                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 text-xs font-bold transition-all"
+                                    >
+                                        <i className="fa-solid fa-shield-halved text-brand-600 text-sm w-5 text-center"></i>
+                                        <span>Administration Plateforme</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setIsMobilePlusMenuOpen(false); setIsPwaHelpOpen(true); }}
+                                    className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-neutral-100 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 text-xs font-bold transition-all"
+                                >
+                                    <i className="fa-solid fa-mobile-screen-button text-brand-600 text-sm w-5 text-center"></i>
+                                    <span>Installer l'application sur mobile</span>
+                                </button>
+                                {onSignOut && (
+                                    <button
+                                        onClick={() => { setIsMobilePlusMenuOpen(false); deconnexionGardee(); }}
+                                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-red-600 hover:bg-red-50 text-xs font-bold transition-all"
+                                    >
+                                        <i className="fa-solid fa-arrow-right-from-bracket text-sm w-5 text-center"></i>
+                                        <span>Se déconnecter</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isPwaHelpOpen && (
                 <div

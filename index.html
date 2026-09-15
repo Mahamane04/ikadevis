@@ -662,9 +662,31 @@
         .picker-mobile-header,
         .picker-mobile-search,
         .saved-quote-mobile-more { display: none; }
-        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        /* ── Animations utilitaires ── */
+        @keyframes fade-in  { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slide-up { from { transform: translateY(100%); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        .animate-fade-in  { animation: fade-in  0.18s ease-out both; }
+        .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.32,0.72,0,1) both; }
 
-        @media (max-width: 480px) {
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        html, body, #root {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow-x: hidden;
+        }
+        .settings-page-shell {
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .settings-page-shell > header {
+            padding-top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
+        }
+
+        @media (max-width: 767px) {
             /* Le clavier virtuel ne doit jamais recalculer la hauteur de toute
                l'application. La coque garde la hauteur du téléphone ouvert,
                et le clavier vient au-dessus du contenu comme dans une app
@@ -686,6 +708,9 @@
             }
             .mobile-app-shell > .relative,
             #main-content { overscroll-behavior-y: contain; }
+            /* Dégagement de la bottom nav (4.25rem + safe-area).
+               Exclut la vue devis qui gère son propre overflow. */
+            #main-content > div > .animate-fade-in { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
 
             /* iOS zoome automatiquement un champ dont la taille est < 16px.
                La règle est limitée aux téléphones pour ne pas agrandir les
@@ -693,9 +718,13 @@
             input, select, textarea { font-size: 16px !important; }
 
             .mobile-app-header {
-                height: calc(4rem + env(safe-area-inset-top, 0px));
-                min-height: calc(4rem + env(safe-area-inset-top, 0px));
+                height: calc(3.5rem + env(safe-area-inset-top, 0px));
+                min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
                 padding-top: env(safe-area-inset-top, 0px);
+            }
+            .mobile-bottom-nav {
+                min-height: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+                padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
             }
             .mobile-header-brand { flex: 1 1 auto; max-width: calc(100% - 8.5rem); }
             .mobile-header-actions { flex: 0 0 auto; max-width: 8.5rem; }
@@ -860,18 +889,20 @@
             .saved-quote-detail-display-options button { font-size: 13px !important; }
             .saved-quote-action-strip {
                 padding: .75rem 1rem !important;
-                flex-wrap: nowrap !important;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: .5rem !important;
+                overflow-x: hidden !important;
+                flex-wrap: unset !important;
             }
             /* Audit UX (2026-09-01) — la bande d'actions se replie sur desktop
                pour rendre sa hauteur au document. Sur mobile elle reste
                dépliée : la modale plein écran a la place, et le déclencheur du
                repli (l'intitulé « Actions du devis ») y est justement masqué. */
             .saved-quote-action-label { display: none; }
-            .saved-quote-actions-list { display: flex !important; }
-            .saved-quote-action-primary { flex: 0 0 auto; min-height: 2.75rem; }
-            .saved-quote-action-secondary { flex: 0 0 auto; min-height: 2.75rem; }
+            .saved-quote-actions-list { display: contents !important; }
+            .saved-quote-action-primary { min-height: 2.75rem; grid-column: 1 / -1; }
+            .saved-quote-action-secondary { min-height: 2.75rem; justify-content: center; }
             .saved-quote-document-scroll {
                 overflow-x: hidden !important;
                 padding: .75rem !important;
