@@ -708,7 +708,12 @@
                     min-height: 100lvh !important;
                     max-height: 100lvh !important;
                 }
-                .saved-quote-detail-card { height: 100lvh !important; }
+                /* 2026-09-16 — `min-height`, pas `height` : la carte doit pouvoir
+                   dépasser l'écran pour que la modale la fasse défiler d'un seul
+                   tenant. C'est CETTE règle qui s'appliquait en pratique (tout
+                   navigateur moderne supporte `lvh`) : ne corriger que son
+                   équivalent `100dvh` plus bas n'aurait rien changé. */
+                .saved-quote-detail-card { min-height: 100lvh !important; height: auto !important; }
             }
             .mobile-app-shell > .relative,
             #main-content { overscroll-behavior-y: contain; }
@@ -865,13 +870,26 @@
             .saved-quote-detail-modal {
                 padding: 0 !important;
                 align-items: stretch !important;
-                overflow: hidden !important;
+                /* 2026-09-16 — La modale devient LE conteneur défilant, comme le
+                   panneau de droite sur bureau. Elle était en `overflow: hidden`,
+                   ce qui l'empêchait de défiler et reportait le défilement sur la
+                   zone du document : 211 px de fenêtre pour 1332 px de contenu,
+                   sous un en-tête de 265 px qui ne bougeait jamais (mesuré).
+                   Vertical en `auto`, horizontal en `hidden` : les deux axes
+                   restent non-`visible`, donc aucun ne force l'autre. */
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch;
                 background: #0f172a !important;
             }
             .saved-quote-detail-card {
                 width: 100% !important;
                 max-width: none !important;
-                height: 100dvh !important;
+                /* Repli pour les navigateurs sans `lvh` (voir le bloc @supports
+                   plus haut) : même intention, la carte part de la hauteur de
+                   l'écran et grandit avec son contenu au lieu d'y être enfermée. */
+                min-height: 100dvh !important;
+                height: auto !important;
                 max-height: none !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
@@ -908,7 +926,15 @@
             .saved-quote-action-primary { min-height: 2.75rem; grid-column: 1 / -1; }
             .saved-quote-action-secondary { min-height: 2.75rem; justify-content: center; }
             .saved-quote-document-scroll {
-                overflow-x: hidden !important;
+                /* `overflow-x: hidden` retiré — c'était la cause réelle du
+                   défilement imbriqué sur téléphone. Un seul axe passé à `hidden`
+                   fait calculer l'autre en `auto` : le bloc redevenait donc un
+                   conteneur défilant vertical alors que le JSX n'en demandait
+                   plus aucun. Vérifié à la sonde : overflowX=hidden,
+                   overflowY=auto, 211 px de fenêtre pour 1332 px de contenu.
+                   Le confinement horizontal reste assuré par
+                   `.saved-quote-document { overflow: hidden }` juste en dessous,
+                   là où vivent les tableaux larges. */
                 padding: .75rem !important;
                 gap: .75rem !important;
             }
