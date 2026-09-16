@@ -4245,8 +4245,22 @@ function ActiveLotHeader({
     };
 
     return (
-        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-row sm:flex-wrap justify-between items-center gap-3">
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 sm:min-w-[240px]">
+        // Sous sm: cette rangée logeait back-arrow + chevrons + badge + titre + ⋮
+        // sur UNE SEULE ligne (flex-row, sans wrap) : le titre du lot, seul élément
+        // élastique (flex-1 min-w-0), se faisait donc écraser à quelques caractères
+        // (« Lot 01 — Te... ») dès qu'un nom dépassait la dizaine de caractères —
+        // constaté sur "Lot 01 — Terrassement & Fondations" à 375px. `min-w-0`
+        // autorise un enfant flex à rétrécir SOUS sa taille de contenu au lieu de
+        // forcer un retour à la ligne : c'est ce qui produisait la troncature au
+        // lieu d'un simple passage en 2 lignes. Le titre est désormais un enfant
+        // flex à part entière (`order-3` en mobile, après les contrôles ET le ⋮),
+        // avec `w-full` : il ne peut donc plus tenir sur la première ligne et
+        // passe seul sur une seconde, en pleine largeur, où `line-clamp-2` lui
+        // laisse deux lignes avant de couper. Contrôles et ⋮ se partagent la
+        // première ligne via `justify-between`. Dès `sm:`, tout revient au layout
+        // d'origine (une seule ligne, titre `truncate`) où la place ne manque pas.
+        <div className="bg-white border-b border-neutral-200 p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 {onBackToLotList && (
                     <span className="lg:hidden shrink-0">
                         <button
@@ -4292,52 +4306,12 @@ function ActiveLotHeader({
                         </button>
                     )}
                 </div>
-
-                <div className="min-w-0 flex-1">
-                    {isEditingTitle ? (
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="text"
-                                value={titleInput}
-                                onChange={(e) => setTitleInput(e.target.value)}
-                                onBlur={handleSaveTitle}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(); }}
-                                autoFocus
-                                className="border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-semibold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
-                            />
-                            <button onClick={handleSaveTitle} className="p-1 text-emerald-700 font-bold text-xs" title="Valider">
-                                <i className="fa-solid fa-check"></i>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <div className="flex items-center gap-1.5 group cursor-pointer min-w-0" onClick={() => setIsEditingTitle(true)} title="Cliquer pour renommer ce lot">
-                                <h2 className="text-base sm:text-lg font-bold text-neutral-900 truncate">
-                                    {lot.name || `Lot ${lotIndex + 1}`}
-                                </h2>
-                                <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors"></i>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-3 mt-1 text-xs">
-                        <span className="font-semibold text-neutral-900">
-                            Sous-total HT : <strong className="text-brand-600 font-bold">{formatMoney(lot.lotTotalHT || 0, currency)}</strong>
-                        </span>
-                        {lot.lotMarginPct !== undefined && (
-                            <span className="text-neutral-500 font-medium">
-                                &bull; Marge : <span className="font-bold text-emerald-700">{lot.lotMarginPct}%</span>
-                            </span>
-                        )}
-                        <span className="text-neutral-500 font-medium">
-                            &bull; {lot.items?.length || 0} ouvrage(s)
-                        </span>
-                    </div>
-                </div>
             </div>
 
-            {/* Menu d'options du lot (épure visuelle et focus mode) */}
-            <div className="flex items-center gap-1.5 w-auto shrink-0">
+            {/* Menu d'options du lot (épure visuelle et focus mode) — partage la
+                première ligne mobile avec les contrôles ci-dessus (justify-between),
+                le titre passant seul en dessous (voir le commentaire plus haut). */}
+            <div className="flex items-center gap-1.5 w-auto shrink-0 order-2">
                 <div ref={optionsMenuRef} className="relative">
                     <button
                         type="button"
@@ -4401,6 +4375,48 @@ function ActiveLotHeader({
                             )}
                         </div>
                     )}
+                </div>
+            </div>
+
+            <div className="min-w-0 w-full order-3 sm:w-auto sm:flex-1 sm:min-w-[240px] sm:order-none">
+                {isEditingTitle ? (
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={titleInput}
+                            onChange={(e) => setTitleInput(e.target.value)}
+                            onBlur={handleSaveTitle}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(); }}
+                            autoFocus
+                            className="border border-brand-500 rounded-lg px-2.5 py-1 text-sm font-semibold text-neutral-900 w-full focus:ring-2 focus:ring-brand-500/20 outline-none"
+                        />
+                        <button onClick={handleSaveTitle} className="p-1 text-emerald-700 font-bold text-xs" title="Valider">
+                            <i className="fa-solid fa-check"></i>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <div className="flex items-center gap-1.5 group cursor-pointer min-w-0" onClick={() => setIsEditingTitle(true)} title="Cliquer pour renommer ce lot">
+                            <h2 className="text-base sm:text-lg font-bold text-neutral-900 line-clamp-2 sm:truncate">
+                                {lot.name || `Lot ${lotIndex + 1}`}
+                            </h2>
+                            <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors shrink-0"></i>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-3 mt-1 text-xs">
+                    <span className="font-semibold text-neutral-900">
+                        Sous-total HT : <strong className="text-brand-600 font-bold">{formatMoney(lot.lotTotalHT || 0, currency)}</strong>
+                    </span>
+                    {lot.lotMarginPct !== undefined && (
+                        <span className="text-neutral-500 font-medium">
+                            &bull; Marge : <span className="font-bold text-emerald-700">{lot.lotMarginPct}%</span>
+                        </span>
+                    )}
+                    <span className="text-neutral-500 font-medium">
+                        &bull; {lot.items?.length || 0} ouvrage(s)
+                    </span>
                 </div>
             </div>
         </div>
@@ -4498,28 +4514,40 @@ function WorkItemTable({
                                     <i className="fa-solid fa-cube"></i>
                                 </div>
                                 <div className="min-w-0 flex-1 space-y-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        <input
-                                            type="text"
+                                    <div className="flex items-start gap-1.5 flex-wrap">
+                                        {/* Un <input> ne peut pas passer à la ligne : une désignation un
+                                            peu longue ("Fouilles en pleine masse et déblai...") se faisait
+                                            couper net, sans même une ellipse, dès qu'elle dépassait la
+                                            largeur de la carte à 375px. Un <textarea> de 1 ligne qui
+                                            s'agrandit lui-même (ref + scrollHeight, recalculé à chaque
+                                            frappe ET à chaque rendu — utile quand l'ouvrage change sans
+                                            frappe, ex. sélection catalogue) garde l'édition en place tout
+                                            en laissant le texte se répartir sur 2-3 lignes si besoin. */}
+                                        <textarea
+                                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                            rows={1}
                                             value={item.name || ''}
                                             onChange={(e) => onUpdateItem(idx, { name: e.target.value })}
+                                            onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
                                             placeholder="Désignation de l'ouvrage ou ligne..."
-                                            className="flex-1 min-w-0 font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all"
+                                            className="flex-1 min-w-0 font-bold text-sm text-neutral-900 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded-md px-2 py-1 outline-none transition-all resize-none overflow-hidden leading-snug"
                                             aria-label={`Désignation pour ${item.name}`}
                                             title={item.name}
                                         />
                                         {isActive && (
-                                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-brand-700 bg-brand-100/90 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 mt-1">
                                                 <i className="fa-solid fa-sliders text-[8px]"></i> Édition
                                             </span>
                                         )}
                                     </div>
-                                    <input
-                                        type="text"
+                                    <textarea
+                                        ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                        rows={1}
                                         value={item.description || ''}
                                         onChange={(e) => onUpdateItem(idx, { description: e.target.value })}
+                                        onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
                                         placeholder="Précisions ou description..."
-                                        className="w-full text-xs text-neutral-500 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-2 py-0.5 outline-none transition-all placeholder-neutral-300"
+                                        className="w-full text-xs text-neutral-500 bg-transparent hover:bg-neutral-100 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-2 py-0.5 outline-none transition-all placeholder-neutral-300 resize-none overflow-hidden leading-snug"
                                         aria-label={`Description pour ${item.name}`}
                                     />
                                     {item.calcForm && (
@@ -18505,7 +18533,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-brand-700 transition-colors">Nouveau devis</p>
-                                <p className="text-[11px] text-neutral-500 truncate">Chiffrer un projet</p>
+                                <p className="text-[11px] text-neutral-500">Chiffrer un projet</p>
                             </div>
                         </button>
 
@@ -18519,7 +18547,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-amber-800 transition-colors">Nouveau chantier</p>
-                                <p className="text-[11px] text-neutral-500 truncate">Ouvrir un dossier</p>
+                                <p className="text-[11px] text-neutral-500">Ouvrir un dossier</p>
                             </div>
                         </button>
 
@@ -18533,7 +18561,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-violet-800 transition-colors">Ajouter un client</p>
-                                <p className="text-[11px] text-neutral-500 truncate">Répertoire & NIF</p>
+                                <p className="text-[11px] text-neutral-500">Répertoire & NIF</p>
                             </div>
                         </button>
 
@@ -18547,7 +18575,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
-                                <p className="text-[11px] text-neutral-500 truncate">Facturer un acompte</p>
+                                <p className="text-[11px] text-neutral-500">Facturer un acompte</p>
                             </div>
                         </button>
                     </section>
@@ -18676,12 +18704,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         const [statusLabel, statusClass] = statutDevis(q.status);
                                         const quoteAmount = q.quoteData?.totalTTCConsomme || q.totalTTC || 0;
                                         return (
-                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
-                                                <div className="min-w-0">
+                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                                {/* Sous sm, le bloc montant + statut + chevron (`shrink-0`,
+                                                    ~180px) ne laissait plus que ~120px au nom du client :
+                                                    "Société Immobilière NBB" sortait en "Société Immo...".
+                                                    `basis-full` sous sm force ce bloc titre sur sa propre
+                                                    ligne pleine largeur ; `ml-auto` sur le bloc de droite le
+                                                    replace à droite même seul sur sa ligne. Dès sm, tout
+                                                    revient sur une seule ligne comme avant (assez de place). */}
+                                                <div className="min-w-0 flex-1 basis-full sm:basis-0">
                                                     <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{q.clientName || 'Client non renseigné'}</p>
                                                     <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
                                                 </div>
-                                                <div className="flex items-center gap-3 shrink-0">
+                                                <div className="flex items-center gap-3 shrink-0 ml-auto">
                                                     <span className="font-bold text-xs text-neutral-900 tabular-nums">
                                                         {formatMoney(quoteAmount, companyInfo.currency)}
                                                     </span>
@@ -18714,15 +18749,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         {activeProjects.length === 0 ? (
                                             <div className="p-8 text-center text-xs text-neutral-400 italic">Aucun chantier actif.</div>
                                         ) : activeProjects.slice(0, 3).map(p => (
-                                            <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex items-center gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                            <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
                                                     <i className="fa-solid fa-folder-tree text-xs"></i>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
+                                                {/* `basis-0` (avec `flex-1` et le shrink-0 de l'icône et du
+                                                    badge déjà réservés) laissait un nom de chantier long
+                                                    ("Rénovation Façades ACM & ...") se faire tronquer : le
+                                                    badge de statut, en fin de ligne, ne cédait jamais sa
+                                                    place. `basis-[calc(100%-2.75rem)]` réserve la largeur de
+                                                    l'icône (2rem + gap) et prend tout le reste, forçant le
+                                                    badge sur sa propre ligne sous sm plutôt que de couper le
+                                                    texte. */}
+                                                <div className="min-w-0 flex-1 basis-[calc(100%-2.75rem)] sm:basis-0">
                                                     <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{p.name}</p>
                                                     <p className="text-xs text-neutral-500 truncate mt-0.5">{p.clientName || 'Client non renseigné'}</p>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">{getProjectStatusBadge(p.status).label}</span>
+                                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0 ml-auto">{getProjectStatusBadge(p.status).label}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -18744,12 +18787,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <div className="divide-y divide-neutral-100">
                                         {recentInvoices.map(f => (
-                                            <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
-                                                <div className="min-w-0">
+                                            <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="w-full p-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                                <div className="min-w-0 flex-1 basis-full sm:basis-0">
                                                     <p className="font-semibold text-xs text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p>
                                                     <p className="text-[11px] text-neutral-500 truncate mt-0.5">{f.numero || 'Brouillon'}</p>
                                                 </div>
-                                                <div className="flex items-center gap-2.5 shrink-0">
+                                                <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                                                     <span className="font-bold text-xs text-neutral-900 tabular-nums">
                                                         {formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}
                                                     </span>
@@ -20715,7 +20758,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Facturé Émis</span>
+                            {/* Pas de `truncate` : en grille 2 colonnes sous sm, "Total Facturé
+                                Émis" en majuscules espacées (tracking-wider) ne tient pas dans les
+                                ~140px d'une demi-carte à 375px et sortait en "TOTAL FACTURÉ ...".
+                                Une étiquette au-dessus d'un chiffre peut sans problème passer sur
+                                2 lignes — seule la carte grandit un peu, rien ne casse. */}
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Total Facturé Émis</span>
                             <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(totalFactureTTC, cur)}
                             </div>
@@ -20729,7 +20777,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <i className="fa-solid fa-circle-check text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Encaissé</span>
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Total Encaissé</span>
                             <div className="text-sm font-black text-emerald-700 truncate tabular-nums font-mono">
                                 {formatMoney(totalEncaisseTTC, cur)}
                             </div>
@@ -20743,7 +20791,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <i className="fa-solid fa-clock-rotate-left text-sm"></i>
                         </div>
                         <div className="min-w-0">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Créances Clients</span>
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Créances Clients</span>
                             <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(resteARecouvrerTTC, cur)}
                             </div>
@@ -20757,9 +20805,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <i className="fa-solid fa-chart-pie text-sm"></i>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block truncate">Recouvrement</span>
-                                <span className="text-xs font-bold text-neutral-900 font-mono">{tauxRecouvrement}%</span>
+                            {/* `justify-between` seul ne garantit aucun espace minimum : sans
+                                `gap`, un libellé qui ne trouve pas à se réduire (`truncate` exige
+                                `min-w-0` sur un enfant flex pour agir, absent ici) venait coller
+                                le "%" juste après, ex. "RECOUVREMENT0%". `gap-2` fixe un espacement
+                                plancher quoi qu'il arrive ; `shrink-0` évite que le "%" lui-même
+                                ne soit compressé si jamais la carte devient très étroite. */}
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Recouvrement</span>
+                                <span className="text-xs font-bold text-neutral-900 font-mono shrink-0">{tauxRecouvrement}%</span>
                             </div>
                             <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden mt-1 border border-neutral-200/50">
                                 <div
@@ -23311,8 +23365,93 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </table>
                             </div>
                         ) : (
-                            /* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré */
-                            <div className="app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
+                            <>
+                            {/* Sous md: le tableau 6 colonnes (client, chantier, devis, montant,
+                                statut, actions) n'a tout simplement pas la place sur un écran de
+                                375px — les 3 dernières colonnes ("DEVIS & D...", montant, statut)
+                                sortaient du cadre, et le conteneur en `overflow-hidden` (nécessaire
+                                pour les coins arrondis de la carte) rendait cette partie coupée
+                                totalement inaccessible, pas seulement tronquée à l'oeil : aucun
+                                défilement possible pour l'atteindre. Sous md, ce tableau cède donc
+                                la place à des tuiles verticales (mêmes infos, une par ligne) — le
+                                même motif déjà utilisé juste au-dessus pour le mode Master-Detail. */}
+                            <div className="md:hidden flex flex-col gap-2.5">
+                                {visibleQuotes.map(sq => {
+                                    const selectQuote = () => {
+                                        setViewingSavedQuote(sq);
+                                        setIsCommercialMode(true);
+                                    };
+                                    const facturesDuDevis = invoices.filter(f =>
+                                        String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
+                                    );
+                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                    const estFacture = sq.status === 'invoiced' || aFactureEmise;
+                                    const badgeElem = estFacture
+                                        ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
+                                        : (() => {
+                                            const [libelle, pastille] = statutDevis(sq.status);
+                                            return <Badge colorClass={pastille}>{libelle}</Badge>;
+                                        })();
+                                    return (
+                                        <div
+                                            key={sq.id}
+                                            onClick={selectQuote}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                            tabIndex="0"
+                                            role="button"
+                                            aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                                            className="app-card p-3.5 space-y-2 cursor-pointer hover:bg-neutral-50/80 active:scale-[0.99] transition-all"
+                                        >
+                                            <div className="flex items-start justify-between gap-2 min-w-0">
+                                                <span className="font-semibold text-neutral-900 text-sm min-w-0 truncate" title={sq.clientName || 'Société non renseignée'}>
+                                                    {sq.clientName || 'Société non renseignée'}
+                                                </span>
+                                                <span className="shrink-0">{badgeElem}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-neutral-500 min-w-0">
+                                                <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100 text-xs">
+                                                <div className="min-w-0">
+                                                    <span className="font-mono font-bold text-brand-700 block">{sq.number}</span>
+                                                    <span className="text-[10px] text-neutral-500">{sq.date}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="font-bold text-neutral-900 tabular-nums">{formatMoney(sq.quoteData?.totalTTCConsomme || 0, companyInfo.currency)}</span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnlyDueToDowngrade}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setConfirmDialog({
+                                                                isOpen: true,
+                                                                title: 'Supprimer ce devis ?',
+                                                                message: `« ${sq.number} » (${sq.clientName || 'client non renseigné'}) sera définitivement retiré de vos devis.\n\nCette action est sans retour.`,
+                                                                confirmLabel: 'Supprimer',
+                                                                isDanger: true,
+                                                                onConfirm: async () => {
+                                                                    closeConfirm();
+                                                                    if (await supprimerDevis(sq)) showToast(`Devis ${sq.number} supprimé`);
+                                                                }
+                                                            });
+                                                        }}
+                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                        className="text-neutral-400 hover:text-red-600 transition-colors p-0.5 disabled:opacity-0"
+                                                        aria-label={`Supprimer le devis ${sq.number}`}
+                                                        title="Supprimer ce devis"
+                                                    >
+                                                        <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré */}
+                            <div className="hidden md:block app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead className="bg-neutral-50/90 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500 font-bold">
                                         <tr>
@@ -23405,6 +23544,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     </tbody>
                                 </table>
                             </div>
+                            </>
                         )
                     )}
                     {visibleQuotes.length === 0 && (
@@ -23771,7 +23911,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </button></span>
                                 <div className="min-w-0">
                                 <h3 className="text-neutral-500 text-[10px] font-semibold uppercase tracking-wider mb-1">Composants & Formules de l'Ouvrage</h3>
-                                <h2 className="text-xl font-bold text-neutral-800 truncate">{selectedSolutionForEdit.name}</h2>
+                                <h2 className="text-xl font-bold text-neutral-800">{selectedSolutionForEdit.name}</h2>
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -25607,11 +25747,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     <header className="bg-white border-b border-neutral-200 px-4 py-3 sm:py-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 shrink-0">
                         <div className="min-w-0">
                             <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-neutral-500 mb-0.5">Espace de configuration</p>
-                            <h1 className="text-base sm:text-xl md:text-2xl font-semibold tracking-tight text-neutral-900 truncate">Paramètres du compte</h1>
+                            <h1 className="text-base sm:text-xl md:text-2xl font-semibold tracking-tight text-neutral-900">Paramètres du compte</h1>
                             <p className="hidden sm:block text-xs text-neutral-500 mt-0.5">Personnalisez l’entreprise, vos documents et les réglages de votre espace.</p>
                         </div>
+                        {/* Le libellé complet ("Retour à l'application"), sans `whitespace-nowrap`,
+                            s'enroulait sur 2 lignes à 375px tout en restant `shrink-0` : il gardait
+                            quand même une largeur fixe généreuse et ne laissait plus la place au
+                            titre ("Paramètres d..."). Icône seule sous sm, comme le reste de
+                            l'appli mobile (aria-label porte déjà le libellé complet). */}
                         <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-3.5 shrink-0 flex items-center gap-1.5 shadow-2xs hover:bg-neutral-50" aria-label="Retourner au tableau de bord">
-                            <i className="fa-solid fa-arrow-left"></i> <span>Retour à l’application</span>
+                            <i className="fa-solid fa-arrow-left"></i> <span className="hidden sm:inline">Retour à l’application</span>
                         </button>
                     </header>
                     <div className="flex-1 min-h-0 flex">
@@ -26197,11 +26342,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                                 <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
                                     <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
-                                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
+                                        <i className="fa-solid fa-arrow-left sm:mr-1.5"></i> <span className="hidden sm:inline">Retour à l’application</span>
                                     </button>
                                     {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && !isReadOnlyDueToDowngrade && (
                                         <button type="button" onClick={() => { updateCompanyInfo({ ...companyInfo }); showToast(accountSettingsTab === 'documents' ? "Réglages Documents & PDF enregistrés" : "Réglages Facturation & envoi enregistrés"); }} className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-4 sm:px-5 shadow-xs hover:bg-black" aria-label={accountSettingsTab === 'documents' ? 'Enregistrer les réglages Documents et PDF' : 'Enregistrer les réglages Facturation et envoi'}>
-                                            <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                                            {/* Combinés, "Retour à l'application" + "Enregistrer les
+                                                modifications" (53 caractères à eux deux) forçaient les
+                                                DEUX boutons sur 3 lignes chacun dans une rangée pleine
+                                                largeur à 375px. Libellé complet dès sm (assez de place) ;
+                                                icône seule + libellé court sous sm, aria-label garde le
+                                                texte complet pour les lecteurs d'écran. */}
+                                            <i className="fa-solid fa-check sm:mr-1.5"></i> <span className="hidden sm:inline">Enregistrer les modifications</span><span className="sm:hidden">Enregistrer</span>
                                         </button>
                                     )}
                                 </div>
@@ -26251,7 +26402,23 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                                 <div>
                                     <label htmlFor="company_tagline" className="app-label">Slogan / Activités principales</label>
-                                    <input id="company_tagline" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.tagline} onChange={e => updateCompanyInfo({...companyInfo, tagline: e.target.value})} placeholder="Ex : Travaux Publics & Bâtiment" />
+                                    {/* Un slogan qui énumère plusieurs activités ("BTP - Fabrications -
+                                        Aménagements...") dépasse vite la largeur d'un <input>, qui ne
+                                        peut pas passer à la ligne : le texte se coupait net, sans
+                                        ellipse, avec aucun moyen de relire la valeur complète sans
+                                        cliquer dedans. <textarea> d'une ligne, auto-agrandie (comme la
+                                        désignation d'ouvrage dans le chiffrage — même bug, même fix). */}
+                                    <textarea
+                                        id="company_tagline"
+                                        disabled={isReadOnlyDueToDowngrade}
+                                        ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                        rows={1}
+                                        className="app-input font-bold resize-none overflow-hidden leading-snug"
+                                        value={companyInfo.tagline}
+                                        onChange={e => updateCompanyInfo({...companyInfo, tagline: e.target.value})}
+                                        onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+                                        placeholder="Ex : Travaux Publics & Bâtiment"
+                                    />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -26362,11 +26529,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                                 <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
                                     <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
-                                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour à l’application
+                                        <i className="fa-solid fa-arrow-left sm:mr-1.5"></i> <span className="hidden sm:inline">Retour à l’application</span>
                                     </button>
                                     {!isReadOnlyDueToDowngrade && (
                                         <button type="submit" className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 px-4 sm:px-5 shadow-xs hover:bg-black" aria-label="Enregistrer les paramètres de l'entreprise">
-                                            <i className="fa-solid fa-check mr-1.5"></i> Enregistrer les modifications
+                                            {/* Combinés, "Retour à l'application" + "Enregistrer les
+                                                modifications" (53 caractères à eux deux) forçaient les
+                                                DEUX boutons sur 3 lignes chacun dans une rangée pleine
+                                                largeur à 375px. Libellé complet dès sm (assez de place) ;
+                                                icône seule + libellé court sous sm, aria-label garde le
+                                                texte complet pour les lecteurs d'écran. */}
+                                            <i className="fa-solid fa-check sm:mr-1.5"></i> <span className="hidden sm:inline">Enregistrer les modifications</span><span className="sm:hidden">Enregistrer</span>
                                         </button>
                                     )}
                                 </div>
