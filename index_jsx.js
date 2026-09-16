@@ -224,6 +224,12 @@ function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = fal
 // en local, 3500 ms en cloud. Une constante unique, sinon l'écart se recreuse.
 const DUREE_ETAT_SUCCES_MS = 3000;
 
+// 2026-09-16 — Temps de transition volontaire entre deux pages. Le but n'est
+// pas de ralentir : c'est de donner au changement d'écran un début et une fin
+// perceptibles, au lieu d'un remplacement sec. 350 ms tient dans la fourchette
+// demandée (300-500) et reste sous le seuil où l'attente devient consciente.
+const DUREE_TRANSITION_PAGE_MS = 350;
+
 // Rendu unique des états, partagé par les deux boutons d'enregistrement
 // (en-tête desktop et barre de totaux mobile). Deux rendus séparés auraient
 // divergé dès le premier ajustement, exactement comme les deux durées.
@@ -12659,6 +12665,31 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // existants ni le moindre indicateur. Le tableau de bord donne la vue
     // d'ensemble ; on descend dans un chiffrage par un acte, jamais par défaut.
     const [activeView, setActiveView] = useState('dashboard');
+
+    // 2026-09-16 — Transition de page.
+    //
+    // `activeView` est la vue DEMANDÉE, `vueAffichee` la vue RENDUE : entre les
+    // deux, le temps de la transition. La temporisation vit ici, au rendu, et
+    // non dans la navigation — les quarante appels à setActiveView (menu,
+    // raccourcis du tableau de bord, création de devis, liens internes, retour
+    // des Paramètres) en bénéficient sans qu'aucun ne soit modifié, et aucun
+    // chemin futur ne pourra l'oublier.
+    //
+    // Initialisé sur la vue courante : le tout premier affichage n'attend pas.
+    const [vueAffichee, setVueAffichee] = useState('dashboard');
+    const [transitionPage, setTransitionPage] = useState(false);
+    useEffect(() => {
+        if (vueAffichee === activeView) return undefined;
+        setTransitionPage(true);
+        const minuteur = setTimeout(() => {
+            setVueAffichee(activeView);
+            setTransitionPage(false);
+        }, DUREE_TRANSITION_PAGE_MS);
+        // Nettoyage indispensable : un utilisateur qui enchaîne deux clics ne
+        // doit pas se retrouver avec deux minuteurs concurrents, dont le plus
+        // ancien rétablirait une vue déjà dépassée.
+        return () => clearTimeout(minuteur);
+    }, [activeView, vueAffichee]);
     const [isTechnicalCatalogOpen, setIsTechnicalCatalogOpen] = useState(false);
     const [toast, setToast] = useState(null);
 
@@ -25293,10 +25324,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
     useEffect(() => {
         const navigations = document.querySelectorAll('[data-nav-principale]');
         navigations.forEach((element) => {
-            if (activeView === 'settings') element.setAttribute('inert', '');
+            // Calé sur la vue AFFICHÉE, comme le rendu des Paramètres : sur
+            // `activeView`, la navigation deviendrait inerte 350 ms avant que
+            // l'écran n'apparaisse — un menu mort sous le doigt, sans raison
+            // visible.
+            if (vueAffichee === 'settings') element.setAttribute('inert', '');
             else element.removeAttribute('inert');
         });
-    }, [activeView]);
+    }, [vueAffichee]);
 
     return (
         <div className="mobile-app-shell flex flex-col h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
@@ -25452,8 +25487,29 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                     {/* MAIN CONTENT AREA */}
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
-                        <div className={`${activeView === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
-                            <div className="animate-fade-in w-full flex-1 min-h-0 flex flex-col">
+                        {/* Le gabarit suit la vue AFFICHÉE, pas la vue demandée :
+                            sinon les marges changeraient dès le clic, faisant sauter
+                            la mise en page pendant que l'ancien contenu est encore là. */}
+                        <div className={`${vueAffichee === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
+                            {transitionPage ? (
+                                /* Pendant la transition : une barre de progression fine en
+                                   haut de la zone de contenu et un sablier discret au
+                                   centre. Rien d'autre — la zone garde exactement les
+                                   mêmes dimensions, pour que l'arrivée de la page ne
+                                   déplace rien. `role="status"` + `aria-live` annoncent
+                                   l'attente à un lecteur d'écran, que l'animation seule
+                                   laisserait dans le silence. */
+                                <div className="w-full flex-1 min-h-0 flex flex-col" role="status" aria-live="polite">
+                                    <div className="h-0.5 w-full bg-brand-100 rounded-full overflow-hidden shrink-0" aria-hidden="true">
+                                        <div className="h-full w-1/3 bg-brand-500 animate-page-progress"></div>
+                                    </div>
+                                    <div className="flex-1 min-h-0 flex items-center justify-center">
+                                        <span className="w-8 h-8 rounded-full border-2 border-neutral-200 border-t-brand-500 animate-page-spin" aria-hidden="true"></span>
+                                    </div>
+                                    <span className="sr-only">Chargement de la page…</span>
+                                </div>
+                            ) : (
+                            <div className="animate-page-enter w-full flex-1 min-h-0 flex flex-col">
                                 {/* 2026-09-16 — Le bandeau de reprise de brouillon ne vivait
                                     que DANS renderCalculator, donc sur le seul écran de
                                     chiffrage. C'était sans conséquence tant que
@@ -25464,19 +25520,20 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     sert. Le devis en cours ne vit dans aucune clé
                                     localStorage (voir la garde beforeunload) : perdre cette
                                     offre, c'est perdre le travail. Le garde-fou
-                                    `activeView !== 'calculator'` évite de l'afficher deux
+                                    `vueAffichee !== 'calculator'` évite de l'afficher deux
                                     fois, le chiffrage le rendant déjà lui-même. */}
-                                {activeView !== 'calculator' && renderBandeauBrouillon()}
-                                {activeView === 'dashboard' && renderDashboard()}
-                                {activeView === 'calculator' && renderCalculator()}
-                                {activeView === 'projects' && renderProjects()}
-                                {activeView === 'clients' && renderClients()}
-                                {activeView === 'savedQuotes' && renderSavedQuotes()}
-                                {activeView === 'invoices' && renderInvoices()}
-                                {activeView === 'recipes' && renderRecipes()}
-                                {activeView === 'materials' && renderMaterials()}
-                                {activeView === 'platformAdmin' && renderPlatformAdmin()}
+                                {vueAffichee !== 'calculator' && renderBandeauBrouillon()}
+                                {vueAffichee === 'dashboard' && renderDashboard()}
+                                {vueAffichee === 'calculator' && renderCalculator()}
+                                {vueAffichee === 'projects' && renderProjects()}
+                                {vueAffichee === 'clients' && renderClients()}
+                                {vueAffichee === 'savedQuotes' && renderSavedQuotes()}
+                                {vueAffichee === 'invoices' && renderInvoices()}
+                                {vueAffichee === 'recipes' && renderRecipes()}
+                                {vueAffichee === 'materials' && renderMaterials()}
+                                {vueAffichee === 'platformAdmin' && renderPlatformAdmin()}
                             </div>
+                            )}
                         </div>
                     </main>
 
@@ -25976,8 +26033,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 />
             )}
 
-            {activeView === 'settings' && (
-                <section className="settings-page-shell fixed inset-y-0 right-0 z-[60] bg-neutral-100 flex flex-col min-h-0 animate-fade-in" aria-label="Paramètres du compte">
+            {/* Les Paramètres sont une page comme une autre : ils suivent donc la
+                vue AFFICHÉE et bénéficient de la même transition à l'aller comme
+                au retour. */}
+            {vueAffichee === 'settings' && (
+                <section className="settings-page-shell fixed inset-y-0 right-0 z-[60] bg-neutral-100 flex flex-col min-h-0 animate-page-enter" aria-label="Paramètres du compte">
                     <header className="bg-white border-b border-neutral-200 px-4 py-3 sm:py-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 shrink-0">
                         <div className="min-w-0">
                             <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-neutral-500 mb-0.5">Espace de configuration</p>

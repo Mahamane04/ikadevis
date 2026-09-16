@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=c3e8956302">
+    <link rel="stylesheet" href="tailwind.css?v=886932d8c1">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -672,6 +672,32 @@
         .animate-fade-in  { animation: fade-in  0.18s ease-out both; }
         .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.32,0.72,0,1) both; }
 
+        /* ── Transition de page fluide & moderne (300-500ms) ── */
+        @keyframes page-progress-bar {
+            0%   { transform: translateX(-100%); }
+            50%  { transform: translateX(25%); }
+            100% { transform: translateX(110%); }
+        }
+        .animate-page-progress {
+            animation: page-progress-bar 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes page-spin {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-page-spin {
+            animation: page-spin 0.65s linear infinite;
+        }
+
+        @keyframes page-enter {
+            0%   { opacity: 0; transform: translateY(3px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-page-enter {
+            animation: page-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
         html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
         html, body, #root {
             width: 100%;
@@ -1048,10 +1074,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=14a333b940"></script>
-    <script src="js/utils.js?v=14a333b940"></script>
-    <script src="js/quote-templates.js?v=14a333b940"></script>
-    <script src="app.compiled.js?v=14a333b940"></script>
+    <script src="js/calc-engine.js?v=8f9e5cf63c"></script>
+    <script src="js/utils.js?v=8f9e5cf63c"></script>
+    <script src="js/quote-templates.js?v=8f9e5cf63c"></script>
+    <script src="app.compiled.js?v=8f9e5cf63c"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

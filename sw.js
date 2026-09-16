@@ -6,7 +6,7 @@
 // et deux mécanismes de cache désalignés servent tôt ou tard une version
 // périmée sans que rien ne le signale — le piège déjà rencontré sur ce
 // projet avec un tailwind.css obsolète. Un seul jeton pilote les deux.
-const VERSION = '14a333b940';
+const VERSION = '8f9e5cf63c';
 const CACHE = `ikadevis-${VERSION}`;
 
 // Coquille minimale : ce qu'il faut pour que l'application DÉMARRE sans

@@ -35,7 +35,15 @@ export async function run() {
         await enterGuestMode(page);
 
         await clickVisibleButton(page, 'Mes devis', true);
-        await page.waitForFunction(() => document.body.innerText.includes('Mes devis'));
+        // 2026-09-16 — Attendre « Mes devis » dans le texte de la page ne prouve
+        // RIEN : c'est aussi le libellé de l'entrée de menu, présent dès le
+        // premier rendu. Avec la transition de page (350 ms), cette attente était
+        // satisfaite pendant que le loader occupait encore la zone de contenu, et
+        // le clic sur une ligne du tableau, plus bas, ne trouvait aucune ligne.
+        // On attend donc un élément PROPRE à l'écran visé, et la fin de la
+        // transition.
+        await page.waitForFunction(() => !document.querySelector('.animate-page-spin')
+            && !!document.querySelector('[data-testid="saved-quotes-list"]'));
         ok('La liste des devis expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les devis"]') !== null);
         ok('La liste des devis expose un filtre de statut', await page.$('select[aria-label="Filtrer les devis par statut"]') !== null);
         ok('La liste des devis expose un tri', await page.$('select[aria-label="Trier les devis"]') !== null);
@@ -158,7 +166,10 @@ export async function run() {
         ok('Le filtre de statut affiche un état vide explicite', (await page.evaluate(() => document.body.innerText)).includes('Aucun devis enregistré'));
 
         await clickVisibleButton(page, 'Factures', true);
-        await page.waitForFunction(() => document.body.innerText.includes('Factures'));
+        // Même piège que pour « Mes devis » plus haut : « Factures » est aussi une
+        // entrée de menu. On attend la recherche propre à cet écran.
+        await page.waitForFunction(() => !document.querySelector('.animate-page-spin')
+            && !!document.querySelector('input[aria-label="Rechercher dans les factures"]'));
         ok('La liste des factures expose une recherche dédiée', await page.$('input[aria-label="Rechercher dans les factures"]') !== null);
         ok('La liste des factures expose un filtre de statut', await page.$('select[aria-label="Filtrer les factures par statut"]') !== null);
         await page.type('input[aria-label="Rechercher dans les factures"]', 'FACTURE-ABSENTE');

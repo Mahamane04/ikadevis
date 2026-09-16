@@ -55,10 +55,34 @@ export async function enterGuestMode(page, { demo = false } = {}) {
     // Conditionnel, et c'est essentiel : en mode démo (`demo: true`) le devis
     // d'exemple s'ouvre tout seul, et cliquer « Nouveau devis » l'effacerait —
     // ce que test_demo_landing.mjs mesure précisément.
+    // 2026-09-16 (2) — On branche sur le drapeau `demo` plutôt que sur ce qui
+    // est à l'écran. La version précédente sondait le DOM (« vois-je LOTS DU
+    // DEVIS ? sinon je clique Nouveau devis ») et cette heuristique est devenue
+    // FAUSSE avec la transition de page : la barre latérale affiche « Nouveau
+    // devis » dès le premier rendu — le menu reste instantané, c'est voulu —
+    // pendant que la zone de contenu montre encore le loader. Le harnais
+    // concluait donc qu'il fallait créer un devis et ÉCRASAIT le devis
+    // d'exemple de la démo (constaté : client vide, montants à zéro, alors que
+    // l'exemple se chargeait parfaitement 400 ms plus tard).
+    //
+    // Le drapeau, lui, ne ment pas :
+    //   demo: true  → l'application ouvre elle-même le devis d'exemple ; on
+    //                 attend, on ne clique JAMAIS.
+    //   demo: false → on atterrit sur le tableau de bord ; on ouvre un devis
+    //                 vierge, une fois la transition retombée.
+    if (demo) {
+        await page.waitForFunction(
+            () => document.body.innerText.includes('LOTS DU DEVIS'),
+            { timeout: 10000 }
+        );
+        return;
+    }
+    // Attendre la fin de la transition avant de décider : cliquer pendant le
+    // loader viserait un écran qui n'est pas encore celui qu'on croit.
     await page.waitForFunction(
-        () => document.body.innerText.includes('LOTS DU DEVIS')
-            || /Nouveau devis/.test(document.body.innerText),
-        { timeout: 8000 }
+        () => !document.querySelector('.animate-page-spin')
+            && /Nouveau devis/.test(document.body.innerText),
+        { timeout: 10000 }
     );
     const dejaSurLeChiffrage = await page.evaluate(
         () => document.body.innerText.includes('LOTS DU DEVIS'));
@@ -73,8 +97,9 @@ export async function enterGuestMode(page, { demo = false } = {}) {
         if (!ouvert) throw new Error('Bouton « Nouveau devis » introuvable dans la barre latérale.');
     }
     await page.waitForFunction(
-        () => document.body.innerText.includes('LOTS DU DEVIS'),
-        { timeout: 8000 }
+        () => document.body.innerText.includes('LOTS DU DEVIS')
+            && !document.querySelector('.animate-page-spin'),
+        { timeout: 10000 }
     );
 }
 

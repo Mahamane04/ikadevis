@@ -53,7 +53,14 @@ export async function run() {
             btn.click();
             return true;
         });
-        await wait(200);
+        // 2026-09-16 — Une attente FIXE de 200 ms ne suffit plus : le changement
+        // de page passe par une transition volontaire de 350 ms, pendant laquelle
+        // la zone de contenu affiche un loader. Le champ de recherche n'existait
+        // donc pas encore et `page.$` renvoyait null. On attend l'élément visé
+        // lui-même — ce qui, au passage, est plus robuste qu'un délai arbitraire.
+        await page.waitForFunction(() => !document.querySelector('.animate-page-spin')
+            && !!document.querySelector('input[placeholder*="Rechercher un ouvrage"]'),
+            { timeout: 10000 });
         ok('Navigation vers "Catalogue" réussie', openedCategoryOuvrage);
 
         // Sélectionner l'ouvrage "Caisson Enseigne Lumineuse LED".

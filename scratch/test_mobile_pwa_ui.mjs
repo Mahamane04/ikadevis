@@ -77,7 +77,14 @@ export async function run() {
 
         const openedQuotes = await clickVisibleButton(page, 'Mes devis', true);
         ok('La liste des devis reste accessible sur smartphone', openedQuotes);
-        await page.waitForFunction(() => document.body.innerText.includes('Mes devis'));
+        // 2026-09-16 — « Mes devis » est aussi le libellé de l'entrée de menu :
+        // cette attente était donc satisfaite dès le premier rendu, y compris
+        // pendant la transition de page (350 ms) où la zone de contenu montre un
+        // loader. Le `if (row)` plus bas masquait la conséquence — le banc
+        // poursuivait sur un écran qui n'était pas celui qu'il croyait mesurer.
+        await page.waitForFunction(() => !document.querySelector('.animate-page-spin')
+            && !!document.querySelector('[data-testid="saved-quotes-list"]'),
+            { timeout: 10000 });
         const row = await page.$('tbody tr[role="button"]');
         if (row) await row.click();
         await wait(250);
