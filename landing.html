@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ikadevis — L'ERP BTP pour chiffrer vite, juste et avec de vraies marges</title>
+    <meta name="description" content="ikadevis centralise vos métrés, matériaux, main-d’œuvre, coûts, marges, devis et factures dans un seul ERP conçu pour les professionnels du BTP.">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260910b">
+    
+    <!-- Fonts Google : Plus Jakarta Sans & Inter + Caveat (phrase manuscrite) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Vector Icons -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    
+    <!-- Tailwind CSS CDN pour landing complète avec configuration custom exacte -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ikablue: {
+                            DEFAULT: '#3880F3',
+                            50: '#F2F7FE',
+                            100: '#E1EEFD',
+                            200: '#C2DCFB',
+                            300: '#94C0F8',
+                            400: '#5F9EF5',
+                            500: '#3880F3',
+                            600: '#1E64E2',
+                            700: '#164EBC',
+                            800: '#154197',
+                            900: '#173977',
+                            950: '#0F234B'
+                        },
+                        slate: {
+                            850: '#131D31',
+                            900: '#0F172A',
+                            950: '#080D1A'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        hand: ['Caveat', 'cursive']
+                    },
+                    boxShadow: {
+                        'premium': '0 20px 40px -15px rgba(15, 23, 42, 0.07), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+                        'floating': '0 30px 60px -20px rgba(56, 128, 243, 0.18), 0 12px 24px -10px rgba(15, 23, 42, 0.08)',
+                        'card': '0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.9)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #FFFFFF;
+            color: #0F172A;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* Subtils motifs architecturaux et grilles vectorielles */
+        .bg-blueprint {
+            background-image: linear-gradient(to right, rgba(56, 128, 243, 0.04) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(56, 128, 243, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .bg-dots {
+            background-image: radial-gradient(rgba(56, 128, 243, 0.12) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Halo gradient subtil BTP */
+        .glow-radial {
+            background: radial-gradient(circle at 50% 30%, rgba(56, 128, 243, 0.08) 0%, rgba(242, 247, 254, 0) 70%);
+        }
+
+        /* Animation douce des cartes flottantes */
+        @keyframes gentleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes gentleFloatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-float-1 { animation: gentleFloat 5s ease-in-out infinite; }
+        .animate-float-2 { animation: gentleFloatSlow 6s ease-in-out infinite 1.5s; }
+        .animate-float-3 { animation: gentleFloat 7s ease-in-out infinite 2.5s; }
+        .animate-float-4 { animation: gentleFloatSlow 5.5s ease-in-out infinite 0.8s; }
+    </style>
+</head>
+<body class="bg-white text-slate-900 selection:bg-ikablue-100 selection:text-ikablue-900">
+
+    <!-- ================================================== -->
+    <!-- 1. HEADER BLANC STICKY ULTRA-MODERNE               -->
+    <!-- ================================================== -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all duration-200">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 h-20 flex items-center justify-between">
+            
+            <!-- Logo officiel ikadevis strictement non déformé -->
+            <a href="#" class="flex items-center gap-2 group focus:outline-none" title="ikadevis ERP BTP">
+                <svg class="h-8 w-auto text-ikablue transition-transform group-hover:scale-[1.02]" viewBox="23.39 9.60 335.00 104.23" fill="currentColor" stroke="currentColor" stroke-width="0.55" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ikadevis">
+                    <polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/>
+                    <path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/>
+                    <g>
+                        <g>
+                            <path d="M227.64,93.27c-9.57.55-16.75-6.81-16.63-16.13.12-9.14,7.29-16.17,16.53-15.61,3.88.24,7.25,1.61,10.26,4.48l.02-16.97,5.67-.05v43.92s-5.65-.03-5.65-.03l-.12-4c-2.81,2.8-6.12,4.14-10.09,4.37ZM222.29,86.76c3.82,1.96,8.32,1.44,11.57-1.07,3.62-2.8,4.86-7.42,3.43-11.69-1.35-4.01-5.13-6.9-9.41-7.12s-8.58,2.12-10.24,6.3c-2.02,5.09-.38,11,4.65,13.58Z"/>
+                            <path d="M198.38,93l-.14-4.19c-3.5,3.54-7.92,4.81-12.62,4.4-5.6-.49-10.37-3.78-12.66-8.95-1.9-4.29-1.95-8.99-.18-13.35,2.17-5.36,7.04-8.77,12.76-9.33,4.83-.47,9.24,1.09,12.71,4.43l.09-3.77h5.71s0,30.59,0,30.59l-5.67.16ZM188.05,87.91c2.78-.11,5.1-1.01,7.03-2.81,3.81-3.53,4.32-9.35,1.5-13.55s-8.2-5.85-13.04-3.84c-4.19,1.74-6.53,5.99-6.24,10.5.36,5.69,4.87,9.92,10.74,9.69Z"/>
+                            <path d="M265.87,88.38c3.91.06,7.16-1.38,9.43-4.7l4.38,2.83c-2.83,4.55-7.53,6.7-12.57,7.01-9.49.59-16.93-6.43-17.07-15.85-.13-9.1,6.82-16.17,15.99-16.06,9.63.11,16.17,7.75,15.36,17.49h-25.53c.48,5.26,4.56,9.19,10.01,9.27ZM275.63,74.6c-.92-4.99-5.02-7.81-9.64-7.86-4.86-.07-9.12,3.13-9.95,7.89l19.59-.03Z"/>
+                            <polygon points="169.93 92.83 162.53 92.91 150.93 79.81 146.19 84.26 146.08 92.9 140.41 92.92 140.4 49.09 146.15 49.09 146.16 77.02 160.82 62.32 168.44 62.35 154.78 75.94 169.93 92.83"/>
+                            <path d="M351.06,91.97c-5.52,2.93-14.01,1.79-18.64-2.96l3.01-3.88c4.27,4.26,13.06,4.8,14.13.57.35-1.36-.03-3.09-1.41-3.74l-4.18-1.97c-4.1-1.93-10.48-3.22-10.01-10.13.19-2.75,1.63-5.3,4.34-6.62,5.4-2.64,11.95-1.88,16.57,2.15l-3.03,3.75c-4.13-3.52-11.61-3.33-12.12.63-.19,1.49.58,2.91,2.06,3.55l8.58,3.7c3.62,1.56,5.49,5.04,4.93,8.87-.39,2.64-1.81,4.8-4.21,6.08Z"/>
+                            <polygon points="307.68 62.33 313.73 62.3 300.75 92.9 296.18 93.01 283.17 62.31 289.23 62.26 298.49 85.31 307.68 62.33"/>
+                            <polygon points="325.87 92.86 320.14 92.97 320.14 62.3 325.87 62.28 325.87 92.86"/>
+                            <polygon points="130.67 92.79 124.98 92.89 124.97 62.29 130.66 62.27 130.67 92.79"/>
+                        </g>
+                        <path d="M127.04,50.08c2.16-.46,4.08.9,4.44,2.84s-.72,4.01-2.84,4.42c-1.84.35-3.91-.71-4.34-2.65s.44-4.13,2.75-4.61Z"/>
+                        <path d="M322.27,50.08c2.2-.46,4.02.94,4.4,2.91s-.82,3.94-2.82,4.36-3.87-.72-4.33-2.61c-.48-2,.46-4.19,2.75-4.66Z"/>
+                    </g>
+                </svg>
+            </a>
+
+            <!-- Navigation centrale -->
+            <nav class="hidden md:flex items-center gap-8">
+                <a href="#fonctionnalites" class="text-sm font-medium text-slate-600 hover:text-ikablue transition-colors">Fonctionnalités</a>
+                <a href="#solutions" class="text-sm font-medium text-slate-600 hover:text-ikablue transition-colors">Solutions</a>
+                <a href="#metiers" class="text-sm font-medium text-slate-600 hover:text-ikablue transition-colors">Métiers</a>
+                <a href="#tarifs" class="text-sm font-medium text-slate-600 hover:text-ikablue transition-colors">Tarifs</a>
+                <a href="#faq" class="text-sm font-medium text-slate-600 hover:text-ikablue transition-colors">FAQ</a>
+            </nav>
+
+            <!-- Actions droite -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <a href="index.html" class="text-sm font-semibold text-slate-700 hover:text-slate-900 px-3.5 py-2 rounded-xl hover:bg-slate-100 transition-all">
+                    Se connecter
+                </a>
+                <a href="index.html" class="inline-flex items-center justify-center text-sm font-bold bg-ikablue hover:bg-ikablue-600 text-white px-5 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95">
+                    Commencer gratuitement
+                </a>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- ================================================== -->
+    <!-- 2. HERO SPECTACULAIRE (2 COLONNES)                 -->
+    <!-- ================================================== -->
+    <section class="relative overflow-hidden pt-12 pb-24 lg:pt-16 lg:pb-32 bg-blueprint">
+        <div class="absolute inset-0 glow-radial pointer-events-none"></div>
+
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+                
+                <!-- GAUCHE : ARGUMENTAIRE & CONVERSION -->
+                <div class="lg:col-span-6 space-y-7">
+                    
+                    <!-- Petit badge -->
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-ikablue-50 border border-ikablue-200 text-ikablue-700 text-xs font-bold tracking-wide">
+                        <span class="w-2 h-2 rounded-full bg-ikablue animate-pulse"></span>
+                        ERP BTP • Devis • Chiffrage • Facturation
+                    </div>
+
+                    <!-- Grand titre percutant -->
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
+                        Le BTP se pilote<br>avec les <span class="text-ikablue underline decoration-ikablue-200 decoration-wavy decoration-2">bons chiffres</span>.
+                    </h1>
+
+                    <!-- Sous-titre -->
+                    <p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
+                        ikadevis centralise vos métrés, matériaux, main-d’œuvre, coûts, marges, devis et factures dans un seul ERP conçu pour les professionnels du BTP.
+                    </p>
+
+                    <!-- CTA Buttons -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+                        <a href="index.html" class="inline-flex items-center justify-center gap-2.5 text-base font-bold bg-ikablue hover:bg-ikablue-600 text-white px-7 py-4 rounded-xl transition-all shadow-floating hover:shadow-lg active:scale-98">
+                            <span>Commencer gratuitement</span>
+                            <i class="fa-solid fa-arrow-right text-xs"></i>
+                        </a>
+                        <a href="#demo" class="inline-flex items-center justify-center gap-2.5 text-base font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-6 py-4 rounded-xl transition-all shadow-sm">
+                            <span class="w-6 h-6 rounded-full bg-ikablue-100 text-ikablue flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-play ml-0.5"></i>
+                            </span>
+                            <span>Voir comment ça fonctionne</span>
+                        </a>
+                    </div>
+
+                    <!-- Réassurance -->
+                    <div class="flex flex-wrap items-center gap-6 pt-3 text-xs font-semibold text-slate-500">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-emerald-500 text-sm"></i>
+                            Sans carte bancaire
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-emerald-500 text-sm"></i>
+                            Mise en route rapide
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-emerald-500 text-sm"></i>
+                            Accessible partout
+                        </span>
+                    </div>
+
+                </div>
+
+                <!-- DROITE : GRAND MOCKUP RÉALISTE DASHBOARD IKADEVIS -->
+                <div class="lg:col-span-6 relative">
+                    
+                    <!-- Silhouettes graphiques de chantier moderne en arrière-plan -->
+                    <div class="absolute -top-12 -right-8 w-96 h-96 opacity-15 pointer-events-none text-ikablue-400">
+                        <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="1.2">
+                            <!-- Grue de chantier stylisée -->
+                            <line x1="140" y1="190" x2="140" y2="40" stroke-dasharray="2 2" />
+                            <line x1="80" y1="40" x2="180" y2="40" stroke-width="2" />
+                            <line x1="140" y1="40" x2="160" y2="20" />
+                            <line x1="160" y1="20" x2="140" y2="20" />
+                            <line x1="140" y1="20" x2="180" y2="40" />
+                            <line x1="100" y1="40" x2="100" y2="70" />
+                            <!-- Câble & charge -->
+                            <line x1="110" y1="40" x2="110" y2="90" stroke-dasharray="3 3" />
+                            <rect x="105" y="90" width="10" height="8" fill="currentColor" fill-opacity="0.2" />
+                            <!-- Grille de structure immeuble -->
+                            <rect x="20" y="80" width="80" height="110" stroke-dasharray="4 4" />
+                            <line x1="20" y1="110" x2="100" y2="110" />
+                            <line x1="20" y1="140" x2="100" y2="140" />
+                            <line x1="20" y1="170" x2="100" y2="170" />
+                            <line x1="50" y1="80" x2="50" y2="190" />
+                            <line x1="80" y1="80" x2="80" y2="190" />
+                        </svg>
+                    </div>
+
+                    <!-- FENÊTRE DU SAAS IKADEVIS -->
+                    <div class="relative bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden">
+                        
+                        <!-- Barre titre OS / Browser -->
+                        <div class="h-10 bg-slate-100 border-b border-slate-200 flex items-center justify-between px-4">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                            </div>
+                            <div class="bg-white px-3 py-0.5 rounded-md border border-slate-200/80 text-[11px] font-mono text-slate-500 flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock text-[9px] text-emerald-600"></i>
+                                app.ikadevis.com/devis/villa-r1
+                            </div>
+                            <div class="w-10"></div>
+                        </div>
+
+                        <!-- Intérieur Interface ERP -->
+                        <div class="flex h-[420px] bg-slate-50">
+                            
+                            <!-- Sidebar bleu nuit -->
+                            <div class="w-44 bg-slate-900 p-3.5 flex flex-col justify-between shrink-0 text-slate-300">
+                                <div>
+                                    <div class="flex items-center gap-2 pb-4 mb-3 border-b border-slate-800 text-white">
+                                        <span class="w-6 h-6 rounded-lg bg-ikablue flex items-center justify-center font-bold text-xs">i</span>
+                                        <span class="font-bold text-xs tracking-wider">IKADEVIS BTP</span>
+                                    </div>
+                                    <div class="space-y-1 text-[11px] font-medium">
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-chart-pie w-4"></i> Tableau de bord
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-folder-tree w-4"></i> Projets
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg bg-ikablue text-white font-bold flex items-center gap-2 shadow-xs">
+                                            <i class="fa-solid fa-file-lines w-4"></i> Devis
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-receipt w-4"></i> Factures
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-users w-4"></i> Clients
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-database w-4"></i> Matériaux
+                                        </div>
+                                        <div class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-2">
+                                            <i class="fa-solid fa-layer-group w-4"></i> Ouvrages
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-[10px] text-slate-500 px-2 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-gear"></i> Paramètres
+                                </div>
+                            </div>
+
+                            <!-- Zone Devis BTP au Centre -->
+                            <div class="flex-1 p-4 overflow-y-auto bg-white">
+                                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <div>
+                                        <span class="text-[10px] uppercase font-bold text-ikablue bg-ikablue-50 px-2 py-0.5 rounded">Devis N° DEV-2026-084</span>
+                                        <h3 class="text-sm font-extrabold text-slate-900 mt-1">Construction d’une villa R+1</h3>
+                                    </div>
+                                    <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                                        Marge nette : 18,5%
+                                    </span>
+                                </div>
+
+                                <!-- Tableau devis BTP réaliste -->
+                                <div class="mt-3 text-[11px]">
+                                    <table class="w-full border-collapse">
+                                        <thead>
+                                            <tr class="text-left text-[10px] text-slate-400 border-b border-slate-200 pb-1">
+                                                <th class="py-1">Désignation</th>
+                                                <th class="py-1 text-center">Qté</th>
+                                                <th class="py-1 text-right">P.U. HT</th>
+                                                <th class="py-1 text-right">Total HT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                                            <tr>
+                                                <td class="py-2 font-sans font-medium text-slate-800">Ciment CPJ 42,5 (Sacs 50kg)</td>
+                                                <td class="py-2 text-center text-slate-600">120 u</td>
+                                                <td class="py-2 text-right text-slate-600">4 850 F</td>
+                                                <td class="py-2 text-right font-bold text-slate-900">582 000 F</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="py-2 font-sans font-medium text-slate-800">Fer à béton 12 mm (Barres 12m)</td>
+                                                <td class="py-2 text-center text-slate-600">45 u</td>
+                                                <td class="py-2 text-right text-slate-600">6 500 F</td>
+                                                <td class="py-2 text-right font-bold text-slate-900">292 500 F</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="py-2 font-sans font-medium text-slate-800">Sable lavé pour béton</td>
+                                                <td class="py-2 text-center text-slate-600">18 m³</td>
+                                                <td class="py-2 text-right text-slate-600">12 000 F</td>
+                                                <td class="py-2 text-right font-bold text-slate-900">216 000 F</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="py-2 font-sans font-medium text-slate-800">Gravier concassé 15/25</td>
+                                                <td class="py-2 text-center text-slate-600">24 m³</td>
+                                                <td class="py-2 text-right text-slate-600">14 500 F</td>
+                                                <td class="py-2 text-right font-bold text-slate-900">348 000 F</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="py-2 font-sans font-medium text-slate-800">Main-d’œuvre maçonnerie</td>
+                                                <td class="py-2 text-center text-slate-600">15 j</td>
+                                                <td class="py-2 text-right text-slate-600">25 000 F</td>
+                                                <td class="py-2 text-right font-bold text-slate-900">375 000 F</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Totaux récapitulatifs -->
+                                <div class="mt-3 pt-2.5 border-t-2 border-slate-200 flex justify-between items-center text-xs">
+                                    <span class="text-slate-500">Déboursé sec : 1 245 000 F</span>
+                                    <div class="text-right">
+                                        <span class="text-[10px] text-slate-400 uppercase block font-bold">Total Devis HT</span>
+                                        <span class="text-sm font-extrabold text-ikablue font-mono">1 813 500 FCFA</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- CARTES FLOTTANTES AUTOUR DU DASHBOARD -->
+                    
+                    <!-- Carte 1 : Marge prévisionnelle (Haut Gauche) -->
+                    <div class="absolute -top-6 -left-6 bg-white p-3.5 rounded-2xl shadow-floating border border-slate-200 flex items-center gap-3 animate-float-1">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Marge prévisionnelle</span>
+                            <span class="text-lg font-extrabold text-slate-900 font-mono">18,5 %</span>
+                        </div>
+                    </div>
+
+                    <!-- Carte 2 : Matériaux (Bas Gauche) -->
+                    <div class="absolute -bottom-6 -left-6 bg-white p-3.5 rounded-2xl shadow-floating border border-slate-200 flex items-center gap-3 animate-float-2">
+                        <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center font-bold text-base">
+                            <i class="fa-solid fa-ruler-combined"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Matériaux</span>
+                            <span class="text-sm font-extrabold text-slate-900 font-mono">84,5 m² calculés</span>
+                        </div>
+                    </div>
+
+                    <!-- Carte 3 : Coût du projet (Haut Droite) -->
+                    <div class="absolute -top-6 -right-6 bg-white p-3.5 rounded-2xl shadow-floating border border-slate-200 flex items-center gap-3 animate-float-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Coût du projet</span>
+                            <span class="text-sm font-extrabold text-slate-900 font-mono">1 245 000 F</span>
+                        </div>
+                    </div>
+
+                    <!-- Carte 4 : Devis (Bas Droite) -->
+                    <div class="absolute -bottom-6 -right-6 bg-white p-3.5 rounded-2xl shadow-floating border border-slate-200 flex items-center gap-3 animate-float-4">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-ikablue flex items-center justify-center font-bold text-base">
+                            <i class="fa-solid fa-file-circle-check"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Devis</span>
+                            <span class="text-sm font-extrabold text-emerald-600 flex items-center gap-1">
+                                Prêt à envoyer <i class="fa-solid fa-check text-xs"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 3. BARRE MÉTIERS HORIZONTALE                       -->
+    <!-- ================================================== -->
+    <section class="border-y border-slate-200/90 bg-white py-8">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
+            <p class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500 mb-6">
+                Pensé pour ceux qui construisent, chiffrent et vendent des travaux.
+            </p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6 items-center justify-center">
+                
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-trowel-bricks"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Construction</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-paint-roller"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Peinture</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Métallerie</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-hammer"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Menuiserie</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Électricité</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-faucet-drip"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Plomberie</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-border-all"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Carrelage</span>
+                </div>
+
+                <div class="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div class="w-10 h-10 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-house-chimney-crack"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Rénovation</span>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 4. PROBLÈME / RENTABILITÉ                          -->
+    <!-- ================================================== -->
+    <section id="solutions" class="py-24 lg:py-32 bg-[#F2F7FE] relative">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-100 px-3 py-1 rounded-full">
+                    Maîtrise financière BTP
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+                    Un chantier rentable<br>commence avant le chantier.
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg leading-relaxed">
+                    Un mauvais devis ne se rattrape jamais sur le terrain. Sous-estimer les pertes, oublier les heures d'encadrement ou calculer une marge au hasard vous coûte des millions. ikadevis équilibre vos comptes dès la première minute.
+                </p>
+            </div>
+
+            <!-- BALANCE GRAPHIQUE MODERNE AU CENTRE -->
+            <div class="mt-16 max-w-4xl mx-auto bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/90 shadow-premium relative">
+                
+                <div class="grid grid-cols-1 md:grid-cols-11 gap-6 items-center">
+                    
+                    <!-- PLATEAU GAUCHE : COÛTS -->
+                    <div class="md:col-span-5 bg-slate-50 rounded-2xl p-6 border border-slate-200/80">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                            <span class="text-xs font-extrabold tracking-wider uppercase text-rose-600 flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-down"></i> Vos Coûts Réels
+                            </span>
+                            <span class="text-xs font-mono font-bold text-slate-500">Déboursé sec</span>
+                        </div>
+                        <ul class="mt-4 space-y-3 text-xs sm:text-sm font-semibold text-slate-700">
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-cubes text-slate-400"></i> Matériaux & Fournitures</span>
+                                <span class="font-mono font-bold text-slate-900">100% calculés</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-user-clock text-slate-400"></i> Main-d’œuvre & Taux horaires</span>
+                                <span class="font-mono font-bold text-slate-900">Au métré</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-truck text-slate-400"></i> Transport & Logistique</span>
+                                <span class="font-mono font-bold text-slate-900">Intégrés</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-trash-can text-slate-400"></i> Pertes & Chutes matières</span>
+                                <span class="font-mono font-bold text-amber-600">5 à 12% intégrés</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-building text-slate-400"></i> Frais généraux & Charges</span>
+                                <span class="font-mono font-bold text-slate-900">Coeff K paramétré</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- CENTRE : LE BALANCIER / PIVOT AVEC LOGO IKADEVIS -->
+                    <div class="md:col-span-1 flex flex-col items-center justify-center my-4 md:my-0">
+                        <div class="w-12 h-12 rounded-2xl bg-ikablue text-white flex items-center justify-center shadow-lg transform rotate-45">
+                            <span class="transform -rotate-45 font-extrabold text-sm">ika</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-ikablue mt-3 uppercase tracking-wider">Équilibre</span>
+                    </div>
+
+                    <!-- PLATEAU DROIT : PRIX DE VENTE & MARGE -->
+                    <div class="md:col-span-5 bg-ikablue-50/70 rounded-2xl p-6 border border-ikablue-200">
+                        <div class="flex items-center justify-between pb-3 border-b border-ikablue-200">
+                            <span class="text-xs font-extrabold tracking-wider uppercase text-ikablue-700 flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-up"></i> Prix de Vente
+                            </span>
+                            <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">Rentable</span>
+                        </div>
+                        <ul class="mt-4 space-y-3 text-xs sm:text-sm font-semibold text-slate-700">
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-line text-ikablue"></i> Taux de marge brute</span>
+                                <span class="font-mono font-extrabold text-emerald-600 text-base">+ 25% à 35%</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-sack-dollar text-ikablue"></i> Bénéfice net garanti</span>
+                                <span class="font-mono font-bold text-slate-900">Sécurisé</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-file-invoice text-ikablue"></i> Total Devis Client</span>
+                                <span class="font-mono font-bold text-slate-900">Chiffré au centime</span>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span class="flex items-center gap-2"><i class="fa-solid fa-shield-halved text-ikablue"></i> Zéro surprise chantier</span>
+                                <span class="font-mono font-bold text-slate-900">Sans dépassement</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- Phrase manuscrite premium -->
+                <div class="mt-8 text-center">
+                    <p class="font-hand text-2xl sm:text-3xl text-ikablue tracking-wide">
+                        “ De meilleurs devis pour des chantiers plus rentables. ”
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 5. WORKFLOW EN 5 ÉTAPES                            -->
+    <!-- ================================================== -->
+    <section id="fonctionnalites" class="py-24 lg:py-32 bg-white">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-20">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">
+                    Workflow BTP fluide
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+                    Du métré au devis, sans casser votre workflow.
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Chaque étape s'enchaîne mathématiquement : vos cotes génèrent les besoins réels en fournitures, les coûts de main-d’œuvre et un devis client prêt à signer.
+                </p>
+            </div>
+
+            <!-- LIGNE DE WORKFLOW 5 ÉTAPES -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 relative">
+                
+                <!-- ÉTAPE 01 : Métrer -->
+                <div class="relative bg-white rounded-2xl p-6 border border-slate-200/90 shadow-card hover:shadow-premium transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-2xl font-black text-ikablue-200 font-mono">01</span>
+                        <span class="w-8 h-8 rounded-lg bg-ikablue-50 text-ikablue flex items-center justify-center text-xs font-bold">
+                            <i class="fa-solid fa-ruler"></i>
+                        </span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-2">Métrer</h3>
+                    <p class="text-xs text-slate-500 mb-4">Saisissez les dimensions exactes de vos ouvrages sur plan ou chantier.</p>
+                    
+                    <!-- Illustration maison 3D avec mesures -->
+                    <div class="h-24 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center p-2 text-ikablue">
+                        <svg class="w-full h-full max-h-20" viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="50,10 85,25 50,40 15,25" fill="#F2F7FE" />
+                            <polygon points="15,25 50,40 50,55 15,40" fill="#E1EEFD" />
+                            <polygon points="85,25 50,40 50,55 85,40" fill="#C2DCFB" />
+                            <text x="25" y="20" font-size="6" fill="#1E64E2" font-weight="bold">12 m</text>
+                            <text x="65" y="20" font-size="6" fill="#1E64E2" font-weight="bold">8 m</text>
+                            <text x="54" y="50" font-size="6" fill="#1E64E2" font-weight="bold">3 m</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- ÉTAPE 02 : Calculer -->
+                <div class="relative bg-white rounded-2xl p-6 border border-slate-200/90 shadow-card hover:shadow-premium transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-2xl font-black text-ikablue-200 font-mono">02</span>
+                        <span class="w-8 h-8 rounded-lg bg-ikablue-50 text-ikablue flex items-center justify-center text-xs font-bold">
+                            <i class="fa-solid fa-calculator"></i>
+                        </span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-2">Calculer</h3>
+                    <p class="text-xs text-slate-500 mb-4">Décomposition automatique des recettes et besoins matières.</p>
+                    
+                    <!-- Carte de matériaux -->
+                    <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200 text-[10px] font-mono space-y-1 text-slate-700">
+                        <div class="flex justify-between font-sans"><span>Ciment</span><span class="font-bold">42 sacs</span></div>
+                        <div class="flex justify-between font-sans"><span>Sable</span><span class="font-bold">6 m³</span></div>
+                        <div class="flex justify-between font-sans"><span>Gravier</span><span class="font-bold">9 m³</span></div>
+                        <div class="flex justify-between font-sans"><span>Fer 10mm</span><span class="font-bold">18 barres</span></div>
+                    </div>
+                </div>
+
+                <!-- ÉTAPE 03 : Chiffrer -->
+                <div class="relative bg-white rounded-2xl p-6 border border-slate-200/90 shadow-card hover:shadow-premium transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-2xl font-black text-ikablue-200 font-mono">03</span>
+                        <span class="w-8 h-8 rounded-lg bg-ikablue-50 text-ikablue flex items-center justify-center text-xs font-bold">
+                            <i class="fa-solid fa-coins"></i>
+                        </span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-2">Chiffrer</h3>
+                    <p class="text-xs text-slate-500 mb-4">Application des coefficients de vente K et de votre marge nette.</p>
+                    
+                    <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200 text-[10px] space-y-1 text-slate-700">
+                        <div class="flex justify-between"><span>Déboursé sec</span><span class="font-mono font-bold">840 000 F</span></div>
+                        <div class="flex justify-between"><span>Charges K</span><span class="font-mono text-slate-500">× 1.25</span></div>
+                        <div class="flex justify-between text-emerald-600 font-bold"><span>Marge</span><span class="font-mono">+ 25%</span></div>
+                        <div class="flex justify-between border-t border-slate-200 pt-1 font-bold text-ikablue"><span>P.Vente</span><span class="font-mono">1 312 500 F</span></div>
+                    </div>
+                </div>
+
+                <!-- ÉTAPE 04 : Générer -->
+                <div class="relative bg-white rounded-2xl p-6 border border-slate-200/90 shadow-card hover:shadow-premium transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-2xl font-black text-ikablue-200 font-mono">04</span>
+                        <span class="w-8 h-8 rounded-lg bg-ikablue-50 text-ikablue flex items-center justify-center text-xs font-bold">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-2">Générer</h3>
+                    <p class="text-xs text-slate-500 mb-4">Production instantanée du devis commercial PDF professionnel.</p>
+                    
+                    <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200 flex flex-col items-center justify-center text-center py-3">
+                        <div class="w-7 h-9 bg-white border border-slate-300 rounded shadow-xs flex flex-col justify-between p-1 mb-1">
+                            <div class="w-full h-1 bg-ikablue rounded"></div>
+                            <div class="space-y-0.5"><div class="w-full h-0.5 bg-slate-200"></div><div class="w-2/3 h-0.5 bg-slate-200"></div></div>
+                            <div class="w-full h-1 bg-slate-800 rounded"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-wider">DEVIS PDF</span>
+                    </div>
+                </div>
+
+                <!-- ÉTAPE 05 : Facturer -->
+                <div class="relative bg-white rounded-2xl p-6 border border-slate-200/90 shadow-card hover:shadow-premium transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-2xl font-black text-ikablue-200 font-mono">05</span>
+                        <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </span>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-2">Facturer</h3>
+                    <p class="text-xs text-slate-500 mb-4">Transformation en acompte, situation de travaux ou solde en 1 clic.</p>
+                    
+                    <div class="bg-emerald-50/70 rounded-xl p-2.5 border border-emerald-200 flex flex-col items-center justify-center text-center py-3">
+                        <div class="w-7 h-9 bg-white border border-emerald-300 rounded shadow-xs flex flex-col justify-between p-1 mb-1">
+                            <div class="w-full h-1 bg-emerald-500 rounded"></div>
+                            <div class="space-y-0.5"><div class="w-full h-0.5 bg-slate-200"></div><div class="w-2/3 h-0.5 bg-slate-200"></div></div>
+                            <div class="w-full h-1 bg-emerald-700 rounded"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">FACTURE</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 6. SECTION DASHBOARD & ÉCOSYSTÈME                  -->
+    <!-- ================================================== -->
+    <section class="py-24 lg:py-32 bg-[#F2F7FE] border-t border-slate-200/80">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-16">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-100 px-3 py-1 rounded-full">
+                    Vue 360° Entreprise BTP
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+                    Toutes vos données BTP.<br>Un seul endroit.
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Pilotez l'ensemble de votre chaîne commerciale et technique sans jongler entre cinq outils différents.
+                </p>
+            </div>
+
+            <!-- ÉNORME DASHBOARD IKADEVIS AU CENTRE -->
+            <div class="max-w-5xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 lg:p-10 relative">
+                
+                <!-- KPI Bar -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pb-8 border-b border-slate-100">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Projets en cours</span>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 font-mono">14</div>
+                        <span class="text-[10px] font-semibold text-emerald-600">+ 3 ce mois-ci</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Devis émis</span>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 font-mono">48</div>
+                        <span class="text-[10px] font-semibold text-ikablue">Taux signature 68%</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Factures émises</span>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 font-mono">32</div>
+                        <span class="text-[10px] font-semibold text-emerald-600">94% encaissées</span>
+                    </div>
+                    <div class="bg-ikablue-50 p-4 rounded-2xl border border-ikablue-200">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-ikablue-700">Chiffre d’affaires</span>
+                        <div class="text-xl sm:text-2xl font-extrabold text-ikablue-900 mt-1 font-mono">84 250 000 F</div>
+                        <span class="text-[10px] font-semibold text-emerald-700 font-bold">+ 24% vs N-1</span>
+                    </div>
+                </div>
+
+                <!-- Graphique d'évolution & Donut de répartition des coûts -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8">
+                    
+                    <!-- Graphique CA (7 cols) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-bold text-slate-900">Évolution du Chiffre d'Affaires</h4>
+                            <span class="text-xs text-slate-500 font-mono">Semestre en cours</span>
+                        </div>
+                        <!-- SVG chart stylisé -->
+                        <div class="h-56 bg-slate-50 rounded-2xl border border-slate-200/80 p-4 flex flex-col justify-end relative overflow-hidden">
+                            <svg class="w-full h-36" viewBox="0 0 300 100" fill="none">
+                                <path d="M0,80 Q50,60 100,65 T200,35 T300,15 L300,100 L0,100 Z" fill="url(#blueGradient)" opacity="0.4" />
+                                <path d="M0,80 Q50,60 100,65 T200,35 T300,15" stroke="#3880F3" stroke-width="3.5" stroke-linecap="round" />
+                                <defs>
+                                    <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#3880F3" stop-opacity="0.5"/>
+                                        <stop offset="100%" stop-color="#3880F3" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="flex justify-between text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-200">
+                                <span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Donut Répartition des Coûts (5 cols) -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-bold text-slate-900">Répartition des Coûts</h4>
+                            <span class="text-xs text-slate-500 font-mono">Moyenne chantiers</span>
+                        </div>
+                        <div class="h-56 bg-slate-50 rounded-2xl border border-slate-200/80 p-4 flex items-center justify-center gap-6">
+                            <!-- Donut SVG -->
+                            <div class="relative w-32 h-32 shrink-0">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#E2E8F0" stroke-width="4.5"></circle>
+                                    <!-- Matériaux (48%) -->
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#3880F3" stroke-width="4.5" stroke-dasharray="42 100"></circle>
+                                    <!-- MO (32%) -->
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="28 100" stroke-dashoffset="-42"></circle>
+                                    <!-- Charges (14%) -->
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="14 100" stroke-dashoffset="-70"></circle>
+                                    <!-- Autres (6%) -->
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#8B5CF6" stroke-width="4.5" stroke-dasharray="6 100" stroke-dashoffset="-84"></circle>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold">Total</span>
+                                    <span class="text-xs font-black text-slate-900 font-mono">100%</span>
+                                </div>
+                            </div>
+                            <!-- Légende -->
+                            <div class="space-y-1.5 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-ikablue"></span>
+                                    <span class="text-slate-600 font-medium">Matériaux (48%)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                                    <span class="text-slate-600 font-medium">Main-d’œuvre (32%)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                    <span class="text-slate-600 font-medium">Charges (14%)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                                    <span class="text-slate-600 font-medium">Autres (6%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- 6 PETITES CARTES CONNECTÉES AUTOUR -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-5xl mx-auto mt-8">
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-ikablue-50 text-ikablue mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Clients</span>
+                    <span class="text-[10px] text-slate-400">CRM & Contacts</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-ikablue-50 text-ikablue mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Catalogue</span>
+                    <span class="text-[10px] text-slate-400">Ouvrages & Recettes</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-ikablue-50 text-ikablue mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Matériaux</span>
+                    <span class="text-[10px] text-slate-400">Mercuriale & Prix</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-ikablue-50 text-ikablue mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-folder-tree"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Projets</span>
+                    <span class="text-[10px] text-slate-400">Chantiers & Lots</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-ikablue-50 text-ikablue mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Devis & Factures</span>
+                    <span class="text-[10px] text-slate-400">Cycle commercial</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center shadow-xs hover:border-ikablue transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center text-sm mb-2">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 block">Marges</span>
+                    <span class="text-[10px] text-slate-400">Rentabilité réelle</span>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 7. SECTION 3 COLONNES COMPARATIVES                 -->
+    <!-- ================================================== -->
+    <section class="py-24 lg:py-32 bg-white">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 space-y-16">
+            
+            <!-- BLOC 1 : Étude technique vs Devis client -->
+            <div class="bg-slate-50 rounded-3xl p-8 sm:p-12 border border-slate-200">
+                <div class="max-w-2xl mb-8">
+                    <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">Transparence interne & clarté client</span>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+                        Votre client voit le prix.<br>Vous voyez tout ce qu’il y a derrière.
+                    </h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-11 gap-6 items-center">
+                    <!-- Gauche : Étude technique interne -->
+                    <div class="md:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-xs font-mono">
+                        <div class="font-sans font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-microscope text-ikablue"></i> Étude technique interne
+                        </div>
+                        <div class="mt-3 space-y-2 text-slate-600">
+                            <div class="flex justify-between"><span>Ciment CPJ</span><span class="font-bold">42 000 F</span></div>
+                            <div class="flex justify-between"><span>Fer à béton</span><span class="font-bold">28 500 F</span></div>
+                            <div class="flex justify-between"><span>Peinture sous-couche</span><span class="font-bold">18 000 F</span></div>
+                            <div class="flex justify-between"><span>Main-d’œuvre pose</span><span class="font-bold">35 000 F</span></div>
+                            <div class="flex justify-between"><span>Transport chantier</span><span class="font-bold">12 000 F</span></div>
+                            <div class="flex justify-between text-amber-600"><span>Pertes matériaux (8%)</span><span class="font-bold">7 200 F</span></div>
+                            <div class="flex justify-between text-emerald-600 font-bold border-t border-slate-100 pt-1"><span>Marge brute (25%)</span><span>+ 35 675 F</span></div>
+                        </div>
+                    </div>
+                    <!-- Flèche de transformation -->
+                    <div class="md:col-span-1 text-center text-ikablue font-bold text-xl my-2 md:my-0">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                    <!-- Droite : Devis client propre et minimaliste -->
+                    <div class="md:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-xs">
+                        <div class="font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice text-emerald-600"></i> Devis client propre et minimaliste
+                        </div>
+                        <div class="mt-3 space-y-3">
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="font-bold text-slate-900 block text-xs">Ouvrage : Réalisation mur de refend en maçonnerie</span>
+                                <span class="text-slate-500 text-[11px] block mt-0.5">Fourniture et pose conforme au CCTP y compris armatures et finitions.</span>
+                                <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-200 text-xs">
+                                    <span class="text-slate-500">Quantité : 24 m²</span>
+                                    <span class="font-mono font-bold text-slate-900">Total : 178 375 FCFA</span>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-400 italic text-center">Aucune formule ou marge interne n'est exposée au client.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BLOC 2 : Excel vs ikadevis -->
+            <div class="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-premium">
+                <div class="max-w-2xl mb-8">
+                    <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">Fiabilité & Sérénité</span>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+                        Excel calcule.<br>ikadevis comprend votre chantier.
+                    </h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Avec des fichiers classiques -->
+                    <div class="bg-rose-50/50 p-6 rounded-2xl border border-rose-100">
+                        <h4 class="font-extrabold text-rose-900 text-sm mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel text-rose-500"></i> Avec des fichiers classiques
+                        </h4>
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5 text-rose-800 font-medium">
+                                <i class="fa-solid fa-xmark text-rose-500 font-bold"></i> Plusieurs fichiers dispersés par chantier
+                            </li>
+                            <li class="flex items-center gap-2.5 text-rose-800 font-medium">
+                                <i class="fa-solid fa-xmark text-rose-500 font-bold"></i> Formules fragiles et erreurs de copier-coller
+                            </li>
+                            <li class="flex items-center gap-2.5 text-rose-800 font-medium">
+                                <i class="fa-solid fa-xmark text-rose-500 font-bold"></i> Données dispersées et prix obsolètes
+                            </li>
+                            <li class="flex items-center gap-2.5 text-rose-800 font-medium">
+                                <i class="fa-solid fa-xmark text-rose-500 font-bold"></i> Calculs à refaire à chaque nouveau projet
+                            </li>
+                            <li class="flex items-center gap-2.5 text-rose-800 font-medium">
+                                <i class="fa-solid fa-xmark text-rose-500 font-bold"></i> Peu de traçabilité entre devis et facture
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Avec ikadevis -->
+                    <div class="bg-ikablue-50/50 p-6 rounded-2xl border border-ikablue-200">
+                        <h4 class="font-extrabold text-ikablue-900 text-sm mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-check-double text-ikablue"></i> Avec ikadevis
+                        </h4>
+                        <ul class="space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5 text-ikablue-950 font-semibold">
+                                <i class="fa-solid fa-check text-ikablue font-bold"></i> Workflow centralisé et sécurisé dans le cloud
+                            </li>
+                            <li class="flex items-center gap-2.5 text-ikablue-950 font-semibold">
+                                <i class="fa-solid fa-check text-ikablue font-bold"></i> Calculs structurés et chaînage mathématique
+                            </li>
+                            <li class="flex items-center gap-2.5 text-ikablue-950 font-semibold">
+                                <i class="fa-solid fa-check text-ikablue font-bold"></i> Catalogue et mercuriale de prix réutilisables
+                            </li>
+                            <li class="flex items-center gap-2.5 text-ikablue-950 font-semibold">
+                                <i class="fa-solid fa-check text-ikablue font-bold"></i> Marges et déboursés secs visibles en direct
+                            </li>
+                            <li class="flex items-center gap-2.5 text-ikablue-950 font-semibold">
+                                <i class="fa-solid fa-check text-ikablue font-bold"></i> Historique des projets et facturation instantanée
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BLOC 3 : Prévisionnel & Marge avant de signer -->
+            <div class="bg-slate-50 rounded-3xl p-8 sm:p-12 border border-slate-200">
+                <div class="max-w-2xl mb-8">
+                    <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">Maîtrise du résultat</span>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+                        Sachez ce que vous gagnez<br>avant de signer.
+                    </h3>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-[11px] font-bold uppercase text-slate-400 block">Montant vendu</span>
+                        <span class="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono mt-1 block">3 500 000 F</span>
+                        <span class="text-[10px] text-slate-500">Prix total client HT</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                        <span class="text-[11px] font-bold uppercase text-slate-400 block">Coût estimé</span>
+                        <span class="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono mt-1 block">2 760 000 F</span>
+                        <span class="text-[10px] text-slate-500">Matériaux, MO & charges</span>
+                    </div>
+                    <div class="bg-emerald-50 p-5 rounded-2xl border border-emerald-200 shadow-xs">
+                        <span class="text-[11px] font-bold uppercase text-emerald-700 block">Marge nette</span>
+                        <span class="text-xl sm:text-2xl font-extrabold text-emerald-700 font-mono mt-1 block">740 000 F</span>
+                        <span class="text-[10px] text-emerald-600 font-bold">Bénéfice sécurisé</span>
+                    </div>
+                    <div class="bg-ikablue-50 p-5 rounded-2xl border border-ikablue-200 shadow-xs">
+                        <span class="text-[11px] font-bold uppercase text-ikablue-700 block">Taux de marge</span>
+                        <span class="text-xl sm:text-2xl font-extrabold text-ikablue-900 font-mono mt-1 block">21,1 %</span>
+                        <span class="text-[10px] text-ikablue-600 font-bold">Rentabilité optimale</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 8. MÉTIERS BTP                                     -->
+    <!-- ================================================== -->
+    <section id="metiers" class="py-24 lg:py-32 bg-[#F2F7FE] border-t border-slate-200/90">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-16">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-100 px-3 py-1 rounded-full">
+                    Spécificités Artisanales & BTP
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+                    Un ERP qui s’adapte à votre métier.
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Chaque corps d'état possède ses règles de calcul, ses unités et ses pertes matières. ikadevis intègre vos formules spécifiques.
+                </p>
+            </div>
+
+            <!-- GRILLE DE 10 CARTES MÉTIERS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-trowel-bricks"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Construction générale</h3>
+                    <p class="text-xs text-slate-500">Gros œuvre, fondations, béton armé, parpaings et ferraillage au m³.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-paint-roller"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Peinture</h3>
+                    <p class="text-xs text-slate-500">Sous-couches, finitions m², calcul automatique des pots et rendements L/m².</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Métallerie</h3>
+                    <p class="text-xs text-slate-500">Tubes, cornières, grilles, barres d'acier au mètre linéaire et poids kg.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-hammer"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Menuiserie</h3>
+                    <p class="text-xs text-slate-500">Portes, fenêtres, placards, bois massif et découpes avec chutes matières.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-faucet-drip"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Plomberie</h3>
+                    <p class="text-xs text-slate-500">Tuyauteries, raccords, sanitaires, débits et métré de tuyaux cuivre/PER.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Électricité</h3>
+                    <p class="text-xs text-slate-500">Points lumineux, prises, tableaux, câblages ml et appareillages modulaires.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-border-all"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Carrelage</h3>
+                    <p class="text-xs text-slate-500">Surface au sol/mural, colle, joints, calcul des cartons et calepinage.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-snowflake"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Climatisation</h3>
+                    <p class="text-xs text-slate-500">Splits, gainables, liaisons frigorifiques, puissance BTU et tirage au vide.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-signs-post"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Signalétique</h3>
+                    <p class="text-xs text-slate-500">Panneaux alu, découpe vinyle, caissons lumineux et pose sur site.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 hover:border-ikablue transition-all shadow-xs hover:shadow-card">
+                    <div class="w-12 h-12 rounded-xl bg-ikablue-50 text-ikablue flex items-center justify-center text-xl mb-4">
+                        <i class="fa-solid fa-house-chimney-crack"></i>
+                    </div>
+                    <h3 class="text-base font-extrabold text-slate-900 mb-1">Rénovation</h3>
+                    <p class="text-xs text-slate-500">Démolition, réhabilitation tous corps d'état, coordination et réagréage.</p>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 9. PRICING                                         -->
+    <!-- ================================================== -->
+    <section id="tarifs" class="py-24 lg:py-32 bg-white">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-20">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">
+                    Tarifs clairs & transparents
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+                    Des offres adaptées à votre activité.
+                </h2>
+                <p class="text-slate-600 text-base sm:text-lg">
+                    Démarrez gratuitement, sans engagement ni carte bancaire. Évoluez au rythme de vos chantiers.
+                </p>
+            </div>
+
+            <!-- GRILLE 4 CARTES PRICING CÔTE À CÔTE -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+                
+                <!-- 1. GRATUIT -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-card flex flex-col justify-between hover:border-slate-300 transition-all">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">1. GRATUIT</span>
+                        <div class="mt-4 mb-2">
+                            <span class="text-4xl font-extrabold text-slate-900 font-mono">0 F</span>
+                        </div>
+                        <p class="text-xs text-slate-500 pb-6 border-b border-slate-100">Pour découvrir ikadevis.</p>
+                        <ul class="mt-6 space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> 1 utilisateur</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Projets limités</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Clients</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Devis</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Calculs essentiels</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Catalogue limité</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> PDF standard</li>
+                        </ul>
+                    </div>
+                    <div class="pt-8">
+                        <a href="index.html" class="w-full inline-flex items-center justify-center text-sm font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 py-3.5 rounded-xl transition-all">
+                            Commencer gratuitement
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 2. PRO -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-card flex flex-col justify-between hover:border-slate-300 transition-all">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">2. PRO</span>
+                        <div class="mt-4 mb-2">
+                            <span class="text-3xl font-extrabold text-slate-900 font-mono">Sur mesure</span>
+                        </div>
+                        <p class="text-xs text-slate-500 pb-6 border-b border-slate-100">Pour l’artisan et l’indépendant.</p>
+                        <ul class="mt-6 space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Devis illimités</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Facturation</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Catalogue complet</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Matériaux et ressources</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Calcul des marges</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Personnalisation</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Historique des projets</li>
+                        </ul>
+                    </div>
+                    <div class="pt-8">
+                        <a href="index.html" class="w-full inline-flex items-center justify-center text-sm font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 py-3.5 rounded-xl transition-all">
+                            Passer à Pro
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. BUSINESS (Le plus choisi - Mis en évidence) -->
+                <div class="bg-white rounded-3xl p-8 border-2 border-ikablue shadow-floating flex flex-col justify-between relative transform lg:-translate-y-2">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-ikablue text-white text-[11px] font-extrabold uppercase px-4 py-1 rounded-full shadow-sm tracking-wider">
+                        Le plus choisi
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-ikablue">3. BUSINESS</span>
+                        <div class="mt-4 mb-2">
+                            <span class="text-3xl font-extrabold text-slate-900 font-mono">Entreprise PME</span>
+                        </div>
+                        <p class="text-xs text-slate-500 pb-6 border-b border-slate-100">Pour les équipes et gestion d'affaires.</p>
+                        <ul class="mt-6 space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5 font-semibold text-slate-900"><i class="fa-solid fa-check text-ikablue text-xs"></i> Tout Pro</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Plusieurs utilisateurs</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Gestion des affaires</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Bibliothèque partagée</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Rôles et permissions</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Dashboard avancé</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Suivi des coûts</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Gestion d’équipe</li>
+                        </ul>
+                    </div>
+                    <div class="pt-8">
+                        <a href="index.html" class="w-full inline-flex items-center justify-center text-sm font-bold text-white bg-ikablue hover:bg-ikablue-600 py-3.5 rounded-xl transition-all shadow-sm active:scale-95">
+                            Choisir Business
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 4. ENTREPRISE -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-card flex flex-col justify-between hover:border-slate-300 transition-all">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">4. ENTREPRISE</span>
+                        <div class="mt-4 mb-2">
+                            <span class="text-3xl font-extrabold text-slate-900 font-mono">Grands comptes</span>
+                        </div>
+                        <p class="text-xs text-slate-500 pb-6 border-b border-slate-100">Pour les structures avancées.</p>
+                        <ul class="mt-6 space-y-3 text-xs sm:text-sm text-slate-700">
+                            <li class="flex items-center gap-2.5 font-semibold text-slate-900"><i class="fa-solid fa-check text-ikablue text-xs"></i> Tout Business</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Utilisateurs étendus</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Permissions avancées</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Import de données</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Paramétrage personnalisé</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Accompagnement</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Intégrations</li>
+                            <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-ikablue text-xs"></i> Support prioritaire</li>
+                        </ul>
+                    </div>
+                    <div class="pt-8">
+                        <a href="mailto:contact@ikadevis.com" class="w-full inline-flex items-center justify-center text-sm font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 py-3.5 rounded-xl transition-all">
+                            Parler à l’équipe
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 10. PREUVES DU TERRAIN                             -->
+    <!-- ================================================== -->
+    <section class="py-24 bg-[#F2F7FE] border-t border-slate-200/90">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-16">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-100 px-3 py-1 rounded-full">
+                    Impact Mesurable
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                    Une plateforme construite<br>autour de la réalité du terrain.
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                
+                <!-- Carte 1 -->
+                <div class="bg-white rounded-2xl p-8 border border-slate-200 text-center shadow-sm">
+                    <div class="w-14 h-14 rounded-2xl bg-ikablue-50 text-ikablue flex items-center justify-center text-2xl mx-auto mb-5">
+                        <i class="fa-solid fa-stopwatch"></i>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-2">Moins de temps à calculer</h3>
+                    <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                        Passez de 4 heures de saisie manuelle à 15 minutes grâce aux recettes d'ouvrages pré-paramétrées.
+                    </p>
+                </div>
+
+                <!-- Carte 2 -->
+                <div class="bg-white rounded-2xl p-8 border border-slate-200 text-center shadow-sm">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl mx-auto mb-5">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-2">Moins d’erreurs de chiffrage</h3>
+                    <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                        Finis les oublis de fournitures ou d'heures de pose. Vos déboursés sont verrouillés et conformes.
+                    </p>
+                </div>
+
+                <!-- Carte 3 -->
+                <div class="bg-white rounded-2xl p-8 border border-slate-200 text-center shadow-sm">
+                    <div class="w-14 h-14 rounded-2xl bg-blue-50 text-ikablue flex items-center justify-center text-2xl mx-auto mb-5">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-2">Une meilleure visibilité sur les marges</h3>
+                    <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                        Sachez exactement combien chaque lot et chaque chantier rapporte à votre entreprise.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 11. FAQ ACCORDÉON INTERACTIVE                      -->
+    <!-- ================================================== -->
+    <section id="faq" class="py-24 lg:py-32 bg-white">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="max-w-3xl mx-auto text-center space-y-4 mb-16">
+                <span class="text-xs font-bold uppercase tracking-wider text-ikablue bg-ikablue-50 px-3 py-1 rounded-full">
+                    Réponses claires
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                    Questions fréquentes.
+                </h2>
+            </div>
+
+            <div class="max-w-3xl mx-auto space-y-4">
+                
+                <!-- Q1 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>ikadevis est-il uniquement destiné aux grandes entreprises ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        Non, absolument pas. ikadevis a été pensé en priorité pour les artisans, micro-entreprises et PME du bâtiment qui ont besoin d'un outil rapide, clair et sans usine à gaz, tout en offrant la puissance de calcul des grands bureaux d'études.
+                    </div>
+                </div>
+
+                <!-- Q2 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>Puis-je commencer gratuitement ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        Oui. Vous pouvez utiliser le plan Gratuit sans carte bancaire ni limitation de durée pour tester les calculs, créer vos premiers devis et découvrir l'ergonomie de l'ERP.
+                    </div>
+                </div>
+
+                <!-- Q3 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>Est-ce que mes clients voient ma marge ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        Jamais. Votre étude de prix interne (déboursé sec, main-d'œuvre horaire, marge nette et coefficient K) reste strictement confidentielle. Les devis générés pour vos clients n'affichent que des désignations d'ouvrages claires et les montants de vente finaux.
+                    </div>
+                </div>
+
+                <!-- Q4 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>Puis-je créer mes propres matériaux et ouvrages ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        Oui. ikadevis intègre une mercuriale entièrement personnalisable : vous pouvez saisir vos prix fournisseurs réels, créer vos recettes sur-mesure et adapter les ratios de dosage à vos habitudes de chantier.
+                    </div>
+                </div>
+
+                <!-- Q5 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>Puis-je transformer un devis en facture ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        En un seul clic. Dès qu'un devis est validé, vous pouvez générer une facture d'acompte, des situations d'avancement au fur et à mesure des travaux, ou la facture de solde finale avec numérotation légale automatique.
+                    </div>
+                </div>
+
+                <!-- Q6 -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden transition-all faq-item">
+                    <button type="button" class="w-full px-6 py-5 text-left font-bold text-slate-900 flex justify-between items-center hover:bg-slate-50 transition-colors" onclick="toggleFaq(this)">
+                        <span>Puis-je utiliser ikadevis sur téléphone ?</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                        Absolument. ikadevis est une Progressive Web App (PWA) conçue avec une interface mobile dédiée très réactive. Vous pouvez chiffrer directement sur le chantier, relever vos métrés et consulter vos affaires depuis votre smartphone.
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 12. CTA FINAL                                      -->
+    <!-- ================================================== -->
+    <section class="relative bg-ikablue py-20 lg:py-24 overflow-hidden">
+        
+        <!-- Silhouettes vectorielles d'immeubles & grues en fond -->
+        <div class="absolute inset-0 opacity-10 pointer-events-none text-white">
+            <svg class="w-full h-full" viewBox="0 0 1440 300" fill="none" preserveAspectRatio="none">
+                <path d="M50,300 L50,120 L120,120 L120,300" fill="currentColor" />
+                <path d="M140,300 L140,80 L230,80 L230,300" fill="currentColor" />
+                <path d="M250,300 L250,150 L320,150 L320,300" fill="currentColor" />
+                <line x1="280" y1="150" x2="280" y2="40" stroke="currentColor" stroke-width="2" />
+                <line x1="220" y1="40" x2="360" y2="40" stroke="currentColor" stroke-width="2" />
+                <path d="M1200,300 L1200,90 L1280,90 L1280,300" fill="currentColor" />
+                <path d="M1300,300 L1300,140 L1390,140 L1390,300" fill="currentColor" />
+            </svg>
+        </div>
+
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 text-center relative z-10 space-y-6">
+            
+            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                Votre prochain chantier mérite<br>un meilleur chiffrage.
+            </h2>
+
+            <p class="text-white/80 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+                Centralisez vos calculs, maîtrisez vos coûts et créez des devis professionnels avec ikadevis.
+            </p>
+
+            <div class="pt-4">
+                <a href="index.html" class="inline-flex items-center justify-center text-base font-extrabold bg-white hover:bg-slate-100 text-ikablue px-8 py-4 rounded-xl shadow-floating transition-all active:scale-95">
+                    Créer mon compte gratuitement
+                </a>
+            </div>
+
+            <p class="text-xs text-white/70 font-medium">
+                Aucune carte bancaire requise
+            </p>
+
+            <p class="font-hand text-2xl sm:text-3xl text-white/90 pt-4">
+                “ Du métré à la rentabilité. ”
+            </p>
+
+        </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- 13. FOOTER                                         -->
+    <!-- ================================================== -->
+    <footer class="bg-white border-t border-slate-200 py-16">
+        <div class="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12">
+            
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-8 pb-12 border-b border-slate-100">
+                
+                <!-- Colonne Marque -->
+                <div class="col-span-2 space-y-4">
+                    <a href="#" class="flex items-center gap-2" title="ikadevis">
+                        <svg class="h-7 w-auto text-ikablue" viewBox="23.39 9.60 335.00 104.23" fill="currentColor" stroke="currentColor" stroke-width="0.55" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                            <polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/>
+                            <path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/>
+                            <g>
+                                <g>
+                                    <path d="M227.64,93.27c-9.57.55-16.75-6.81-16.63-16.13.12-9.14,7.29-16.17,16.53-15.61,3.88.24,7.25,1.61,10.26,4.48l.02-16.97,5.67-.05v43.92s-5.65-.03-5.65-.03l-.12-4c-2.81,2.8-6.12,4.14-10.09,4.37ZM222.29,86.76c3.82,1.96,8.32,1.44,11.57-1.07,3.62-2.8,4.86-7.42,3.43-11.69-1.35-4.01-5.13-6.9-9.41-7.12s-8.58,2.12-10.24,6.3c-2.02,5.09-.38,11,4.65,13.58Z"/>
+                                    <path d="M198.38,93l-.14-4.19c-3.5,3.54-7.92,4.81-12.62,4.4-5.6-.49-10.37-3.78-12.66-8.95-1.9-4.29-1.95-8.99-.18-13.35,2.17-5.36,7.04-8.77,12.76-9.33,4.83-.47,9.24,1.09,12.71,4.43l.09-3.77h5.71s0,30.59,0,30.59l-5.67.16ZM188.05,87.91c2.78-.11,5.1-1.01,7.03-2.81,3.81-3.53,4.32-9.35,1.5-13.55s-8.2-5.85-13.04-3.84c-4.19,1.74-6.53,5.99-6.24,10.5.36,5.69,4.87,9.92,10.74,9.69Z"/>
+                                    <path d="M265.87,88.38c3.91.06,7.16-1.38,9.43-4.7l4.38,2.83c-2.83,4.55-7.53,6.7-12.57,7.01-9.49.59-16.93-6.43-17.07-15.85-.13-9.1,6.82-16.17,15.99-16.06,9.63.11,16.17,7.75,15.36,17.49h-25.53c.48,5.26,4.56,9.19,10.01,9.27ZM275.63,74.6c-.92-4.99-5.02-7.81-9.64-7.86-4.86-.07-9.12,3.13-9.95,7.89l19.59-.03Z"/>
+                                    <polygon points="169.93 92.83 162.53 92.91 150.93 79.81 146.19 84.26 146.08 92.9 140.41 92.92 140.4 49.09 146.15 49.09 146.16 77.02 160.82 62.32 168.44 62.35 154.78 75.94 169.93 92.83"/>
+                                    <path d="M351.06,91.97c-5.52,2.93-14.01,1.79-18.64-2.96l3.01-3.88c4.27,4.26,13.06,4.8,14.13.57.35-1.36-.03-3.09-1.41-3.74l-4.18-1.97c-4.1-1.93-10.48-3.22-10.01-10.13.19-2.75,1.63-5.3,4.34-6.62,5.4-2.64,11.95-1.88,16.57,2.15l-3.03,3.75c-4.13-3.52-11.61-3.33-12.12.63-.19,1.49.58,2.91,2.06,3.55l8.58,3.7c3.62,1.56,5.49,5.04,4.93,8.87-.39,2.64-1.81,4.8-4.21,6.08Z"/>
+                                    <polygon points="307.68 62.33 313.73 62.3 300.75 92.9 296.18 93.01 283.17 62.31 289.23 62.26 298.49 85.31 307.68 62.33"/>
+                                    <polygon points="325.87 92.86 320.14 92.97 320.14 62.3 325.87 62.28 325.87 92.86"/>
+                                    <polygon points="130.67 92.79 124.98 92.89 124.97 62.29 130.66 62.27 130.67 92.79"/>
+                                </g>
+                                <path d="M127.04,50.08c2.16-.46,4.08.9,4.44,2.84s-.72,4.01-2.84,4.42c-1.84.35-3.91-.71-4.34-2.65s.44-4.13,2.75-4.61Z"/>
+                                <path d="M322.27,50.08c2.2-.46,4.02.94,4.4,2.91s-.82,3.94-2.82,4.36-3.87-.72-4.33-2.61c-.48-2,.46-4.19,2.75-4.66Z"/>
+                            </g>
+                        </svg>
+                    </a>
+                    <p class="text-xs text-slate-500 leading-relaxed max-w-sm">
+                        L’ERP nouvelle génération pensé pour les artisans, chefs de chantier et entreprises du BTP. Du métré au devis jusqu'à la facturation.
+                    </p>
+                    <div class="flex items-center gap-3 text-slate-400 text-sm">
+                        <a href="#" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-ikablue hover:text-white flex items-center justify-center transition-colors"><i class="fa-brands fa-linkedin-in"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-ikablue hover:text-white flex items-center justify-center transition-colors"><i class="fa-brands fa-youtube"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-ikablue hover:text-white flex items-center justify-center transition-colors"><i class="fa-brands fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <!-- Colonne Produit -->
+                <div class="space-y-3 text-xs">
+                    <span class="font-extrabold text-slate-900 uppercase tracking-wider block">Produit</span>
+                    <ul class="space-y-2 text-slate-600">
+                        <li><a href="#fonctionnalites" class="hover:text-ikablue">Fonctionnalités</a></li>
+                        <li><a href="#tarifs" class="hover:text-ikablue">Tarifs</a></li>
+                        <li><a href="index.html" class="hover:text-ikablue">Connexion</a></li>
+                    </ul>
+                </div>
+
+                <!-- Colonne Solutions -->
+                <div class="space-y-3 text-xs">
+                    <span class="font-extrabold text-slate-900 uppercase tracking-wider block">Solutions</span>
+                    <ul class="space-y-2 text-slate-600">
+                        <li><a href="#metiers" class="hover:text-ikablue">Artisans</a></li>
+                        <li><a href="#metiers" class="hover:text-ikablue">PME</a></li>
+                        <li><a href="#metiers" class="hover:text-ikablue">Entreprises</a></li>
+                    </ul>
+                </div>
+
+                <!-- Colonne Ressources -->
+                <div class="space-y-3 text-xs">
+                    <span class="font-extrabold text-slate-900 uppercase tracking-wider block">Ressources</span>
+                    <ul class="space-y-2 text-slate-600">
+                        <li><a href="#" class="hover:text-ikablue">Centre d’aide</a></li>
+                        <li><a href="#" class="hover:text-ikablue">Documentation</a></li>
+                        <li><a href="mailto:contact@ikadevis.com" class="hover:text-ikablue">Contact</a></li>
+                    </ul>
+                </div>
+
+                <!-- Colonne Légal -->
+                <div class="space-y-3 text-xs">
+                    <span class="font-extrabold text-slate-900 uppercase tracking-wider block">Légal</span>
+                    <ul class="space-y-2 text-slate-600">
+                        <li><a href="conditions.html" class="hover:text-ikablue">Conditions générales</a></li>
+                        <li><a href="confidentialite.html" class="hover:text-ikablue">Confidentialité</a></li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- Sous-footer -->
+            <div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+                <p>© 2026 ikadevis. Tous droits réservés.</p>
+                <div class="flex items-center gap-2 text-slate-600">
+                    <i class="fa-solid fa-globe text-xs text-slate-400"></i>
+                    <select class="bg-transparent border-none text-xs font-semibold focus:outline-none cursor-pointer">
+                        <option>Français (FR)</option>
+                        <option>English (EN)</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+    </footer>
+
+    <!-- Script minimal pour l'accordéon FAQ interactif -->
+    <script>
+        function toggleFaq(btn) {
+            const item = btn.closest('.faq-item');
+            const content = item.querySelector('.faq-content');
+            const icon = btn.querySelector('i');
+            const isClosed = content.classList.contains('hidden');
+
+            // Fermer les autres accordéons
+            document.querySelectorAll('.faq-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.faq-item i').forEach(el => el.classList.remove('rotate-180'));
+
+            if (isClosed) {
+                content.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            }
+        }
+    </script>
+</body>
+</html>
