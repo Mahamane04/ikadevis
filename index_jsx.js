@@ -23063,6 +23063,52 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 );
     };
 
+    // 2026-09-16 — « Mes devis » n'offrait aucun moyen de démarrer un devis :
+    // il fallait passer par « Chiffrage », qui rouvre le chiffrage EN COURS et
+    // non un devis neuf. Deux conséquences constatées : on croyait repartir de
+    // zéro en modifiant en fait l'ancien, et on ne voyait jamais la liste avant
+    // de créer — d'où les doublons. Le point de départ vit donc ici, au-dessus
+    // de la liste qu'il faut justement consulter d'abord.
+    //
+    // Le bump de `seqRestauration` n'est pas décoratif : QuoteWorkspace tient
+    // son propre `hasUnsavedChanges`, initialisé AU MONTAGE depuis
+    // `initialDirty`. Sans remontage, le devis neuf hériterait de l'indicateur
+    // du précédent — le mensonge que documente déjà `reprendreBrouillon`.
+    const demarrerNouveauDevis = () => {
+        const lancer = () => {
+            const numero = generateNextQuoteNumber(savedQuotes);
+            setHybridQuote({
+                id: Date.now(),
+                serverId: null,
+                number: numero,
+                clientId: null, clientName: '',
+                projectId: null, projectRef: '',
+                status: 'draft',
+                vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
+                discountRate: 0, notes: '',
+                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation de Chantier', items: [] }]
+            });
+            setDevisNonEnregistre(false);
+            setSeqRestauration(n => n + 1);
+            setViewingSavedQuote(null);
+            setActiveView('calculator');
+            showToast(`Nouveau devis vierge (${numero})`);
+        };
+        // Le chiffrage ouvert peut porter des heures de saisie : on ne l'écrase
+        // pas sans le dire, exactement comme `naviguerVers` le fait en sortie.
+        if (!devisNonEnregistre) { lancer(); return; }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Abandonner le chiffrage en cours ?',
+            message: 'Le chiffrage ouvert contient des modifications qui ne sont pas enregistrées.\n\nDémarrer un nouveau devis les laisse de côté.',
+            confirmLabel: 'Nouveau devis',
+            secondaryLabel: 'Reprendre le chiffrage',
+            isDanger: true,
+            onConfirm: () => { closeConfirm(); lancer(); },
+            onSecondary: () => { closeConfirm(); setActiveView('calculator'); }
+        });
+    };
+
     const renderSavedQuotes = () => {
         const canViewInternalDocs = activeOrganizationRole === 'owner'
             || (companyInfo.internalDocRoles || ['admin']).includes(activeOrganizationRole);
@@ -23202,6 +23248,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             {visibleQuotes.length} résultat(s) · prochain {generateNextQuoteNumber(savedQuotes)}
                         </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={demarrerNouveauDevis}
+                        disabled={isReadOnlyDueToDowngrade}
+                        className="btn-primary text-xs py-2 px-3.5 font-bold shrink-0 disabled:opacity-50"
+                        title="Démarrer un devis vierge et ouvrir le chiffrage"
+                    >
+                        <i className="fa-solid fa-plus mr-1.5"></i>
+                        Nouveau devis
+                    </button>
                 </div>
 
                 <div className="app-card p-2.5 space-y-2">
