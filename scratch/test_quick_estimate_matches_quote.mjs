@@ -33,7 +33,15 @@ export async function run() {
         await enterGuestMode(page, { demo: true });
         await wait(2400);
         await page.evaluate(() => {
-            const b = [...document.querySelectorAll('button')].find((x) => /Nouveau devis/i.test(x.textContent || ''));
+            // 2026-09-16 — « Nouveau devis » n'est plus un libellé unique dans la
+            // page : la barre latérale en porte un depuis que le Chiffrage a
+            // cessé d'être une destination, et il PRÉCÈDE celui-ci dans l'ordre
+            // du document. Ce banc démarrait donc un devis vierge au lieu
+            // d'ouvrir l'assistant. On vise l'assistant par son `title`, seul
+            // identifiant stable — c'est déjà ce que fait loadOneClickTemplate.
+            const boutons = [...document.querySelectorAll('button')];
+            const b = boutons.find((x) => x.getAttribute('title') === "Ouvrir l'assistant intelligent de création de devis")
+                || boutons.find((x) => /Nouveau devis/i.test(x.textContent || ''));
             if (b) b.click();
         });
         await wait(1200);

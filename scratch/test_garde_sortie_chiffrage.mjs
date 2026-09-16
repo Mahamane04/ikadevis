@@ -53,7 +53,10 @@ export async function run() {
             return 'ok';
         }, motif);
 
-        await allerA('Chiffrage');
+        // 2026-09-16 — Le Chiffrage n'est plus une entrée de menu : on n'y
+        // entre plus que par un acte de création. Le bouton « Nouveau devis »
+        // est en tête de la barre latérale.
+        await allerA('Nouveau devis');
         await wait(1600);
         const devisAvant = await nbDevis();
         await page.evaluate(() => {
@@ -111,7 +114,7 @@ export async function run() {
         ok('…puis mène bien à l’écran demandé', (await ecran()) === 'Mes devis');
 
         // ── Quitter sans enregistrer ──────────────────────────────────────
-        await allerA('Chiffrage');
+        await allerA('Nouveau devis');
         await wait(1500);
         await page.evaluate(() => {
             const b = [...document.querySelectorAll('button')].find((x) => /Ajouter une ligne libre/.test(x.textContent || ''));

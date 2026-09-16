@@ -179,7 +179,11 @@ export async function run() {
 
         await clickVisibleButton(page, 'Annuler');
         await page.click('button[aria-label="Paramètres du compte"]');
-        await page.waitForSelector('#company_currency', { timeout: 3000 });
+        // 3000 ms suffisaient en isolation, pas sous la charge de la suite
+        // complète : ce banc y a expiré ici alors qu'il passe 27/27 seul. Le
+        // piège est déjà documenté pour la frappe et le debounce (CLAUDE.md) —
+        // c'est la même course, sur l'ouverture des Paramètres.
+        await page.waitForSelector('#company_currency', { timeout: 8000 });
         await page.select('#company_currency', 'EUR');
         await wait(120);
         ok('La devise de l’organisation est modifiable depuis ses paramètres', await page.$eval('#company_currency', node => node.value === 'EUR'));
@@ -196,7 +200,7 @@ export async function run() {
         // permet à ce banc de rester compatible avec une ancienne build locale.
         const leftSettingsPage = await clickVisibleButton(page, 'Retour à l’application');
         if (!leftSettingsPage) await page.click('button[aria-label="Fermer la boîte de dialogue"]');
-        await clickVisibleButton(page, 'Chiffrage');
+        await clickVisibleButton(page, 'Nouveau devis');
         await page.waitForFunction(() => document.body.innerText.includes('LOTS DU DEVIS'));
         ok('Le formatter monétaire suit la devise organisationnelle', (await page.evaluate(() => document.body.innerText)).includes('€'));
     } finally {

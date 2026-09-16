@@ -63,7 +63,10 @@ export async function run() {
         // faisait disparaître le bandeau avant le correctif.
         const wentToClient = await clickVisibleButton(page, 'Clients', true);
         await wait(250);
-        const cameBack = await clickVisibleButton(page, 'Chiffrage', true);
+        // 2026-09-16 — l'entrée de retour ne s'affiche QUE tant qu'un chiffrage
+        // est ouvert, et s'intitule alors « Chiffrage en cours » : c'est très
+        // exactement l'état que ce banc éprouve (un ouvrage vient d'être ajouté).
+        const cameBack = await clickVisibleButton(page, 'Chiffrage en cours', true);
         await wait(250);
 
         const stillDirty = await page.evaluate(() => document.body.innerText.includes('Modifications non enregistrées'));

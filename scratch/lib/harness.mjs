@@ -44,6 +44,34 @@ export async function enterGuestMode(page, { demo = false } = {}) {
         return true;
     });
     if (!clicked) throw new Error('Bouton "Mode Démo / Invité" introuvable sur l\'écran de connexion.');
+
+    // 2026-09-16 — L'application atterrit désormais sur le TABLEAU DE BORD, et
+    // non plus dans le chiffrage : on n'entre dans un devis que par un acte de
+    // création ou de modification. Le contrat de ce harnais ne change pas pour
+    // autant — « après enterGuestMode, on est sur un chiffrage vierge » — car
+    // une trentaine de bancs attaquent le devis dès la ligne suivante, sans
+    // naviguer. On pose donc ici le geste que l'utilisateur ferait lui-même.
+    //
+    // Conditionnel, et c'est essentiel : en mode démo (`demo: true`) le devis
+    // d'exemple s'ouvre tout seul, et cliquer « Nouveau devis » l'effacerait —
+    // ce que test_demo_landing.mjs mesure précisément.
+    await page.waitForFunction(
+        () => document.body.innerText.includes('LOTS DU DEVIS')
+            || /Nouveau devis/.test(document.body.innerText),
+        { timeout: 8000 }
+    );
+    const dejaSurLeChiffrage = await page.evaluate(
+        () => document.body.innerText.includes('LOTS DU DEVIS'));
+    if (!dejaSurLeChiffrage) {
+        const ouvert = await page.evaluate(() => {
+            const b = [...document.querySelectorAll('aside button')]
+                .find((x) => (x.textContent || '').trim().startsWith('Nouveau devis'));
+            if (!b) return false;
+            b.click();
+            return true;
+        });
+        if (!ouvert) throw new Error('Bouton « Nouveau devis » introuvable dans la barre latérale.');
+    }
     await page.waitForFunction(
         () => document.body.innerText.includes('LOTS DU DEVIS'),
         { timeout: 8000 }

@@ -40,7 +40,9 @@ export async function run() {
         await enterGuestMode(page, { demo: false });
         await wait(2400);
         await page.evaluate(() => {
-            const b = [...document.querySelectorAll('aside button')].find((x) => (x.textContent || '').trim().startsWith('Chiffrage'));
+            // 2026-09-16 — on entre au chiffrage par « Nouveau devis » ; le
+            // Chiffrage n'est plus une destination de la barre latérale.
+            const b = [...document.querySelectorAll('aside button')].find((x) => (x.textContent || '').trim().startsWith('Nouveau devis'));
             if (b) b.click();
         });
         await wait(1600);

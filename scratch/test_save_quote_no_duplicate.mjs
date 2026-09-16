@@ -27,8 +27,13 @@ const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 // pour ne pas casser le test au moment précis où le libellé bascule.
 async function clickSaveButton(page) {
     return page.evaluate(() => {
+        // 2026-09-16 — Troisième libellé possible : « Enregistré », affiché
+        // trois secondes après un succès (la « règle des 3 secondes », restée
+        // du code mort jusque-là). Sans lui, le banc ne retrouvait plus son
+        // propre bouton pendant ces trois secondes et n'enregistrait jamais la
+        // seconde fois.
         const btn = [...document.querySelectorAll('button')]
-            .find((b) => ['Enregistrer', 'Mettre à jour'].includes((b.textContent || '').trim()));
+            .find((b) => ['Enregistrer', 'Mettre à jour', 'Enregistré'].includes((b.textContent || '').trim()));
         if (!btn) return false;
         btn.click();
         return true;
@@ -88,8 +93,14 @@ export async function run() {
         const firstNumber = savedAfterFirstSave[0]?.number;
 
         // Le bouton doit maintenant annoncer une mise à jour, pas une création.
-        const buttonSaysUpdate = await page.evaluate(() => document.body.innerText.includes('Mettre à jour'));
-        ok('Le bouton affiche "Mettre à jour" après un premier enregistrement réussi', buttonSaysUpdate);
+        // Juste après le succès, le bouton annonce « Enregistré » pendant trois
+        // secondes ; il ne repasse à « Mettre à jour » qu'ensuite — ou aussitôt
+        // si le devis est modifié entre-temps. Les deux libellés disent la même
+        // chose de ce qui compte ici : le devis existe déjà, le prochain clic
+        // le mettra à jour au lieu d'en créer un second.
+        const buttonSaysUpdate = await page.evaluate(() => document.body.innerText.includes('Mettre à jour')
+            || document.body.innerText.includes('Enregistré'));
+        ok('Le bouton n\'annonce plus une création après un premier enregistrement réussi', buttonSaysUpdate);
 
         // --- Modification, puis second "Enregistrer" : confirmation attendue ---
         // Un simple changement de taux de TVA suffit à modifier le devis,

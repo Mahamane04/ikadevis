@@ -137,7 +137,23 @@ let passedChecks = 0;
 
 for (const suite of SUITES) {
     console.log(`\n▶ ${suite.name}`);
-    const results = await suite.mod.run();
+    // 2026-09-16 — Une exception non rattrapée ici emportait TOUT le run : les
+    // suites suivantes ne s'exécutaient plus et la synthèse de fin (le seul
+    // verdict qui compte, voir CLAUDE.md § Tests) n'était jamais atteinte. Vu
+    // deux fois le même jour : un `.innerText` sur un nœud absent, puis un
+    // sélecteur expiré sous la charge de la suite complète. Une suite qui
+    // plante est un échec — elle est comptée comme tel — mais elle ne doit pas
+    // faire taire les cinquante et une autres.
+    let results;
+    try {
+        results = await suite.mod.run();
+    } catch (err) {
+        results = [{
+            label: 'La suite a planté avant de rendre ses résultats',
+            pass: false,
+            detail: (err && err.message) ? err.message : String(err)
+        }];
+    }
     for (const r of results) {
         totalChecks++;
         if (r.pass) passedChecks++;

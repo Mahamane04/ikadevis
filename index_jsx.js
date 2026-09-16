@@ -210,6 +210,34 @@ function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = fal
 // Audit UX P3-7 (2026-09-01) — « Client » au singulier pour une liste,
 // « Factures » au pluriel : les intitulés de collections passent tous au
 // pluriel, et les titres de colonne de chaque écran s'alignent sur eux.
+// 2026-09-16 — La « règle des 3 secondes » : après une action réussie, le
+// bouton le DIT pendant trois secondes, puis reprend son libellé normal.
+//
+// Elle existait déjà dans l'état (`saveQuoteStatus` : 'idle' | 'saving' |
+// 'saved' | 'error', remis à 'idle' par un setTimeout)… et n'était lue NULLE
+// PART : pas une occurrence dans les 28 000 lignes. La barre de totaux recevait
+// même la prop sans la déclarer, l'en-tête ne la recevait pas du tout. La règle
+// était écrite, elle ne vivait pas — l'utilisateur cliquait « Enregistrer » et
+// ne voyait rien changer sur le bouton.
+//
+// Les deux chemins d'enregistrement divergeaient en plus sur la durée : 3000 ms
+// en local, 3500 ms en cloud. Une constante unique, sinon l'écart se recreuse.
+const DUREE_ETAT_SUCCES_MS = 3000;
+
+// Rendu unique des états, partagé par les deux boutons d'enregistrement
+// (en-tête desktop et barre de totaux mobile). Deux rendus séparés auraient
+// divergé dès le premier ajustement, exactement comme les deux durées.
+const etatBoutonEnregistrement = (statut, dejaEnregistre, modifieDepuis = false) => {
+    if (statut === 'saving') return { icone: 'fa-circle-notch fa-spin', libelle: 'Enregistrement…', occupe: true };
+    // « Enregistré » ne tient que tant que rien n'a bougé. Sans ce garde-fou,
+    // modifier le devis pendant les trois secondes laissait un bouton qui
+    // affirme « Enregistré » alors qu'il y a de nouveau du travail à sauver —
+    // le mensonge exact que la règle est censée supprimer.
+    if (statut === 'saved' && !modifieDepuis) return { icone: 'fa-circle-check', libelle: 'Enregistré', occupe: false };
+    if (statut === 'error') return { icone: 'fa-triangle-exclamation', libelle: 'Réessayer', occupe: false };
+    return { icone: 'fa-floppy-disk', libelle: dejaEnregistre ? 'Mettre à jour' : 'Enregistrer', occupe: false };
+};
+
 const LIBELLES_NAV = {
     dashboard: 'Tableau de bord',
     projects: 'Chantiers',
@@ -3299,18 +3327,28 @@ function QuoteHeader({
                         <span>Aperçu Client & PDF</span>
                     </button>
 
-                    <button
-                        type="button"
-                        disabled={isReadOnlyDueToDowngrade}
-                        onClick={onSaveQuote}
-                        className="btn-primary text-xs py-1.5 px-3.5 font-semibold flex items-center gap-1.5"
-                    >
-                        <i className="fa-solid fa-floppy-disk"></i>
-                        {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
-                            reflète l'action réelle : un devis déjà sauvegardé une
-                            première fois se MET À JOUR, il ne se recrée pas. */}
-                        <span>{alreadySaved ? 'Mettre à jour' : 'Enregistrer'}</span>
-                    </button>
+                    {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
+                        reflète l'action réelle : un devis déjà sauvegardé une
+                        première fois se MET À JOUR, il ne se recrée pas. Depuis
+                        2026-09-16 il reflète aussi l'état en cours : « Enregistrement… »
+                        pendant l'aller-retour serveur, puis « Enregistré » trois
+                        secondes, puis le libellé normal. */}
+                    {(() => {
+                        const etat = etatBoutonEnregistrement(saveQuoteStatus, alreadySaved, hasUnsavedChanges);
+                        return (
+                            <button
+                                type="button"
+                                disabled={isReadOnlyDueToDowngrade || etat.occupe}
+                                onClick={onSaveQuote}
+                                className="btn-primary text-xs py-1.5 px-3.5 font-semibold flex items-center gap-1.5 disabled:opacity-60"
+                                title={saveQuoteError || undefined}
+                                data-etat-enregistrement={saveQuoteStatus}
+                            >
+                                <i className={`fa-solid ${etat.icone}`}></i>
+                                <span>{etat.libelle}</span>
+                            </button>
+                        );
+                    })()}
                     </div>
 
                     {/* Menu secondaire */}
@@ -6427,7 +6465,13 @@ function QuoteTotalsBar({
     vatRates = [18],
     isReadOnlyDueToDowngrade,
     currency = 'FCFA',
-    alreadySaved = false
+    alreadySaved = false,
+    // Reçu depuis toujours (QuoteWorkspace le passait), mais jamais déclaré :
+    // la prop tombait donc dans le vide et le bouton mobile ne montrait aucun
+    // état d'enregistrement.
+    saveQuoteStatus = 'idle',
+    saveQuoteError = null,
+    hasUnsavedChanges = false
 }) {
     const totalHT = quote.totalNetHT || 0;
     const totalDebourse = quote.totalDebourse || 0;
@@ -6593,18 +6637,27 @@ function QuoteTotalsBar({
                         <span>Aperçu PDF</span>
                     </button>
 
-                    <button
-                        type="button"
-                        disabled={isReadOnlyDueToDowngrade}
-                        onClick={onSaveQuote}
-                        className="flex-1 btn-primary text-xs py-2.5 px-3 font-semibold flex items-center justify-center gap-2 shadow-sm"
-                    >
-                        <i className="fa-solid fa-floppy-disk"></i>
-                        {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
-                            reflète l'action réelle : un devis déjà sauvegardé une
-                            première fois se MET À JOUR, il ne se recrée pas. */}
-                        <span>{alreadySaved ? 'Mettre à jour' : 'Enregistrer'}</span>
-                    </button>
+                    {/* Fix "doublon à chaque Enregistrer" (2026-08-30) — le libellé
+                        reflète l'action réelle : un devis déjà sauvegardé une
+                        première fois se MET À JOUR, il ne se recrée pas. Depuis
+                        2026-09-16 il reflète aussi l'état en cours, via le rendu
+                        partagé avec l'en-tête desktop. */}
+                    {(() => {
+                        const etat = etatBoutonEnregistrement(saveQuoteStatus, alreadySaved, hasUnsavedChanges);
+                        return (
+                            <button
+                                type="button"
+                                disabled={isReadOnlyDueToDowngrade || etat.occupe}
+                                onClick={onSaveQuote}
+                                className="flex-1 btn-primary text-xs py-2.5 px-3 font-semibold flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
+                                title={saveQuoteError || undefined}
+                                data-etat-enregistrement={saveQuoteStatus}
+                            >
+                                <i className={`fa-solid ${etat.icone}`}></i>
+                                <span>{etat.libelle}</span>
+                            </button>
+                        );
+                    })()}
                 </div>
             </div>
             {hasIncompleteCustomLines && (
@@ -7349,6 +7402,8 @@ function QuoteWorkspace({
                 autosaveTime={autosaveTime}
                 hasUnsavedChanges={hasUnsavedChanges}
                 isSaving={isSaving}
+                saveQuoteStatus={saveQuoteStatus}
+                saveQuoteError={saveQuoteError}
                 isReadOnlyDueToDowngrade={isReadOnlyDueToDowngrade}
             />
             </div>
@@ -7599,6 +7654,7 @@ function QuoteWorkspace({
                 saveQuoteStatus={saveQuoteStatus}
                 saveQuoteError={saveQuoteError}
                 alreadySaved={quoteAlreadySaved}
+                hasUnsavedChanges={hasUnsavedChanges}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
                 onChangeVatRate={(taux) => { pushState(); handleUpdateQuote({ vatRate: taux }); }}
@@ -8485,7 +8541,6 @@ function GlobalSearch({
 
     const quickNavigationItems = [
         { id: 'dashboard', label: 'Tableau de bord', icon: 'fa-chart-pie' },
-        { id: 'calculator', label: 'Chiffrage / Nouveau Devis', icon: 'fa-calculator' },
         { id: 'savedQuotes', label: 'Mes devis', icon: 'fa-folder-open' },
         { id: 'invoices', label: 'Factures', icon: 'fa-file-invoice-dollar' },
         { id: 'clients', label: 'Clients', icon: 'fa-users' },
@@ -12598,7 +12653,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [sbDataLoaded, cloudState]);
 
-    const [activeView, setActiveView] = useState('calculator');
+    // 2026-09-16 — L'application atterrissait sur le Chiffrage. Masquer son
+    // entrée de menu n'aurait rien réglé tant qu'elle restait l'écran d'accueil :
+    // on ouvrait la session DANS un devis, sans avoir vu ni la liste des devis
+    // existants ni le moindre indicateur. Le tableau de bord donne la vue
+    // d'ensemble ; on descend dans un chiffrage par un acte, jamais par défaut.
+    const [activeView, setActiveView] = useState('dashboard');
     const [isTechnicalCatalogOpen, setIsTechnicalCatalogOpen] = useState(false);
     const [toast, setToast] = useState(null);
 
@@ -13250,6 +13310,26 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Sert à bloquer un second clic pendant la génération, qui produirait deux
     // fichiers identiques et deux rendus html2canvas simultanés.
     const [pdfEnCours, setPdfEnCours] = useState(null);
+
+    // 2026-09-16 — Même mécanisme que `pdfEnCours`, étendu aux actions serveur
+    // qui n'en avaient aucune : une seule case qui nomme l'action en cours,
+    // plutôt qu'un booléen par bouton (six de plus auraient fini par diverger).
+    //
+    // Le verrou n'est pas cosmétique. « Émettre la facture » attribue un numéro
+    // légal DÉFINITIF au bout d'un aller-retour réseau, sans que rien ne bouge
+    // à l'écran pendant ce temps : un second clic pendant l'attente lançait une
+    // seconde émission. Ici la deuxième tentative est ignorée tant que la
+    // première n'a pas rendu la main.
+    const [actionEnCours, setActionEnCours] = useState(null);
+    const executerAction = async (cle, action) => {
+        if (actionEnCours) return undefined;
+        setActionEnCours(cle);
+        try {
+            return await action();
+        } finally {
+            setActionEnCours(null);
+        }
+    };
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isQuoteDetailMoreOpen, setIsQuoteDetailMoreOpen] = useState(false);
@@ -17141,7 +17221,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             showToast(isNewLocalQuote
                                 ? `Devis ${savedQ.number} enregistré en local`
                                 : `Devis ${savedQ.number} mis à jour en local`, "success");
-                            setTimeout(() => setSaveQuoteStatus('idle'), 3000);
+                            setTimeout(() => setSaveQuoteStatus('idle'), DUREE_ETAT_SUCCES_MS);
                             return;
                         }
 
@@ -17322,7 +17402,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             showToast(aVraimentMisAJour
                                 ? `✓ Devis ${persistedQuote.number} mis à jour sur le serveur !`
                                 : `✓ Devis ${persistedQuote.number} enregistré sur le serveur !`, "success");
-                            setTimeout(() => setSaveQuoteStatus('idle'), 3500);
+                            setTimeout(() => setSaveQuoteStatus('idle'), DUREE_ETAT_SUCCES_MS);
 
                             // Fix "doublon à chaque Enregistrer" (2026-08-30) — sans
                             // ceci, hybridQuote (l'état activement édité) ne sait
@@ -18525,7 +18605,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <section aria-label="Raccourcis rapides" className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <button
                             type="button"
-                            onClick={() => setActiveView('calculator')}
+                            onClick={demarrerNouveauDevis}
                             className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
                             <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
@@ -21330,13 +21410,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             {f.statut === 'issued' && (
                                                                 <button
                                                                     type="button"
-                                                                    disabled={isReadOnlyDueToDowngrade}
-                                                                    onClick={() => envoyerFacture(f)}
-                                                                    className="btn-secondary py-1 px-2 text-[11px] font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1"
+                                                                    disabled={isReadOnlyDueToDowngrade || actionEnCours === `envoi-${f.id}`}
+                                                                    onClick={() => executerAction(`envoi-${f.id}`, () => envoyerFacture(f))}
+                                                                    className="btn-secondary py-1 px-2 text-[11px] font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1 disabled:opacity-60"
                                                                     title="Marquer comme envoyée au client"
                                                                 >
-                                                                    <i className="fa-solid fa-paper-plane text-neutral-500 text-[10px]"></i>
-                                                                    <span>Envoyée</span>
+                                                                    <i className={`fa-solid ${actionEnCours === `envoi-${f.id}` ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'} text-neutral-500 text-[10px]`}></i>
+                                                                    <span>{actionEnCours === `envoi-${f.id}` ? 'Envoi…' : 'Envoyée'}</span>
                                                                 </button>
                                                             )}
                                                             <button
@@ -21487,7 +21567,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                             return (
                             <div className="app-card flex flex-col">
-                                <div className="p-4 sm:p-5 border-b border-neutral-100 bg-white sticky top-0 z-20 shadow-2xs">
+                                {/* 2026-09-16 — Plus de `sticky top-0 z-20` : l'en-tête
+                                    défile avec le document. Il était figé au-dessus d'une
+                                    zone qui défilait toute seule, si bien que le panneau
+                                    droit avait DEUX défilements imbriqués et que le
+                                    document n'avait plus que la hauteur restante. Un seul
+                                    scroll désormais, porté par la colonne de détail. */}
+                                <div className="p-4 sm:p-5 border-b border-neutral-100 bg-white shadow-2xs">
                                     {/* Ligne 1 : Navigation mobile + Badges statut + N° + Bouton Fermer */}
                                     <div className="flex items-center justify-between gap-2 min-w-0">
                                         <div className="flex items-center gap-2 min-w-0">
@@ -21577,13 +21663,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         title: "Émettre la facture",
                                                         message: "Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.",
                                                         confirmLabel: "Émettre",
-                                                        onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice); }
+                                                        onConfirm: () => { closeConfirm(); executerAction('emettre', () => emettreFacture(activeInvoice)); }
                                                     })}
-                                                    className="btn-primary py-1.5 px-3.5 text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                                                    className="btn-primary py-1.5 px-3.5 text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-60"
                                                     aria-label={`Émettre la facture de ${activeInvoice.clientName}`}
                                                 >
-                                                    <i className="fa-solid fa-file-circle-check"></i>
-                                                    <span>Émettre la facture</span>
+                                                    <i className={`fa-solid ${actionEnCours === 'emettre' ? 'fa-circle-notch fa-spin' : 'fa-file-circle-check'}`}></i>
+                                                    <span>{actionEnCours === 'emettre' ? 'Émission…' : 'Émettre la facture'}</span>
                                                 </button>
 
                                                 {/* Action secondaire 1 : Aperçu */}
@@ -21622,14 +21708,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         title: "Émettre & Marquer comme envoyée",
                                                         message: "Cette facture recevra son numéro officiel définitif et sera enregistrée comme transmise au client (téléchargée et envoyée par vos propres canaux).",
                                                         confirmLabel: "Marquer comme envoyée",
-                                                        onConfirm: () => { closeConfirm(); emettreFacture(activeInvoice, true); }
+                                                        onConfirm: () => { closeConfirm(); executerAction('emettre-envoyee', () => emettreFacture(activeInvoice, true)); }
                                                     })}
-                                                    className="btn-secondary py-1.5 px-3 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5"
+                                                    className="btn-secondary py-1.5 px-3 text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border-neutral-200/90 shadow-2xs flex items-center gap-1.5 disabled:opacity-60"
                                                     title="Attribuer le numéro officiel et marquer cette facture comme envoyée au client hors du SaaS"
                                                     aria-label="Marquer comme envoyée"
                                                 >
-                                                    <i className="fa-solid fa-paper-plane text-neutral-500"></i>
-                                                    <span>Marquer comme envoyée</span>
+                                                    <i className={`fa-solid ${actionEnCours === 'emettre-envoyee' ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'} text-neutral-500`}></i>
+                                                    <span>{actionEnCours === 'emettre-envoyee' ? 'Émission…' : 'Marquer comme envoyée'}</span>
                                                 </button>
 
                                                 {/* Supprimer le brouillon */}
@@ -21889,7 +21975,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     </div>
                                 </div>
 
-                                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
+                                {/* Le défilement appartient à la colonne de détail
+                                    (`data-testid="invoice-detail"`), pas à ce bloc :
+                                    en avoir un ici rouvrait un second scroll interne. */}
+                                <div className="p-4 sm:p-6 bg-neutral-50/50">
                                     {/* Bannière Avoir */}
                                     {activeInvoice.type === 'avoir' && (
                                         <div className="mb-4 border border-violet-200/80 bg-violet-50/50 rounded-xl p-3.5 flex items-start gap-3">
@@ -22261,7 +22350,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 // clic sur « Changer d'organisation ».
                 return (
                 <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-100 flex flex-col z-[140] overflow-y-auto lg:hidden" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
-                    <div className={opts?.asModal ? "saved-quote-detail-card bg-white w-full min-h-full flex flex-col shadow-none" : "saved-quote-detail-card app-card flex flex-col w-full h-full min-h-0 overflow-hidden"}>
+                    {/* 2026-09-16 — Sur bureau, CETTE carte est le seul et unique
+                        conteneur défilant du panneau droit : `overflow-hidden` est
+                        devenu `overflow-y-auto`, et la zone du document plus bas a
+                        perdu le sien. Avant, la carte bloquait le débordement et
+                        c'est le document seul qui défilait, sous un en-tête figé —
+                        d'où un défilement imbriqué et une surface de lecture réduite
+                        à ce qui restait sous l'en-tête et la bande d'actions.
+                        La variante modale (mobile) garde sa structure : son
+                        défilement est déjà porté une seule fois, par le conteneur
+                        plein écran au-dessus. */}
+                    <div className={opts?.asModal ? "saved-quote-detail-card bg-white w-full min-h-full flex flex-col shadow-none" : "saved-quote-detail-card app-card flex flex-col w-full h-full min-h-0 overflow-y-auto custom-scroll"}>
                         {/* En-tête refondu en DEUX bandes (2026-08-21).
 
                             Avant : tout sur une seule ligne. Mesuré dans le DOM —
@@ -22279,7 +22378,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             (destinataire / niveau de détail) reçoivent enfin un
                             intitulé. Jusqu'ici deux groupes d'apparence identique
                             se suivaient sans rien pour dire ce que chacun réglait. */}
-                        <div className="border-b border-neutral-100 bg-white shrink-0 sticky top-0 z-20">
+                        {/* `sticky top-0 z-20` retiré : l'en-tête du devis — client,
+                            numéro, montant, statut, actions — défile maintenant avec
+                            le reste du document, comme demandé. `shrink-0` reste :
+                            il empêche l'en-tête d'être comprimé, il ne le fige pas. */}
+                        <div className="border-b border-neutral-100 bg-white shrink-0">
 
                             {/* Bande 1 — identité du document, puis actions. */}
                             <div className="saved-quote-detail-header-primary px-4 sm:px-6 pt-4 pb-3 bg-white">
@@ -22843,7 +22946,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </div>
                         )}
 
-                        <div className="saved-quote-document-scroll min-w-0 flex-1 p-4 sm:p-6 overflow-auto custom-scroll bg-neutral-50/50 space-y-6">
+                        {/* `overflow-auto` retiré — c'était le second défilement.
+                            La classe `saved-quote-document-scroll` est conservée : sous
+                            768 px elle ne règle que le débordement HORIZONTAL et les
+                            espacements (index.html, media query max-width: 767px), pas
+                            le défilement vertical. */}
+                        <div className="saved-quote-document-scroll min-w-0 flex-1 p-4 sm:p-6 bg-neutral-50/50 space-y-6">
                             {/* Défense en profondeur : même si isCommercialMode restait à
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
@@ -24993,6 +25101,25 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         );
     };
 
+    // 2026-09-16 — Le Chiffrage n'est plus une DESTINATION de la navigation.
+    //
+    // Il l'était, et c'était incohérent : cliquer « Chiffrage » rouvrait le
+    // chiffrage EN COURS, jamais un devis neuf. On croyait repartir de zéro en
+    // modifiant l'ancien, et on créait des doublons faute d'avoir vu la liste
+    // avant. Un écran de travail n'est pas un onglet : on y entre par un acte
+    // (créer, ou modifier un devis existant), pas en le choisissant dans un
+    // menu.
+    //
+    // L'entrée reste affichée TANT QU'UN CHIFFRAGE EST OUVERT, et seulement
+    // alors. Sans cela, quitter le chiffrage pour consulter une fiche client
+    // laisserait le travail en cours sans aucun chemin de retour — le devis en
+    // cours ne vit dans aucune clé localStorage (voir la garde beforeunload),
+    // le perdre serait définitif.
+    const chiffrageOuvert = activeView === 'calculator'
+        || devisNonEnregistre
+        || (hybridQuote?.lots || []).some(lot => (lot.items || []).length > 0)
+        || !!String(hybridQuote?.clientName || '').trim();
+
     const NavItem = ({ id, icon, label, onClickExtra }) => {
         const isActive = activeView === id;
         return (
@@ -25219,12 +25346,31 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 {/* SIDEBAR DESKTOP (≥ 1024px) */}
                 <aside data-nav-principale="1" className="hidden lg:flex flex-col sidebar-shell border-r border-neutral-200/70 z-20 shrink-0 h-full">
                     <nav ref={sidebarNavRef} onScroll={majDefilementSidebar} className={`flex-1 overflow-y-auto py-5 px-3 flex flex-col gap-[5px] custom-scroll sidebar-nav-scroll ${sidebarADuContenuSousLaLigne ? 'sidebar-nav-scroll-more' : ''}`} aria-label="Menu principal">
+                        {/* Le point de départ, en tête de menu : un acte, pas une
+                            destination. Le `w-full` est porté par ce conteneur et
+                            non par le bouton — .btn-primary fixe display:
+                            inline-flex dans le <style> d'index.html, qui charge
+                            après tailwind.css (piège relevé 6 fois, voir CLAUDE.md). */}
+                        <div className="w-full mb-1">
+                            <button
+                                type="button"
+                                onClick={demarrerNouveauDevis}
+                                disabled={isReadOnlyDueToDowngrade}
+                                className="btn-primary w-full text-xs py-2.5 px-3 font-bold disabled:opacity-50"
+                                title="Démarrer un devis vierge et ouvrir le chiffrage"
+                            >
+                                <i className="fa-solid fa-plus mr-1.5"></i>
+                                Nouveau devis
+                            </button>
+                        </div>
                         <p className="sidebar-section-label">Pilotage</p>
                         <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} />
                         <p className="sidebar-section-label mt-4">Exploitation</p>
                         <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} />
                         <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} />
-                        <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} emphasis />
+                        {chiffrageOuvert && (
+                            <SidebarNavItem id="calculator" icon="fa-calculator" label="Chiffrage en cours" />
+                        )}
                         <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
                         <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} />
                         <p className="sidebar-section-label mt-4">Configuration</p>
@@ -25253,7 +25399,9 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <SidebarNavItem id="dashboard" icon="fa-chart-pie" label={LIBELLES_NAV.dashboard} collapsed />
                         <SidebarNavItem id="projects" icon="fa-folder-tree" label={LIBELLES_NAV.projects} collapsed />
                         <SidebarNavItem id="clients" icon="fa-users" label={LIBELLES_NAV.clients} collapsed />
-                        <SidebarNavItem id="calculator" icon="fa-calculator" label={LIBELLES_NAV.calculator} collapsed />
+                        {chiffrageOuvert && (
+                            <SidebarNavItem id="calculator" icon="fa-calculator" label="Chiffrage en cours" collapsed />
+                        )}
                         <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} collapsed />
                         <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} collapsed />
                         <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} collapsed />
@@ -25306,6 +25454,19 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
                         <div className={`${activeView === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
                             <div className="animate-fade-in w-full flex-1 min-h-0 flex flex-col">
+                                {/* 2026-09-16 — Le bandeau de reprise de brouillon ne vivait
+                                    que DANS renderCalculator, donc sur le seul écran de
+                                    chiffrage. C'était sans conséquence tant que
+                                    l'application y atterrissait ; depuis qu'elle ouvre sur
+                                    le tableau de bord, un rechargement le rendait
+                                    INATTEIGNABLE — l'offre de récupérer un devis non
+                                    enregistré disparaissait à l'instant précis où elle
+                                    sert. Le devis en cours ne vit dans aucune clé
+                                    localStorage (voir la garde beforeunload) : perdre cette
+                                    offre, c'est perdre le travail. Le garde-fou
+                                    `activeView !== 'calculator'` évite de l'afficher deux
+                                    fois, le chiffrage le rendant déjà lui-même. */}
+                                {activeView !== 'calculator' && renderBandeauBrouillon()}
                                 {activeView === 'dashboard' && renderDashboard()}
                                 {activeView === 'calculator' && renderCalculator()}
                                 {activeView === 'projects' && renderProjects()}
@@ -25326,7 +25487,24 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         aria-label="Barre de navigation rapide"
                     >
                         <NavItem id="dashboard"   icon="fa-chart-pie"          label="Accueil" />
-                        <NavItem id="calculator"  icon="fa-calculator"          label={LIBELLES_NAV.calculator} />
+                        {/* Une seule case, deux rôles selon qu'un chiffrage est
+                            ouvert ou non : reprendre le travail en cours, ou en
+                            démarrer un. Sur cinq cases, en consacrer une à une
+                            page où l'on n'a rien à faire serait du gâchis. */}
+                        {chiffrageOuvert ? (
+                            <NavItem id="calculator" icon="fa-calculator" label="Chiffrage" />
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={demarrerNouveauDevis}
+                                disabled={isReadOnlyDueToDowngrade}
+                                className="flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+                                aria-label="Démarrer un nouveau devis"
+                            >
+                                <i className="fa-solid fa-plus text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center opacity-70"></i>
+                                <span className="text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal text-neutral-700">Nouveau</span>
+                            </button>
+                        )}
                         <NavItem id="savedQuotes" icon="fa-folder-open"         label="Devis" />
                         <NavItem id="invoices"    icon="fa-file-invoice-dollar" label="Factures" />
                         {/* Menu burger / Recommandations de menu burger */}
@@ -27294,11 +27472,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 <button type="button" onClick={fermerSituationModal} className="btn-secondary">Annuler</button>
                                 <button
                                     type="button"
-                                    onClick={confirmerNouvelleSituation}
-                                    disabled={isReadOnlyDueToDowngrade || totalSituationHT <= 0}
-                                    className="btn-primary"
+                                    onClick={() => executerAction('situation', confirmerNouvelleSituation)}
+                                    disabled={isReadOnlyDueToDowngrade || totalSituationHT <= 0 || actionEnCours === 'situation'}
+                                    className="btn-primary disabled:opacity-60"
                                 >
-                                    <i className="fa-solid fa-check mr-1.5"></i> Créer le brouillon
+                                    <i className={`fa-solid ${actionEnCours === 'situation' ? 'fa-circle-notch fa-spin' : 'fa-check'} mr-1.5`}></i>
+                                    {actionEnCours === 'situation' ? 'Création…' : 'Créer le brouillon'}
                                 </button>
                             </div>
                         </div>
@@ -27605,10 +27784,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     Dupliquer
                                                 </button>
                                                 {!modele.par_defaut && !modele.implicite && (
-                                                    <button type="button" onClick={() => definirModeleParDefaut(modele)}
-                                                        className="btn-secondary btn-dialogue text-brand-700 border-brand-200"
+                                                    <button type="button"
+                                                        onClick={() => executerAction(`defaut-${modele.id}`, () => definirModeleParDefaut(modele))}
+                                                        disabled={actionEnCours === `defaut-${modele.id}`}
+                                                        className="btn-secondary btn-dialogue text-brand-700 border-brand-200 disabled:opacity-60"
                                                         aria-label={`Utiliser ${modele.nom} par défaut`}>
-                                                        Par défaut
+                                                        {actionEnCours === `defaut-${modele.id}` ? (
+                                                            <><i className="fa-solid fa-circle-notch fa-spin mr-1.5"></i>Application…</>
+                                                        ) : 'Par défaut'}
                                                     </button>
                                                 )}
                                                 {/* La suppression était réservée aux modèles NON par défaut.
@@ -27631,7 +27814,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             : `« ${modele.nom} » sera retiré.\n\nVos ${motDocuments} continuent de suivre le modèle par défaut.`,
                                                         confirmLabel: 'Supprimer',
                                                         isDanger: true,
-                                                        onConfirm: async () => { const m = modele; closeConfirm(); await supprimerModele(m); }
+                                                        // La boîte se referme avant l'aller-retour serveur : plus
+                                                        // aucun bouton à l'écran ne peut porter de sablier. Ce qui
+                                                        // reste utile ici, c'est le verrou — sans lui, rouvrir la
+                                                        // boîte et reconfirmer pendant l'attente lançait une
+                                                        // seconde suppression sur une ligne déjà partie.
+                                                        onConfirm: () => { const m = modele; closeConfirm(); executerAction(`suppr-${m.id}`, () => supprimerModele(m)); }
                                                     })}
                                                     className="btn-secondary btn-dialogue text-red-600 border-red-200 hover:bg-red-50"
                                                     aria-label={`Supprimer le modèle ${modele.nom}`}>
@@ -28843,7 +29031,21 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                    l'écran, un texte statique que rien n'oblige à lire pendant les
                    trois secondes d'affichage. Le mobile garde son ancrage bas,
                    au-dessus de la barre d'onglets, où la place est libre. */
-                <div key={toast.id} role={estErreur ? 'alert' : 'status'} aria-live={estErreur ? 'assertive' : 'polite'} className="fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
+                /* 2026-09-16 — `pointer-events-none` : la notification AVALAIT LES
+                   CLICS. Constaté à la sonde, pas déduit : pendant les trois
+                   secondes d'affichage, `elementFromPoint` au centre du bouton
+                   « Paramètres du compte » renvoyait ce bandeau, et non le
+                   bouton — le clic n'atteignait donc jamais sa cible et l'écran
+                   ne changeait pas. Un banc d'essai a buté dessus ; un
+                   utilisateur qui clique pendant qu'un toast s'affiche vit
+                   exactement la même chose, sans comprendre pourquoi son clic
+                   n'a rien fait.
+                   La position, elle, n'est pas touchée : elle a été choisie
+                   deux fois sur mesures (voir les deux notes ci-dessus), et la
+                   rendre traversante suffit — ce bloc ne contient aucun élément
+                   interactif, seulement une icône et un texte, donc rien à
+                   réactiver en `pointer-events-auto`. */
+                <div key={toast.id} role={estErreur ? 'alert' : 'status'} aria-live={estErreur ? 'assertive' : 'polite'} className="pointer-events-none fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${pastille}`}>
                         <i className={`fa-solid ${icone}`}></i>
                     </div>
@@ -28866,6 +29068,11 @@ function AppShell() {
     const [newPasswordInput, setNewPasswordInput] = useState('');
     const [recoverySuccess, setRecoverySuccess] = useState(false);
     const [recoveryError, setRecoveryError] = useState(null);
+    // 2026-09-16 — Cet écran vit HORS de App : il n'a pas accès à
+    // `executerAction`. Le drapeau est donc local, mais le comportement visé
+    // est le même — pendant l'appel réseau, le bouton le dit et refuse un
+    // second envoi.
+    const [recoverySaving, setRecoverySaving] = useState(false);
 
     useEffect(() => {
         if (!sb) { setAuthLoading(false); return; }
@@ -28910,6 +29117,7 @@ function AppShell() {
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
         setRecoveryError(null);
+        setRecoverySaving(true);
         try {
             const { error } = await sb.auth.updateUser({ password: newPasswordInput });
             if (error) throw error;
@@ -28917,6 +29125,11 @@ function AppShell() {
             setTimeout(() => { setIsPasswordRecovery(false); setRecoverySuccess(false); }, 2000);
         } catch(err) {
             setRecoveryError(err.message || "Erreur de réinitialisation");
+        } finally {
+            // Ce handler n'avait aucun `finally` : en cas d'échec réseau, rien
+            // ne rendait la main. Le drapeau doit retomber sur les DEUX issues,
+            // sans quoi un mot de passe refusé laisserait le bouton mort.
+            setRecoverySaving(false);
         }
     };
 
@@ -28949,7 +29162,11 @@ function AppShell() {
                     ) : (
                         <form onSubmit={handleUpdatePassword} className="space-y-4">
                             <input type="password" value={newPasswordInput} onChange={e=>setNewPasswordInput(e.target.value)} required minLength={8} placeholder="Minimum 8 caractères" className="w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-                            <button type="submit" className="btn-primary w-full py-3.5">Enregistrer le mot de passe</button>
+                            <button type="submit" disabled={recoverySaving} className="btn-primary w-full py-3.5 disabled:opacity-60">
+                                {recoverySaving ? (
+                                    <><i className="fa-solid fa-circle-notch fa-spin mr-2"></i>Enregistrement…</>
+                                ) : 'Enregistrer le mot de passe'}
+                            </button>
                         </form>
                     )}
                 </div>
