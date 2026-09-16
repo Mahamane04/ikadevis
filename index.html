@@ -24,12 +24,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ikadevis">
-    <!-- P0.9 (2026-08-17) — Cache-buster manuel : bump ?v=AAAAMMJJ à chaque
-         build (npm run build) pour forcer les navigateurs à recharger le CSS/JS
-         au lieu de servir une version en cache (piège rencontré en vérifiant le
-         restyle sidebar : un onglet de test ET un appareil utilisateur servaient
-         tous les deux un tailwind.css obsolète sans que rien ne le signale). -->
-    <link rel="stylesheet" href="tailwind.css?v=20260913a">
+    <!-- P0.9 (2026-08-17), automatisé le 2026-09-15 — Les jetons ?v= ci-dessous
+         et sur les <script> js/*.js + app.compiled.js sont réécrits par
+         scripts/bump-version.mjs à chaque `npm run build`, à partir d'un hash
+         du contenu réellement produit. NE PLUS LES BUMPER À LA MAIN : un jeton
+         oublié sert indéfiniment un bundle périmé à tout onglet ou installation
+         PWA qui en avait déjà une copie en cache, sans le moindre signal
+         d'erreur. C'est arrivé une première fois avec tailwind.css seul
+         (2026-08-17), puis une seconde fois avec le JS (refactor barre de
+         navigation, 2026-09-15) — d'où l'automatisation. -->
+    <link rel="stylesheet" href="tailwind.css?v=97a668d562">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -1018,10 +1022,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=20260910b"></script>
-    <script src="js/utils.js?v=20260910b"></script>
-    <script src="js/quote-templates.js?v=20260910b"></script>
-    <script src="app.compiled.js?v=20260910b"></script>
+    <script src="js/calc-engine.js?v=c857956249"></script>
+    <script src="js/utils.js?v=c857956249"></script>
+    <script src="js/quote-templates.js?v=c857956249"></script>
+    <script src="app.compiled.js?v=c857956249"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

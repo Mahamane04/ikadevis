@@ -15,8 +15,13 @@ import { fileURLToPath } from 'node:url';
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(path.join(racine, 'index.html'), 'utf-8');
 
-const m = html.match(/[?&]v=([0-9a-z]+)/);
-if (!m) { console.error('✗ Aucun jeton ?v= dans index.html — service worker non généré.'); process.exit(1); }
+// Le jeton du bundle JS (app.compiled.js), pas « le premier ?v= trouvé » —
+// celui du favicon arrive avant dans le fichier et ne change quasiment
+// jamais : le prendre par erreur découplait le nom du cache SW du contenu
+// qu'il sert réellement (trouvé le 2026-09-15, en corrigeant le bug jumeau
+// où bump-version.mjs venait justement d'être introduit pour ce contenu).
+const m = html.match(/app\.compiled\.js\?v=([0-9a-zA-Z]+)/);
+if (!m) { console.error('✗ Aucun jeton ?v= sur app.compiled.js dans index.html — service worker non généré.'); process.exit(1); }
 const version = m[1];
 
 // Références locales de index.html
