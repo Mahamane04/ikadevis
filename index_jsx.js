@@ -21580,7 +21580,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                 {/* COLONNE DÉTAIL — rendue uniquement si une facture est sélectionnée */}
                 {hasActiveInvoice && (
-                    <div data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-fade-in">
+                    <div key={activeInvoice?.id ?? 'aucune'} data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-page-enter">
+                        {/* Même principe que le détail d'un devis : fondu à chaque
+                            changement de facture, aucun délai ajouté. La `key` force
+                            le remontage, sans quoi l'animation ne se rejouerait pas
+                            et le panneau garderait le défilement de la facture
+                            précédente.
+                            Le commentaire est À L'INTÉRIEUR de l'élément : placé
+                            avant lui, il tombait dans un `{condition && ( … )}` où
+                            une SEULE expression est admise, et la compilation
+                            échouait (« Expected ")" but found "key" »). */}
                         {(() => {
                             const estBrouillon = activeInvoice.statut === 'draft';
                             const netTTC = Number(activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC) || 0;
@@ -23758,7 +23767,20 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
             {/* COLONNE DÉTAIL — rendue uniquement si un devis est sélectionné */}
             {hasActiveQuote && (
-                <div data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-fade-in">
+                <div key={activeQuote?.id ?? 'aucun'} data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-page-enter">
+                    {/* 2026-09-17 — Sous-page : on ANIME sans RETARDER. Passer d'un
+                        devis à l'autre est instantané (la donnée est déjà là) ; y
+                        glisser un sablier ferait passer pour lent ce qui ne l'est
+                        pas. Le fondu suffit.
+                        La `key` n'est pas décorative : sans elle le conteneur reste
+                        monté, seul son contenu change, et une animation CSS ne se
+                        rejoue jamais dans ce cas — le premier devis s'animait, les
+                        suivants apparaissaient sèchement. Elle remet aussi le
+                        défilement en haut, ce qu'on veut en ouvrant un autre
+                        document.
+                        Commentaire placé À L'INTÉRIEUR : avant l'élément, il se
+                        trouvait dans un `{condition && ( … )}` qui n'admet qu'une
+                        seule expression, et la compilation échouait. */}
                     {renderQuoteDetailPanel(activeQuote, { asModal: false })}
                 </div>
             )}
@@ -26083,7 +26105,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 );
                             })}
                         </aside>
-                        <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-neutral-100 p-4 sm:p-6">
+                        {/* 2026-09-17 — Sous-page : fondu, sans délai. Changer de
+                            section des Paramètres est instantané ; un sablier y
+                            serait un ralentissement pur. La `key` fait rejouer
+                            l'animation (sans elle le conteneur reste monté et
+                            l'animation ne redémarre jamais) et remet le
+                            défilement en haut à chaque section.
+                            Sans effet sur les saisies : les champs sont liés à
+                            `companyInfo` et aux états de préfixe, portés par App
+                            — le remontage de cette colonne n'en perd aucun. */}
+                        <div key={accountSettingsTab} className="flex-1 min-w-0 min-h-0 flex flex-col bg-neutral-100 p-4 sm:p-6 animate-page-enter">
                             <div className="xl:hidden mb-4 shrink-0">
                                 <label id="settings-section-label" className="app-label">Section des paramètres</label>
                                 <CustomSelect
@@ -27759,7 +27790,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         </div>
                     )}
 
-                    <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8">
+                    {/* 2026-09-17 — Fondu sur le changement d'onglet Devis/Factures,
+                        sans aucun délai. La `key` est posée ICI et non sur la
+                        racine de la modale : keyer la racine remonterait aussi
+                        l'en-tête et la barre d'onglets, qui clignoteraient à
+                        chaque clic — l'effet exactement inverse de celui visé.
+                        Elle remet au passage la liste en haut, ce qu'on veut en
+                        passant d'un jeu de modèles à l'autre. */}
+                    <div key={typeModeleGalerie} className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8 animate-page-enter">
                         <div className="mx-auto max-w-4xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {modelesMiseEnPage.map(modele => {
                                 const cfgM = fusionnerConfiguration(modele.configuration);
