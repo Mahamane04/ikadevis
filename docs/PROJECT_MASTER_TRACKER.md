@@ -4741,3 +4741,60 @@ animée servie (`role=dialog`, focus entré).
   avec sablier, sous-page 100 ms sans sablier.
 - **En ligne** : `e912ef7`, jetons JS `96a219cd90` · CSS `886932d8c1`, vérifiés
   identiques sur `app.ikadevis.com` et `ikadevis.officemicro89.workers.dev`.
+
+---
+
+## 📌 § 69. Système de transition uniforme Maître/Détail (2026-09-17)
+
+### 69.1 Contexte & Objectif
+Sur les interfaces avec liste à gauche et panneau de détail à droite (Ouvrages,
+Ressources, Clients, Chantiers, Mes Devis, Factures), l'expérience manquait
+d'homogénéité : certains volets s'ouvraient sèchement, d'autres risquaient de
+provoquer des décalages visuels ou des collisions en cas de clics rapides
+successifs.
+
+**Cahier des charges utilisateur :**
+1. Retour visuel immédiat sur la carte cliquée (état actif net).
+2. Maintien absolu de la liste et de la structure de page (aucun flash blanc,
+   aucun rechargement, aucune perte de défilement).
+3. Affichage d'un Skeleton Loader dédié uniquement dans la zone de détail.
+4. Remplacement du Skeleton par le contenu avec une transition douce de 180 à 250 ms
+   (calibrée à 200 ms via fade-in / translateY(6px) -> 0).
+5. Protection anti-race condition : les clics successifs doivent annuler ou
+   ignorer les requêtes obsolètes afin que seule la dernière sélection mette à
+   jour l'interface.
+
+### 69.2 Architecture technique mise en œuvre
+
+1. **Règle CSS d'animation (`index.html`) :**
+   ```css
+   @keyframes detail-enter {
+       0% { opacity: 0; transform: translateY(6px); }
+       100% { opacity: 1; transform: translateY(0); }
+   }
+   .animate-detail-enter {
+       animation: detail-enter 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
+   }
+   ```
+2. **Composant Skeleton unifié (`DetailPanelSkeleton({ type })`) :**
+   Intégré dans `index_jsx.js` pour couvrir tous les cas d'usage :
+   - `type="recipe"` : en-tête d'ouvrage, actions, liste de ratios et formules.
+   - `type="resource"` : fiches caractéristiques matières/MO, tarifs unitaires.
+   - `type="project"` : métriques d'avancement chantier, jalons calendrier, lots.
+   - `type="client"` : avatar, coordonnées, identifiants légaux et historique.
+   - `type="quote"` / `type="invoice"` : document chiffré, synthèse financière.
+3. **Contrôleurs avec séquençage anti-collision (`useRef`) :**
+   Chaque sélection (`selectRecipeSolution`, `selectMaterial`, `selectLabor`,
+   `selectClient`, `selectProject`, `selectSavedQuote`, `selectInvoiceItem`)
+   incrémente un jeton de séquence (`++seqRef.current`). Seul le retour
+   correspondant au dernier jeton éteint l'état `detailLoadingX`, neutralisant tout
+   emballement ou inversion de rendu lors de clics rapides.
+
+### 69.3 Validation & Déploiement
+- **Vérifications automatisées** : banc Puppeteer headless confirmant l'apparition
+  du Skeleton à 80–100 ms et l'entrée animée du contenu réel à 350–450 ms sans flash
+  blanc ni déplacement de mise en page.
+- **Commit** : `b584350` (`feat(ux): transitions uniformes maître/détail avec skeleton loader et anti-race condition`).
+- **En ligne** : déployé en production (`app.ikadevis.com` et `workers.dev`),
+  jetons JS `16cbcfb739` · CSS `6fe0f4df12`.
+

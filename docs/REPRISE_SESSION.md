@@ -48,10 +48,10 @@ fois pendant le chantier § 62.
 
 | | État au 17 septembre |
 |---|---|
-| **En ligne** | https://app.ikadevis.com (domaine personnalisé) et https://ikadevis.officemicro89.workers.dev — jetons JS `96a219cd90` · CSS `886932d8c1` (empreintes de contenu, plus des dates) |
-| **Branche** | `main` = `origin/main` = `e912ef7`, arbre propre |
+| **En ligne** | https://app.ikadevis.com (domaine personnalisé) et https://ikadevis.officemicro89.workers.dev — jetons JS `16cbcfb739` · CSS `6fe0f4df12` (§ 69 transitions uniformes maître/détail + skeleton) |
+| **Branche** | `main` = `origin/main` = `b584350`, arbre propre |
 | **Migrations production** | ✅ à jour, y compris les 3 du § 62 (numérotation, équipe, rappels de paiement) |
-| **Tests** | **521/535 au vert, 6/52 suites, 7/7 étalons métier** — 14 échecs connus, liste stable (le dénominateur a changé : la suite s'est étoffée depuis les « 523/523 » du 8 septembre) |
+| **Tests** | **521/535 au vert, 6/52 suites, 7/7 étalons métier** — 14 échecs connus, liste stable |
 | **Cron actif** | `send-payment-reminders-daily` (`0 8 * * *`) sur staging et production |
 
 > `codex/v2-uiux` porte ~20 commits d'avance sur `main` sans divergence : la

@@ -306,6 +306,17 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   manipule activement (recherche, filtres, saisie). Suite : **521/535, 6/52
   suites, 7/7 étalons** — chiffres *et* liste nominative des échecs identiques
   à l'avant-chantier.
+- **Système de transition uniforme maître/détail (§ 69, 2026-09-17)** :
+  généralisation sur les 6 interfaces maître/détail (Ouvrages `recipes`, Ressources
+  `materials`, Clients `clients`, Chantiers `projects`, Mes Devis `savedQuotes` et
+  Factures `invoices`). Activation visuelle immédiate de la card au clic,
+  conservation stricte du scroll et de la structure liste, affichage d'un
+  `DetailPanelSkeleton` ciblé (`recipe`, `resource`, `client`, `project`, `quote`,
+  `invoice`) uniquement dans le volet droit, puis transition douce `.animate-detail-enter`
+  (200 ms, `translateY(6px)` vers `0`, fade-in sans flash blanc ni décalage de layout).
+  Contrôleurs avec séquençage par token (`useRef`) pour ignorer automatiquement
+  les requêtes obsolètes en cas de clics rapides successifs (anti-race condition).
+  Déployé en ligne (`b584350`, jetons JS `16cbcfb739` · CSS `6fe0f4df12`).
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 
