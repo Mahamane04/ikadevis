@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=886932d8c1">
+    <link rel="stylesheet" href="tailwind.css?v=6fe0f4df12">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -736,7 +736,17 @@
             100% { opacity: 1; transform: translateY(0); }
         }
         .animate-subpage-enter {
-            animation: subpage-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+            animation: subpage-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        /* 2026-09-17 — Transition uniforme maître/détail :
+           fade-in + translateY doux calibré à 350 ms pour un confort visuel optimal */
+        @keyframes detail-enter {
+            0%   { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-detail-enter {
+            animation: detail-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
         html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1115,10 +1125,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=96a219cd90"></script>
-    <script src="js/utils.js?v=96a219cd90"></script>
-    <script src="js/quote-templates.js?v=96a219cd90"></script>
-    <script src="app.compiled.js?v=96a219cd90"></script>
+    <script src="js/calc-engine.js?v=16cbcfb739"></script>
+    <script src="js/utils.js?v=16cbcfb739"></script>
+    <script src="js/quote-templates.js?v=16cbcfb739"></script>
+    <script src="app.compiled.js?v=16cbcfb739"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

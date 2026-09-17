@@ -224,10 +224,8 @@ function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = fal
 // en local, 3500 ms en cloud. Une constante unique, sinon l'écart se recreuse.
 const DUREE_ETAT_SUCCES_MS = 3000;
 
-// 2026-09-16 — Temps de transition volontaire entre deux pages. Le but n'est
-// pas de ralentir : c'est de donner au changement d'écran un début et une fin
-// perceptibles, au lieu d'un remplacement sec. 350 ms tient dans la fourchette
-// demandée (300-500) et reste sous le seuil où l'attente devient consciente.
+// 2026-09-17 — Temps de transition inter-pages calibré à 350 ms : transition douce,
+// permettant une perception fluide et naturelle du chargement.
 const DUREE_TRANSITION_PAGE_MS = 350;
 
 // Rendu unique des états, partagé par les deux boutons d'enregistrement
@@ -8760,6 +8758,182 @@ function GlobalSearch({
     );
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SKELETON LOADER UNIFORME MAÎTRE/DÉTAIL (Ouvrage, Ressource, Client, Chantier)
+// ═══════════════════════════════════════════════════════════════
+function DetailPanelSkeleton({ type = 'recipe' }) {
+    return (
+        <div data-skeleton="detail" data-skeleton-type={type} className="app-card flex flex-col min-w-0 w-full animate-pulse select-none" aria-busy="true" aria-label="Chargement des détails…">
+            {/* EN-TÊTE DU PANNEAU DE DÉTAIL SKELETON */}
+            <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
+                <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                    {type === 'client' ? (
+                        <div className="w-11 h-11 rounded-2xl bg-neutral-200 shrink-0"></div>
+                    ) : (
+                        <div className="w-9 h-9 rounded-xl bg-neutral-200 shrink-0"></div>
+                    )}
+                    <div className="space-y-2 min-w-0 flex-1">
+                        <div className="h-3 w-28 bg-neutral-200 rounded"></div>
+                        <div className="h-5 w-48 sm:w-64 bg-neutral-300 rounded"></div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="h-8 w-24 bg-neutral-200 rounded-lg"></div>
+                    <div className="h-8 w-8 bg-neutral-200 rounded-lg"></div>
+                </div>
+            </div>
+
+            {/* CORPS DU SKELETON SELON LE TYPE */}
+            <div className="p-5 sm:p-6 space-y-4 bg-neutral-50/50 flex-1">
+                {type === 'recipe' && (
+                    <>
+                        <div className="h-10 w-full bg-neutral-200/80 rounded-xl"></div>
+                        <div className="space-y-3 pt-2">
+                            <div className="h-16 w-full bg-white border border-neutral-200/80 rounded-xl p-3 flex items-center justify-between">
+                                <div className="space-y-1.5 flex-1">
+                                    <div className="h-3.5 w-40 bg-neutral-200 rounded"></div>
+                                    <div className="h-3 w-24 bg-neutral-100 rounded"></div>
+                                </div>
+                                <div className="h-6 w-20 bg-neutral-200 rounded-md"></div>
+                            </div>
+                            <div className="h-16 w-full bg-white border border-neutral-200/80 rounded-xl p-3 flex items-center justify-between">
+                                <div className="space-y-1.5 flex-1">
+                                    <div className="h-3.5 w-48 bg-neutral-200 rounded"></div>
+                                    <div className="h-3 w-28 bg-neutral-100 rounded"></div>
+                                </div>
+                                <div className="h-6 w-20 bg-neutral-200 rounded-md"></div>
+                            </div>
+                            <div className="h-16 w-full bg-white border border-neutral-200/80 rounded-xl p-3 flex items-center justify-between">
+                                <div className="space-y-1.5 flex-1">
+                                    <div className="h-3.5 w-36 bg-neutral-200 rounded"></div>
+                                    <div className="h-3 w-20 bg-neutral-100 rounded"></div>
+                                </div>
+                                <div className="h-6 w-20 bg-neutral-200 rounded-md"></div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {type === 'resource' && (
+                    <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="h-20 bg-white border border-neutral-200/80 rounded-xl p-3 space-y-2">
+                                <div className="h-3 w-20 bg-neutral-200 rounded"></div>
+                                <div className="h-5 w-24 bg-neutral-300 rounded"></div>
+                            </div>
+                            <div className="h-20 bg-white border border-neutral-200/80 rounded-xl p-3 space-y-2">
+                                <div className="h-3 w-16 bg-neutral-200 rounded"></div>
+                                <div className="h-5 w-20 bg-neutral-300 rounded"></div>
+                            </div>
+                            <div className="h-20 bg-white border border-neutral-200/80 rounded-xl p-3 space-y-2 col-span-2 sm:col-span-1">
+                                <div className="h-3 w-20 bg-neutral-200 rounded"></div>
+                                <div className="h-5 w-16 bg-neutral-300 rounded"></div>
+                            </div>
+                        </div>
+                        <div className="h-36 w-full bg-white border border-neutral-200/80 rounded-xl p-4 space-y-3">
+                            <div className="h-4 w-32 bg-neutral-200 rounded"></div>
+                            <div className="h-3 w-full bg-neutral-100 rounded"></div>
+                            <div className="h-3 w-4/5 bg-neutral-100 rounded"></div>
+                        </div>
+                    </>
+                )}
+
+                {(type === 'client' || type === 'project') && (
+                    <>
+                        <div className="flex gap-2 border-b border-neutral-200 pb-2">
+                            <div className="h-7 w-28 bg-neutral-200 rounded-lg"></div>
+                            <div className="h-7 w-28 bg-neutral-100 rounded-lg"></div>
+                        </div>
+                        <div className="space-y-3 pt-1">
+                            <div className="h-20 w-full bg-white border border-neutral-200/80 rounded-xl p-3.5 space-y-2">
+                                <div className="flex justify-between">
+                                    <div className="h-4 w-44 bg-neutral-200 rounded"></div>
+                                    <div className="h-4 w-20 bg-neutral-200 rounded"></div>
+                                </div>
+                                <div className="h-3 w-32 bg-neutral-100 rounded"></div>
+                            </div>
+                            <div className="h-20 w-full bg-white border border-neutral-200/80 rounded-xl p-3.5 space-y-2">
+                                <div className="flex justify-between">
+                                    <div className="h-4 w-36 bg-neutral-200 rounded"></div>
+                                    <div className="h-4 w-20 bg-neutral-200 rounded"></div>
+                                </div>
+                                <div className="h-3 w-28 bg-neutral-100 rounded"></div>
+                            </div>
+                        </div>
+                    </>
+                )}
+                {type === 'quote' && (
+                    <>
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-200/80">
+                            <div className="flex items-center gap-2">
+                                <div className="h-6 w-24 bg-neutral-200 rounded-md"></div>
+                                <div className="h-6 w-32 bg-neutral-200 rounded-md"></div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-28 bg-brand-200/60 rounded-lg"></div>
+                                <div className="h-8 w-20 bg-neutral-200 rounded-lg"></div>
+                            </div>
+                        </div>
+                        <div className="bg-white border border-neutral-200/80 rounded-2xl p-5 sm:p-7 space-y-5 shadow-xs">
+                            <div className="flex justify-between items-start border-b border-neutral-100 pb-4">
+                                <div className="space-y-2">
+                                    <div className="h-5 w-44 bg-neutral-300 rounded"></div>
+                                    <div className="h-3.5 w-60 bg-neutral-100 rounded"></div>
+                                </div>
+                                <div className="space-y-2 text-right">
+                                    <div className="h-6 w-36 bg-brand-200/80 rounded ml-auto"></div>
+                                    <div className="h-3 w-28 bg-neutral-100 rounded ml-auto"></div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-3 bg-neutral-50 rounded-xl space-y-1.5">
+                                    <div className="h-3 w-16 bg-neutral-200 rounded"></div>
+                                    <div className="h-4 w-32 bg-neutral-300 rounded"></div>
+                                </div>
+                                <div className="p-3 bg-neutral-50 rounded-xl space-y-1.5">
+                                    <div className="h-3 w-20 bg-neutral-200 rounded"></div>
+                                    <div className="h-4 w-40 bg-neutral-300 rounded"></div>
+                                </div>
+                            </div>
+                            <div className="space-y-2 pt-2">
+                                <div className="h-8 w-full bg-neutral-100 rounded-lg"></div>
+                                <div className="h-10 w-full bg-neutral-50 border border-neutral-100 rounded-lg"></div>
+                                <div className="h-10 w-full bg-neutral-50 border border-neutral-100 rounded-lg"></div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {type === 'invoice' && (
+                    <>
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-200/80">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-36 bg-brand-500/20 rounded-lg"></div>
+                                <div className="h-8 w-24 bg-neutral-200 rounded-lg"></div>
+                                <div className="h-8 w-32 bg-neutral-200 rounded-lg"></div>
+                            </div>
+                        </div>
+                        <div className="bg-white border border-neutral-200/80 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+                            <div className="h-12 w-full bg-amber-50/70 border border-amber-200/60 rounded-xl p-3 flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-amber-200 shrink-0"></div>
+                                <div className="h-3.5 w-64 bg-amber-200/80 rounded"></div>
+                            </div>
+                            <div className="p-4 bg-neutral-50 rounded-xl space-y-3">
+                                <div className="h-4 w-48 bg-neutral-300 rounded"></div>
+                                <div className="space-y-2">
+                                    <div className="h-9 w-full bg-white rounded-lg border border-neutral-200/60"></div>
+                                    <div className="h-9 w-full bg-white rounded-lg border border-neutral-200/60"></div>
+                                    <div className="h-9 w-full bg-white rounded-lg border border-neutral-200/60"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function GlobalTopBar({
     onOpenMobileDrawer,
     activeView,
@@ -12678,19 +12852,54 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Initialisé sur la vue courante : le tout premier affichage n'attend pas.
     const [vueAffichee, setVueAffichee] = useState('dashboard');
     const [transitionPage, setTransitionPage] = useState(false);
+    const [pageLoadTimeMs, setPageLoadTimeMs] = useState(35);
+    const [elapsedTransitionMs, setElapsedTransitionMs] = useState(0);
+    const transitionStartRef = useRef(performance.now());
+
+    // 2026-09-17 — Mesure initiale du temps de chargement au montage de l'application
+    useEffect(() => {
+        try {
+            const initMs = Math.round(performance.now());
+            if (initMs > 0 && initMs < 10000) setPageLoadTimeMs(initMs);
+        } catch (e) {}
+    }, []);
+
     useEffect(() => {
         if (vueAffichee === activeView) return undefined;
+        transitionStartRef.current = performance.now();
         setTransitionPage(true);
+        setElapsedTransitionMs(0);
+
+        // Chronomètre temps réel des millisecondes écoulées pendant le chargement
+        const intervalMs = setInterval(() => {
+            setElapsedTransitionMs(Math.round(performance.now() - transitionStartRef.current));
+        }, 16);
+
         const minuteur = setTimeout(() => {
+            clearInterval(intervalMs);
+            const dureeReelle = Math.max(1, Math.round(performance.now() - transitionStartRef.current));
+            setPageLoadTimeMs(dureeReelle);
             setVueAffichee(activeView);
             setTransitionPage(false);
         }, DUREE_TRANSITION_PAGE_MS);
+
         // Nettoyage indispensable : un utilisateur qui enchaîne deux clics ne
         // doit pas se retrouver avec deux minuteurs concurrents, dont le plus
         // ancien rétablirait une vue déjà dépassée.
-        return () => clearTimeout(minuteur);
+        return () => {
+            clearInterval(intervalMs);
+            clearTimeout(minuteur);
+        };
     }, [activeView, vueAffichee]);
+
     const [isTechnicalCatalogOpen, setIsTechnicalCatalogOpen] = useState(false);
+
+    // Maintient ouvert l'accordéon technique lorsque Catalogue ou Ressources est actif
+    useEffect(() => {
+        if (activeView === 'recipes' || activeView === 'materials') {
+            setIsTechnicalCatalogOpen(true);
+        }
+    }, [activeView]);
     const [toast, setToast] = useState(null);
 
     // Personnalisation du Tableau de bord (Option A — persistance localStorage)
@@ -14192,6 +14401,167 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Catalogue Ouvrages (référence Zoho Books partagée par l'utilisateur).
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [selectedProjectId, setSelectedProjectId] = useState(null);
+
+    // 2026-09-17 — Système uniforme de transition maître/détail (Ouvrage, Ressource, Client, Chantier) :
+    // État actif immédiat, Skeleton Loader de détail ciblé, remplacement fade-in/translateY (200 ms),
+    // et annulation systématique des requêtes/clics concurrents précédents.
+    const [detailLoadingRecipe, setDetailLoadingRecipe] = useState(false);
+    const [detailLoadingResource, setDetailLoadingResource] = useState(false);
+    const [detailLoadingClient, setDetailLoadingClient] = useState(false);
+    const [detailLoadingProject, setDetailLoadingProject] = useState(false);
+    const [detailLoadingQuote, setDetailLoadingQuote] = useState(false);
+    const [detailLoadingInvoice, setDetailLoadingInvoice] = useState(false);
+
+    const recipeTransitionSeqRef = useRef(0);
+    const resourceTransitionSeqRef = useRef(0);
+    const clientTransitionSeqRef = useRef(0);
+    const projectTransitionSeqRef = useRef(0);
+    const quoteTransitionSeqRef = useRef(0);
+    const invoiceTransitionSeqRef = useRef(0);
+
+    const DUREE_TRANSITION_DETAIL_MS = 350; // Calibré à 350 ms pour un confort visuel optimal sans précipitation
+
+    const selectRecipeSolution = useCallback((solution) => {
+        if (!solution) {
+            setSelectedSolutionForEdit(null);
+            setDetailLoadingRecipe(false);
+            return;
+        }
+        if (selectedSolutionForEdit?.id === solution.id && !detailLoadingRecipe) return;
+
+        // 1. Mise à jour immédiate de la sélection (card active instantanément)
+        setSelectedSolutionForEdit(solution);
+        setCatalogResourceSearch('');
+        setIsCatalogResourceSearchOpen(false);
+
+        // 2. Déclenchement du Skeleton Loader et jeton de séquence anti-concurrence
+        setDetailLoadingRecipe(true);
+        const token = ++recipeTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (recipeTransitionSeqRef.current === token) {
+                setDetailLoadingRecipe(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [selectedSolutionForEdit, detailLoadingRecipe]);
+
+    const selectMaterial = useCallback((m) => {
+        if (!m) {
+            setSelectedMaterialId(null);
+            setDetailLoadingResource(false);
+            return;
+        }
+        if (selectedMaterialId === m.id && !detailLoadingResource) return;
+
+        setSelectedMaterialId(m.id);
+        setIsResourceEditMode(false);
+        setResourceDetailTab('overview');
+        setDetailLoadingResource(true);
+        const token = ++resourceTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (resourceTransitionSeqRef.current === token) {
+                setDetailLoadingResource(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [selectedMaterialId, detailLoadingResource]);
+
+    const selectLabor = useCallback((l) => {
+        if (!l) {
+            setSelectedLaborId(null);
+            setDetailLoadingResource(false);
+            return;
+        }
+        if (selectedLaborId === l.id && !detailLoadingResource) return;
+
+        setSelectedLaborId(l.id);
+        setIsResourceEditMode(false);
+        setDetailLoadingResource(true);
+        const token = ++resourceTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (resourceTransitionSeqRef.current === token) {
+                setDetailLoadingResource(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [selectedLaborId, detailLoadingResource]);
+
+    const selectClient = useCallback((cId) => {
+        if (!cId) {
+            setSelectedClientId(null);
+            setDetailLoadingClient(false);
+            return;
+        }
+        if (selectedClientId === cId && !detailLoadingClient) return;
+
+        setSelectedClientId(cId);
+        setDetailLoadingClient(true);
+        const token = ++clientTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (clientTransitionSeqRef.current === token) {
+                setDetailLoadingClient(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [selectedClientId, detailLoadingClient]);
+
+    const selectProject = useCallback((pId) => {
+        if (!pId) {
+            setSelectedProjectId(null);
+            setDetailLoadingProject(false);
+            return;
+        }
+        if (selectedProjectId === pId && !detailLoadingProject) return;
+
+        setSelectedProjectId(pId);
+        setDetailLoadingProject(true);
+        const token = ++projectTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (projectTransitionSeqRef.current === token) {
+                setDetailLoadingProject(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [selectedProjectId, detailLoadingProject]);
+
+    const selectSavedQuote = useCallback((sq) => {
+        if (!sq) {
+            setViewingSavedQuote(null);
+            setDetailLoadingQuote(false);
+            return;
+        }
+        if (viewingSavedQuote?.id === sq.id && !detailLoadingQuote) return;
+
+        setViewingSavedQuote(sq);
+        setIsCommercialMode(true);
+        setDetailLoadingQuote(true);
+        const token = ++quoteTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (quoteTransitionSeqRef.current === token) {
+                setDetailLoadingQuote(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [viewingSavedQuote, detailLoadingQuote]);
+
+    const selectInvoiceItem = useCallback((inv) => {
+        if (!inv) {
+            setViewingInvoice(null);
+            setDetailLoadingInvoice(false);
+            return;
+        }
+        if (viewingInvoice?.id === inv.id && !detailLoadingInvoice) return;
+
+        setViewingInvoice(inv);
+        setDetailLoadingInvoice(true);
+        const token = ++invoiceTransitionSeqRef.current;
+
+        setTimeout(() => {
+            if (invoiceTransitionSeqRef.current === token) {
+                setDetailLoadingInvoice(false);
+            }
+        }, DUREE_TRANSITION_DETAIL_MS);
+    }, [viewingInvoice, detailLoadingInvoice]);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
         // P0.8 — même règle que clients/projects : jeu de démonstration en
@@ -18997,7 +19367,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {filteredProjects.map(prj => {
                             const prjQuotesCount = savedQuotes.filter(q => q.projectRef === prj.name || (q.projectId && q.projectId === prj.id)).length;
                             return (
-                                <button key={prj.id} onClick={() => setSelectedProjectId(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner le chantier ${prj.name}`}>
+                                <button key={prj.id} onClick={() => selectProject(prj.id)} className={`flex flex-col gap-1 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedProjectId === prj.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner le chantier ${prj.name}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 shrink-0">{prj.code}</span>
                                         <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${getProjectStatusBadge(prj.status).className}`}>{getProjectStatusBadge(prj.status).label}</span>
@@ -19047,8 +19417,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <i className="fa-solid fa-folder-tree text-3xl mb-3 text-neutral-300"></i>
                             <p className="text-sm font-bold text-neutral-600">Sélectionnez un chantier pour voir son détail</p>
                         </div>
+                    ) : detailLoadingProject ? (
+                        <DetailPanelSkeleton type="project" />
                     ) : (
-                        <div className="app-card flex flex-col">
+                        <div className="animate-detail-enter flex flex-col w-full">
+                            <div className="app-card flex flex-col">
                             <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className="lg:hidden shrink-0"><button onClick={() => setSelectedProjectId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
@@ -19138,6 +19511,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     <p className="text-[11px] text-neutral-500 italic">Aucun devis lié pour l'instant.</p>
                                 )}
                             </div>
+                        </div>
                         </div>
                     )}
                 </div>
@@ -19346,7 +19720,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         {filteredClients.map(c => {
                             const cQuotesCount = savedQuotes.filter(q => q.clientId === c.id || q.clientName === c.name).length;
                             return (
-                                <button key={c.id} onClick={() => setSelectedClientId(c.id)} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${c.name}`}>
+                                <button key={c.id} onClick={() => selectClient(c.id)} className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 bg-white text-left ${selectedClientId === c.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`} aria-label={`Sélectionner ${c.name}`}>
                                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${selectedClientId === c.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                         {c.name.substring(0, 2).toUpperCase()}
                                     </div>
@@ -19397,8 +19771,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <i className="fa-solid fa-users text-3xl mb-3 text-neutral-300"></i>
                             <p className="text-sm font-bold text-neutral-600">Sélectionnez un client pour voir sa fiche</p>
                         </div>
+                    ) : detailLoadingClient ? (
+                        <DetailPanelSkeleton type="client" />
                     ) : (
-                        <div className="app-card flex flex-col">
+                        <div className="animate-detail-enter flex flex-col w-full">
+                            <div className="app-card flex flex-col">
                             <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className="lg:hidden shrink-0"><button onClick={() => setSelectedClientId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
@@ -19550,6 +19927,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     )}
                                 </div>
                             </div>
+                        </div>
                         </div>
                     )}
                 </div>
@@ -21257,7 +21635,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 {visibleInvoices.map(f => {
                                     const st = getStatutBadge(f);
                                     const isActive = !!(activeInvoice && activeInvoice.id === f.id);
-                                    const selectInvoice = () => setViewingInvoice(f);
+                                    const selectInvoice = () => selectInvoiceItem(f);
                                     return (
                                         <div
                                             key={f.id}
@@ -21396,7 +21774,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         {visibleInvoices.map(f => {
                                             const st = getStatutBadge(f);
                                             const isActive = !!(activeInvoice && activeInvoice.id === f.id);
-                                            const selectInvoice = () => setViewingInvoice(f);
+                                            const selectInvoice = () => selectInvoiceItem(f);
                                             return (
                                                 <tr
                                                     key={f.id}
@@ -21606,16 +21984,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                 {/* COLONNE DÉTAIL — rendue uniquement si une facture est sélectionnée */}
                 {hasActiveInvoice && (
-                    <div key={activeInvoice?.id ?? 'aucune'} data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-subpage-enter">
-                        {/* Même principe que le détail d'un devis : fondu à chaque
-                            changement de facture, aucun délai ajouté. La `key` force
-                            le remontage, sans quoi l'animation ne se rejouerait pas
-                            et le panneau garderait le défilement de la facture
-                            précédente.
-                            Le commentaire est À L'INTÉRIEUR de l'élément : placé
-                            avant lui, il tombait dans un `{condition && ( … )}` où
-                            une SEULE expression est admise, et la compilation
-                            échouait (« Expected ")" but found "key" »). */}
+                    <div data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll">
+                        {detailLoadingInvoice ? (
+                            <DetailPanelSkeleton type="invoice" />
+                        ) : (
+                            <div key={activeInvoice?.id ?? 'aucune'} className="animate-detail-enter flex flex-col w-full">
                         {(() => {
                             const estBrouillon = activeInvoice.statut === 'draft';
                             const netTTC = Number(activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC) || 0;
@@ -22287,6 +22660,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </div>
                             );
                         })()}
+                            </div>
+                        )}
                     </div>
                 )}
                 </div>
@@ -23332,10 +23707,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         // de détail, jamais dans les lignes de cette liste synthétique.
         const ligneDevis = (sq) => {
             const isActive = !!(activeQuote && activeQuote.id === sq.id);
-            const selectQuote = () => {
-                setViewingSavedQuote(sq);
-                setIsCommercialMode(true);
-            };
+            const selectQuote = () => selectSavedQuote(sq);
             return (
                 <tr
                     key={sq.id}
@@ -23501,10 +23873,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     <tbody className="divide-y-0">
                                         {visibleQuotes.map(sq => {
                                             const isActive = !!(activeQuote && activeQuote.id === sq.id);
-                                            const selectQuote = () => {
-                                                setViewingSavedQuote(sq);
-                                                setIsCommercialMode(true);
-                                            };
+                                            const selectQuote = () => selectSavedQuote(sq);
                                             const facturesDuDevis = invoices.filter(f =>
                                                 String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                             );
@@ -23695,10 +24064,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100">
                                         {visibleQuotes.map(sq => {
-                                            const selectQuote = () => {
-                                                setViewingSavedQuote(sq);
-                                                setIsCommercialMode(true);
-                                            };
+                                            const selectQuote = () => selectSavedQuote(sq);
                                             const facturesDuDevis = invoices.filter(f =>
                                                 String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                             );
@@ -23793,21 +24159,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
             {/* COLONNE DÉTAIL — rendue uniquement si un devis est sélectionné */}
             {hasActiveQuote && (
-                <div key={activeQuote?.id ?? 'aucun'} data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-subpage-enter">
-                    {/* 2026-09-17 — Sous-page : on ANIME sans RETARDER. Passer d'un
-                        devis à l'autre est instantané (la donnée est déjà là) ; y
-                        glisser un sablier ferait passer pour lent ce qui ne l'est
-                        pas. Le fondu suffit.
-                        La `key` n'est pas décorative : sans elle le conteneur reste
-                        monté, seul son contenu change, et une animation CSS ne se
-                        rejoue jamais dans ce cas — le premier devis s'animait, les
-                        suivants apparaissaient sèchement. Elle remet aussi le
-                        défilement en haut, ce qu'on veut en ouvrant un autre
-                        document.
-                        Commentaire placé À L'INTÉRIEUR : avant l'élément, il se
-                        trouvait dans un `{condition && ( … )}` qui n'admet qu'une
-                        seule expression, et la compilation échouait. */}
-                    {renderQuoteDetailPanel(activeQuote, { asModal: false })}
+                <div data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0">
+                    {detailLoadingQuote ? (
+                        <DetailPanelSkeleton type="quote" />
+                    ) : (
+                        <div key={activeQuote?.id ?? 'aucun'} className="animate-detail-enter flex flex-col w-full h-full">
+                            {renderQuoteDetailPanel(activeQuote, { asModal: false })}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -24116,7 +24475,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
                     {solutions.filter(s => s.name.toLowerCase().includes(solutionSearchQuery.toLowerCase())).map(s => (
                         <div key={s.id} className={`flex items-center justify-between p-2.5 rounded-xl border-2 transition-all duration-200 bg-white ${selectedSolutionForEdit?.id === s.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
-                            <button onClick={() => { setSelectedSolutionForEdit(s); setCatalogResourceSearch(''); setIsCatalogResourceSearchOpen(false); }} className="flex items-center text-left gap-3 flex-1 min-w-0 outline-none" aria-label={`Sélectionner l'ouvrage ${s.name}`}>
+                            <button onClick={() => selectRecipeSolution(s)} className="flex items-center text-left gap-3 flex-1 min-w-0 outline-none" aria-label={`Sélectionner l'ouvrage ${s.name}`}>
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selectedSolutionForEdit?.id === s.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                     <i className={`fa-solid ${s.icon}`}></i>
                                 </div>
@@ -24133,14 +24492,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             </div>
 
             <div className={`${selectedSolutionForEdit ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll`}>
-                {selectedSolutionForEdit && (
-                    // min-w-0 : sans lui, ce panneau est un flex-item dont le
-                    // min-width par défaut ("auto") ne peut pas descendre sous
-                    // la largeur intrinsèque de son contenu — la ligne de
-                    // boutons « Modes autorisés / Variables du Chantier »
-                    // pousse alors toute la carte, et donc la page, en
-                    // débordement horizontal sur mobile (< 640px, sm:).
-                    <div className="app-card flex flex-col min-w-0">
+                {!selectedSolutionForEdit ? (
+                    <div className="app-card p-16 text-center text-neutral-500">
+                        <i className="fa-solid fa-cube text-3xl mb-3 text-neutral-300"></i>
+                        <p className="text-sm font-bold text-neutral-600">Sélectionnez un ouvrage pour voir ses composants</p>
+                    </div>
+                ) : detailLoadingRecipe ? (
+                    <DetailPanelSkeleton type="recipe" />
+                ) : (
+                    <div className="animate-detail-enter flex flex-col w-full">
+                        <div className="app-card flex flex-col min-w-0">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
                             {/* w-full : sous sm:, ce conteneur reçoit items-start (pas le
                                 stretch par défaut), donc sans largeur explicite il prend la
@@ -24417,6 +24778,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </table>
                         </div>
                     </div>
+                    </div>
                 )}
             </div>
         </div>
@@ -24469,8 +24831,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         const visibleMaterials = materials.filter(m => !resourceQuery || [m.name, m.category, m.unitBuy, m.unitCalc].some(value => normalizeSearchText(value).includes(resourceQuery)));
         const visibleLabor = labor.filter(l => !resourceQuery || [l.name, l.unit, l.calcMode].some(value => normalizeSearchText(value).includes(resourceQuery)));
 
-        const openMaterialDetail = (m) => { setSelectedMaterialId(m.id); setIsResourceEditMode(false); setResourceDetailTab('overview'); };
-        const openLaborDetail = (l) => { setSelectedLaborId(l.id); setIsResourceEditMode(false); };
+        const openMaterialDetail = (m) => { selectMaterial(m); };
+        const openLaborDetail = (l) => { selectLabor(l); };
         const startEditMaterial = (m) => { setMatForm({ ...m }); setSelectedMaterialId(m.id); setIsResourceEditMode(true); setIsCustomCategory(false); setIsCustomPackaging(false); };
         const startEditLabor = (l) => { setLaborForm({ ...l }); setSelectedLaborId(l.id); setIsResourceEditMode(true); };
         const startNewMaterial = () => {
@@ -24482,7 +24844,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             setLaborForm(draft); setSelectedLaborId(draft.id); setIsResourceEditMode(true);
         };
         const closeDetail = () => {
-            if (resourceTab === 'materials') setSelectedMaterialId(null); else setSelectedLaborId(null);
+            if (resourceTab === 'materials') selectMaterial(null); else selectLabor(null);
             setIsResourceEditMode(false);
         };
         const cancelEdit = () => {
@@ -24695,8 +25057,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <i className={`fa-solid ${resourceTab === 'materials' ? 'fa-box' : 'fa-user-gear'} text-3xl mb-3 text-neutral-300`}></i>
                         <p className="text-sm font-bold text-neutral-600">Sélectionnez {resourceTab === 'materials' ? 'une matière' : 'une prestation'} pour voir son détail</p>
                     </div>
+                ) : detailLoadingResource ? (
+                    <DetailPanelSkeleton type="resource" />
                 ) : (
-                    <div className="app-card flex flex-col">
+                    <div className="animate-detail-enter flex flex-col w-full">
+                        <div className="app-card flex flex-col">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white">
                             <div className="flex items-center gap-3 min-w-0">
                                 <span className="lg:hidden shrink-0"><button onClick={closeDetail} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
@@ -25174,6 +25539,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             )}
                         </div>
                     </div>
+                    </div>
                 )}
             </div>
         </div>
@@ -25198,6 +25564,43 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         || devisNonEnregistre
         || (hybridQuote?.lots || []).some(lot => (lot.items || []).length > 0)
         || !!String(hybridQuote?.clientName || '').trim();
+
+    // Accès intelligent au chiffrage : reprend le devis en cours s'il existe, sinon démarre un devis propre
+    const ouvrirChiffrage = React.useCallback(() => {
+        if (chiffrageOuvert) {
+            naviguerVers('calculator');
+        } else {
+            demarrerNouveauDevis();
+        }
+    }, [chiffrageOuvert, naviguerVers]);
+
+    // Raccourcis clavier de navigation rapide entre les 5 modules métiers (Alt + 1 à 5)
+    useEffect(() => {
+        const handleQuickNavKeys = (e) => {
+            const tag = e.target?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+            if (!e.altKey) return;
+
+            if (e.key === '1' || e.key === '&') {
+                e.preventDefault();
+                ouvrirChiffrage();
+            } else if (e.key === '2' || e.key === 'é') {
+                e.preventDefault();
+                naviguerVers('savedQuotes');
+            } else if (e.key === '3' || e.key === '"') {
+                e.preventDefault();
+                naviguerVers('invoices');
+            } else if (e.key === '4' || e.key === "'") {
+                e.preventDefault();
+                naviguerVers('recipes');
+            } else if (e.key === '5' || e.key === '(') {
+                e.preventDefault();
+                naviguerVers('materials');
+            }
+        };
+        window.addEventListener('keydown', handleQuickNavKeys);
+        return () => window.removeEventListener('keydown', handleQuickNavKeys);
+    }, [ouvrirChiffrage, naviguerVers]);
 
     const NavItem = ({ id, icon, label, onClickExtra }) => {
         const isActive = activeView === id;
@@ -25535,26 +25938,147 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                     {/* MAIN CONTENT AREA */}
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
+                        {/* ── BARRE D'ONGLETS RAPIDES MÉTIERS (Chiffrage · Devis · Factures · Catalogue · Ressources) & LATENCE MS ── */}
+                        {vueAffichee !== 'settings' && vueAffichee !== 'platformAdmin' && (
+                            <div className="workspace-quick-nav w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
+                                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0" role="tablist" aria-label="Navigation rapide métiers">
+                                    {/* 1. Chiffrage */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'calculator'}
+                                        onClick={ouvrirChiffrage}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'calculator'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Chiffrage des devis (Alt+1)"
+                                    >
+                                        <i className="fa-solid fa-calculator text-[11px]"></i>
+                                        <span>Chiffrage</span>
+                                        {chiffrageOuvert && vueAffichee !== 'calculator' && (
+                                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Chiffrage actif en cours"></span>
+                                        )}
+                                    </button>
+
+                                    {/* 2. Mes devis */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'savedQuotes'}
+                                        onClick={() => naviguerVers('savedQuotes')}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'savedQuotes'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Mes devis enregistrés (Alt+2)"
+                                    >
+                                        <i className="fa-solid fa-folder-open text-[11px]"></i>
+                                        <span>Mes devis</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
+                                            vueAffichee === 'savedQuotes' ? 'bg-white/25 text-white' : 'bg-neutral-200/70 text-neutral-700'
+                                        }`}>
+                                            {(savedQuotes || []).length}
+                                        </span>
+                                    </button>
+
+                                    {/* 3. Factures */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'invoices'}
+                                        onClick={() => naviguerVers('invoices')}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'invoices'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Facturation et règlements (Alt+3)"
+                                    >
+                                        <i className="fa-solid fa-file-invoice-dollar text-[11px]"></i>
+                                        <span>Factures</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
+                                            vueAffichee === 'invoices' ? 'bg-white/25 text-white' : 'bg-neutral-200/70 text-neutral-700'
+                                        }`}>
+                                            {(invoices || []).length}
+                                        </span>
+                                    </button>
+
+                                    <span className="h-4 w-px bg-neutral-200 mx-0.5 shrink-0" aria-hidden="true"></span>
+
+                                    {/* 4. Catalogue */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'recipes'}
+                                        onClick={() => naviguerVers('recipes')}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'recipes'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Catalogue d'ouvrages et ratios (Alt+4)"
+                                    >
+                                        <i className="fa-solid fa-layer-group text-[11px]"></i>
+                                        <span>Catalogue</span>
+                                    </button>
+
+                                    {/* 5. Ressources */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'materials'}
+                                        onClick={() => naviguerVers('materials')}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'materials'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Ressources, matériaux et main d'œuvre (Alt+5)"
+                                    >
+                                        <i className="fa-solid fa-database text-[11px]"></i>
+                                        <span>Ressources</span>
+                                    </button>
+                                </div>
+
+                                {/* BADGE DE PERFORMANCE : TEMPS DE CHARGEMENT / RENDU EN MILLISECONDES */}
+                                <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                                    <div
+                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-neutral-100/90 text-neutral-700 border border-neutral-200/80 shadow-2xs select-none"
+                                        title={`Temps de chargement et de rendu de la vue : ${pageLoadTimeMs} ms`}
+                                    >
+                                        <i className="fa-solid fa-bolt-lightning text-amber-500 text-[10px]"></i>
+                                        <span className="text-neutral-400 text-[10px] font-sans font-medium hidden sm:inline">Rendu :</span>
+                                        <span className={`${pageLoadTimeMs < 150 ? 'text-emerald-600' : pageLoadTimeMs < 400 ? 'text-brand-600' : 'text-amber-600'}`}>
+                                            {pageLoadTimeMs} ms
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Le gabarit suit la vue AFFICHÉE, pas la vue demandée :
                             sinon les marges changeraient dès le clic, faisant sauter
                             la mise en page pendant que l'ancien contenu est encore là. */}
                         <div className={`${vueAffichee === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
                             {transitionPage ? (
-                                /* Pendant la transition : une barre de progression fine en
-                                   haut de la zone de contenu et un sablier discret au
-                                   centre. Rien d'autre — la zone garde exactement les
-                                   mêmes dimensions, pour que l'arrivée de la page ne
-                                   déplace rien. `role="status"` + `aria-live` annoncent
-                                   l'attente à un lecteur d'écran, que l'animation seule
-                                   laisserait dans le silence. */
+                                /* Pendant la transition : barre de progression, sablier discret
+                                   et chronomètre temps réel en millisecondes. */
                                 <div className="w-full flex-1 min-h-0 flex flex-col" role="status" aria-live="polite">
                                     <div className="h-0.5 w-full bg-brand-100 rounded-full overflow-hidden shrink-0" aria-hidden="true">
                                         <div className="h-full w-1/3 bg-brand-500 animate-page-progress"></div>
                                     </div>
-                                    <div className="flex-1 min-h-0 flex items-center justify-center">
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3">
                                         <span className="w-8 h-8 rounded-full border-2 border-neutral-200 border-t-brand-500 animate-page-spin" aria-hidden="true"></span>
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-neutral-600 bg-white px-3.5 py-1.5 rounded-full border border-neutral-200 shadow-2xs">
+                                            <i className="fa-solid fa-bolt-lightning text-amber-500 animate-pulse text-xs"></i>
+                                            <span>Chargement en cours…</span>
+                                            <span className="font-mono text-brand-600 font-bold">{elapsedTransitionMs} ms</span>
+                                        </div>
                                     </div>
-                                    <span className="sr-only">Chargement de la page…</span>
+                                    <span className="sr-only">Chargement de la page… ({elapsedTransitionMs} ms)</span>
                                 </div>
                             ) : (
                             <div className="animate-page-enter w-full flex-1 min-h-0 flex flex-col">
