@@ -671,6 +671,23 @@
         @keyframes slide-up { from { transform: translateY(100%); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
         .animate-fade-in  { animation: fade-in  0.18s ease-out both; }
         .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.32,0.72,0,1) both; }
+        /* 2026-09-17 — `animate-scale-up` était employé à SIX endroits du code
+           (bibliothèque d'ouvrages, configuration du tableau de bord, etc.)
+           sans avoir jamais été défini nulle part : ces panneaux apparaissaient
+           donc d'un bloc. La définition manquait, pas les appels. */
+        @keyframes scale-up {
+            0%   { opacity: 0; transform: scale(0.97) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-scale-up { animation: scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        /* Respect du réglage système « réduire les animations ». On neutralise
+           les animations d'ENTRÉE uniquement : le sablier et la barre de
+           progression sont porteurs d'information, ils restent. */
+        @media (prefers-reduced-motion: reduce) {
+            .animate-fade-in, .animate-slide-up, .animate-scale-up,
+            .animate-page-enter, .animate-subpage-enter { animation: none !important; }
+        }
 
         /* ── Transition de page fluide & moderne (300-500ms) ── */
         @keyframes page-progress-bar {
@@ -1098,10 +1115,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=9032f175e5"></script>
-    <script src="js/utils.js?v=9032f175e5"></script>
-    <script src="js/quote-templates.js?v=9032f175e5"></script>
-    <script src="app.compiled.js?v=9032f175e5"></script>
+    <script src="js/calc-engine.js?v=96a219cd90"></script>
+    <script src="js/utils.js?v=96a219cd90"></script>
+    <script src="js/quote-templates.js?v=96a219cd90"></script>
+    <script src="app.compiled.js?v=96a219cd90"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

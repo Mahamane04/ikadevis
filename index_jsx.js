@@ -15513,9 +15513,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     //   • les deux fenêtres déjà câblées se signalent et sont laissées à leur
     //     propre crochet, pour éviter deux gestionnaires concurrents.
     React.useEffect(() => {
+        // 2026-09-17 — Une fenêtre qui APPARAÎT en fondu vaut une opacité nulle
+        // pendant ses premières frames. La rejeter pour ce motif la privait
+        // DÉFINITIVEMENT de son rôle, de son aria-modal et de son piège à
+        // focus : la remontée d'opacité ne modifie ni l'attribut class ni
+        // l'attribut style, donc l'observateur de mutations ne réveillait plus
+        // jamais reevaluer.
+        //
+        // Mesuré le 2026-09-17 sur « Nouveau chantier » ET « Nouveau client » :
+        // opacité 0 à l'ouverture, 1 seulement vers 177 ms, rôle jamais posé —
+        // alors que la suite annonçait l'une des deux au vert (faux vert dû à
+        // l'enchaînement du banc). Le défaut touchait donc déjà les dix fenêtres
+        // animées AVANT l'extension des transitions ; il n'a pas été créé par
+        // elle, il a été élargi et révélé par elle.
+        //
+        // Une animation EN COURS ne vaut donc plus invisibilité.
         const visible = (e) => {
             const cs = getComputedStyle(e);
-            if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') return false;
+            if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+            if (cs.opacity === '0' && cs.animationName === 'none') return false;
             const r = e.getBoundingClientRect();
             return r.width > 1 && r.height > 1;
         };
@@ -15573,8 +15589,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const observateur = new MutationObserver(reevaluer);
         observateur.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
         document.addEventListener('keydown', auClavier, true);
+        // Rattrapage : la FIN d'une animation d'entrée n'émet aucune mutation.
+        // Sans ces deux écouteurs, une fenêtre manquée à l'ouverture le
+        // resterait pour toujours, même une fois pleinement visible.
+        document.addEventListener('animationstart', reevaluer, true);
+        document.addEventListener('animationend', reevaluer, true);
         reevaluer();
-        return () => { observateur.disconnect(); document.removeEventListener('keydown', auClavier, true); };
+        return () => {
+            observateur.disconnect();
+            document.removeEventListener('keydown', auClavier, true);
+            document.removeEventListener('animationstart', reevaluer, true);
+            document.removeEventListener('animationend', reevaluer, true);
+        };
     }, []);
 
     const refFenetrePartage = React.useRef(null);
@@ -22389,7 +22415,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 // le banc test_documents_organization_currency échouait alors au
                 // clic sur « Changer d'organisation ».
                 return (
-                <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-100 flex flex-col z-[140] overflow-y-auto lg:hidden" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
+                <div className={opts?.asModal ? "saved-quote-detail-modal fixed inset-0 bg-neutral-100 flex flex-col z-[140] overflow-y-auto lg:hidden animate-subpage-enter" : "saved-quote-detail-modal flex flex-col w-full h-full min-h-0"}>
                     {/* 2026-09-16 — Sur bureau, CETTE carte est le seul et unique
                         conteneur défilant du panneau droit : `overflow-hidden` est
                         devenu `overflow-y-auto`, et la zone du document plus bas a
@@ -25787,8 +25813,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             {/* P0.13 (2026-08-17) — Formulaire de création d'affaire (remplace
                 l'insertion directe de données factices) */}
             {isNewProjectModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{editingProjectId ? 'Modifier le Chantier' : 'Nouveau Chantier'}</h3>
                             <button onClick={() => { setIsNewProjectModalOpen(false); setEditingProjectId(null); setNewProjectOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -25944,8 +25970,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             {/* P0.13 (2026-08-17) — Formulaire de création de fiche client
                 (remplace l'insertion directe de données factices) */}
             {isNewClientModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{editingClientId ? 'Modifier le Client' : 'Nouveau Client'}</h3>
                             <button onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); setNewClientOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -26878,8 +26904,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {isCatalogRepairOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
-                    <section role="dialog" aria-modal="true" aria-labelledby="catalog-repair-title" className="bg-white rounded-3xl shadow-floating w-full max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[120] p-4 animate-fade-in">
+                    <section role="dialog" aria-modal="true" aria-labelledby="catalog-repair-title" className="bg-white rounded-3xl shadow-floating w-full max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden animate-scale-up">
                         <header className="px-6 py-5 border-b border-neutral-100 flex items-start justify-between gap-4 shrink-0">
                             <div className="flex items-start gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-wand-magic-sparkles"></i></div>
@@ -26940,8 +26966,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {isAllowedModesModalOpen && selectedSolutionForEdit && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
                             <h3 className="font-bold text-neutral-800 text-lg">Modes de Métré Autorisés pour {selectedSolutionForEdit.name}</h3>
                             <button onClick={() => setIsAllowedModesModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -26985,8 +27011,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {isVarModalOpen && selectedSolutionForEdit && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
                             <h3 className="font-bold text-neutral-800 text-lg">Nouvelle Variable Dynamique (ex: PROFONDEUR)</h3>
                             <button onClick={() => setIsVarModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -27022,8 +27048,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {isRecipeModalOpen && recipeForm && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{recipeForm.id > 100000 ? 'Nouveau composant' : 'Modifier le composant'}</h3>
                             <button onClick={() => setIsRecipeModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -27348,8 +27374,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {isSolutionModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-floating w-full max-w-md overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white">
                             <h3 className="font-bold text-neutral-800 text-lg">{solutionModalForm.id ? 'Éditer l\'Ouvrage' : 'Nouvel Ouvrage'}</h3>
                             <button onClick={() => setIsSolutionModalOpen(false)} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -27488,8 +27514,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 });
                 const totalSituationHT = lignesCalculees.reduce((s, l) => s + l.montantSituation, 0);
                 return (
-                    <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                        <div className="bg-white rounded-2xl shadow-floating w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                    <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                        <div className="bg-white rounded-2xl shadow-floating w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
                             <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-start bg-white shrink-0">
                                 <div className="min-w-0">
                                     <h3 className="font-bold text-neutral-800 text-lg truncate">Facturer {situationModal.devis?.number}</h3>
@@ -27733,7 +27759,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 const factureSuitLeDevis = estFacture
                     && modelesDocument.filter(m => m.type_document === 'facture').length === 0;
                 return (
-                <div className="fixed inset-0 z-[140] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Modèles de document">
+                <div className="fixed inset-0 z-[140] bg-neutral-50 flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Modèles de document">
                     <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
                         <div className="min-w-0 flex-1">
                             <h2 className="text-base font-bold text-neutral-900">
@@ -27965,7 +27991,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 const m = apercuDocument.marges || { haut: 8, bas: 8, gauche: 8, droit: 8 };
                 const pc = margeEnPourcent;
                 return (
-                    <div className="fixed inset-0 z-[150] bg-neutral-900/70 backdrop-blur-sm flex flex-col"
+                    <div className="fixed inset-0 z-[150] bg-neutral-900/70 backdrop-blur-sm flex flex-col animate-fade-in"
                          role="dialog" aria-modal="true" aria-label={`Aperçu PDF — ${apercuDocument.titre}`}>
                         <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
                             <div className="min-w-0 flex-1">
@@ -28020,7 +28046,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 const documentVignette = estFactureCat ? factureVignette : devisVignette;
                 const familles = [...new Set(MODELES_PREETABLIS.map(m => m.famille))];
                 return (
-                    <div className="fixed inset-0 z-[145] bg-neutral-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Choisir un modèle">
+                    <div className="fixed inset-0 z-[145] bg-neutral-50 flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Choisir un modèle">
                         <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3.5 flex items-center gap-3 flex-wrap">
                             <div className="min-w-0 flex-1">
                                 <h2 className="text-base font-bold text-neutral-900">
@@ -28205,7 +28231,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 ];
 
                 return (
-                    <div className="fixed inset-0 z-[140] bg-neutral-100 flex flex-col" role="dialog" aria-modal="true" aria-label="Éditeur de modèle de document">
+                    <div className="fixed inset-0 z-[140] bg-neutral-100 flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Éditeur de modèle de document">
                         {/* Barre du haut */}
                         <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
                             <div className="min-w-0 flex-1 flex items-center gap-3">
@@ -28934,8 +28960,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             })()}
 
             {partage && (
-                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
-                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh]">
+                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none animate-fade-in" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
+                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh] animate-scale-up">
                         <div className="px-6 pt-6 pb-4 border-b border-neutral-100 shrink-0">
                             <h3 className="font-semibold text-neutral-900 text-lg">
                                 Envoyer {partage.genre === 'facture' ? 'la facture' : 'le devis'} {partage.numero}
@@ -29049,9 +29075,9 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     role="dialog"
                     aria-modal="true"
                     aria-label={confirmDialog.title || 'Confirmation'}
-                    className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none"
+                    className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none animate-fade-in"
                 >
-                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center">
+                    <div className="bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center animate-scale-up">
                         <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-500'}`}>
                             <i className={`fa-solid ${confirmDialog.isDanger ? 'fa-trash-can' : 'fa-circle-question'} text-2xl`}></i>
                         </div>
