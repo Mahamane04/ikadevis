@@ -4597,3 +4597,147 @@ La page de **Chiffrage** constitue le cœur opérationnel d'ikadevis, où les es
   - `curl -sL https://app.ikadevis.com/` → `v=20260909e` ✅
 
 
+
+---
+
+## ✨ 68. Transitions généralisées au SaaS & réparation du filet de focus (2026-09-17)
+
+### 68.1 Demande et périmètre
+
+Demande : « que chaque bouton, réglage et autre ne soit plus vu
+instantanément ». Périmètre **volontairement borné dès le départ** : animer ce
+qui **apparaît** (fenêtres, voiles, prises de plein écran), et **n'ajouter aucun
+délai** sur ce que l'utilisateur manipule activement — recherche, filtres,
+saisie. Y mettre de l'attente rendrait l'application poussive, c'est-à-dire
+l'inverse exact de l'intention initiale (« le but n'est pas de ralentir »).
+
+Les boutons ne sont pas animés individuellement : ils arrivent avec leur
+conteneur, et les animer un par un produirait un défilé saccadé.
+
+Chronologie des commits :
+
+| Commit | Apport |
+|---|---|
+| `6b0cc2a` | transition volontaire de **350 ms** entre pages, avec sablier |
+| `124514c` | fondu sur les sous-pages, sans délai ajouté |
+| `2ccc54a` | **100 ms** de retenue sur les sous-pages |
+| `e912ef7` | généralisation aux fenêtres + **réparation du filet de focus** |
+
+### 68.2 Premier défaut trouvé : `animate-scale-up` n'existait pas
+
+`animate-scale-up` était invoqué **six fois** dans `index_jsx.js`
+(bibliothèque d'ouvrages, configuration du tableau de bord, et quatre autres
+panneaux) et **défini zéro fois** — ni dans le `<style>` d'`index.html`, ni dans
+`tailwind.css`. Ces six panneaux réclamaient une animation inexistante et
+surgissaient d'un bloc. **La définition manquait, pas les appels** : un seul jeu
+de `@keyframes` les répare tous les six.
+
+> **Leçon** : une classe d'animation présente ne prouve rien.
+> `getComputedStyle(n).animationName` vaut `none` quand la règle n'existe pas.
+
+### 68.3 Second défaut, bien plus grave : le filet de focus ignorait toute fenêtre animée
+
+Le filet générique (`index_jsx.js` ~15515, posé au § d'audit du 2026-09-02)
+porte le focus dans la fenêtre du dessus, l'y enferme, et lui pose `role="dialog"`
++ `aria-modal="true"` pour les lecteurs d'écran.
+
+Sa fonction `visible()` écartait toute surface à `opacity: 0`. Or une fenêtre qui
+**apparaît en fondu** vaut exactement 0 pendant ses premières frames. Et comme la
+remontée d'opacité ne modifie **ni `class` ni `style`**, le `MutationObserver`
+(qui n'observe que ces deux attributs) ne rappelait **jamais** `reevaluer`.
+
+Conséquence : la fenêtre restait **définitivement** sans rôle, sans `aria-modal`
+et **sans piège à focus**.
+
+**Preuve décisive** — surface plein écran animée injectée dans la page :
+
+| | 30 ms | 400 ms | 800 ms | focus |
+|---|---|---|---|---|
+| Avant correctif | `role=null` | `role=null` (opacité **1**) | `role=null` | jamais |
+| Après correctif | `role=dialog` | `role=dialog` | `role=dialog` | entré |
+
+La colonne 400 ms est le point clé : la surface est **pleinement opaque et reste
+malgré tout sans rôle**. Ce n'était donc pas un instant de mesure malheureux,
+mais un **abandon définitif**.
+
+**Portée** : le défaut est **antérieur** à ce chantier. Une dizaine de fenêtres
+portaient déjà `animate-fade-in` et perdaient donc silencieusement leur piège à
+focus — ce qui, pour quelqu'un naviguant au clavier ou au lecteur d'écran,
+signifie sortir d'une boîte de dialogue sans s'en apercevoir. Généraliser les
+transitions n'a pas créé ce défaut : cela l'a **élargi, puis révélé**.
+
+**Correctif** (deux points) :
+
+1. une animation **en cours** ne vaut plus invisibilité :
+   `if (cs.opacity === '0' && cs.animationName === 'none') return false;` ;
+2. rattrapage sur `animationstart` / `animationend` — la fin d'une animation
+   n'émet aucune mutation, donc sans ces écouteurs une fenêtre manquée à
+   l'ouverture le resterait pour toujours.
+
+Mesuré après correctif : `role=dialog` posé dès **12 ms**, focus entré,
+**0 sortie sur 10 tabulations**.
+
+### 68.4 Ce que la suite a dit, et ce qu'elle a caché
+
+| Étape | Vérifications | Suites |
+|---|---|---|
+| Avant le chantier (`2ccc54a`) | **521/535** | 6/52 |
+| Transitions seules | **518/535** | 6/52 |
+| Après réparation du filet | **521/535** | 6/52 |
+
+Les 3 régressions étaient réelles et elles étaient miennes : la prédiction
+« CSS et noms de classes, risque proche de zéro » était **fausse**. Après
+correctif, non seulement le compte revient, mais la **liste nominative** des
+échecs redevient identique à celle d'avant — aucun échec masqué, aucun problème
+déplacé.
+
+> ⚠️ **Faux vert** : la suite annonçait « Nouveau client » au vert alors qu'une
+> sonde directe montrait cette fenêtre privée de son rôle et de son focus,
+> exactement comme « Nouveau chantier » qui, lui, échouait. Artefact
+> d'enchaînement du banc. **Un compte au vert ne dispense pas de mesurer le
+> comportement lui-même.**
+
+### 68.5 Piège de vérification : sonder la production juste après un déploiement
+
+Une heure d'enquête a été dépensée sur un défaut **inexistant**. Toutes les
+sondes visitaient le site pour la première fois juste après la mise en ligne.
+Or `index.html` (~ligne 1139, introduit en `0a364c4`) fait :
+
+```js
+navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+});
+```
+
+À la première visite suivant un déploiement, le nouveau service worker prend la
+main → la page **se recharge** → l'arbre React est détruit → retour à l'écran de
+connexion. Chaque sonde se faisait renvoyer, et le symptôme imitait à la
+perfection « le correctif ne fonctionne pas en production ».
+
+Hypothèses successivement avancées **puis réfutées par la mesure** : ancien code
+servi en ligne ; cache du service worker ; `config.js` divergent (l'écart tenait
+à **une ligne de commentaire**) ; balise d'analyse Cloudflare ; gestionnaire
+`onAuthStateChange` ; démontage de l'application. Aucune n'était la bonne.
+
+> **Méthode** : visite d'échauffement, **puis** mesure à la seconde visite.
+> Et tester le cas **discriminant** : une surface *non* animée est servie même
+> par l'ancien code — seule la surface **animée** prouve ce correctif-ci.
+
+Vérifié en production après échauffement : règle `scale-up` présente, surface
+animée servie (`role=dialog`, focus entré).
+
+### 68.6 Autres apports et état
+
+- **Détail de devis mobile** : suit enfin la règle des sous-pages
+  (`animate-subpage-enter`, délai 100 ms), comme les deux variantes bureau.
+- **`prefers-reduced-motion`** : garde ajoutée sur les **seules** animations
+  d'entrée. Le sablier et la barre de progression portent une information, ils
+  restent.
+- **Cache-buster** : `index.html` n'entre dans **aucun** des deux calculs de
+  jeton (`bump-version.mjs` hache les 4 fichiers JS d'une part, `tailwind.css`
+  de l'autre). Modifier son `<style>` en ligne ne déplace donc aucun jeton.
+- **Mesures de référence** : bibliothèque d'ouvrages pleine à 125 ms, fenêtre de
+  confirmation à 107 ms, détail de devis mobile visible à 163 ms, page 350 ms
+  avec sablier, sous-page 100 ms sans sablier.
+- **En ligne** : `e912ef7`, jetons JS `96a219cd90` · CSS `886932d8c1`, vérifiés
+  identiques sur `app.ikadevis.com` et `ikadevis.officemicro89.workers.dev`.

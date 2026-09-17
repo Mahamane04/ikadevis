@@ -7,7 +7,7 @@ chaque fois.
 > Ce document est un point d'entrée, pas la source de vérité. Pour l'historique
 > détaillé (cause, correctif, alternatives rejetées, ce qui est prouvé vs pas)
 > voir **[`docs/PROJECT_MASTER_TRACKER.md`](docs/PROJECT_MASTER_TRACKER.md)**
-> (~4400 lignes, § 1 à § 63+ — voir en particulier **§ 62**, l'enrichissement
+> (~4750 lignes, § 1 à § 68 — voir en particulier **§ 62**, l'enrichissement
 > des Paramètres du 2026-09-06/08 : numérotation, paiement mobile, retenue de
 > garantie, situations de travaux, gestion d'équipe, rappels automatiques, et
 > **§ 62.9** sur l'accès production MCP). Pour repartir sans tout relire, voir
@@ -15,6 +15,10 @@ chaque fois.
 > [`docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md`](docs/REPRISE_CALCUL_COMPOSANTS_2026-08-24.md)
 > (calcul guidé des composants). **Ces trois fichiers peuvent être en avance
 > sur cette fiche — en cas de contradiction, ils font foi.**
+>
+> **§ 68 (2026-09-17)** — transitions généralisées à tout le SaaS, et surtout
+> réparation du **filet de focus**, qui ignorait toute fenêtre animée depuis sa
+> création : dix fenêtres perdaient silencieusement leur piège à focus.
 
 ---
 
@@ -26,7 +30,7 @@ devis, factures, et un éditeur de modèles PDF visant la parité avec Zoho Book
 
 ## Architecture en une phrase
 
-**Un seul fichier source React** (`index_jsx.js`, ~20 000 lignes) compilé par
+**Un seul fichier source React** (`index_jsx.js`, ~29 400 lignes) compilé par
 esbuild en `app.compiled.js` ; **aucun serveur applicatif** — toute la logique
 métier tourne dans le navigateur, Supabase fait office de backend (Postgres +
 RLS multi-tenant + Auth) ; déploiement en site 100 % statique sur Cloudflare
@@ -126,18 +130,40 @@ Vérifier que le déploiement a bien pris (le cache Cloudflare peut servir une
 version périmée même avec un paramètre aléatoire — `cf-cache-status: HIT`) :
 
 ```bash
-curl -sL https://ikadevis.officemicro89.workers.dev/ | grep -oE 'v=[0-9]{8}[a-zA-Z0-9]+' | sort -u
+curl -sL https://ikadevis.officemicro89.workers.dev/ | grep -oE 'v=[0-9a-f]{10}' | sort -u
 ```
 
 Le jeton renvoyé doit correspondre à celui de `index.html` en local.
 
 ---
 
-## Cache-buster `?v=AAAAMMJJx`
+## Cache-buster `?v=<empreinte>`
 
-`index.html` référence ses scripts avec `?v=AAAAMMJJx` (année-mois-jour +
-lettre de version du jour) — **à bumper à chaque build**. Le service worker
-dérive son **nom de cache** de ce même jeton : ne pas les désynchroniser.
+Le jeton n'est **plus une date à bumper à la main** : `scripts/bump-version.mjs`
+le **dérive du contenu** à chaque build (sha256 tronqué à 10 caractères hexa,
+ex. `96a219cd90`). Deux jetons distincts :
+
+| Jeton | Calculé sur |
+|---|---|
+| **JS** | les 4 fichiers servis ensemble : `js/calc-engine.js`, `js/utils.js`, `js/quote-templates.js`, `app.compiled.js` |
+| **CSS** | `tailwind.css` seul |
+
+⚠️ **`index.html` n'entre dans AUCUN des deux calculs.** Modifier son `<style>`
+en ligne ne déplace donc aucun jeton — le CSS part quand même en ligne (le
+service worker est *network-first*), mais ne comptez pas sur le jeton pour
+savoir si votre feuille a changé. Rencontré le 2026-09-17.
+
+Le service worker dérive son **nom de cache** du jeton JS : ne pas les
+désynchroniser.
+
+⚠️ **Un jeton de date subsiste, et il induit en erreur** : `favicon.svg?v=20260910b`
+est posé à la main et **n'est jamais réécrit** par `bump-version.mjs`. Un
+`grep -oE 'v=[0-9]{8}[a-zA-Z0-9]+'` — la commande de contrôle d'avant le
+2026-09-15 — ne trouve donc plus que **lui**, et renvoie une date périmée sans
+aucun rapport avec le code déployé. Le lecteur conclut « la production est en
+20260910b » alors qu'elle est en `96a219cd90` : une lecture silencieusement
+fausse, plus dangereuse qu'un résultat vide. Toujours filtrer sur
+`v=[0-9a-f]{10}`.
 
 Pour tester une modification sans faux négatif : `tabs_close` puis
 `preview_start`, ou naviguer avec `?nocache=<jeton>` — un simple `navigate`
@@ -186,6 +212,17 @@ Seul un vrai événement de molette (`page.mouse.wheel({ deltaY: … })`) prouve
 qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 (`test_ecran_connexion.mjs`).
 
+### Deux extensions de ce piège (2026-09-17, § 68)
+
+- **Présence dans le DOM ≠ perception.** Un délai obtenu par
+  `animation-delay` + `fill-mode: both` laisse l'élément **dans le DOM** dès le
+  clic, à opacité nulle. Chronométrer sa présence renvoie ~20 ms et ne prouve
+  rien. Mesurer l'**opacité calculée** au fil du temps.
+- **Un vert de la suite peut être un faux vert.** La suite annonçait « Nouveau
+  client » au vert alors qu'une sonde directe montrait la fenêtre privée de son
+  rôle et de son focus — artefact d'enchaînement du banc. Un compte au vert ne
+  dispense pas de mesurer le comportement lui-même.
+
 ---
 
 ## Pièges déjà rencontrés (ne pas les redécouvrir)
@@ -208,6 +245,9 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Le devis en cours n'est dans aucune clé localStorage** | D'où les gardes `beforeunload` et à la déconnexion — ne pas les retirer sans remplacer la protection contre la perte de saisie. |
 | **`scrollHeight > clientHeight` / écrire `scrollTop`** | Ne prouvent pas qu'un utilisateur peut défiler (voir § Tests ci-dessus) — seul un événement de molette réel le prouve. |
 | **Cloudflare peut servir un `index.html` périmé même avec un paramètre aléatoire** | `cf-cache-status: HIT` malgré un cache-buster changé — revalider avant de conclure qu'un déploiement a échoué. |
+| **Une animation d'entrée rendait le filet de focus AVEUGLE** *(2026-09-17)* | Le filet (`index_jsx.js` ~15515) écartait toute surface à `opacity: 0` — or un fondu vaut 0 pendant ses premières frames. La remontée d'opacité ne modifiant **ni `class` ni `style`**, le `MutationObserver` ne rappelait jamais `reevaluer` : la fenêtre restait **définitivement** sans `role`, sans `aria-modal` et sans piège à focus. Mesuré : rôle toujours absent à 400 ms alors que l'opacité valait déjà 1. Correctif : une animation **en cours** ne vaut plus invisibilité, + rattrapage sur `animationstart`/`animationend`. |
+| **Une classe d'animation présente ne prouve RIEN** *(2026-09-17)* | `animate-scale-up` était invoqué **6 fois** dans `index_jsx.js` et **défini 0 fois** (ni `index.html`, ni `tailwind.css`) : six panneaux surgissaient d'un bloc depuis des mois. Vérifier la règle, pas la classe : `getComputedStyle(n).animationName` vaut `none` quand elle n'existe pas. |
+| **Sonder la production juste après un déploiement donne de FAUX échecs** *(2026-09-17)* | `index.html` (~ligne 1139) fait `controllerchange` → `window.location.reload()` : à la **première** visite suivant une mise en ligne, le nouveau service worker prend la main et la page se recharge, ce qui détruit l'arbre React et renvoie à l'écran de connexion. Une sonde automatisée conclut alors « production cassée ». Toujours faire une visite d'échauffement, puis mesurer à la seconde. Code antérieur : commit `0a364c4`. |
 
 ---
 
@@ -257,6 +297,15 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   de Zoho Books (§ 45–52, 55).
 - Export PDF : pagination par tranches de canvas (§ 56), coupure de page sur
   ligne uniforme (§ 57), bandeau de statut retiré du PDF/impression (§ 52).
+- **Transitions et accessibilité des fenêtres (§ 68, 2026-09-17)** : transition
+  volontaire de **350 ms entre pages** (avec sablier) et **100 ms sur les
+  sous-pages** (fondu seul, sans sablier) ; fenêtres, voiles et prises de plein
+  écran animés ; `animate-scale-up` **enfin défini** ; garde
+  `prefers-reduced-motion` sur les seules animations d'entrée (le sablier porte
+  une information, il reste). Aucun délai n'est ajouté sur ce que l'utilisateur
+  manipule activement (recherche, filtres, saisie). Suite : **521/535, 6/52
+  suites, 7/7 étalons** — chiffres *et* liste nominative des échecs identiques
+  à l'avant-chantier.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 

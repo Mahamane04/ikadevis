@@ -1,6 +1,6 @@
 # ikadevis — fiche de reprise
 
-Point de situation au **2026-09-08**, pour reprendre dans une nouvelle
+Point de situation au **2026-09-17**, pour reprendre dans une nouvelle
 conversation. Le détail complet est dans `PROJECT_MASTER_TRACKER.md`
 (voir en particulier **§ 62-63**, l'enrichissement des Paramètres) ; ce
 document ne garde que ce qu'il faut pour repartir sans relire.
@@ -21,7 +21,7 @@ git status -sb && git log --oneline -5
 ```
 
 ```bash
-curl -sL https://app.ikadevis.com/ | grep -oE 'v=[0-9]{8}[a-zA-Z0-9]+' | sort -u
+curl -sL https://app.ikadevis.com/ | grep -oE 'v=[0-9a-f]{10}' | sort -u
 ```
 
 Le jeton renvoyé doit correspondre à celui de `index.html` en local. S'ils
@@ -46,12 +46,12 @@ fois pendant le chantier § 62.
 
 ## 2. Où en est le produit
 
-| | État au 8 septembre |
+| | État au 17 septembre |
 |---|---|
-| **En ligne** | https://app.ikadevis.com (domaine personnalisé) et https://ikadevis.officemicro89.workers.dev — jeton `v=20260908b` |
-| **Branche** | `main`, à jour, arbre propre |
+| **En ligne** | https://app.ikadevis.com (domaine personnalisé) et https://ikadevis.officemicro89.workers.dev — jetons JS `96a219cd90` · CSS `886932d8c1` (empreintes de contenu, plus des dates) |
+| **Branche** | `main` = `origin/main` = `e912ef7`, arbre propre |
 | **Migrations production** | ✅ à jour, y compris les 3 du § 62 (numérotation, équipe, rappels de paiement) |
-| **Tests** | ✅ **523/523 au vert, 0 régression, 51 suites, 7/7 étalons métier** |
+| **Tests** | **521/535 au vert, 6/52 suites, 7/7 étalons métier** — 14 échecs connus, liste stable (le dénominateur a changé : la suite s'est étoffée depuis les « 523/523 » du 8 septembre) |
 | **Cron actif** | `send-payment-reminders-daily` (`0 8 * * *`) sur staging et production |
 
 > `codex/v2-uiux` porte ~20 commits d'avance sur `main` sans divergence : la
@@ -143,8 +143,11 @@ après lui aussi.
 
 ### 4.2 Caches
 
-- Le jeton `?v=AAAAMMJJx` de `index.html` doit être **bumpé à chaque build**.
-- Le service worker dérive son nom de cache de ce même jeton — ne pas les désynchroniser.
+- Le jeton `?v=` est **dérivé du contenu** par `scripts/bump-version.mjs` (plus
+  rien à bumper à la main) : un jeton JS pour les 4 fichiers servis ensemble, un
+  jeton CSS pour `tailwind.css`. **`index.html` n'entre dans aucun des deux
+  calculs** — modifier son `<style>` en ligne ne déplace donc aucun jeton.
+- Le service worker dérive son nom de cache du jeton JS — ne pas les désynchroniser.
 - Pour tester une modification : `tabs_close` puis `preview_start`, ou naviguer
   avec `?nocache=<jeton>`. Un simple `navigate` sert souvent une version périmée.
   **Rencontré de nouveau le 2026-08-26**, et le symptôme trompe : le correctif
@@ -159,7 +162,7 @@ après lui aussi.
 
 ### 4.3 Remplacements de code
 
-Plusieurs chaînes se répètent dans `index_jsx.js` (20 000+ lignes). Un
+Plusieurs chaînes se répètent dans `index_jsx.js` (29 000+ lignes). Un
 remplacement ancré sur `<div className="px-6 py-4 border-b …">` a supprimé
 **1371 lignes** — cette chaîne existe 6 fois.
 
@@ -177,6 +180,25 @@ remplacement ancré sur `<div className="px-6 py-4 border-b …">` a supprimé
   gardes `beforeunload` et sur la déconnexion.
 - Tout badge de statut/rôle doit utiliser le composant `Badge` (tracker
   § 62.8/63) — jamais un `<span>` avec des classes écrites à la main.
+
+### 4.5 Animations, focus et sondes de production (2026-09-17, tracker § 68)
+
+- **Une animation d'entrée rendait le filet de focus aveugle.** Le filet
+  écartait toute surface à `opacity: 0` ; un fondu vaut 0 pendant ses premières
+  frames, et la remontée d'opacité ne touche **ni `class` ni `style`** — donc
+  aucune mutation, donc aucune réévaluation, donc pas de `role`, pas
+  d'`aria-modal`, pas de piège à focus, **définitivement**. Corrigé : une
+  animation en cours ne vaut plus invisibilité, plus un rattrapage sur
+  `animationstart`/`animationend`.
+- **Vérifier la règle CSS, pas la classe.** `animate-scale-up` était invoqué
+  6 fois et défini 0 fois. `getComputedStyle(n).animationName` vaut `none`
+  quand la règle n'existe pas.
+- **Ne jamais sonder la production en première visite après un déploiement.**
+  `controllerchange` → `location.reload()` (index.html ~1139) : le nouveau
+  service worker recharge la page une fois, ce qui détruit l'arbre React et
+  renvoie à l'écran de connexion. Faire une visite d'échauffement, mesurer à la
+  seconde. Cette méconnaissance a coûté une heure d'enquête sur un défaut
+  inexistant.
 
 ---
 
@@ -232,10 +254,11 @@ panneau et déclenche un zoom parasite.
 
 ```bash
 npm start                      # serveur local sur :8099
-npm test                       # 523 vérifications, 51 suites + 7 étalons métier
+npm test                       # 535 vérifications, 52 suites + 7 étalons métier
 npm run build                  # tailwind + esbuild + génération de sw.js
 node scratch/capturer_ecrans.mjs <dossier>   # captures pour fiche UI/UX
 ```
 
-Après toute modification : bumper le jeton `?v=` dans `index.html`, rebuilder,
-puis vérifier dans le navigateur avec `?nocache=<jeton>`.
+Après toute modification : **rebuilder** (`npm run build`) — le jeton `?v=` est
+dérivé du contenu, il n'y a plus rien à bumper à la main — puis vérifier dans le
+navigateur avec `?nocache=<jeton>`.
