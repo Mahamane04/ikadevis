@@ -698,6 +698,30 @@
             animation: page-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
+        /* 2026-09-17 — Entrée des SOUS-pages, réglée indépendamment des pages.
+           Classe distincte parce que `page-enter` sert aussi aux vraies pages :
+           les régler ensemble interdirait de donner 350 ms aux unes et 100 aux
+           autres.
+           LE DÉLAI EST OBTENU PAR `animation-delay`, PAS EN JAVASCRIPT. Avec
+           `both` en mode de remplissage, l'élément adopte l'état 0 % (opacité
+           nulle) pendant les 100 ms d'attente, puis fond. L'effet visuel est
+           celui d'un rendu différé ; la différence est que le contenu est déjà
+           dans le DOM — aucun banc d'essai qui clique puis interroge l'écran
+           n'est perturbé, et aucun état React supplémentaire n'est nécessaire.
+           Différer réellement le rendu aurait coûté quatre états de plus et
+           cassé des suites, pour un résultat identique à l'œil.
+           100 ms : le seuil sous lequel une attente reste imperceptible — on
+           sent la transition sans jamais sentir l'attente. Le fondu revient à
+           0,22 s : le garder à 0,38 s derrière 100 ms d'attente ferait traîner
+           l'ensemble. */
+        @keyframes subpage-enter {
+            0%   { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-subpage-enter {
+            animation: subpage-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
         html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
         html, body, #root {
             width: 100%;
@@ -1074,10 +1098,10 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=1cb76e98da"></script>
-    <script src="js/utils.js?v=1cb76e98da"></script>
-    <script src="js/quote-templates.js?v=1cb76e98da"></script>
-    <script src="app.compiled.js?v=1cb76e98da"></script>
+    <script src="js/calc-engine.js?v=9032f175e5"></script>
+    <script src="js/utils.js?v=9032f175e5"></script>
+    <script src="js/quote-templates.js?v=9032f175e5"></script>
+    <script src="app.compiled.js?v=9032f175e5"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

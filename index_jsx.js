@@ -21580,7 +21580,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                 {/* COLONNE DÉTAIL — rendue uniquement si une facture est sélectionnée */}
                 {hasActiveInvoice && (
-                    <div key={activeInvoice?.id ?? 'aucune'} data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-page-enter">
+                    <div key={activeInvoice?.id ?? 'aucune'} data-testid="invoice-detail" className="flex flex-1 min-w-0 w-full flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll animate-subpage-enter">
                         {/* Même principe que le détail d'un devis : fondu à chaque
                             changement de facture, aucun délai ajouté. La `key` force
                             le remontage, sans quoi l'animation ne se rejouerait pas
@@ -23767,7 +23767,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
             {/* COLONNE DÉTAIL — rendue uniquement si un devis est sélectionné */}
             {hasActiveQuote && (
-                <div key={activeQuote?.id ?? 'aucun'} data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-page-enter">
+                <div key={activeQuote?.id ?? 'aucun'} data-testid="saved-quote-detail" className="hidden lg:flex flex-1 min-w-0 flex-col lg:h-full lg:min-h-0 animate-subpage-enter">
                     {/* 2026-09-17 — Sous-page : on ANIME sans RETARDER. Passer d'un
                         devis à l'autre est instantané (la donnée est déjà là) ; y
                         glisser un sablier ferait passer pour lent ce qui ne l'est
@@ -26114,7 +26114,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             Sans effet sur les saisies : les champs sont liés à
                             `companyInfo` et aux états de préfixe, portés par App
                             — le remontage de cette colonne n'en perd aucun. */}
-                        <div key={accountSettingsTab} className="flex-1 min-w-0 min-h-0 flex flex-col bg-neutral-100 p-4 sm:p-6 animate-page-enter">
+                        <div key={accountSettingsTab} className="flex-1 min-w-0 min-h-0 flex flex-col bg-neutral-100 p-4 sm:p-6 animate-subpage-enter">
                             <div className="xl:hidden mb-4 shrink-0">
                                 <label id="settings-section-label" className="app-label">Section des paramètres</label>
                                 <CustomSelect
@@ -27797,7 +27797,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         chaque clic — l'effet exactement inverse de celui visé.
                         Elle remet au passage la liste en haut, ce qu'on veut en
                         passant d'un jeu de modèles à l'autre. */}
-                    <div key={typeModeleGalerie} className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8 animate-page-enter">
+                    <div key={typeModeleGalerie} className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 sm:p-8 animate-subpage-enter">
                         <div className="mx-auto max-w-4xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {modelesMiseEnPage.map(modele => {
                                 const cfgM = fusionnerConfiguration(modele.configuration);
