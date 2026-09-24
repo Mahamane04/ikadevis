@@ -26409,7 +26409,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
                                                     aria-label="Modifier le client et le chantier"
                                                 >
-                                                    <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-user-pen'} text-[11px]`}></i>
+                                                    <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-pen-to-square'} text-[11px]`}></i>
                                                     <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / chantier'}</span>
                                                 </button>
                                             </div>
@@ -26568,12 +26568,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         ~250 px et redevient lisible. Le sens passe par le title et
                                         l'aria-label, tous deux déjà présents. */}
                                     <button onClick={() => setIsShareModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary text-xs" title="Partager le devis au client" aria-label="Partager le devis">
-                                        <i className="fa-solid fa-share-nodes text-brand-600"></i>
+                                        <i className="fa-solid fa-paper-plane text-brand-600"></i>
                                     
                                     <span className="quote-action-libelle text-[11px] font-bold">Partager</span>
                                 </button>
                                     <button onClick={() => setIsSignatureModalOpen(true)} className="saved-quote-top-secondary-action btn-secondary text-xs hover:bg-emerald-50 border-emerald-200" title="Signer électroniquement" aria-label="Signer le devis">
-                                        <i className="fa-solid fa-signature text-emerald-700"></i>
+                                        <i className="fa-solid fa-file-signature text-emerald-700"></i>
                                     
                                     <span className="quote-action-libelle text-[11px] font-bold">Signer</span>
                                 </button>
@@ -26603,7 +26603,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         title="Envoyer ce devis par WhatsApp ou par e-mail"
                                         aria-label={`Envoyer le devis ${viewingSavedQuote.number} par WhatsApp ou e-mail`}
                                     >
-                                        <i className="fa-solid fa-share-nodes"></i>
+                                        <i className="fa-solid fa-paper-plane"></i>
                                         <span className="quote-action-libelle text-[11px] font-bold ml-1.5">Envoyer</span>
                                     </button>
                                     <button
@@ -26636,10 +26636,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     porte qu'elle vient de fermer. */}
                                                 {canSend && (<>
                                                 <button type="button" onClick={() => { setIsShareModalOpen(true); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
-                                                    <i className="fa-solid fa-share-nodes text-brand-600 w-4"></i> Partager le devis
+                                                    <i className="fa-solid fa-paper-plane text-brand-600 w-4"></i> Partager le devis
                                                 </button>
                                                 <button type="button" onClick={() => { setIsSignatureModalOpen(true); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
-                                                    <i className="fa-solid fa-signature text-emerald-700 w-4"></i> Signer le devis
+                                                    <i className="fa-solid fa-file-signature text-emerald-700 w-4"></i> Signer le devis
                                                 </button>
                                                 </>)}
                                                 <button type="button" onClick={() => { window.print(); setIsQuoteDetailMoreOpen(false); }} className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2">
@@ -29238,25 +29238,23 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         );
     };
 
+    const isCompteAdmin = ['owner', 'admin'].includes(activeOrganizationRole) || isPlatformAdmin || currentSubscription?.isAdminAccess;
+
     const settingsNavigation = [
         { id: 'entreprise', label: 'Entreprise', description: 'Identité et coordonnées', icon: 'fa-building' },
-        { id: 'documents', label: 'Documents & PDF', description: 'Logo, TVA et modèles', icon: 'fa-file-pdf' },
+        { id: 'documents', label: 'Documents & PDF', description: 'Logo, TVA et modèles', icon: 'fa-file-lines' },
         { id: 'facturation', label: 'Facturation & envoi', description: 'Banque, acomptes et messages', icon: 'fa-receipt' },
         // 2026-09-19 — § 71 : comptes, devises, taxes et catégories de dépenses.
-        // Nouvelle section autonome (FinanceSettingsPanel) ; aucune autre
-        // section n'est modifiée.
         { id: 'finances', label: 'Finances', description: 'Comptes, devises, taxes', icon: 'fa-coins' },
         // 2026-09-19 — Abonnements SaaS ikadevis, quotas et passerelle SasPay
         { id: 'abonnement', label: 'Abonnement & Licence', description: 'Formules, équipe et paiements', icon: 'fa-crown' },
-        // 2026-09-06 — Visible pour owner/admin uniquement : ce sont
-        // exactement les rôles autorisés par la policy RLS "Organization
-        // members insert" et par la vérification faite dans l'Edge Function
-        // invite-member. Pas de nouvelle clé dans ROLE_PERMISSIONS, la règle
-        // vit déjà côté base — la dupliquer ici aurait pu diverger.
-        ...(['owner', 'admin'].includes(activeOrganizationRole) ? [{ id: 'equipe', label: 'Équipe', description: 'Membres et rôles', icon: 'fa-users' }] : []),
-        ...(hasPermission(activeOrganizationRole, 'canViewAudit') ? [{ id: 'audit', label: 'Audit & sécurité', description: 'Historique des actions', icon: 'fa-shield-halved' }] : []),
-        { id: 'diagnostic', label: 'Diagnostic', description: 'État de votre espace', icon: 'fa-heart-pulse' },
-        { id: 'donnees', label: 'Données locales', description: 'Copie et réinitialisation', icon: 'fa-database' }
+        // Fonctionnalités réservées exclusivement aux administrateurs
+        ...(isCompteAdmin ? [
+            { id: 'equipe', label: 'Équipe', description: 'Membres et rôles', icon: 'fa-users' },
+            { id: 'audit', label: 'Audit & sécurité', description: 'Historique des actions', icon: 'fa-shield-halved' },
+            { id: 'diagnostic', label: 'Diagnostic', description: 'État du système & sync', icon: 'fa-gauge-high' },
+            { id: 'donnees', label: 'Données locales', description: 'Copie et réinitialisation', icon: 'fa-database' }
+        ] : [])
     ];
 
     const openAccountSettings = (section = 'entreprise') => {
@@ -30366,14 +30364,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                             </div>
                         )}
-                        {accountSettingsTab === 'audit' && (
+                        {accountSettingsTab === 'audit' && isCompteAdmin && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
                                 <div className="max-w-5xl w-full mx-auto space-y-6">
                                     <AuditLogPanel organizationId={activeOrganizationId} supabaseClient={supabaseClient} />
                                 </div>
                             </div>
                         )}
-                        {accountSettingsTab === 'diagnostic' && (
+                        {accountSettingsTab === 'diagnostic' && isCompteAdmin && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
                                 <div className="max-w-4xl w-full mx-auto space-y-6">
                                     <SystemDiagnosticPanel
@@ -30386,7 +30384,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                             </div>
                         )}
-                        {accountSettingsTab === 'donnees' && (
+                        {accountSettingsTab === 'donnees' && isCompteAdmin && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
                                 <div className="max-w-4xl w-full mx-auto space-y-6">
                                     <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
