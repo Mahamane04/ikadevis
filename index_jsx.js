@@ -16049,208 +16049,220 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
     return (
         <div className="space-y-6">
             {/* Bannière statut actuel */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm border border-neutral-700/60">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg shrink-0">
+            <div className="p-4 rounded-2xl bg-white border border-neutral-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg shrink-0 border border-brand-100/60">
                         <i className="fa-solid fa-crown"></i>
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-neutral-300">Votre Formule :</span>
-                            <span className="text-sm font-black text-amber-300 uppercase tracking-wide">
-                                {currentPlanId}
+                            <span className="text-xs font-semibold text-neutral-500">Votre Formule :</span>
+                            <span className="text-sm font-black text-neutral-900 uppercase tracking-wide">
+                                {plans[currentPlanId]?.name || currentPlanId}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isTrial ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
-                                {isTrial ? `Essai gratuit (${daysRemaining} jours restants)` : 'Abonnement Actif'}
-                            </span>
+                            {isTrial ? (
+                                <Badge colorClass="bg-amber-100 text-amber-800">
+                                    Essai gratuit ({daysRemaining} jours restants)
+                                </Badge>
+                            ) : (
+                                <Badge colorClass="bg-emerald-100 text-emerald-800">
+                                    Abonnement Actif
+                                </Badge>
+                            )}
                         </div>
-                        <p className="text-[11px] text-neutral-300 mt-0.5">
+                        <p className="text-xs text-neutral-600 mt-1">
                             {currentPlanId === 'starter'
-                                ? `Utilisation : ${savedQuotesCount}/3 devis créés. Passez à la vitesse supérieure pour des devis illimités.`
+                                ? `Utilisation : ${savedQuotesCount}/3 devis créés. Passez à la formule supérieure pour chiffrer en illimité.`
                                 : 'Accès illimité actif : devis, factures et suivi de chantiers sans restriction.'}
                         </p>
                     </div>
                 </div>
                 {/* Sélecteur Fréquence */}
-                <div className="bg-neutral-800/90 p-1 rounded-xl border border-neutral-700 flex items-center shrink-0 self-center sm:self-auto">
+                <div className="bg-neutral-100 p-1 rounded-xl border border-neutral-200/80 flex items-center shrink-0 self-stretch sm:self-auto justify-center">
                     <button
                         type="button"
                         onClick={() => setBillingCycle('monthly')}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${billingCycle === 'monthly' ? 'bg-brand-600 text-white shadow-xs' : 'text-neutral-400 hover:text-white'}`}
+                        className={`text-xs px-3.5 py-1.5 rounded-lg transition-all ${billingCycle === 'monthly' ? 'bg-white text-neutral-900 shadow-2xs font-bold' : 'text-neutral-500 hover:text-neutral-900 font-semibold'}`}
                     >
                         Mensuel
                     </button>
                     <button
                         type="button"
                         onClick={() => setBillingCycle('yearly')}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'bg-brand-600 text-white shadow-xs' : 'text-neutral-400 hover:text-white'}`}
+                        className={`text-xs px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'bg-white text-neutral-900 shadow-2xs font-bold' : 'text-neutral-500 hover:text-neutral-900 font-semibold'}`}
                     >
-                        Annuel <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-black">-20%</span>
+                        <span>Annuel</span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">-20%</span>
                     </button>
                 </div>
             </div>
 
             {/* Grille des Formules */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* 1. STARTER */}
-                <div className={`rounded-2xl p-5 border flex flex-col justify-between transition-all ${currentPlanId === 'starter' && !selectedPlan ? 'border-brand-500 bg-brand-50/20 shadow-sm' : 'border-neutral-200 bg-white'}`}>
+                <div className={`rounded-2xl p-6 border flex flex-col justify-between transition-all bg-white ${currentPlanId === 'starter' && !selectedPlan ? 'border-neutral-300 ring-2 ring-neutral-200/50 shadow-2xs' : 'border-neutral-200 shadow-2xs'}`}>
                     <div>
                         <div className="flex items-center justify-between">
                             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">Starter</span>
                             {currentPlanId === 'starter' && (
-                                <span className="text-[10px] font-bold bg-neutral-100 text-neutral-700 px-2 py-0.5 rounded-full">Actuel</span>
+                                <Badge colorClass="bg-neutral-100 text-neutral-700">Actuel</Badge>
                             )}
                         </div>
                         <div className="mt-3">
-                            <span className="text-2xl font-black text-neutral-900">0</span>
-                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                            <span className="text-3xl font-black text-neutral-900 font-mono">0</span>
+                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">Pour artisans BTP et découverte du chiffrage.</p>
 
                         <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>1 utilisateur</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 3 devis créés</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Bibliothèque ouvrages de base</span></div>
-                            <div className="flex items-center gap-2 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Sans filigrane</span></div>
-                            <div className="flex items-center gap-2 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Module SasPay Mobile Money</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>1 utilisateur</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 3 devis créés</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Bibliothèque ouvrages de base</span></div>
+                            <div className="flex items-center gap-2.5 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Sans filigrane</span></div>
+                            <div className="flex items-center gap-2.5 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Module SasPay Mobile Money</span></div>
                         </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-6 pt-2">
                         <button
                             type="button"
-                            disabled={currentPlanId === 'starter'}
-                            className="w-full py-2.5 px-3 rounded-xl border border-neutral-300 text-neutral-500 text-xs font-bold disabled:opacity-60 cursor-default"
+                            disabled
+                            className="btn-secondary w-full py-2.5 text-xs font-bold opacity-60 cursor-default"
                         >
                             {currentPlanId === 'starter' ? 'Votre formule' : 'Plan Découverte'}
                         </button>
                     </div>
                 </div>
 
-                {/* 2. STANDARD (Le plus populaire) */}
-                <div className={`relative rounded-2xl p-5 border-2 flex flex-col justify-between transition-all ${selectedPlan === 'standard' ? 'border-brand-600 bg-brand-50/30 shadow-md ring-2 ring-brand-500/20' : 'border-brand-500 bg-white shadow-xs'}`}>
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-[10px] font-black tracking-wider uppercase px-3 py-0.5 rounded-full shadow-xs">
-                        ⭐ Plus Populaire
+                {/* 2. STANDARD (Plus Populaire) */}
+                <div className={`relative rounded-2xl p-6 border-2 flex flex-col justify-between transition-all bg-white ${selectedPlan === 'standard' ? 'border-brand-600 shadow-md ring-4 ring-brand-500/10' : 'border-brand-500 shadow-sm'}`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[11px] font-bold tracking-wide uppercase px-3 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
+                        <i className="fa-solid fa-star text-[10px] text-amber-300"></i>
+                        <span>Plus Populaire</span>
                     </div>
                     <div>
                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-black uppercase tracking-wider text-brand-600">Standard</span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-brand-600">Standard</span>
                             {currentPlanId === 'standard' && (
-                                <span className="text-[10px] font-bold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">Actuel</span>
+                                <Badge colorClass="bg-brand-100 text-brand-700">Actuel</Badge>
                             )}
                         </div>
                         <div className="mt-3">
-                            <span className="text-2xl font-black text-neutral-900">
+                            <span className="text-3xl font-black text-neutral-900 font-mono">
                                 {billingCycle === 'yearly' ? '15 900' : '19 900'}
                             </span>
-                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
                             {billingCycle === 'yearly' && (
-                                <p className="text-[10px] text-emerald-600 font-bold mt-0.5">191 000 FCFA facturés par an</p>
+                                <p className="text-[11px] text-emerald-700 font-semibold mt-1">191 000 FCFA facturés par an</p>
                             )}
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">Idéal pour les PME et entreprises BTP en croissance.</p>
 
                         <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Devis & Factures illimités</strong></span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 5 utilisateurs</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Export PDF Pro sans filigrane</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Suivi chantiers & marges réelles</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Module SasPay Mobile Money & Carte</strong></span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Support prioritaire WhatsApp</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Devis & Factures illimités</strong></span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 5 utilisateurs</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Export PDF Pro sans filigrane</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Suivi chantiers & marges réelles</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Module SasPay Mobile Money & Carte</strong></span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Support prioritaire WhatsApp</span></div>
                         </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-6 pt-2">
                         <button
                             type="button"
                             onClick={() => handleSelectPlan('standard')}
-                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all ${selectedPlan === 'standard' ? 'bg-brand-600 text-white shadow-md' : 'bg-brand-500 hover:bg-brand-600 text-white'}`}
+                            className="btn-primary w-full py-2.5 text-xs font-bold shadow-xs"
                         >
-                            {currentPlanId === 'standard' && !isTrial ? 'Formule active' : 'Choisir Standard'}
+                            {selectedPlan === 'standard' ? '✓ Formule sélectionnée' : (currentPlanId === 'standard' && !isTrial ? 'Formule active' : 'Choisir Standard')}
                         </button>
                     </div>
                 </div>
 
                 {/* 3. ENTREPRISE */}
-                <div className={`rounded-2xl p-5 border flex flex-col justify-between transition-all ${selectedPlan === 'entreprise' ? 'border-indigo-600 bg-indigo-50/30 shadow-md ring-2 ring-indigo-500/20' : 'border-neutral-200 bg-white'}`}>
+                <div className={`rounded-2xl p-6 border flex flex-col justify-between transition-all bg-white ${selectedPlan === 'entreprise' ? 'border-indigo-600 shadow-md ring-4 ring-indigo-500/10' : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'}`}>
                     <div>
                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-black uppercase tracking-wider text-indigo-700">Entreprise</span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">Entreprise</span>
                             {currentPlanId === 'entreprise' && (
-                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Actuel</span>
+                                <Badge colorClass="bg-indigo-100 text-indigo-700">Actuel</Badge>
                             )}
                         </div>
                         <div className="mt-3">
-                            <span className="text-2xl font-black text-neutral-900">
+                            <span className="text-3xl font-black text-neutral-900 font-mono">
                                 {billingCycle === 'yearly' ? '39 000' : '49 000'}
                             </span>
-                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
                             {billingCycle === 'yearly' && (
-                                <p className="text-[10px] text-emerald-600 font-bold mt-0.5">470 000 FCFA facturés par an</p>
+                                <p className="text-[11px] text-emerald-700 font-semibold mt-1">470 000 FCFA facturés par an</p>
                             )}
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">Multi-chantiers, équipes multiples & gros volumes.</p>
 
                         <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Utilisateurs illimités</strong></span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Multi-équipes & permissions avancées</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Analytique & rentabilité BTP complète</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Situations de travaux & acomptes</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Passerelle SasPay gros volume</span></div>
-                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Onboarding & accompagnement dédié</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Utilisateurs illimités</strong></span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Multi-équipes & permissions avancées</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Analytique & rentabilité BTP complète</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Situations de travaux & acomptes</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Passerelle SasPay gros volume</span></div>
+                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Onboarding & accompagnement dédié</span></div>
                         </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-6 pt-2">
                         <button
                             type="button"
                             onClick={() => handleSelectPlan('entreprise')}
-                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all ${selectedPlan === 'entreprise' ? 'bg-indigo-700 text-white shadow-md' : 'bg-neutral-900 hover:bg-neutral-800 text-white'}`}
+                            className="btn-primary w-full py-2.5 text-xs font-bold bg-neutral-900 hover:bg-neutral-800 shadow-xs"
                         >
-                            {currentPlanId === 'entreprise' && !isTrial ? 'Formule active' : 'Choisir Entreprise'}
+                            {selectedPlan === 'entreprise' ? '✓ Formule sélectionnée' : (currentPlanId === 'entreprise' && !isTrial ? 'Formule active' : 'Choisir Entreprise')}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* TIROIR DE RÈGLEMENT SASPAY SI UN PLAN EST SÉLECTIONNÉ */}
+            {/* TIROIR DE RÈGLEMENT SASPAY */}
             {selectedPlan && (
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/60 via-brand-50/30 to-white border-2 border-brand-500 shadow-md animate-scale-up space-y-4">
-                    <div className="flex items-center justify-between border-b border-brand-100 pb-3">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm">
+                <div className="p-5 sm:p-6 rounded-2xl bg-white border-2 border-brand-500/80 shadow-sm animate-scale-up space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg border border-brand-100/60">
                                 <i className="fa-solid fa-shield-halved"></i>
                             </div>
                             <div>
-                                <h4 className="text-sm font-black text-neutral-900">
+                                <h4 className="text-sm font-bold text-neutral-900">
                                     Souscription à la formule {plans[selectedPlan]?.name || selectedPlan || 'Standard'} ({billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'})
                                 </h4>
                                 <p className="text-xs text-neutral-500">Paiement Mobile Money ou Carte Bancaire sécurisé via SasPay</p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="text-lg font-black text-brand-700">
+                        <div className="sm:text-right">
+                            <span className="text-2xl font-bold font-mono text-brand-600">
                                 {formatPlanPrice(selectedPlan, billingCycle)} FCFA
                             </span>
-                            <span className="text-[10px] text-neutral-500 block">{billingCycle === 'yearly' ? 'pour 12 mois' : 'pour 1 mois'}</span>
+                            <span className="text-[11px] text-neutral-500 block">{billingCycle === 'yearly' ? 'pour 12 mois' : 'pour 1 mois'}</span>
                         </div>
                     </div>
 
                     {/* Méthodes de paiement SasPay */}
                     <div>
-                        <label className="text-xs font-bold text-neutral-700 block mb-1.5">Méthode de règlement :</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <label className="app-label">Moyen de règlement</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                             {[
-                                { id: 'wave', label: 'Wave', icon: 'fa-water', color: 'text-sky-500', bg: 'hover:border-sky-400' },
-                                { id: 'orange', label: 'Orange Money', icon: 'fa-mobile-screen', color: 'text-amber-500', bg: 'hover:border-amber-400' },
-                                { id: 'moov', label: 'Moov Money', icon: 'fa-tower-cell', color: 'text-blue-500', bg: 'hover:border-blue-400' },
-                                { id: 'card', label: 'Carte Bancaire', icon: 'fa-credit-card', color: 'text-indigo-600', bg: 'hover:border-indigo-400' }
+                                { id: 'wave', label: 'Wave', icon: 'fa-water', color: 'text-sky-500' },
+                                { id: 'orange', label: 'Orange Money', icon: 'fa-mobile-screen', color: 'text-amber-500' },
+                                { id: 'moov', label: 'Moov Money', icon: 'fa-tower-cell', color: 'text-blue-500' },
+                                { id: 'card', label: 'Carte Bancaire', icon: 'fa-credit-card', color: 'text-indigo-600' }
                             ].map(m => (
                                 <button
                                     key={m.id}
                                     type="button"
                                     onClick={() => setPaymentMethod(m.id)}
-                                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all ${paymentMethod === m.id ? 'border-brand-600 bg-brand-50/50 shadow-xs' : 'border-neutral-200 bg-white ' + m.bg}`}
+                                    className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2.5 transition-all ${
+                                        paymentMethod === m.id
+                                            ? 'border-brand-500 bg-brand-50 text-brand-900 shadow-2xs ring-2 ring-brand-500/20'
+                                            : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50/50'
+                                    }`}
                                 >
                                     <i className={`fa-solid ${m.icon} ${m.color} text-sm`}></i>
                                     <span>{m.label}</span>
@@ -16260,13 +16272,13 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                     </div>
 
                     {/* Coordonnées & Téléphone Mobile Money */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-neutral-700 block mb-1">Pays SasPay :</label>
+                            <label className="app-label">Pays</label>
                             <select
                                 value={customerCountry}
                                 onChange={e => setCustomerCountry(e.target.value)}
-                                className="w-full text-xs font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                                className="app-select"
                             >
                                 {window.SasPayService && window.SasPayService.SASPAY_COUNTRIES ? (
                                     window.SasPayService.SASPAY_COUNTRIES.map(c => (
@@ -16284,8 +16296,8 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                             </select>
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-neutral-700 block mb-1">
-                                {paymentMethod === 'card' ? 'Email de confirmation :' : 'Numéro Mobile Money :'}
+                            <label className="app-label">
+                                {paymentMethod === 'card' ? 'Email de confirmation' : 'Numéro Mobile Money'}
                             </label>
                             {paymentMethod === 'card' ? (
                                 <input
@@ -16293,7 +16305,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                                     value={customerEmail}
                                     onChange={e => setCustomerEmail(e.target.value)}
                                     placeholder="contact@entreprise.com"
-                                    className="w-full text-xs font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                                    className="app-input"
                                 />
                             ) : (
                                 <input
@@ -16301,7 +16313,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                                     value={customerPhone}
                                     onChange={e => setCustomerPhone(e.target.value)}
                                     placeholder="Ex: 70123456"
-                                    className="w-full text-xs font-mono font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                                    className="app-input font-mono font-semibold"
                                 />
                             )}
                         </div>
@@ -16309,8 +16321,8 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
 
                     {/* Statut ou message d'attente */}
                     {paymentStatusMessage && (
-                        <div className="p-3 rounded-xl bg-white border border-brand-200 text-xs flex items-center justify-between">
-                            <span className="flex items-center gap-2 font-medium text-neutral-700">
+                        <div className="p-3.5 rounded-xl bg-brand-50/60 border border-brand-200/80 text-xs flex items-center justify-between">
+                            <span className="flex items-center gap-2.5 font-medium text-neutral-800">
                                 {isProcessing && <i className="fa-solid fa-circle-notch fa-spin text-brand-600"></i>}
                                 {paymentStatusMessage}
                             </span>
@@ -16319,9 +16331,10 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                                     href={checkoutUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-brand-600 font-bold hover:underline flex items-center gap-1"
+                                    className="text-brand-600 font-bold hover:underline flex items-center gap-1.5 shrink-0"
                                 >
-                                    Ouvrir SasPay <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                    <span>Ouvrir SasPay</span>
+                                    <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                                 </a>
                             )}
                         </div>
@@ -16333,7 +16346,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                             type="button"
                             onClick={() => setSelectedPlan(null)}
                             disabled={isProcessing}
-                            className="btn-secondary text-xs py-2.5 px-4"
+                            className="btn-secondary text-xs py-2.5 px-4 font-semibold"
                         >
                             Annuler
                         </button>
@@ -16341,7 +16354,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                             type="button"
                             onClick={handlePayWithSasPay}
                             disabled={isProcessing}
-                            className="btn-primary text-xs py-2.5 px-5 font-black flex items-center gap-2 shadow-sm"
+                            className="btn-primary text-xs py-2.5 px-6 font-bold flex items-center gap-2 shadow-xs"
                         >
                             {isProcessing ? (
                                 <>
@@ -16365,25 +16378,30 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
 function SubscriptionModal({ isOpen, onClose, currentSubscription, savedQuotesCount, onUpgradeSuccess, companyInfo }) {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-neutral-950/70 backdrop-blur-md flex items-center justify-center z-[110] p-3 sm:p-5 animate-fade-in overflow-y-auto">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl my-auto overflow-hidden animate-scale-up border border-neutral-200/80 flex flex-col max-h-[92vh]">
-                {/* Header with gradient */}
-                <div className="px-6 py-4 bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-3 sm:p-5 animate-fade-in overflow-y-auto"
+             role="dialog" aria-modal="true" aria-labelledby="subscription_modal_title">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-auto overflow-hidden animate-scale-up border border-neutral-100 flex flex-col max-h-[92vh]">
+                {/* Header dégradé brand ikadevis */}
+                <div className="px-6 py-4 bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-800 text-white flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg">
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs text-white text-lg">
                             <i className="fa-solid fa-crown"></i>
                         </div>
                         <div>
-                            <h2 className="text-base sm:text-lg font-black tracking-tight">Formules & Abonnements ikadevis SaaS</h2>
-                            <p className="text-xs text-neutral-300">Passez à la formule supérieure pour débloquer tous vos chantiers</p>
+                            <h3 id="subscription_modal_title" className="font-bold text-lg leading-tight text-white">
+                                Formules &amp; Abonnements ikadevis SaaS
+                            </h3>
+                            <p className="text-xs text-brand-100 opacity-90">
+                                Débloquez vos devis illimités, vos chantiers et les fonctionnalités pro BTP
+                            </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition" aria-label="Fermer la boîte de dialogue">
-                        <i className="fa-solid fa-xmark text-base"></i>
+                    <button onClick={onClose} className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Fermer la boîte de dialogue">
+                        <i className="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
                 {/* Body */}
-                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll flex-1 bg-neutral-50/60">
+                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll flex-1 bg-neutral-50/50">
                     <SubscriptionPlansView
                         currentSubscription={currentSubscription}
                         savedQuotesCount={savedQuotesCount}

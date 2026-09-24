@@ -1,5 +1,7 @@
 import puppeteer from 'puppeteer';
-import { spawn } from 'node:child_process';
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 
 async function run() {
     console.log('Testing Subscription Modal Click & Pricing Render...');
@@ -8,8 +10,29 @@ async function run() {
     const subService = await import('../js/subscription-service.js');
     console.log('SubscriptionService loaded.');
 
-    const server = spawn('python3', ['-m', 'http.server', '8111'], { cwd: process.cwd() });
-    await new Promise(r => setTimeout(r, 1000));
+    const server = http.createServer((req, res) => {
+        let filePath = path.join(process.cwd(), req.url.split('?')[0]);
+        if (filePath.endsWith('/')) filePath += 'index.html';
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath);
+            const contentTypes = {
+                '.html': 'text/html',
+                '.js': 'application/javascript',
+                '.css': 'text/css',
+                '.json': 'application/json',
+                '.png': 'image/png',
+                '.svg': 'image/svg+xml'
+            };
+            res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'application/octet-stream' });
+            fs.createReadStream(filePath).pipe(res);
+        } else {
+            res.writeHead(404);
+            res.end('Not found');
+        }
+    });
+
+    await new Promise((resolve) => server.listen(8125, resolve));
+    console.log('HTTP Server listening on 8125');
 
     try {
         const browser = await puppeteer.launch({
@@ -24,7 +47,7 @@ async function run() {
             errors.push(err.message);
         });
 
-        await page.goto('http://localhost:8111/index.html', { waitUntil: 'domcontentloaded' });
+        await page.goto('http://localhost:8125/index.html', { waitUntil: 'domcontentloaded' });
         await new Promise(r => setTimeout(r, 1000));
 
         // Click demo / sans compte
@@ -43,6 +66,10 @@ async function run() {
         });
         await page.waitForSelector('button', { timeout: 5000 });
         await new Promise(r => setTimeout(r, 1500));
+
+        // Capture screenshot of the new modal design
+        await page.screenshot({ path: 'scratch/subscription_modal_design_system.png', fullPage: true });
+        console.log('Saved screenshot to scratch/subscription_modal_design_system.png');
 
         // Click "Choisir Standard"
         console.log('Clicking "Choisir Standard"...');
@@ -103,7 +130,7 @@ async function run() {
             process.exit(0);
         }
     } finally {
-        server.kill();
+        server.close();
     }
 }
 
