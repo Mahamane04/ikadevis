@@ -10631,8 +10631,7 @@ function TopBarUserProfile({
     currentSubscription,
     canOfferPwaInstall,
     installPwa,
-    isIosDevice,
-    connectionState
+    isIosDevice
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -10664,38 +10663,43 @@ function TopBarUserProfile({
         };
     }, [isOpen]);
 
-    const roleLabel = activeOrganizationRole === 'owner' ? '👑 Propriétaire' : (ROLE_LABELS_EQUIPE[activeOrganizationRole] || 'Membre');
+    const roleLibelle = activeOrganizationRole === 'owner' ? 'Propriétaire' : (ROLE_LABELS_EQUIPE[activeOrganizationRole] || 'Membre');
     const planNom = currentSubscription?.isAdminAccess ? 'Entreprise (Admin)' : (currentSubscription?.planId ? currentSubscription.planId.charAt(0).toUpperCase() + currentSubscription.planId.slice(1) : 'Starter');
 
     return (
         <div className="relative" ref={dropdownRef}>
+            {/* Bouton Profil : avatar circulaire épuré sans répéter le nom pour éviter la duplication avec le sélecteur d'entreprise */}
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-xl border border-neutral-200/80 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group"
+                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-neutral-100 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/30 group"
                 aria-label="Menu du profil utilisateur"
                 aria-expanded={isOpen}
-                title={`Profil : ${displayName}`}
+                title={`Compte : ${displayName} (${email})`}
             >
-                <div className="w-7 h-7 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ring-2 ring-white group-hover:ring-neutral-200 transition-all">
                     {isGuest ? <i className="fa-solid fa-user text-[11px]"></i> : <span>{initials}</span>}
                 </div>
-                <span className="hidden xl:inline font-medium text-neutral-800 max-w-[110px] truncate">{displayName}</span>
-                <i className={`hidden sm:inline fa-solid fa-chevron-down text-[10px] text-neutral-400 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+                <i className={`fa-solid fa-chevron-down text-[9px] text-neutral-400 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
             </button>
 
             {isOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
+                    {/* En-tête profil */}
                     <div className="px-3 py-2 border-b border-neutral-100 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-neutral-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
                             {isGuest ? <i className="fa-solid fa-user"></i> : <span>{initials}</span>}
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-neutral-900 truncate">{displayName}</p>
                             <p className="text-[11px] text-neutral-500 truncate font-mono">{email}</p>
-                            <p className="text-[10px] text-brand-600 font-semibold mt-0.5">{roleLabel}</p>
+                            <div className="mt-1">
+                                <Badge colorClass="bg-brand-50 text-brand-700 border-brand-100">{roleLibelle}</Badge>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Actions avec icônes harmonisées */}
                     <div className="py-1 space-y-0.5">
                         {/* Formule & Abonnement */}
                         <button
@@ -10705,56 +10709,49 @@ function TopBarUserProfile({
                                 if (onOpenSubscriptionModal) onOpenSubscriptionModal();
                                 else onOpenSettings('entreprise');
                             }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center justify-between transition-colors"
+                            className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center justify-between transition-colors"
                         >
-                            <div className="flex items-center gap-2.5">
-                                <i className="fa-solid fa-crown text-amber-500 w-4 text-center"></i>
-                                <span>Formule & Facturation</span>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
+                                    <i className="fa-solid fa-crown text-[11px]"></i>
+                                </div>
+                                <span className="truncate">Formule & Facturation</span>
                             </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100 shrink-0">
                                 {planNom}
                             </span>
                         </button>
+
+                        {/* Mon Profil & Compte */}
                         <button
                             type="button"
                             onClick={() => {
                                 setIsOpen(false);
                                 onOpenSettings('compte');
                             }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                            className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
                         >
-                            <i className="fa-solid fa-user-gear text-neutral-400 w-4 text-center"></i>
+                            <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
+                                <i className="fa-solid fa-user-gear text-[11px]"></i>
+                            </div>
                             <span>Mon Profil & Compte</span>
                         </button>
+
+                        {/* Paramètres Entreprise */}
                         <button
                             type="button"
                             onClick={() => {
                                 setIsOpen(false);
                                 onOpenSettings('entreprise');
                             }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                            className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
                         >
-                            <i className="fa-solid fa-building text-neutral-400 w-4 text-center"></i>
+                            <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
+                                <i className="fa-solid fa-building text-[11px]"></i>
+                            </div>
                             <span>Paramètres Entreprise</span>
                         </button>
-                        {/* État de synchronisation discret */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsOpen(false);
-                                onOpenSettings('diagnostic');
-                            }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center justify-between transition-colors"
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <i className="fa-solid fa-cloud text-neutral-400 w-4 text-center"></i>
-                                <span>Santé Cloud & Données</span>
-                            </div>
-                            <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                {connectionState?.label || 'Synchronisé'}
-                            </span>
-                        </button>
+
                         {/* Installation PWA (si disponible) */}
                         {canOfferPwaInstall && (
                             <button
@@ -10763,13 +10760,17 @@ function TopBarUserProfile({
                                     setIsOpen(false);
                                     if (installPwa) installPwa();
                                 }}
-                                className="w-full text-left p-2 rounded-xl text-xs font-semibold text-brand-700 hover:bg-brand-50 flex items-center gap-2.5 transition-colors"
+                                className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-brand-50 flex items-center gap-2.5 transition-colors"
                             >
-                                <i className="fa-solid fa-mobile-screen-button text-brand-500 w-4 text-center"></i>
-                                <span>{isIosDevice ? "Ajouter à l'écran d'accueil" : 'Installer ikadevis'}</span>
+                                <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors">
+                                    <i className="fa-solid fa-mobile-screen-button text-[11px]"></i>
+                                </div>
+                                <span className="group-hover:text-brand-700">{isIosDevice ? "Ajouter à l'écran d'accueil" : 'Installer ikadevis'}</span>
                             </button>
                         )}
                     </div>
+
+                    {/* Déconnexion */}
                     {onSignOut && (
                         <div className="border-t border-neutral-100 pt-1">
                             <button
@@ -10778,9 +10779,11 @@ function TopBarUserProfile({
                                     setIsOpen(false);
                                     deconnexionGardee();
                                 }}
-                                className="w-full text-left p-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
+                                className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-600 hover:bg-red-50 hover:text-red-600 flex items-center gap-2.5 transition-colors"
                             >
-                                <i className="fa-solid fa-arrow-right-from-bracket text-red-500 w-4 text-center"></i>
+                                <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-red-100 group-hover:text-red-600 transition-colors">
+                                    <i className="fa-solid fa-arrow-right-from-bracket text-[11px]"></i>
+                                </div>
                                 <span>Se déconnecter</span>
                             </button>
                         </div>
@@ -11342,18 +11345,7 @@ function GlobalTopBar({
                     </button>
                 )}
 
-                {/* ACCÈS AUX PARAMÈTRES ⚙ */}
-                <button
-                    type="button"
-                    onClick={() => onOpenSettings('entreprise')}
-                    className={`btn-icon w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-neutral-900 transition-all shadow-2xs flex items-center justify-center ${activeView === 'settings' ? 'bg-brand-50 text-brand-600 border-brand-300' : ''}`}
-                    title="Paramètres de l'espace de travail"
-                    aria-label="Paramètres du compte"
-                >
-                    <i className="fa-solid fa-gear text-xs sm:text-sm"></i>
-                </button>
-
-                {/* SÉLECTEUR D'ORGANISATION DYNAMIQUE */}
+                {/* SÉLECTEUR D'ORGANISATION DYNAMIQUE (Espace de travail entreprise) */}
                 <div className="hidden sm:block">
                     <TopBarOrganizationSwitcher
                         userOrganizations={userOrganizations}
@@ -11366,7 +11358,18 @@ function GlobalTopBar({
                     />
                 </div>
 
-                {/* PROFIL UTILISATEUR DISTINCT */}
+                {/* ACCÈS AUX PARAMÈTRES ⚙ */}
+                <button
+                    type="button"
+                    onClick={() => onOpenSettings('entreprise')}
+                    className={`btn-icon w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-neutral-900 transition-all shadow-2xs flex items-center justify-center ${activeView === 'settings' ? 'bg-brand-50 text-brand-600 border-brand-300' : ''}`}
+                    title="Paramètres de l'espace de travail"
+                    aria-label="Paramètres du compte"
+                >
+                    <i className="fa-solid fa-gear text-xs sm:text-sm"></i>
+                </button>
+
+                {/* PROFIL UTILISATEUR DISTINCT (Avatar de la personne connectée) */}
                 <TopBarUserProfile
                     sbUser={sbUser}
                     activeOrganizationRole={activeOrganizationRole}
@@ -11378,7 +11381,6 @@ function GlobalTopBar({
                     canOfferPwaInstall={canOfferPwaInstall}
                     installPwa={installPwa}
                     isIosDevice={isIosDevice}
-                    connectionState={connectionState}
                 />
             </div>
         </header>
