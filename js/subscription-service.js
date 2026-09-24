@@ -15,6 +15,8 @@
             name: 'Starter',
             badge: 'Essai gratuit',
             price: 0,
+            priceMonthly: 0,
+            priceYearly: 0,
             period: '14 jours d’essai',
             trialDays: 14,
             isTrial: true,
@@ -33,66 +35,76 @@
         standard: {
             id: 'standard',
             name: 'Standard',
-            badge: 'Essentiel',
-            price: 9900,
-            period: '/ mois',
-            isTrial: false,
-            maxDevis: Infinity,
-            maxProjects: 10,
-            maxUsers: 2,
-            description: 'Pour les artisans et petites équipes en activité régulière.',
-            features: [
-                'Devis & facturation illimités',
-                'Jusqu’à 10 projets actifs',
-                'Catalogue complet & calcul des marges',
-                'Jusqu’à 2 utilisateurs',
-                'Exports PDF & devis professionnels',
-                'Support standard par email et WhatsApp'
-            ]
-        },
-        pro: {
-            id: 'pro',
-            name: 'Pro',
-            badge: 'Le plus populaire',
+            badge: 'Plus Populaire',
             isPopular: true,
-            price: 14500,
+            price: 19900,
+            priceMonthly: 19900,
+            priceYearly: 191000,
             period: '/ mois',
             isTrial: false,
             maxDevis: Infinity,
             maxProjects: Infinity,
             maxUsers: 5,
-            description: 'Pour les professionnels du BTP qui veulent structurer leur croissance.',
+            description: 'Idéal pour les PME et entreprises BTP en croissance.',
             features: [
-                'Tout le plan Standard',
-                'Projets & chantiers illimités',
-                'Personnalisation complète (Logo, entête, CGV)',
-                'Jusqu’à 5 collaborateurs',
-                'Calculs avancés & calepinage automatique',
-                'Historique et suivi des paiements',
-                'Support prioritaire dédié'
+                'Devis & Factures illimités',
+                'Jusqu’à 5 utilisateurs',
+                'Export PDF Pro sans filigrane',
+                'Suivi chantiers & marges réelles',
+                'Module SasPay Mobile Money & Carte',
+                'Support prioritaire WhatsApp'
             ]
         },
-        business: {
-            id: 'business',
-            name: 'Business',
-            badge: 'Option IA incluse',
-            hasAiBadge: true,
-            price: 29500,
+        entreprise: {
+            id: 'entreprise',
+            name: 'Entreprise',
+            badge: 'Performance & Équipe',
+            price: 49000,
+            priceMonthly: 49000,
+            priceYearly: 470000,
             period: '/ mois',
             isTrial: false,
             maxDevis: Infinity,
             maxProjects: Infinity,
             maxUsers: Infinity,
-            description: 'Pour les entreprises BTP et PME exigeant puissance et automatisation.',
+            description: 'Multi-chantiers, équipes multiples & gros volumes.',
             features: [
-                'Tout le plan Pro en illimité',
-                'Utilisateurs & équipes illimités',
-                'Gestion d’affaires & suivi analytique chantier',
-                '🤖 Option Assistant IA BTP intégrée',
-                'Génération de devis assistée par IA',
-                'Rapports d’activité et bilans financiers',
-                'Accompagnement & onboarding personnalisé'
+                'Utilisateurs illimités',
+                'Multi-équipes & permissions avancées',
+                'Analytique & rentabilité BTP complète',
+                'Situations de travaux & acomptes',
+                'Passerelle SasPay gros volume',
+                'Onboarding & accompagnement dédié'
             ]
+        },
+        // Alias de compatibilité
+        pro: {
+            id: 'pro',
+            name: 'Pro',
+            badge: 'Standard Pro',
+            price: 19900,
+            priceMonthly: 19900,
+            priceYearly: 191000,
+            period: '/ mois',
+            isTrial: false,
+            maxDevis: Infinity,
+            maxProjects: Infinity,
+            maxUsers: 5,
+            features: ['Devis illimités', '5 utilisateurs']
+        },
+        business: {
+            id: 'business',
+            name: 'Business',
+            badge: 'Entreprise',
+            price: 49000,
+            priceMonthly: 49000,
+            priceYearly: 470000,
+            period: '/ mois',
+            isTrial: false,
+            maxDevis: Infinity,
+            maxProjects: Infinity,
+            maxUsers: Infinity,
+            features: ['Tout illimité', 'Multi-équipes']
         }
     };
 
@@ -366,8 +378,124 @@
 
             this.saveSubscription(sub);
             return sub;
+        },
+
+        /**
+         * Initie un paiement SasPay pour un abonnement (compatible SubscriptionPlansView)
+         */
+        createSubscriptionCheckoutSession: async function (params = {}) {
+            const planId = params.planId || 'standard';
+            const plan = PLANS[planId] || PLANS.standard;
+            const billingCycle = params.billingCycle || 'monthly';
+            const amount = billingCycle === 'yearly'
+                ? (plan.priceYearly || plan.price * 12)
+                : (plan.priceMonthly || plan.price);
+
+            if (typeof window.SasPayService === 'undefined') {
+                throw new Error('Le service SasPay n\'est pas disponible.');
+            }
+
+            const platformConfig = window.SASPAY_PLATFORM_CONFIG || {};
+            const apiKey = platformConfig.getApiKey ? platformConfig.getApiKey() : (platformConfig.apiKey || '');
+            const origin = window.location.origin;
+            const pathname = window.location.pathname;
+            const returnUrl = `${origin}${pathname}?subscription=success&plan=${planId}&cycle=${billingCycle}`;
+
+            const sessionParams = {
+                amount: amount,
+                currency: 'XOF',
+                description: `Abonnement ikadevis ${plan.name} (${billingCycle === 'yearly' ? '1 an' : '1 mois'})`,
+                customer: {
+                    name: params.customerName || 'Client ikadevis',
+                    email: params.customerEmail || 'contact@ikadevis.com',
+                    phone: params.customerPhone || ''
+                },
+                return_url: returnUrl,
+                metadata: {
+                    type: 'saas_subscription',
+                    planId: plan.id,
+                    planName: plan.name,
+                    billingCycle: billingCycle,
+                    timestamp: Date.now()
+                }
+            };
+
+            const configOverride = {
+                apiKey: apiKey,
+                environment: platformConfig.environment || 'live',
+                defaultCountry: params.country || platformConfig.defaultCountry || 'ML'
+            };
+
+            // SoftPay direct si réseau mobile money avec numéro
+            if (params.network && ['wave', 'orange', 'moov', 'mtn'].includes(params.network) && params.customerPhone) {
+                try {
+                    const softRes = await window.SasPayService.initiateSoftPay({
+                        ...sessionParams,
+                        phone: params.customerPhone,
+                        network: params.network
+                    }, configOverride);
+                    if (softRes.success) {
+                        return {
+                            success: true,
+                            paymentId: softRes.paymentId || softRes.reference || `pay_${Date.now()}`,
+                            checkoutUrl: softRes.checkoutUrl || null
+                        };
+                    }
+                } catch (e) {
+                    console.warn('[SubscriptionService] SoftPay direct non abouti, repli sur session checkout', e);
+                }
+            }
+
+            const checkoutRes = await window.SasPayService.createCheckoutSession(sessionParams, configOverride);
+            return {
+                success: checkoutRes.success,
+                paymentId: checkoutRes.reference || checkoutRes.paymentId || `pay_${Date.now()}`,
+                checkoutUrl: checkoutRes.checkoutUrl || checkoutRes.url,
+                message: checkoutRes.message
+            };
+        },
+
+        /**
+         * Applique la montée en gamme suite à validation
+         */
+        applyPlanUpgrade: function (planId, billingCycle = 'monthly') {
+            const plan = PLANS[planId] || PLANS.standard;
+            const durationDays = billingCycle === 'yearly' ? 365 : 30;
+            const now = Date.now();
+            const sub = this.getSubscription();
+
+            const baseTime = (sub.status === 'active' && sub.expiresAt && sub.expiresAt > now)
+                ? sub.expiresAt
+                : now;
+            const newExpiresAt = baseTime + (durationDays * 24 * 60 * 60 * 1000);
+
+            sub.planId = plan.id;
+            sub.status = 'active';
+            sub.activatedAt = now;
+            sub.expiresAt = newExpiresAt;
+
+            if (!sub.paymentHistory) sub.paymentHistory = [];
+            sub.paymentHistory.unshift({
+                id: `sub_${now}`,
+                planId: plan.id,
+                planName: plan.name,
+                billingCycle: billingCycle,
+                amount: billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly,
+                currency: 'XOF',
+                date: new Date().toISOString(),
+                reference: `SASPAY-${now}`,
+                mode: 'saspay'
+            });
+
+            this.saveSubscription(sub);
+            return sub;
         }
     };
 
-    window.SubscriptionService = SubscriptionService;
+    if (typeof window !== 'undefined') {
+        window.SubscriptionService = SubscriptionService;
+    }
+    if (typeof globalThis !== 'undefined') {
+        globalThis.SubscriptionService = SubscriptionService;
+    }
 })();

@@ -7829,7 +7829,7 @@ function AuditLogPanel({ organizationId, supabaseClient }) {
                                     {filteredLogs.map(log => (
                                         <tr key={log.id} className="hover:bg-neutral-50/60">
                                             <td className="p-3 pl-4 whitespace-nowrap font-mono text-[11px] text-neutral-500">
-                                                {new Date(log.created_at).toLocaleString('fr-FR')}
+                                                {log.created_at ? new Date(log.created_at).toLocaleString('fr-FR') : '—'}
                                             </td>
                                             <td className="p-3 font-bold text-neutral-800">
                                                 {log.user_email || 'Utilisateur'}
@@ -9965,7 +9965,7 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                                 )}
                             </div>
                             <h2 className="text-xl font-bold text-neutral-900">
-                                {plan.name} — {plan.price === 0 ? 'Essai gratuit 14 jours' : `${plan.price.toLocaleString()} FCFA ${plan.period}`}
+                                {plan?.name || 'Starter'} — {(!plan?.price || plan.price === 0) ? 'Essai gratuit 14 jours' : `${Number(plan.price || 0).toLocaleString('fr-FR')} FCFA ${plan.period || ''}`}
                             </h2>
                             <p className="text-xs text-neutral-500 mt-1">
                                 {subscription.status === 'trial'
@@ -10154,7 +10154,7 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                                             <td className="p-3 font-bold text-neutral-900">{item.planName}</td>
                                             <td className="p-3 font-mono text-[11px] text-neutral-500">{item.reference}</td>
                                             <td className="p-3 text-right font-mono font-bold text-emerald-700">
-                                                {item.amount.toLocaleString()} FCFA
+                                                {Number(item?.amount || 0).toLocaleString('fr-FR')} FCFA
                                             </td>
                                             <td className="p-3 text-center">
                                                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
@@ -15463,7 +15463,7 @@ function SubscriptionPlansModal({ isOpen, onClose, onPlanActivated, currentSubsc
                             <div>
                                 <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
                                     <i className="fa-solid fa-bolt text-amber-500"></i>
-                                    <span>Régler votre abonnement <strong>{selectedPlan.name}</strong> ({selectedPlan.price.toLocaleString()} FCFA)</span>
+                                    <span>Régler votre abonnement <strong>{selectedPlan?.name || 'Abonnement'}</strong> ({Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA)</span>
                                 </h3>
                                 <p className="text-xs text-neutral-500">Sélectionnez votre moyen de règlement via la passerelle SasPay.</p>
                             </div>
@@ -15502,7 +15502,7 @@ function SubscriptionPlansModal({ isOpen, onClose, onPlanActivated, currentSubsc
                                         className="w-full btn-primary py-3 text-xs sm:text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center gap-2 shadow-sm"
                                     >
                                         <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-lock'}`}></i>
-                                        <span>{isGenerating ? 'Connexion à SasPay...' : `Payer ${selectedPlan.price.toLocaleString()} FCFA via Wave, Orange, Moov ou Carte`}</span>
+                                        <span>{isGenerating ? 'Connexion à SasPay...' : `Payer ${Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA via Wave, Orange, Moov ou Carte`}</span>
                                     </button>
                                 ) : (
                                     <div className="p-4 rounded-xl bg-white border border-brand-200 space-y-3">
@@ -15610,7 +15610,7 @@ function SubscriptionPlansModal({ isOpen, onClose, onPlanActivated, currentSubsc
                                     className="w-full btn-primary py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs"
                                 >
                                     <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'}`}></i>
-                                    <span>{isGenerating ? 'Envoi en cours...' : `Recevoir la demande de débit (${selectedPlan.price.toLocaleString()} FCFA)`}</span>
+                                    <span>{isGenerating ? 'Envoi en cours...' : `Recevoir la demande de débit (${Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA)`}</span>
                                 </button>
                             </div>
                         )}
@@ -15925,10 +15925,28 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
     const [checkoutUrl, setCheckoutUrl] = React.useState(null);
     const [upgradeSuccessPlan, setUpgradeSuccessPlan] = React.useState(null);
 
-    const plans = typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.PLANS : {
-        starter: { id: 'starter', name: 'Starter', priceMonthly: 0, priceYearly: 0, maxQuotes: 3, maxUsers: 1 },
-        standard: { id: 'standard', name: 'Standard', priceMonthly: 19900, priceYearly: 191000, maxQuotes: 999999, maxUsers: 5 },
-        entreprise: { id: 'entreprise', name: 'Entreprise', priceMonthly: 49000, priceYearly: 470000, maxQuotes: 999999, maxUsers: 999999 }
+    const basePlans = {
+        starter: { id: 'starter', name: 'Starter', priceMonthly: 0, priceYearly: 0, price: 0, maxQuotes: 3, maxUsers: 1 },
+        standard: { id: 'standard', name: 'Standard', priceMonthly: 19900, priceYearly: 191000, price: 19900, maxQuotes: 999999, maxUsers: 5 },
+        entreprise: { id: 'entreprise', name: 'Entreprise', priceMonthly: 49000, priceYearly: 470000, price: 49000, maxQuotes: 999999, maxUsers: 999999 }
+    };
+    const servicePlans = (typeof window !== 'undefined' && window.SubscriptionService && window.SubscriptionService.PLANS) ? window.SubscriptionService.PLANS : {};
+    const plans = {
+        starter: { ...basePlans.starter, ...(servicePlans.starter || {}) },
+        standard: { ...basePlans.standard, ...(servicePlans.standard || {}) },
+        entreprise: { ...basePlans.entreprise, ...(servicePlans.entreprise || servicePlans.business || {}) }
+    };
+
+    const getPlanPrice = (planKey, cycle) => {
+        const p = plans[planKey] || basePlans[planKey] || basePlans.standard;
+        if (cycle === 'yearly') {
+            return p.priceYearly || (p.price ? p.price * 12 : 191000);
+        }
+        return p.priceMonthly || p.price || 19900;
+    };
+
+    const formatPlanPrice = (planKey, cycle) => {
+        return Number(getPlanPrice(planKey, cycle) || 0).toLocaleString('fr-FR');
     };
 
     const currentPlanId = currentSubscription?.planId || 'starter';
@@ -15948,8 +15966,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
         setPaymentStatusMessage('Initialisation du paiement SasPay sécurisé...');
 
         try {
-            const plan = plans[selectedPlan];
-            const amount = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+            const amount = getPlanPrice(selectedPlan, billingCycle);
 
             const res = await window.SubscriptionService.createSubscriptionCheckoutSession({
                 planId: selectedPlan,
@@ -16206,14 +16223,14 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                             </div>
                             <div>
                                 <h4 className="text-sm font-black text-neutral-900">
-                                    Souscription à la formule {plans[selectedPlan].name} ({billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'})
+                                    Souscription à la formule {plans[selectedPlan]?.name || selectedPlan || 'Standard'} ({billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'})
                                 </h4>
                                 <p className="text-xs text-neutral-500">Paiement Mobile Money ou Carte Bancaire sécurisé via SasPay</p>
                             </div>
                         </div>
                         <div className="text-right">
                             <span className="text-lg font-black text-brand-700">
-                                {(billingCycle === 'yearly' ? plans[selectedPlan].priceYearly : plans[selectedPlan].priceMonthly).toLocaleString('fr-FR')} FCFA
+                                {formatPlanPrice(selectedPlan, billingCycle)} FCFA
                             </span>
                             <span className="text-[10px] text-neutral-500 block">{billingCycle === 'yearly' ? 'pour 12 mois' : 'pour 1 mois'}</span>
                         </div>
@@ -16334,7 +16351,7 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
                             ) : (
                                 <>
                                     <i className="fa-solid fa-lock"></i>
-                                    <span>Payer {(billingCycle === 'yearly' ? plans[selectedPlan].priceYearly : plans[selectedPlan].priceMonthly).toLocaleString('fr-FR')} FCFA avec SasPay</span>
+                                    <span>Payer {formatPlanPrice(selectedPlan, billingCycle)} FCFA avec SasPay</span>
                                 </>
                             )}
                         </button>
