@@ -80,6 +80,7 @@ import * as financeSqlMigrations from './test_finance_sql_migrations.mjs';
 import * as financeDoubleEcriture from './test_finance_reglements_double_ecriture.mjs';
 import * as financeParametresUi from './test_finance_parametres_ui.mjs';
 import * as financeDepensesUi from './test_finance_depenses_ui.mjs';
+import * as abonnementPaiement from './test_abonnement_paiement.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -139,6 +140,7 @@ const SUITES = [
     { name: 'Socle Finances — double écriture des règlements (T3) : ordre, clé partagée, échecs non bloquants', mod: financeDoubleEcriture, expectedToFail: false },
     { name: 'Finances — Paramètres (comptes, devises, taxes, catégories) : parcours réel en mode invité', mod: financeParametresUi, expectedToFail: false },
     { name: 'Finances — Dépenses : payée, à payer, répartie, avance, règlement, suppression, soldes cohérents, mobile', mod: financeDepensesUi, expectedToFail: false },
+    { name: 'Abonnement SaaS — aucune activation sans paiement confirmé (garde de l\'incident du 2026-09-24)', mod: abonnementPaiement, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;

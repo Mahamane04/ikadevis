@@ -1,0 +1,1475 @@
+--- a/index_jsx.js
++++ b/index_jsx.js
+@@ -269,7 +269,7 @@
+ 
+ // Configuration par défaut du Tableau de Bord Personnalisable
+ const DEFAULT_DASHBOARD_CONFIG = {
+-    monthlyGoal: 15000000, // Objectif de CA mensuel (en devise de l'entreprise)
++    monthlyGoal: 0, // Objectif de CA mensuel (en devise de l'entreprise)
+     defaultPeriod: 'all',  // 'all' | 'month' | 'quarter' | 'year'
+     widgets: {
+         monthlyGoal: true,     // Jauge d'avancement de l'objectif mensuel
+@@ -411,7 +411,7 @@
+ // Affichage compact d'une quantité : 25 et non 25.00, mais 2.5 conservé.
+ const formatQuantite = (q) => {
+     const n = Number(q) || 0;
+-    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
++    return Number.isInteger(n) ? String(n) : n.toFixed(8).replace(/\.?0+$/, '');
+ };
+ 
+ // Modes réellement proposables pour un ouvrage donné.
+@@ -591,8 +591,8 @@
+     return brut || secours;
+ };
+ 
+-function AuthScreen({ onAuthSuccess }) {
+-    const [mode, setMode] = useState('login');
++function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
++    const [mode, setMode] = useState(initialMode);
+     const [email, setEmail] = useState('');
+     const [password, setPassword] = useState('');
+     const [orgName, setOrgName] = useState('');
+@@ -873,7 +873,7 @@
+                                 Essayer sans compte
+                             </button>
+                             <p className="text-neutral-400 text-[11px] leading-relaxed -mt-1">
+-                                Devis d'exemple déjà chiffré · rien n'est envoyé
++                                {LS.get('demoTransfer', 'guest') ? 'Votre devis d’essai est conservé ici. Retrouvez-le en démonstration ou récupérez-le après connexion.' : 'Devis d’exemple déjà chiffré · rien n’est envoyé'}
+                             </p>
+                             {mode === 'login' && (
+                                 <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-600 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-600 underline underline-offset-2">Créer un compte</span></button>
+@@ -1588,7 +1588,7 @@
+                     onKeyDown={handleKeyDown}
+                     placeholder="Projet"
+                     className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+-                    aria-label="Projet du devis"
++                    aria-label="Chantier du devis"
+                     aria-autocomplete="list"
+                     aria-controls="quote-project-listbox"
+                     aria-expanded={isOpen}
+@@ -4615,7 +4615,7 @@
+                                             <span className="font-bold uppercase tracking-wide text-amber-700">Ligne libre</span>
+                                             <span className="text-neutral-500" aria-hidden="true">•</span>
+                                             <span className={item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}>
+-                                                {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
++                                                {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à renseigner dans Modifier'}
+                                             </span>
+                                             {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
+                                             {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600">Tarif à compléter</span>}
+@@ -4662,7 +4662,7 @@
+                                     <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
+                                     <input
+                                         type="number" min="0" step="any"
+-                                        value={item.isCustom ? (item.unitPriceHT ?? '') : arrondiMonetaire(facture.prixUnitaire, decimalesDevise(normalizeCurrency(currency)))}
++                                        value={item.isCustom ? (item.unitPriceHT ?? '') : precisionLigneCommerciale(facture.quantite, facture.totalHT, currency).unitPrice}
+                                         readOnly={!item.isCustom}
+                                         onClick={() => { if (!item.isCustom) onOpenInspector(idx); }}
+                                         onFocus={(e) => e.target.select()}
+@@ -4824,7 +4824,7 @@
+                                                         <span className="font-bold uppercase tracking-wide text-amber-700 shrink-0">Ligne libre</span>
+                                                         <span className="text-neutral-500" aria-hidden="true">•</span>
+                                                         <span className={`truncate ${item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}`}>
+-                                                            {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
++                                                            {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à renseigner dans Modifier'}
+                                                         </span>
+                                                         {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500 shrink-0" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
+                                                         {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600 shrink-0">Tarif à compléter</span>}
+@@ -4905,7 +4905,7 @@
+                                             step="any"
+                                             data-col="price"
+                                             data-row={idx}
+-                                            value={item.isCustom ? (item.unitPriceHT ?? '') : arrondiMonetaire(facture.prixUnitaire, decimalesDevise(normalizeCurrency(currency)))}
++                                            value={item.isCustom ? (item.unitPriceHT ?? '') : precisionLigneCommerciale(facture.quantite, facture.totalHT, currency).unitPrice}
+                                             readOnly={!item.isCustom}
+                                             onClick={() => { if (!item.isCustom) onOpenInspector(idx); }}
+                                             onFocus={(e) => e.target.select()}
+@@ -5070,7 +5070,7 @@
+ }) {
+     const [searchQuery, setSearchQuery] = useState('');
+     const [selectedCategory, setSelectedCategory] = useState('all');
+-    const [isBulkMode, setIsBulkMode] = useState(true);
++    const [isBulkMode, setIsBulkMode] = useState(false);
+     const [bulkSelections, setBulkSelections] = useState({});
+     // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
+     // visuel et au libellé du bouton de sortie. Remis à zéro à chaque ouverture.
+@@ -5082,7 +5082,7 @@
+             setSearchQuery('');
+             setSelectedCategory('all');
+             setNbAjoutes(0);
+-            setIsBulkMode(true);
++            setIsBulkMode(false);
+             setBulkSelections({});
+             setTimeout(() => searchInputRef.current?.focus(), 100);
+         }
+@@ -5535,7 +5535,7 @@
+ 
+     if (!isOpen || !item) return null;
+ 
+-    const solution = solutions.find(s => s.id === item.solutionId);
++    const solution = item.calculationSnapshot?.solution || solutions.find(s => s.id === item.solutionId);
+     const calcForm = item.calcForm || {};
+     const quoteData = item.quoteData || {};
+     const facture = ligneFacturee(item);
+@@ -5560,7 +5560,7 @@
+     }
+ 
+     // M5 (2026-08-18) — Mode réellement actif de cet ouvrage.
+-    const isManualLine = Boolean(item.isCustom && !item.calcForm);
++    const isManualLine = Boolean(item.isCustom);
+     const activeMode = isManualLine ? 'unit' : (calcForm.takeoffMode || solution?.allowedModes?.[0] || 'rectangle');
+ 
+     // Champs de métré dont la valeur saisie est négative, nommés comme à l'écran.
+@@ -5573,6 +5573,7 @@
+         .map(cle => LIBELLES_DIMENSIONS[cle]);
+ 
+     const handleParamChange = (field, val) => {
++        if (isManualLine && field === 'qty') { onUpdateItem({ qty: val }); return; }
+         const updatedCalcForm = {
+             ...calcForm,
+             [field]: val
+@@ -5605,6 +5606,43 @@
+         };
+         handleParamChange('customVarValues', customVarValues);
+     };
++
++    const quantityValid = activeMode === 'unit'
++        ? Number(calcForm.qty || item.qty) > 0
++        : activeMode === 'surface' ? Number(calcForm.surfaceDirect) > 0
++        : activeMode === 'linear' ? Number(calcForm.lengthDirect) > 0
++        : activeMode === 'floor' ? Number(calcForm.width) > 0 && Number(calcForm.lengthDirect) > 0
++        : Number(calcForm.width) > 0 && Number(calcForm.height) > 0 && (activeMode !== 'volume' || Number(calcForm.depth) > 0);
++    const resourcePrices = <div className="space-y-3">
++        <p className="text-xs text-neutral-600">Prix du catalogue à vérifier auprès de vos fournisseurs. Vos modifications restent dans cet ouvrage, sans changer le catalogue ni les autres devis.</p>
++        {(quoteData.details || []).map((d, idx) => {
++            const resourceId = d.type === 'material' ? d.matId : d.laborId;
++            const override = calcForm.priceOverrides?.[d.type]?.[resourceId];
++            const setPrice = value => handleParamChange('priceOverrides', { ...(calcForm.priceOverrides || {}), [d.type]: { ...(calcForm.priceOverrides?.[d.type] || {}), [resourceId]: value } });
++            return <section key={d.id || idx} className="rounded-xl border border-neutral-200 bg-white p-3 space-y-2">
++                <p className="font-semibold text-sm text-neutral-900">{d.name || d.label}</p>
++                <p className="text-xs text-neutral-600">{formatQuantite(d.billedQty)} {d.unit} consommé(s) · Coût : <strong>{formatMoney(d.totalCost, currency)}</strong></p>
++                {resourceId != null && <label className="block text-xs font-semibold text-neutral-700">Prix d’achat par {d.unit} ({currency})
++                    <input aria-label={`Prix d’achat — ${d.name || d.label}`} type="number" inputMode="decimal" min="0" step="any" value={override ?? d.unitCost ?? ''} onChange={e => setPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))} className="app-input mt-1" />
++                </label>}
++                {override !== undefined && override !== '' && <button type="button" className="text-xs text-brand-700 underline" onClick={() => setPrice(null)}>Revenir au prix du catalogue</button>}
++                {d.type === 'material' && <details className="text-xs text-neutral-600"><summary className="cursor-pointer py-2">Pertes et conditionnement</summary>
++                    <p>Besoin net : {formatQuantite(d.netQty)} {d.unit} · Perte : {d.wastePct}%</p>
++                    <p>À acheter : {formatQuantite(d.packsNeeded)} {d.packUnitBuy} · {formatMoney(d.purchasedCost, currency)}. Reliquat : {formatQuantite(d.remainderQty)} {d.unit}.</p>
++                </details>}
++            </section>;
++        })}
++    </div>;
++    const simplePricing = !isManualLine && <section className="rounded-2xl border border-neutral-200 p-4 space-y-3">
++        <h4 className="font-semibold text-sm">Vos prix et votre marge</h4>
++        <details><summary className="cursor-pointer py-2 text-brand-700 text-sm font-semibold">Modifier mes prix d’achat</summary>{resourcePrices}</details>
++        <div className="grid grid-cols-2 gap-3">
++            <label className="text-xs font-semibold">Marge souhaitée (%)<input aria-label="Marge souhaitée (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="95" step="any" value={calcForm.margin ?? 30} onChange={e => handleParamChange('margin', e.target.value)} /></label>
++            <label className="text-xs font-semibold">Frais généraux (%)<input aria-label="Frais généraux (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="50" step="any" value={calcForm.overheadRate ?? 5} onChange={e => handleParamChange('overheadRate', e.target.value)} /></label>
++        </div>
++        <p className="text-xs text-neutral-600">{calcForm.marginType === 'markup' ? 'Majoration appliquée au coût de revient.' : 'La marge représente une part du prix de vente HT, après les frais.'} Sur {formatMoney(pvTotal, currency)} vendus, il reste {formatMoney(margeValeur, currency)} après {formatMoney(dsTotal, currency)} de coûts.</p>
++        <p className="text-xs text-neutral-600">TVA du devis : {calcForm.vatRate ?? 18} %. Vérifiez le taux applicable dans les réglages du devis.</p>
++    </section>;
+ 
+     return (
+         <div ref={inspectorRef} role={compactInspector ? 'dialog' : undefined} aria-modal={compactInspector ? 'true' : undefined} aria-label={compactInspector ? `Modifier l’ouvrage ${item.name}` : undefined} className="work-item-inspector flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
+@@ -5698,7 +5736,7 @@
+                                     onClick={() => setInspectorMode('simple')}
+                                     aria-label="Mode simple"
+                                     className={`px-2.5 py-1 rounded-md transition-all ${
+-                                        inspectorMode === 'simple' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
++                                        (inspectorMode === 'simple' || isManualLine) ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
+                                     }`}
+                                 >
+                                     <i className="fa-solid fa-eye mr-1"></i>Simple
+@@ -5706,7 +5744,7 @@
+                                 <button
+                                     type="button"
+                                     onClick={() => setInspectorMode('advanced')}
+-                                    aria-label="Mode avancé"
++                                    aria-label="Mode avancé" hidden={isManualLine}
+                                     className={`px-2.5 py-1 rounded-md transition-all ${
+                                         inspectorMode === 'advanced' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
+                                     }`}
+@@ -5742,8 +5780,12 @@
+                     </div>
+                 </div>
+ 
++                {item.needsQuantityConfirmation && <div role="status" className="p-3 bg-amber-50 border-b border-amber-200 text-xs shrink-0">
++                    <p className="font-semibold">Quantités à confirmer</p><p className="mt-1">Renseignez votre métré. Le montant reste provisoire jusqu’à votre confirmation.</p>
++                    <button type="button" disabled={!quantityValid} onClick={() => onUpdateItem({ needsQuantityConfirmation: false })} className="btn-primary mt-2 disabled:opacity-50">Confirmer mes quantités</button>
++                </div>}
+                 {/* MODE SIMPLE (Novice / Rapide) */}
+-                {inspectorMode === 'simple' ? (
++                {(inspectorMode === 'simple' || isManualLine) ? (
+                     <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 space-y-5 clear-totals-bar animate-fade-in">
+                         <div className="p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3">
+                             <div className="flex items-center justify-between">
+@@ -5767,7 +5809,7 @@
+                                     <div className="flex items-center gap-2 min-w-0">
+                                         <input aria-label="Nombre d’ouvrages identiques"
+                                             inputMode="decimal" type="number"
+-                                            min="1"
++                                            min={isManualLine ? "0" : "1"} step="any"
+                                             value={calcForm.qty === '' ? '' : (calcForm.qty !== undefined ? calcForm.qty : (item.qty === '' ? '' : (item.qty || 1)))}
+                                             onChange={(e) => {
+                                                 const raw = e.target.value;
+@@ -5902,8 +5944,14 @@
+                             )}
+                         </div>
+ 
++                        {isManualLine && <section className="rounded-xl border border-neutral-200 p-4 space-y-3">
++                            <label className="block text-xs font-semibold">Prix de vente unitaire HT ({currency})<input aria-label="Prix de vente unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.unitPriceHT ?? ''} onChange={e => onUpdateItem({ unitPriceHT: e.target.value })} /></label>
++                            <label className="block text-xs font-semibold">Coût d’achat unitaire HT ({currency})<input aria-label="Coût d’achat unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.costUnit ?? ''} onChange={e => onUpdateItem({ costUnit: e.target.value })} /></label>
++                            <p className="text-xs text-neutral-600">Saisissez votre coût pour connaître la marge de cette ligne. Les frais généraux du devis s’appliquent à ce coût.</p>
++                        </section>}
++                        {simplePricing}
+                         {/* Récapitulatif Prix Simple */}
+-                        {(() => {
++                        {isManualLine && !(Number(item.costUnit) > 0) ? <p className="text-xs text-amber-800 bg-amber-50 rounded-xl p-3">Marge à vérifier : renseignez le coût d’achat de cette ligne.</p> : (() => {
+                             const debourse = dsTotal;
+                             const prixVente = pvTotal;
+                             const margeMontant = margeValeur;
+@@ -6199,7 +6247,9 @@
+                                         </div>
+                                     </div>
+ 
+-                                    <table className="w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
++                                    <div className="lg:hidden">{resourcePrices}</div>
++                                    <details className="hidden lg:block"><summary className="cursor-pointer text-brand-700 font-semibold py-2">Modifier mes prix d’achat</summary>{resourcePrices}</details>
++                                    <table className="hidden lg:table w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
+                                         <thead>
+                                             <tr className="bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase">
+                                                 {/* 2026-08-26 — « Quantité Nette » affichait en réalité le
+@@ -6442,7 +6492,7 @@
+                                         </div>
+                                         <div className="flex justify-between font-bold text-emerald-900">
+                                             <span>Marge Dégagée :</span>
+-                                            <span className="font-bold">{quoteData.margeValeurConsomme < 0 ? '' : '+'}{formatMoney(quoteData.margeValeurConsomme, currency)}</span>
++                                            <span className="font-bold">{margeValeur < 0 ? '' : '+'}{formatMoney(margeValeur, currency)}</span>
+                                         </div>
+                                         {parseFloat(calcForm.discountRate) > 0 && (
+                                             <div className="flex justify-between font-bold text-red-700">
+@@ -7107,14 +7157,15 @@
+             solutionId: sol.id,
+             name: sol.name,
+             qty: 1,
++            needsQuantityConfirmation: true,
+             calcForm: {
+                 solutionId: sol.id,
+                 takeoffMode: sol.allowedModes?.[0] || 'rectangle',
+-                width: 2, height: 1, lengthDirect: 2, surfaceDirect: 10, depth: 0.15,
++                width: '', height: '', lengthDirect: '', surfaceDirect: '', depth: '',
+                 qty: 1, faces: 1,
+-                margin: hybridQuote.margin || 30,
++                margin: hybridQuote.margin ?? 30,
+                 marginType: hybridQuote.marginType || 'reel',
+-                overheadRate: hybridQuote.overheadRate || 5,
++                overheadRate: hybridQuote.overheadRate ?? 5,
+                 vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
+                 discountRate: hybridQuote.discountRate || 0,
+                 includeInstall: true,
+@@ -7128,6 +7179,8 @@
+             items: [...(updatedLots[activeLotIndex].items || []), newItem]
+         };
+         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
++        setInspectorItemIndex(updatedLots[activeLotIndex].items.length - 1);
++        setIsPickerOpen(false);
+         showToast(`« ${sol.name} » ajouté au Lot ${updatedLots[activeLotIndex].code || activeLotIndex + 1} !`);
+     };
+ 
+@@ -7137,14 +7190,15 @@
+             solutionId: entry.solution.id,
+             name: entry.solution.name,
+             qty: entry.qty || 1,
++            needsQuantityConfirmation: true,
+             calcForm: {
+                 solutionId: entry.solution.id,
+                 takeoffMode: entry.solution.allowedModes?.[0] || 'rectangle',
+-                width: 2, height: 1, lengthDirect: 2, surfaceDirect: 10, depth: 0.15,
++                width: '', height: '', lengthDirect: '', surfaceDirect: '', depth: '',
+                 qty: entry.qty || 1, faces: 1,
+-                margin: hybridQuote.margin || 30,
++                margin: hybridQuote.margin ?? 30,
+                 marginType: hybridQuote.marginType || 'reel',
+-                overheadRate: hybridQuote.overheadRate || 5,
++                overheadRate: hybridQuote.overheadRate ?? 5,
+                 vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
+                 discountRate: hybridQuote.discountRate || 0,
+                 includeInstall: true,
+@@ -7315,19 +7369,16 @@
+         return () => onRegisterSave(null);
+     });
+ 
++    const confirmPendingQuantities = () => {
++        const lotIndex = (calculatedQuote.lots || []).findIndex(l => l.items.some(i => i.needsQuantityConfirmation));
++        if (lotIndex < 0) return true;
++        setActiveLotIndex(lotIndex);
++        setInspectorItemIndex(calculatedQuote.lots[lotIndex].items.findIndex(i => i.needsQuantityConfirmation));
++        showToast('Confirmez les quantités de chaque ouvrage avant de finaliser le devis.', 'info');
++        return false;
++    };
+     const handleSaveQuoteAction = () => {
+-        if (!calculatedQuote.clientName?.trim()) {
+-            // Audit UX (2026-09-01) — le message seul ne dit pas OÙ corriger.
+-            // Le champ Client passe en rouge et prend le focus, comme le fait
+-            // déjà l'ancien formulaire d'enregistrement (`clientNameError`).
+-            setClientManquant(true);
+-            showToast("Nom du client manquant — indiquez-le en haut du devis pour enregistrer.", "error");
+-            // 'bloque' : la validation a refusé. Le parent, quand il enregistre
+-            // pour quitter l'écran (garde de navigation du 2026-09-02), doit
+-            // pouvoir distinguer ce cas d'un enregistrement réussi — naviguer
+-            // ici reviendrait à perdre le devis en prétendant l'avoir sauvé.
+-            return 'bloque';
+-        }
++        if (!confirmPendingQuantities()) return 'bloque';
+         setClientManquant(false);
+         const doSave = () => {
+             const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
+@@ -7358,6 +7409,7 @@
+     };
+ 
+     const handlePreviewQuoteAction = () => {
++        if (!confirmPendingQuantities()) return;
+         const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
+         onPreviewQuote({ ...savedQ, isWorkingPreview: hasUnsavedChanges || !quoteAlreadySaved });
+     };
+@@ -7417,7 +7469,7 @@
+                 {
+                     id: 'lot_1',
+                     code: '01',
+-                    name: 'Lot 01 — Installation de Chantier',
++                    name: 'Lot 01 — Travaux',
+                     items: []
+                 }
+             ]
+@@ -7439,6 +7491,9 @@
+                 visible casserait le `sticky top-0` et la répartition en
+                 colonne. À partir de lg: elle est toujours affichée. */}
+             <div className={(mobileShowLotList && inspectorItemIndex === null) ? 'contents' : 'hidden lg:contents'}>
++            <nav aria-label="Progression du devis" className="discovery-progress flex flex-wrap gap-2 px-4 py-2 text-xs text-neutral-600">
++                <span>1. Travaux</span><span aria-hidden="true">→</span><span>2. Quantités</span><span aria-hidden="true">→</span><span>3. Prix et marge</span><span aria-hidden="true">→</span><span>4. Vérification</span>
++            </nav>
+             <QuoteHeader
+                 quote={calculatedQuote}
+                 clients={clients}
+@@ -11095,7 +11150,7 @@
+                     aria-label={`État de synchronisation : ${connectionState?.label || 'Synchronisé'}`}
+                 >
+                     <span className={`w-2 h-2 rounded-full shrink-0 ${connectionState?.dot || 'bg-emerald-500'} ${connectionState?.key === 'synced' ? 'animate-pulse' : ''}`}></span>
+-                    <span className="hidden md:inline font-bold">{connectionState?.label || 'Synchronisé'}</span>
++                    <span className={`${connectionState?.key === 'local' ? 'inline' : 'hidden md:inline'} font-bold`}>{connectionState?.label || 'Synchronisé'}</span>
+                 </button>
+ 
+                 {/* ACCÈS AUX PARAMÈTRES ⚙ */}
+@@ -13196,6 +13251,7 @@
+ // affichant une chose et la base une autre. Un seul composant, deux endroits
+ // où on l'appelle : le panneau de détail, et l'aperçu de l'éditeur.
+ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, modeDemo, configuration }) => {
++    const [paperView, setPaperView] = useState(false);
+     // Étape 2 (2026-09-03) : le document lit le modèle. Jusqu'ici l'éditeur ne
+     // pouvait proposer que les réglages déjà câblés en dur ; les autres étaient
+     // annoncés comme « à venir » plutôt qu'affichés comme des interrupteurs
+@@ -13305,7 +13361,7 @@
+         : (societe.echeancier || []);
+     return (
+         <div
+-            className={`saved-quote-document document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
++            className={`saved-quote-document ${paperView ? 'document-paper' : 'document-mobile-read'} document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
+             data-zone-impression="1"
+             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
+             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
+@@ -13321,6 +13377,7 @@
+                      '--encre-doc': encre || undefined, '--etiquettes-doc': etiquettes || undefined,
+                      backgroundColor: fondDocument || undefined, ...(styleImageFond || {}) }}
+         >
++            <div data-hors-pdf="1" className="md:hidden print:hidden pl-12"><button type="button" className="btn-secondary text-xs" onClick={() => setPaperView(v => !v)}>{paperView ? 'Revenir à la lecture mobile' : 'Voir la mise en page imprimable'}</button>{paperView && <p className="text-xs text-neutral-500 mt-2">Faites défiler horizontalement. Le bouton PDF télécharge le document complet.</p>}</div>
+             {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
+                 préremplis d'une identité d'entreprise complète et crédible
+                 (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
+@@ -13348,7 +13405,7 @@
+                     Document de démonstration — à ne pas envoyer à un client
+                 </p>
+             )}
+-            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
++            <div className={`commercial-document-header ${disposition.wrapper} border-b border-neutral-200 pb-6`}>
+                 <div className={disposition.company}>
+                     {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
+                         du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
+@@ -13438,7 +13495,7 @@
+                      style={cfg.document.encadrerBlocClient !== false ? { borderRadius: rayon } : undefined}>
+                     <div>
+                         <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
+-                        <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
++                        <p className="font-semibold text-neutral-900 text-base">{devis.clientName || 'Client à renseigner'}</p>
+                     </div>
+                     <div>
+                         {cfg.document.afficherChantier && (<>
+@@ -13492,6 +13549,43 @@
+                                 <tbody className={classeCorps}>
+                                     {detLots.map((lot, li) => {
+                                         const ld = lot.quoteData || {};
++                                        const workSnapshots = devis.hybridQuoteSnapshot?.lots?.find(l => l.id === lot.id)?.items;
++                                        // Les nouveaux devis gardent une décomposition par ouvrage.
++                                        // Les lignes libres conservent leur propre prix, sans le répartir
++                                        // artificiellement sur les fournitures d'un autre ouvrage.
++                                        if (workSnapshots?.length && workSnapshots.every(work => work.quoteData && Number.isFinite(work.totalHT))) {
++                                            return <React.Fragment key={lot.id || li}>
++                                                <tr className="bg-neutral-100"><td colSpan={nbColonnes} className={`${padBandeDet} font-semibold text-neutral-700`}>{formatLotHeading(lot.lotName, li)}</td></tr>
++                                                {workSnapshots.map(work => {
++                                                    const commercial = (devis.quoteData?.commercialItems || []).find(it => it.id === work.id);
++                                                    const workTotal = commercial?.sellingTotalHT ?? work.totalHT;
++                                                    const workQty = commercial?.billedQty ?? work.qty ?? 1;
++                                                    const workUnit = commercial?.unit || work.unit || 'u';
++                                                    const lines = distributeLotSalePrice(work.quoteData.details, work.quoteData.totalDebourseConsomme, workTotal);
++                                                    return <React.Fragment key={work.id}>
++                                                        <tr className={lines ? 'bg-neutral-50' : 'commercial-line'} style={fondLigne(rangLigne++)}>
++                                                            <td colSpan={lines ? nbColonnes : 1} className={padCelDet}>
++                                                                <p className="font-bold text-neutral-900">{work.name}</p>
++                                                                {work.description && <p className="whitespace-pre-line break-words mt-1 text-neutral-700 leading-relaxed">{work.description}</p>}
++                                                                {lines && <p className="text-[11px] text-neutral-500 mt-1">{formatQuantite(workQty)} {workUnit} · Total de l’ouvrage : {formatMoney(workTotal, printCurrency)} HT</p>}
++                                                            </td>
++                                                            {!lines && <>
++                                                                {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center`}>{formatQuantite(workQty)} {workUnit}</td>}
++                                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right`}>{formatPrixLigne(workQty, workTotal, printCurrency)}</td>}
++                                                                <td data-label="Total HT" className={`${padCelDet} text-right font-bold`}>{formatMoney(workTotal, printCurrency)}</td>
++                                                            </>}
++                                                        </tr>
++                                                        {(lines || []).map((d, di) => <tr key={d.id || di} className="commercial-line" style={fondLigne(rangLigne++)}>
++                                                            <td className={padCelDet}><p className="font-semibold">{d.label || d.name}</p>{d.name && d.name !== d.label && <p className="text-[11px] text-neutral-500">{d.name}</p>}</td>
++                                                            {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center`}>{formatQuantite(d.billedQty)} {d.unit}</td>}
++                                                            {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right`}>{formatPrixLigne(d.billedQty, d.saleTotal, printCurrency)}</td>}
++                                                            <td data-label="Total HT" className={`${padCelDet} text-right font-bold`}>{formatMoney(d.saleTotal, printCurrency)}</td>
++                                                        </tr>)}
++                                                    </React.Fragment>;
++                                                })}
++                                                <tr className="bg-neutral-50"><td colSpan={nbColonnes - 1} className={`${padBandeDet} text-right font-semibold`}>Sous-total Lot {li + 1} HT</td><td className={`${padBandeDet} text-right font-bold`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td></tr>
++                                            </React.Fragment>;
++                                        }
+                                         const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
+                                         const groupes = new Map();
+                                         (reparties || []).forEach(d => {
+@@ -13507,10 +13601,16 @@
+                                                         {formatLotHeading(lot.lotName, li)}
+                                                     </td>
+                                                 </tr>
++                                                {(devis.quoteData?.commercialItems || []).filter(it => String(it.lotCode || '01').padStart(2, '0') === String(lot.lotCode || devis.hybridQuoteSnapshot?.lots?.[li]?.code || lot.lotNumber || li + 1).padStart(2, '0')).map(it => (
++                                                    <tr key={'description-' + it.id}><td colSpan={nbColonnes} className={padCelDet}>
++                                                        <p className="font-bold text-neutral-900">{it.label}</p>
++                                                        {it.description && <p className="whitespace-pre-line break-words text-neutral-700 mt-1 leading-relaxed">{it.description}</p>}
++                                                    </td></tr>
++                                                ))}
+                                                 {!reparties ? (
+                                                     <tr>
+                                                         <td className={`${padCelDet} font-bold text-neutral-900`} colSpan={nbColonnes - 1}>{lot.lotName}</td>
+-                                                        <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td>
++                                                        <td data-label="Total HT" className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                     </tr>
+                                                 ) : [...groupes.entries()].map(([cat, lignes]) => (
+                                                     <React.Fragment key={cat}>
+@@ -13520,16 +13620,16 @@
+                                                             </td>
+                                                         </tr>
+                                                         {lignes.map((d, di) => (
+-                                                            <tr key={cat + di} style={fondLigne(rangLigne++)}>
++                                                            <tr className="commercial-line" key={cat + di} style={fondLigne(rangLigne++)}>
+                                                                 <td className={`${padCelDet} pl-6`}>
+                                                                     <p className="font-bold text-neutral-900">{d.label}</p>
+                                                                     {d.name && d.name !== d.label && (
+                                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
+                                                                     )}
+                                                                 </td>
+-                                                                {montrerQuantite && <td className={`${padCelDet} text-center font-medium`}>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>}
+-                                                                {montrerPrixUnitaire && <td className={`${padCelDet} text-right font-medium`}>{formatMoney(d.saleUnit, printCurrency)}</td>}
+-                                                                <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(d.saleTotal, printCurrency)}</td>
++                                                                {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center font-medium`}>{formatQuantite(d.billedQty)} {d.unit}</td>}
++                                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right font-medium`}>{formatPrixLigne(d.billedQty, d.saleTotal, printCurrency)}</td>}
++                                                                <td data-label="Total HT" className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                             </tr>
+                                                         ))}
+                                                     </React.Fragment>
+@@ -13587,7 +13687,7 @@
+                                                 {lot.items.length} ouvrage{lot.items.length > 1 ? 's' : ''}
+                                             </p>
+                                         </td>
+-                                        <td className={`${padCel} text-right font-bold text-neutral-900`}>
++                                        <td data-label="Total HT" className={`${padCel} text-right font-bold text-neutral-900`}>
+                                             {formatMoney(lot.items.reduce((somme, it) => somme + (it.sellingTotalHT || 0), 0), printCurrency)}
+                                         </td>
+                                     </tr>
+@@ -13620,16 +13720,17 @@
+                                             </tr>
+                                         )}
+                                         {lot.items.map(item => (
+-                                            <tr key={item.id} style={fondLigne(rangLigne++)}>
++                                            <tr className="commercial-line" key={item.id} style={fondLigne(rangLigne++)}>
+                                                 <td className={padCel}>
+                                                     <p className="font-bold text-neutral-900">{item.label}</p>
++                                                    {item.description && <p className="whitespace-pre-line break-words text-neutral-700 mt-1 leading-relaxed">{item.description}</p>}
+                                                     {item.dimensionSummary && (
+                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
+                                                     )}
+                                                 </td>
+-                                                {montrerQuantite && <td className={`${padCel} text-center font-medium`}>{item.billedQty.toFixed(2)} {item.unit}</td>}
+-                                                {montrerPrixUnitaire && <td className={`${padCel} text-right font-medium`}>{formatMoney(item.sellingUnitHT, printCurrency)}</td>}
+-                                                <td className={`${padCel} text-right font-bold text-neutral-900`}>{formatMoney(item.sellingTotalHT, printCurrency)}</td>
++                                                {montrerQuantite && <td data-label="Quantité" className={`${padCel} text-center font-medium`}>{formatQuantite(item.billedQty)} {item.unit}</td>}
++                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCel} text-right font-medium`}>{formatPrixLigne(item.billedQty, item.sellingTotalHT, printCurrency)}</td>}
++                                                <td data-label="Total HT" className={`${padCel} text-right font-bold text-neutral-900`}>{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                             </tr>
+                                         ))}
+                                         {showLotHeaders && cfg.tableau.afficherSousTotalLot && (
+@@ -15971,6 +16072,8 @@
+ function App({ supabaseSession, supabaseClient, onSignOut }) {
+     const sbUser = supabaseSession ? supabaseSession.user : null;
+     const currentUserId = sbUser ? sbUser.id : 'guest';
++    const [demoTransfer] = useState(() => LS.get('demoTransfer', 'guest'));
++    const [transferDismissed, setTransferDismissed] = useState(false);
+ 
+     // BLOC 1/10 : MULTI-TENANT STATE & ROLES (No user.id as org_id)
+     const [userOrganizations, setUserOrganizations] = useState(() => {
+@@ -15991,14 +16094,14 @@
+     // vrai formulaire de création, cohérent avec le reste de l'app (Nouvel
+     // Ouvrage, Nouveau composant...).
+     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+-    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '', status: 'active', notes: '' });
++    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: '', budgetEstimated: '', status: 'prospect', notes: '' });
+     const [editingProjectId, setEditingProjectId] = useState(null);
+     const [newProjectOriginModal, setNewProjectOriginModal] = useState(null);
+     const [projectStatusFilter, setProjectStatusFilter] = useState('all');
+     const [projectActiveTab, setProjectActiveTab] = useState('quotes');
+     const [clientActiveTab, setClientActiveTab] = useState('chantiers');
+     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+-    const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
++    const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
+     // P0.16 (2026-08-17) — Le même formulaire sert à créer ET à modifier une
+     // fiche client (demandé par l'utilisateur : "avoir la possibilité de
+     // modifier les infos du client"). null = mode création.
+@@ -16063,7 +16166,7 @@
+                 {
+                     id: 'lot_1',
+                     code: '01',
+-                    name: 'Lot 01 — Installation & Gros Œuvre',
++                    name: 'Lot 01 — Travaux',
+                     items: []
+                 }
+             ]
+@@ -18087,7 +18190,7 @@
+                 project = {
+                     id: `prj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                     code: newCode, name: projectRef, clientId: client.id, clientName: client.name,
+-                    siteAddress: '', city: client.city || 'Dakar', status: 'active',
++                    siteAddress: '', city: client.city || '', status: 'prospect',
+                     budgetEstimated: quoteTotal || 0, createdAt: new Date().toISOString().split('T')[0]
+                 };
+                 projectsArr = [project, ...projectsArr];
+@@ -19460,59 +19563,8 @@
+     const [bandeauExempleReplie, setBandeauExempleReplie] = useState(false);
+     const atterrissageExamineRef = useRef(false);
+ 
+-    useEffect(() => {
+-        if (atterrissageExamineRef.current) return;
+-        if (!estModeDemo) return;
+-        // Le brouillon prime : s'il y en a un, la bannière de reprise s'affiche
+-        // et on ne touche à rien.
+-        if (brouillonPropose) { atterrissageExamineRef.current = true; return; }
+-        // Attendre que le catalogue et les devis soient chargés.
+-        if (!savedQuotes.length || !solutions.length) return;
+-        if (LS.get(CLE_DEMO_VUE, currentUserId)) { atterrissageExamineRef.current = true; return; }
+-
+-        const exemple = savedQuotes[savedQuotes.length - 1];
+-        if (!exemple) { atterrissageExamineRef.current = true; return; }
+-        atterrissageExamineRef.current = true;
+-        try {
+-            const hq = adaptSavedQuoteToHybrid(exemple, solutions, materials, labor, recipes);
+-
+-            // ⚠️ Garde de fidélité. adaptSavedQuoteToHybrid ne sait reconstruire
+-            // un devis QUE s'il porte un `hybridQuoteSnapshot` (les devis
+-            // enregistrés par l'application actuelle) ou s'il est `isMultiLot`.
+-            // Un devis hérité sans instantané — c'est le cas du devis de
+-            // démonstration semé en base — retombe sur la branche « ouvrage
+-            // unique » : un seul poste générique « Ouvrage Principal » au
+-            // calcForm vide. Mesuré ici : 14 750 000 FCFA TTC enregistrés
+-            // deviennent 40 268 FCFA à la réouverture, soit un facteur 366.
+-            //
+-            // Faire atterrir l'utilisateur sur cette version dégradée serait
+-            // pire que sur un devis vide : elle a l'air d'un vrai devis, elle
+-            // porte le même numéro, et un « Mettre à jour » écraserait
+-            // l'original par cette ruine. On vérifie donc que la reconstruction
+-            // tient avant de la montrer ; sinon on ouvre le devis d'exemple en
+-            // LECTURE, dans sa vue document, qui lit la fiche enregistrée
+-            // telle quelle et reste donc exacte.
+-            const attendu = exemple.quoteData?.totalTTCConsomme || 0;
+-            const obtenu = hq?.totalTTC || 0;
+-            const fidele = attendu <= 0 || (Math.abs(obtenu - attendu) / attendu) < 0.02;
+-
+-            if (fidele) {
+-                setHybridQuote(hq);
+-                setUseHybridEditor(true);
+-                setActiveView('calculator');
+-                setDevisExempleCharge(true);
+-            } else {
+-                console.warn(`[ikadevis] reconstruction infidèle du devis ${exemple.number} (${attendu} → ${obtenu} FCFA TTC) — ouverture en lecture seule.`);
+-                setViewingSavedQuote(exemple);
+-                setActiveView('savedQuotes');
+-            }
+-            LS.set(CLE_DEMO_VUE, true, currentUserId);
+-        } catch (err) {
+-            // Un échec d'adaptation ne doit jamais empêcher d'entrer dans
+-            // l'application : on retombe sur le devis vide d'origine.
+-            console.warn('[ikadevis] devis de démonstration non chargé :', err && err.message);
+-        }
+-    }, [estModeDemo, brouillonPropose, savedQuotes, solutions, materials, labor, recipes, currentUserId]);
++    // La démonstration commence sur l'accueil : le devis d'exemple reste
++    // accessible dans les devis récents, sans remplacer le premier brouillon.
+ 
+     const isIosDevice = typeof navigator !== 'undefined'
+         && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+@@ -19603,7 +19655,7 @@
+ 
+     const connectionState = (() => {
+         if (!sbUser || sbUser.id === 'guest') return {
+-            key: 'local', label: 'Démo locale', detail: 'Données sur cet appareil',
++            key: 'local', label: 'Démonstration', detail: 'Données sur cet appareil',
+             icon: 'fa-laptop', dot: 'bg-amber-500',
+             chip: 'bg-amber-50 text-amber-900 border-amber-300'
+         };
+@@ -20989,7 +21041,7 @@
+                                 status: 'draft',
+                                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
+                                 discountRate: 0, notes: '',
+-                                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation & Gros Œuvre', items: [] }]
++                                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Travaux', items: [] }]
+                             });
+                             setDevisNonEnregistre(false);
+                             showToast('Nouveau devis vierge — l’exemple reste disponible dans « Devis ».');
+@@ -21041,7 +21093,7 @@
+                     onRequestClientCreate={(initialName = '') => {
+                         setEditingClientId(null);
+                         setNewClientOriginModal('quote');
+-                        setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
++                        setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
+                         setIsNewClientModalOpen(true);
+                     }}
+                     onRequestProjectCreate={(initialName = '', clientId = null, clientName = '') => {
+@@ -21051,7 +21103,7 @@
+                             name: initialName,
+                             clientId: matchedClient?.id || '',
+                             siteAddress: '',
+-                            city: matchedClient?.city || 'Dakar',
++                            city: matchedClient?.city || '',
+                             budgetEstimated: ''
+                         });
+                         setIsNewProjectModalOpen(true);
+@@ -21874,7 +21926,7 @@
+                                                                 </span>
+                                                             </td>
+                                                             <td className="app-td text-right font-medium text-neutral-600">
+-                                                                <div>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</div>
++                                                                <div>{formatQuantite(d.billedQty)} {d.unit}</div>
+                                                                 <div className="mt-1 text-[10px] font-normal text-neutral-500">
+                                                                     Net {Number(d.netQty ?? d.baseQty ?? 0).toFixed(2)} · Perte {Number(d.wasteQty || 0).toFixed(2)} ({Number(d.wastePct ?? d.waste ?? 0).toFixed(1)}%)
+                                                                 </div>
+@@ -22023,6 +22075,7 @@
+     // lisible pour une valeur totalement inconnue plutôt que d'afficher le
+     // code technique tel quel.
+     const PROJECT_STATUS_LABELS = {
++        prospect: { label: 'En devis', className: 'bg-blue-50 text-blue-700 border border-blue-200' },
+         active: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
+         in_progress: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
+         on_hold: { label: 'En pause', className: 'bg-amber-50/80 text-amber-800 border border-amber-200/60' },
+@@ -22044,7 +22097,7 @@
+         if (!isOpen) return null;
+ 
+         const [tempConfig, setTempConfig] = useState(() => ({
+-            monthlyGoal: config?.monthlyGoal || 15000000,
++            monthlyGoal: config?.monthlyGoal ?? 0,
+             defaultPeriod: config?.defaultPeriod || 'all',
+             widgets: {
+                 monthlyGoal: config?.widgets?.monthlyGoal !== false,
+@@ -22287,6 +22340,7 @@
+     // VUE 0 : TABLEAU DE BORD MODERNE & PERSONNALISABLE
+     // ═══════════════════════════════════════════════════════════════
+     const renderDashboard = () => {
++        const latestDraft = savedQuotes.find(q => q.status === 'draft' && q.hybridQuoteSnapshot);
+         // Filtrage temporel helper
+         const isDateInPeriod = (dateStr, period) => {
+             if (!dateStr || period === 'all') return true;
+@@ -22334,7 +22388,7 @@
+         // Objectif Mensuel (calculé sur le mois en cours)
+         const now = new Date();
+         const monthName = now.toLocaleDateString('fr-FR', { month: 'long' });
+-        const monthlyGoal = Number(dashboardConfig.monthlyGoal) || 15000000;
++        const monthlyGoal = Number(dashboardConfig.monthlyGoal) || 0;
+         const currentMonthInvoices = invoices.filter(f => isDateInPeriod(f.date || f.createdAt, 'month') && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
+         const currentMonthInvoicedTotal = currentMonthInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
+         const currentMonthAcceptedQuotes = savedQuotes.filter(q => isDateInPeriod(q.date || q.createdAt, 'month') && ['approved', 'accepted'].includes(q.status));
+@@ -22425,6 +22479,10 @@
+                     </div>
+                 </header>
+ 
++                <section className="rounded-2xl bg-brand-50 border border-brand-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
++                    <div><h2 className="font-bold text-lg text-neutral-900">Votre prochain chantier commence par un devis.</h2><p className="text-sm text-neutral-600 mt-1">Choisissez les travaux, renseignez les quantités et vérifiez vos prix.</p>{estModeDemo && <p className="text-xs text-brand-700 mt-2">Démonstration : votre travail est conservé sur cet appareil uniquement.</p>}</div>
++                    <div className="shrink-0"><button type="button" className="btn-primary" onClick={() => { if (brouillonPropose) reprendreBrouillon(); else { if (!devisVautLaPeine(hybridQuote) && latestDraft) { setHybridQuote(adaptSavedQuoteToHybrid(latestDraft, solutions, materials, labor, recipes)); setUseHybridEditor(true); } setActiveView('calculator'); } }}>{brouillonPropose || devisVautLaPeine(hybridQuote) || latestDraft ? 'Reprendre mon devis' : savedQuotes.length > (estModeDemo ? 1 : 0) ? 'Créer un devis' : 'Créer mon premier devis'}</button></div>
++                </section>
+                 {/* 3. ACTIONS RAPIDES (Raccourcis 1 Clic Épurés & Fluides) */}
+                 {enabledWidgets.quickActions !== false && (
+                     <section aria-label="Raccourcis rapides" className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
+@@ -22450,7 +22508,7 @@
+ 
+                         <button
+                             type="button"
+-                            onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
++                            onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: '', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
+                             className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                         >
+                             <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+@@ -22464,7 +22522,7 @@
+ 
+                         <button
+                             type="button"
+-                            onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
++                            onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
+                             className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                         >
+                             <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+@@ -22493,7 +22551,7 @@
+                 )}
+ 
+                 {/* 2. OBJECTIF MENSUEL (Jauge Épurée Haute Lisibilité) */}
+-                {enabledWidgets.monthlyGoal !== false && (
++                {enabledWidgets.monthlyGoal !== false && monthlyGoal > 0 && (
+                     <section className="shrink-0 bg-white p-5 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-2xs relative overflow-hidden">
+                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                             <div className="space-y-2 flex-1 min-w-0">
+@@ -22804,7 +22862,7 @@
+                         <h1 className="text-lg font-bold text-neutral-800">Chantiers</h1>
+                         <button
+                             onClick={() => {
+-                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
++                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
+                                 setIsNewProjectModalOpen(true);
+                             }}
+                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
+@@ -22855,7 +22913,7 @@
+                                     {clients.length > 0 && (
+                                         <button
+                                             onClick={() => {
+-                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
++                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
+                                                 setIsNewProjectModalOpen(true);
+                                             }}
+                                             className="btn-primary mt-4 text-xs py-2 px-3.5"
+@@ -23157,7 +23215,7 @@
+                         <h1 className="text-lg font-bold text-neutral-800">Clients</h1>
+                         <button
+                             onClick={() => {
+-                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
++                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
+                                 setIsNewClientModalOpen(true);
+                             }}
+                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
+@@ -23210,7 +23268,7 @@
+                                     </p>
+                                     <button
+                                         onClick={() => {
+-                                            setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
++                                            setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
+                                             setIsNewClientModalOpen(true);
+                                         }}
+                                         className="btn-primary mt-4 text-xs py-2 px-3.5"
+@@ -23404,6 +23462,56 @@
+     // — cohérent avec le fait qu'il n'a pas encore de numéro légal.
+     // Ouvre la fenêtre de partage avec un message déjà rédigé. Le message
+     // reste modifiable : c'est l'utilisateur qui parle à son client, pas nous.
++    const creerCompteAvecDevis = () => {
++        try {
++            const source = viewingSavedQuote?.hybridQuoteSnapshot || hybridQuote;
++            if (devisVautLaPeine(source)) {
++                const quote = preparerRepriseDemo(source, solutions, materials, labor, recipes);
++                const transfer = { version: 1, id: `essai-${source.id}`, at: Date.now(), quote };
++                // Une écriture refusée ne doit jamais faire quitter le devis.
++                localStorage.setItem(LS.getKey('demoTransfer', 'guest'), JSON.stringify(transfer));
++                localStorage.setItem(LS.getKey(CLE_BROUILLON, 'guest'), JSON.stringify({ quote, at: Date.now() }));
++            }
++            onSignOut(true);
++        } catch (error) { showToast(error.message || 'Impossible de conserver le devis sur cet appareil. Restez dans cet écran et téléchargez une sauvegarde.', 'error'); }
++    };
++    const recupererDevisEssai = () => {
++        if (!demoTransfer?.quote || !hasPermission(activeOrganizationRole, 'canEditQuotes')) return;
++        const restore = () => {
++            try {
++                // Identité stable par compte ET organisation : une seconde reprise
++                // retrouve le même brouillon ou sa version déjà enregistrée.
++                const receiptKey = `demoReceipt:${activeOrganizationId}:${demoTransfer.id}`;
++                const receipt = LS.get(receiptKey, currentUserId);
++                const existing = receipt && savedQuotes.find(q => (String(q.id) === String(receipt.quoteId) || q.hybridQuoteSnapshot?.demoTransferId === demoTransfer.id));
++                const draft = LS.get(CLE_BROUILLON, currentUserId);
++                let quote;
++                if (existing) quote = adaptSavedQuoteToHybrid(existing, solutions, materials, labor, recipes);
++                else if (receipt && String(draft?.quote?.id) === String(receipt.quoteId)) quote = draft.quote;
++                else {
++                    quote = JSON.parse(JSON.stringify(demoTransfer.quote));
++                    quote.id = receipt?.quoteId || Date.now();
++                    quote.number = receipt?.number || generateNextQuoteNumber(savedQuotes);
++                    quote.serverId = null;
++                    quote.clientId = null;
++                    quote.projectId = null;
++                    quote.status = 'draft';
++                    quote.demoTransferId = demoTransfer.id;
++                    delete quote.companyInfoSnapshot;
++                    delete quote.signedAt; delete quote.signedByName; delete quote.signatureData;
++                }
++                localStorage.setItem(LS.getKey(CLE_BROUILLON, currentUserId), JSON.stringify({ quote, at: Date.now() }));
++                localStorage.setItem(LS.getKey(receiptKey, currentUserId), JSON.stringify({ quoteId: quote.id, number: quote.number }));
++                setHybridQuote(quote); setDevisNonEnregistre(!existing); setSeqRestauration(n => n + 1);
++                setBrouillonPropose(null); setTransferDismissed(true); setActiveView('calculator');
++                showToast('Devis d’essai récupéré sur cet appareil. Vérifiez votre entreprise, puis enregistrez-le pour le synchroniser.', 'success');
++            } catch (error) { showToast('Reprise impossible. Le devis d’essai est toujours conservé dans la démonstration.', 'error'); }
++        };
++        if (devisVautLaPeine(hybridQuote) && String(hybridQuote.id) !== String(LS.get(`demoReceipt:${activeOrganizationId}:${demoTransfer.id}`, currentUserId)?.quoteId)) {
++            setConfirmDialog({ isOpen: true, title: 'Récupérer le devis d’essai ?', message: 'Cela remplacera le brouillon actuellement ouvert. Enregistrez-le avant si vous souhaitez le garder.', confirmLabel: 'Récupérer le devis d’essai', onConfirm: () => { closeConfirm(); restore(); } });
++        } else restore();
++    };
++
+     const ouvrirPartage = ({ canal, genre, numero, clientNom, chantier, montant, validite, nomFichier, cle, destinataire }) => {
+         const societe = companyInfo.name || 'notre équipe';
+         // Le message est assemblé morceau par morceau parce que numéro et
+@@ -23423,7 +23531,7 @@
+         if (genre !== 'facture' && validite) {
+             lignes.push(`Validité : ${String(validite).trim().replace(/[.\s]+$/, '')}.`);
+         }
+-        lignes.push('', 'Le document détaillé est en pièce jointe.', '', `Cordialement,`, societe);
++        lignes.push('', `Cordialement,`, societe);
+         setPartage({
+             canal, genre, numero, clientNom, nomFichier, cle,
+             destinataire: destinataire || '',
+@@ -23463,6 +23571,15 @@
+     // en contient déjà un — on aurait téléchargé le mauvais document.
+     const telechargerElementPdf = async (cible, nomFichier, cle) => {
+         if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return false; }
++        if (!estModeDemo && !companyInfo.name?.trim()) {
++            showToast('Renseignez le nom de votre entreprise avant de créer votre premier document client.', 'info');
++            setViewingSavedQuote(null); setPartage(null); setAccountSettingsTab('entreprise'); setActiveView('settings');
++            return false;
++        }
++        if (!estModeDemo && viewingSavedQuote && !viewingSavedQuote.clientName?.trim()) {
++            showToast('Ajoutez le nom de votre client avant de télécharger ce devis. Le brouillon est conservé.', 'info');
++            return false;
++        }
+         setPdfEnCours(cle);
+         try {
+             await telechargerElementEnPdf(cible, nomFichier, optionsPdfDe(cible));
+@@ -26342,10 +26459,10 @@
+                                                     onClick={() => setIsEditingClientProject(prev => !prev)}
+                                                     className="btn-secondary text-[11px] py-1 px-2.5 font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 shrink-0 rounded-lg"
+                                                     title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
+-                                                    aria-label="Modifier le client et le projet"
++                                                    aria-label="Modifier le client et le chantier"
+                                                 >
+                                                     <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-user-pen'} text-[11px]`}></i>
+-                                                    <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / projet'}</span>
++                                                    <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / chantier'}</span>
+                                                 </button>
+                                             </div>
+                                             <p className="text-xs text-neutral-500 mt-1 break-words">
+@@ -26425,7 +26542,7 @@
+                                                     onRequestCreate={(name) => {
+                                                         setEditingClientId(null);
+                                                         setNewClientOriginModal('quote');
+-                                                        setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
++                                                        setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
+                                                         setIsNewClientModalOpen(true);
+                                                     }}
+                                                 />
+@@ -26472,7 +26589,7 @@
+                                                             name: name || '',
+                                                             clientId: matchedClient?.id || '',
+                                                             siteAddress: '',
+-                                                            city: matchedClient?.city || 'Dakar',
++                                                            city: matchedClient?.city || '',
+                                                             budgetEstimated: ''
+                                                         });
+                                                         setIsNewProjectModalOpen(true);
+@@ -26602,7 +26719,7 @@
+                                 détail. Chacun porte son intitulé : les confondre
+                                 exposerait la marge au client. */}
+                             {(canViewInternalDocs || isCommercialMode) && (
+-                                <div className="saved-quote-detail-display-options px-6 pb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
++                                <details className="saved-quote-detail-display-options px-6 pb-3"><summary className="cursor-pointer py-2 text-xs font-semibold text-neutral-600">Réglages du document · {isCommercialMode ? (clientTemplate === 'detaille' ? 'Devis détaillé' : 'Devis synthèse') : 'Étude interne'}</summary><div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                                     {canViewInternalDocs && (
+                                         <div className="flex items-center gap-2">
+                                             <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
+@@ -26639,7 +26756,7 @@
+                                             </div>
+                                         </div>
+                                     )}
+-                                </div>
++                                </div></details>
+                             )}
+                         </div>
+ 
+@@ -26669,7 +26786,7 @@
+                                         type="button"
+                                         onClick={convertirEnFacture}
+                                         disabled={isReadOnlyDueToDowngrade}
+-                                        className={`saved-quote-action-primary text-xs py-1.5 px-3 font-bold ${voirExistante ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-primary'}`}
++                                        className={`saved-quote-action-secondary text-xs py-1.5 px-3 font-bold ${voirExistante ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-secondary'}`}
+                                         aria-label={voirExistante ? `Ouvrir la facture du devis ${viewingSavedQuote.number}` : `Facturer le devis ${viewingSavedQuote.number}`}
+                                     >
+                                         <i className={`fa-solid ${voirExistante ? 'fa-file-invoice' : 'fa-arrow-right-arrow-left'} mr-1.5`}></i>
+@@ -26684,6 +26801,7 @@
+                                     setHybridQuote(hq);
+                                     setUseHybridEditor(true);
+                                     setActiveView('calculator');
++                                    setViewingSavedQuote(null);
+                                     showToast(`Devis ${viewingSavedQuote.number} ouvert dans l'Éditeur Hybride !`);
+                                 }}
+                                 className="saved-quote-action-secondary btn-secondary text-xs py-1.5 px-3 font-bold"
+@@ -26857,6 +26975,12 @@
+                             espacements (index.html, media query max-width: 767px), pas
+                             le défilement vertical. */}
+                         <div className="saved-quote-document-scroll min-w-0 flex-1 p-4 sm:p-6 bg-neutral-50/50 space-y-6">
++                            {estModeDemo && <section data-hors-pdf="1" className="rounded-xl bg-brand-50 border border-brand-200 p-4 space-y-2">
++                                <p className="text-sm font-semibold">Votre devis d’essai reste sur cet appareil.</p>
++                                <p className="text-xs text-neutral-600">Créez votre compte, puis récupérez ce devis et personnalisez votre entreprise avant de l’envoyer.</p>
++                                <button type="button" className="btn-primary text-xs" onClick={creerCompteAvecDevis}>Créer mon compte et conserver ce devis</button>
++                            </section>}
++
+                             {/* Défense en profondeur : même si isCommercialMode restait à
+                                 false (état hérité d'une session où l'utilisateur avait le
+                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
+@@ -26978,7 +27102,7 @@
+                                                                                             <span className="block text-[10px] text-neutral-500">{d.name}</span>
+                                                                                         )}
+                                                                                     </td>
+-                                                                                    <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
++                                                                                    <td className="px-2 py-1.5 text-right font-mono">{formatQuantite(d.billedQty)} {d.unit}</td>
+                                                                                     <td className="px-2 py-1.5 text-right font-mono text-neutral-500">{d.type === 'material' ? `${d.wastePct || 0}%` : '—'}</td>
+                                                                                     <td className="px-2 py-1.5 text-neutral-500">{packLabel}</td>
+                                                                                     <td className="px-2 py-1.5 text-right font-mono">{formatMoney(d.unitCost, cur)}</td>
+@@ -27108,7 +27232,7 @@
+                 status: 'draft',
+                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
+                 discountRate: 0, notes: '',
+-                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation de Chantier', items: [] }]
++                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Travaux', items: [] }]
+             });
+             setDevisNonEnregistre(false);
+             setSeqRestauration(n => n + 1);
+@@ -29444,6 +29568,12 @@
+ 
+                     {/* MAIN CONTENT AREA */}
+                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
++                        {!estModeDemo && cloudState === 'loaded' && demoTransfer?.quote && !transferDismissed && hasPermission(activeOrganizationRole, 'canEditQuotes') && <section className="shrink-0 bg-brand-50 border-b border-brand-200 px-4 py-3 space-y-2" aria-label="Récupération du devis d’essai">
++                            <p className="text-sm font-semibold">Votre devis d’essai est disponible sur cet appareil.</p>
++                            <p className="text-xs text-neutral-600">Récupérez les travaux, les quantités et vos prix sans remplacer le catalogue de votre compte.</p>
++                            <div className="flex flex-wrap gap-2"><button type="button" className="btn-primary text-xs" onClick={recupererDevisEssai}>Récupérer mon devis d’essai</button><button type="button" className="btn-secondary text-xs" onClick={() => setTransferDismissed(true)}>Plus tard</button></div>
++                        </section>}
++
+                         {/* ── BARRE D'ONGLETS RAPIDES MÉTIERS (Chiffrage · Devis · Factures · Catalogue · Ressources) & LATENCE MS ── */}
+                         {vueAffichee !== 'settings' && vueAffichee !== 'platformAdmin' && (
+                             <div className="workspace-quick-nav hidden w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
+@@ -29916,7 +30046,7 @@
+                                         clientId: selectedClient.id,
+                                         clientName: selectedClient.name,
+                                         siteAddress: newProjectForm.siteAddress.trim(),
+-                                        city: newProjectForm.city.trim() || 'Dakar',
++                                        city: newProjectForm.city.trim(),
+                                         status: newProjectForm.status || existing?.status || 'active',
+                                         budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+                                         notes: newProjectForm.notes ? newProjectForm.notes.trim() : ''
+@@ -29935,8 +30065,8 @@
+                                         clientId: selectedClient.id,
+                                         clientName: selectedClient.name,
+                                         siteAddress: newProjectForm.siteAddress.trim(),
+-                                        city: newProjectForm.city.trim() || 'Dakar',
+-                                        status: newProjectForm.status || 'active',
++                                        city: newProjectForm.city.trim(),
++                                        status: newProjectForm.status || 'prospect',
+                                         budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
+                                         notes: newProjectForm.notes ? newProjectForm.notes.trim() : '',
+                                         createdAt: new Date().toISOString().split('T')[0]
+@@ -29959,8 +30089,8 @@
+                                 setNewProjectOriginModal(null);
+                             }} className="space-y-4">
+                                 <div>
+-                                    <label className="app-label">Nom du chantier</label>
+-                                    <input required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
++                                    <label htmlFor="newProjectForm-name" className="app-label">Nom du chantier</label>
++                                    <input id="newProjectForm-name" required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
+                                 </div>
+                                 <div>
+                                     <label className="app-label">Client / Donneur d'ordres</label>
+@@ -29968,14 +30098,14 @@
+                                         <div className="flex items-center gap-2">
+                                             <div className="flex-1 min-w-0">
+                                                 <CustomSelect
+-                                                    value={newProjectForm.clientId}
++                                                    aria-label="Client du chantier" value={newProjectForm.clientId}
+                                                     onChange={e => setNewProjectForm({ ...newProjectForm, clientId: e.target.value })}
+-                                                    options={clients.map(c => ({ value: c.id, label: c.name }))}
++                                                    options={[{ value: '', label: 'Choisir un client' }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                                                 />
+                                             </div>
+                                             <button
+                                                 type="button"
+-                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
++                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setIsNewClientModalOpen(true); }}
+                                                 className="btn-icon w-10 h-10 shrink-0 border border-neutral-200 text-brand-600 hover:bg-brand-50"
+                                                 title="Créer un nouveau client"
+                                                 aria-label="Créer un nouveau client"
+@@ -29988,7 +30118,7 @@
+                                             <p className="text-xs text-amber-800 italic">Aucun client enregistré.</p>
+                                             <button
+                                                 type="button"
+-                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
++                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setIsNewClientModalOpen(true); }}
+                                                 className="btn-primary py-1.5 px-3 text-xs whitespace-nowrap"
+                                                 aria-label="Créer un nouveau client"
+                                             >
+@@ -29997,29 +30127,30 @@
+                                         </div>
+                                     )}
+                                 </div>
++                                <details open={Boolean(editingProjectId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div>
+-                                        <label className="app-label">Adresse chantier</label>
+-                                        <input type="text" className="app-input" placeholder="Ex: Plateau, Rue Carnot" value={newProjectForm.siteAddress} onChange={e => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value })} />
++                                        <label htmlFor="newProjectForm-siteAddress" className="app-label">Adresse chantier</label>
++                                    <input id="newProjectForm-siteAddress" type="text" className="app-input" placeholder="Ex: Plateau, Rue Carnot" value={newProjectForm.siteAddress} onChange={e => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value })} />
+                                     </div>
+                                     <div>
+-                                        <label className="app-label">Ville</label>
+-                                        <input type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
++                                        <label htmlFor="newProjectForm-city" className="app-label">Ville</label>
++                                    <input id="newProjectForm-city" type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
+                                     </div>
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div>
+-                                        <label className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
+-                                        <input type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
++                                        <label htmlFor="newProjectForm-budgetEstimated" className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
++                                    <input id="newProjectForm-budgetEstimated" type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
+                                     </div>
+                                     <div>
+-                                        <label className="app-label">Statut du chantier</label>
+-                                        <select
++                                        <label htmlFor="newProject-status" className="app-label">Statut du chantier</label>
++                                        <select id="newProject-status"
+                                             className="app-input font-medium bg-white"
+-                                            value={newProjectForm.status || 'active'}
++                                            value={newProjectForm.status || 'prospect'}
+                                             onChange={e => setNewProjectForm({ ...newProjectForm, status: e.target.value })}
+                                         >
+-                                            <option value="active">En cours</option>
++                                            <option value="prospect">En devis</option><option value="active">En cours</option>
+                                             <option value="on_hold">En pause</option>
+                                             <option value="completed">Terminé</option>
+                                             <option value="cancelled">Annulé</option>
+@@ -30027,8 +30158,8 @@
+                                     </div>
+                                 </div>
+                                 <div>
+-                                    <label className="app-label">Notes &amp; Observations de chantier</label>
+-                                    <textarea
++                                    <label htmlFor="newProject-notes" className="app-label">Notes &amp; Observations de chantier</label>
++                                    <textarea id="newProject-notes"
+                                         rows="3"
+                                         className="app-input text-xs font-normal"
+                                         placeholder="Spécificités techniques, consignes d'accès, jalons importants..."
+@@ -30036,6 +30167,7 @@
+                                         onChange={e => setNewProjectForm({ ...newProjectForm, notes: e.target.value })}
+                                     ></textarea>
+                                 </div>
++                            </details>
+                             </form>
+                         </div>
+                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+@@ -30085,7 +30217,7 @@
+                                     showToast("Fiche client mise à jour !", "success");
+                                 } else {
+                                     const newClientId = `cli-${Date.now()}`;
+-                                    updateClients([{ id: newClientId, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
++                                    updateClients([{ id: newClientId, ...payload, city: payload.city || '', notes: '' }, ...clients]);
+                                     showToast("Fiche client créée !", "success");
+                                     if (newClientOriginModal === 'project') {
+                                         setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
+@@ -30099,37 +30231,39 @@
+                                 setNewClientOriginModal(null);
+                             }} className="space-y-4">
+                                 <div>
+-                                    <label className="app-label">Nom du client / raison sociale</label>
+-                                    <input required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
++                                    <label htmlFor="newClientForm-name" className="app-label">Nom du client / raison sociale</label>
++                                    <input id="newClientForm-name" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                                 </div>
++                                <details open={Boolean(editingClientId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
+                                 <div>
+-                                    <label className="app-label">Contact principal</label>
+-                                    <input type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
++                                    <label htmlFor="newClientForm-contactPerson" className="app-label">Contact principal</label>
++                                    <input id="newClientForm-contactPerson" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div>
+-                                        <label className="app-label">NIF / RCCM</label>
+-                                        <input type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
++                                        <label htmlFor="newClientForm-taxId" className="app-label">NIF / RCCM</label>
++                                    <input id="newClientForm-taxId" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
+                                     </div>
+                                     <div>
+-                                        <label className="app-label">Téléphone</label>
+-                                        <input type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
++                                        <label htmlFor="newClientForm-phone" className="app-label">Téléphone</label>
++                                    <input id="newClientForm-phone" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                                     </div>
+                                 </div>
+                                 <div>
+-                                    <label className="app-label">Email</label>
+-                                    <input type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
++                                    <label htmlFor="newClientForm-email" className="app-label">Email</label>
++                                    <input id="newClientForm-email" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-4">
+                                     <div>
+-                                        <label className="app-label">Adresse</label>
+-                                        <input type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
++                                        <label htmlFor="newClientForm-address" className="app-label">Adresse</label>
++                                    <input id="newClientForm-address" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
+                                     </div>
+                                     <div>
+-                                        <label className="app-label">Ville</label>
+-                                        <input type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
++                                        <label htmlFor="newClientForm-city" className="app-label">Ville</label>
++                                    <input id="newClientForm-city" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
+                                     </div>
+                                 </div>
++                            </details>
+                             </form>
+                         </div>
+                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
+@@ -33103,7 +33237,7 @@
+             })()}
+ 
+             {partage && (
+-                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none animate-fade-in" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
++                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 outline-none animate-fade-in" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
+                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh] animate-scale-up">
+                         <div className="px-6 pt-6 pb-4 border-b border-neutral-100 shrink-0">
+                             <h3 className="font-semibold text-neutral-900 text-lg">
+@@ -33128,6 +33262,11 @@
+                             </div>
+                         </div>
+ 
++                        {estModeDemo ? <div className="px-6 py-5 space-y-3 overflow-y-auto">
++                            <p className="font-semibold text-neutral-900">Ce devis est un essai.</p><p className="text-sm text-neutral-600">Il est enregistré sur cet appareil et porte un filigrane de démonstration. Créez votre compte pour récupérer votre travail et préparer un devis au nom de votre entreprise.</p>
++                            <button type="button" className="btn-primary" onClick={creerCompteAvecDevis}>Créer mon compte et conserver ce devis</button>
++                            <button type="button" className="btn-secondary" onClick={() => setPartage(null)}>Fermer</button>
++                        </div> : <>
+                         <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scroll">
+                             <div>
+                                 <label htmlFor="partage-destinataire" className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
+@@ -33163,9 +33302,7 @@
+                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                 <p className="text-[11px] text-amber-900 leading-relaxed">
+                                     <i className="fa-solid fa-paperclip mr-1.5"></i>
+-                                    <strong>Le document ne peut pas être joint automatiquement.</strong> Aucune page web
+-                                    n'a le droit d'attacher un fichier à un message WhatsApp ou à un e-mail. Téléchargez
+-                                    le PDF ci-dessous, puis joignez-le dans la conversation qui s'ouvrira.
++                                    <strong>Téléchargez le PDF, puis joignez-le à votre message.</strong> La pièce jointe doit être ajoutée par vous dans WhatsApp ou votre messagerie.
+                                 </p>
+                             </div>
+                         </div>
+@@ -33206,6 +33343,7 @@
+                                 Fermer
+                             </button>
+                         </div>
++                        </>}
+                     </div>
+                 </div>
+             )}
+@@ -33329,6 +33467,7 @@
+ // ═══════════════════════════════════════════════════════════════
+ function AppShell() {
+     const [session, setSession] = useState(null);
++    const [initialAuthMode, setInitialAuthMode] = useState('login');
+     const [authLoading, setAuthLoading] = useState(true);
+ 
+     const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+@@ -33351,7 +33490,7 @@
+ 
+         sb.auth.getSession().then(({ data: { session: s } }) => {
+             if (isMounted) {
+-                setSession(s);
++                setSession(current => current?.user?.id === 'guest' && !s ? current : s);
+                 setAuthLoading(false);
+                 clearTimeout(timer);
+             }
+@@ -33365,7 +33504,7 @@
+ 
+         const { data: { subscription } } = sb.auth.onAuthStateChange((event, s) => {
+             if (isMounted) {
+-                setSession(s);
++                setSession(current => event === 'INITIAL_SESSION' && current?.user?.id === 'guest' && !s ? current : s);
+                 if (event === 'PASSWORD_RECOVERY') {
+                     setIsPasswordRecovery(true);
+                 }
+@@ -33442,10 +33581,11 @@
+     }
+ 
+     if (!session) {
+-        return <AuthScreen onAuthSuccess={(s) => setSession(s)} />;
++        return <AuthScreen initialMode={initialAuthMode} onAuthSuccess={(s) => setSession(s)} />;
+     }
+ 
+-    return <UserSchemaGate supabaseSession={session} supabaseClient={sb} onSignOut={() => {
++    return <UserSchemaGate supabaseSession={session} supabaseClient={sb} onSignOut={(signup) => {
++        setInitialAuthMode(signup === true ? 'signup' : 'login');
+         if (sb && session?.user?.id !== 'guest') sb.auth.signOut();
+         setSession(null);
+     }} />;
+--- a/index.html
++++ b/index.html
+@@ -33,7 +33,7 @@
+          d'erreur. C'est arrivé une première fois avec tailwind.css seul
+          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
+          navigation, 2026-09-15) — d'où l'automatisation. -->
+-    <link rel="stylesheet" href="tailwind.css?v=2cd3a1534b">
++    <link rel="stylesheet" href="tailwind.css?v=b472c2437b">
+     <script src="vendor/react.production.min.js"></script>
+     <script src="vendor/react-dom.production.min.js"></script>
+     <script src="vendor/supabase.min.js"></script>
+@@ -1175,19 +1175,39 @@
+         @media (prefers-reduced-motion: reduce) {
+             .work-item-inspector, .work-item-sheet, .saved-quote-detail-modal { animation: none !important; transition: none !important; }
+         }
+-    </style>
++
++        /* Découverte : lecture par ouvrage sur téléphone, même source que le PDF. */
++        @media screen and (max-width: 767px) {
++            .document-mobile-read .commercial-document-header { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 1rem; }
++            .document-mobile-read .commercial-document-header > div { width: 100%; min-width: 0; text-align: left; }
++            .document-mobile-read .commercial-document-header h2 { font-size: 1.2rem; line-height: 1.35; }
++            .saved-quote-document.document-mobile-read table,
++            .saved-quote-document.document-mobile-read tbody { display: block; width: 100% !important; }
++            .saved-quote-document.document-mobile-read thead { display: none; }
++            .saved-quote-document.document-mobile-read tr { display: block; }
++            .saved-quote-document.document-mobile-read td { display: block; width: 100%; padding: .5rem 0 !important; font-size: .82rem; }
++            .saved-quote-document.document-mobile-read .commercial-line { margin: .75rem 0; padding: .75rem; border: 1px solid #e5e7eb; border-radius: .75rem; }
++            .saved-quote-document.document-mobile-read td[data-label] { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
++            .saved-quote-document.document-mobile-read td[data-label]::before { content: attr(data-label); font-size: .75rem; font-weight: 400; color: #525252; white-space: normal; text-align: left; }
++            .saved-quote-document-scroll:has(.document-paper) { overflow-x: auto; }
++            .saved-quote-document.document-paper { width: 740px !important; min-width: 740px !important; padding: 2rem !important; }
++            .saved-quote-document.document-paper .grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
++            .saved-quote-document.document-paper td { overflow-wrap: normal; word-break: normal; }
++            .saved-quote-document [data-label] { font-variant-numeric: tabular-nums; }
++        }
++</style>
+ </head>
+ <body>
+     <div id="root"></div>
+     <script src="config.js"></script>
+-    <script src="js/finance-core.js?v=a48e2752b3"></script>
+-    <script src="js/calc-engine.js?v=a48e2752b3"></script>
+-    <script src="js/utils.js?v=a48e2752b3"></script>
+-    <script src="js/quote-templates.js?v=a48e2752b3"></script>
+-    <script src="js/saspay-platform-config.js?v=a48e2752b3"></script>
+-    <script src="js/saspay-service.js?v=a48e2752b3"></script>
+-    <script src="js/subscription-service.js?v=a48e2752b3"></script>
+-    <script src="app.compiled.js?v=a48e2752b3"></script>
++    <script src="js/finance-core.js?v=0bb5c29674"></script>
++    <script src="js/calc-engine.js?v=0bb5c29674"></script>
++    <script src="js/utils.js?v=0bb5c29674"></script>
++    <script src="js/quote-templates.js?v=0bb5c29674"></script>
++    <script src="js/saspay-platform-config.js?v=0bb5c29674"></script>
++    <script src="js/saspay-service.js?v=0bb5c29674"></script>
++    <script src="js/subscription-service.js?v=0bb5c29674"></script>
++    <script src="app.compiled.js?v=0bb5c29674"></script>
+     <script>
+         // Enregistrement du service worker. Volontairement après 'load' :
+         // il ne doit pas concurrencer le premier rendu.
+--- a/js/calc-engine.js
++++ b/js/calc-engine.js
+@@ -684,13 +684,21 @@
+ 
+ 
+ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quoteFinancials = {}) {
++    if (item.calculationSnapshot) {
++        const snap = item.calculationSnapshot;
++        solutions = [snap.solution];
++        materials = snap.materials || [];
++        labor = snap.labor || [];
++        recipes = snap.recipes || [];
++    }
++
+     if (item.isCustom) {
+-        const qty = Math.max(1, parseFloat(item.qty) || 1);
++        const qty = Math.max(0, parseFloat(item.qty) || 0);
+         const unitPriceHT = Math.max(0, parseFloat(item.unitPriceHT) || 0);
+         const totalHT = Math.round(qty * unitPriceHT);
+         const hasKnownCost = parseFloat(item.costUnit) > 0;
+         const debourse = hasKnownCost ? Math.round(parseFloat(item.costUnit) * qty) : null;
+-        const overheadRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.overheadRate || 5)));
++        const overheadRate = Math.min(50, Math.max(0, (parseFloat(quoteFinancials.overheadRate ?? 5) || 0)));
+         const vatRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.vatRate !== undefined ? quoteFinancials.vatRate : 18)));
+         const fraisGen = hasKnownCost ? Math.round(debourse * (overheadRate / 100)) : null;
+         const revient = hasKnownCost ? debourse + fraisGen : null;
+@@ -724,6 +732,14 @@
+     const solution = solutions.find(s => s.id === item.solutionId) || solutions[0];
+     if (!solution) return { ...item, error: 'Ouvrage non trouvé' };
+ 
++    // Prix propres à cet ouvrage : jamais de mutation du catalogue partagé.
++    const overrides = item.calcForm?.priceOverrides || {};
++    const overridePrice = (value, fallback) => value !== '' && value != null && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fallback;
++    materials = materials.map(mat => {
++        const priceCalc = overridePrice(overrides.material?.[mat.id], mat.priceCalc);
++        return priceCalc === mat.priceCalc ? mat : { ...mat, priceCalc, priceBuy: priceCalc * (mat.unitSize || 1) };
++    });
++    labor = labor.map(lab => ({ ...lab, rate: overridePrice(overrides.labor?.[lab.id], lab.rate) }));
+     const recipeLines = recipes.filter(r => r.solutionId === solution.id);
+     const calcForm = item.calcForm || {
+         solutionId: solution.id,
+@@ -759,7 +775,7 @@
+     const surfaceDirectVal = Math.max(0, numOrFallback(calcForm.surfaceDirect, widthVal * heightVal));
+     const qtyVal = Math.max(1, parseInt(calcForm.qty || item.qty) || 1);
+     const facesVal = Math.max(1, parseInt(calcForm.faces) || 1);
+-    const marginVal = Math.min(95, Math.max(0, parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin || 30))));
++    const marginVal = Math.min(95, Math.max(0, (parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin ?? 30)) || 0)));
+ 
+     // Dynamic scope isolated per calculation
+     const mode = calcForm.takeoffMode || 'rectangle';
+@@ -951,7 +967,7 @@
+                 consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
+                 consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + cost;
+                 details.push({
+-                    id: line.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
++                    id: line.id, laborId: lab.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
+                     baseQty: line.baseQty, netQty: line.baseQty, billedQty: line.baseQty, grossQty: line.baseQty,
+                     wasteQty: 0, purchasedQty: line.baseQty, remainderQty: 0,
+                     unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost,
+@@ -963,7 +979,7 @@
+ 
+     const totalDebourseConsomme = Object.values(consumedByCategory).reduce((a, b) => a + b, 0);
+     const totalDebourseConsommeReel = Object.values(consumedByCategoryReel).reduce((a, b) => a + b, 0);
+-    const overheadRate = Math.min(50, Math.max(0, parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate || 5))));
++    const overheadRate = Math.min(50, Math.max(0, (parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate ?? 5)) || 0)));
+     const fraisGenerauxConsomme = totalDebourseConsomme * (overheadRate / 100);
+     const totalRevientConsomme = totalDebourseConsomme + fraisGenerauxConsomme;
+ 
+@@ -1044,7 +1060,7 @@
+             netHTConsomme: Math.round(netHTConsomme),
+             tvaConsomme: Math.round(tvaConsomme),
+             totalTTCConsomme: Math.round(totalTTCConsomme),
+-            margeValeurConsomme: Math.round(margeValeurConsomme),
++            margeValeurConsomme: Math.round(netHTConsomme) - Math.round(totalRevientConsomme),
+             details,
+             consumedByCategoryReel
+         }
+@@ -1125,7 +1141,7 @@
+             return calculatedItem;
+         });
+ 
+-        const lotFraisGen = lotDebourse * (quoteFinancials.overheadRate / 100);
++        const lotFraisGen = lotRevient - lotDebourse;
+         const lotTVA = lotNetHT * (quoteFinancials.vatRate / 100);
+         const lotTTC = lotNetHT + lotTVA;
+         const lotMarginPct = lotNetHT > 0 ? (lotMargeVal / lotNetHT) * 100 : 0;
+@@ -1146,7 +1162,7 @@
+             lotTotalTTC: Math.round(lotTTC),
+             lotDebourse: Math.round(lotDebourse),
+             lotMarginPct: parseFloat(lotMarginPct.toFixed(2)),
+-            isComplete: calculatedItems.length > 0 && calculatedItems.every(i => !i.error && i.totalHT > 0)
++            isComplete: calculatedItems.length > 0 && calculatedItems.every(i => !i.error && !i.needsQuantityConfirmation && i.totalHT > 0)
+         };
+     });
+ 
+@@ -1189,6 +1205,7 @@
+     const savedLots = (calc.lots || []).map((lot, idx) => ({
+         id: lot.id,
+         lotNumber: idx + 1,
++        lotCode: lot.code || String(idx + 1).padStart(2, '0'),
+         lotName: lot.name,
+         solutionId: lot.items?.[0]?.solutionId || 1,
+         solutionName: lot.items?.[0]?.name || lot.name,
+@@ -1230,7 +1247,7 @@
+         number: quoteNumber,
+         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+         clientId: hybridQuote.clientId || null,
+-        clientName: hybridQuote.clientName?.trim() || 'Client Passage',
++        clientName: hybridQuote.clientName?.trim() || '',
+         projectId: hybridQuote.projectId || null,
+         projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
+         notes: hybridQuote.notes || '',
+@@ -1460,3 +1477,23 @@
+         tubesBarCount: Math.ceil(totalLinearTubes / 6)
+     };
+ }
++
++// Prépare une reprise démo → compte autonome, sans importer ni écraser le
++// catalogue du compte. Chaque ouvrage transporte les ressources nécessaires.
++function preparerRepriseDemo(quote, solutions, materials, labor, recipes) {
++    const copy = JSON.parse(JSON.stringify(quote));
++    copy.lots = (copy.lots || []).map(lot => ({ ...lot, items: (lot.items || []).map(item => {
++        if (item.isCustom || item.calculationSnapshot) return item;
++        const solution = solutions.find(s => s.id === item.solutionId);
++        if (!solution) throw new Error(`Le modèle de « ${item.name} » est introuvable. Votre devis reste dans la démonstration.`);
++        const lines = recipes.filter(r => r.solutionId === solution.id);
++        const snapshot = {
++            solution,
++            recipes: lines,
++            materials: materials.filter(m => lines.some(r => r.type === 'material' && r.refId === m.id)),
++            labor: labor.filter(l => lines.some(r => r.type === 'labor' && r.refId === l.id))
++        };
++        return { ...item, calculationSnapshot: JSON.parse(JSON.stringify(snapshot)) };
++    }) }));
++    return copy;
++}
+--- a/js/finance-core.js
++++ b/js/finance-core.js
+@@ -729,3 +729,27 @@
+         mouvementsDepuisDepenses
+     };
+ }
++
++// Affichage commercial : le total sauvegardé reste la référence. La précision
++// du PU augmente seulement autant que nécessaire pour expliquer ce total.
++function precisionLigneCommerciale(quantite, total, devise = 'FCFA') {
++    const q = Number(quantite) || 0;
++    const t = Number(total) || 0;
++    const decimals = decimalesDevise(devise);
++    const quantity = Number(q.toFixed(8));
++    const raw = quantity ? t / quantity : 0;
++    let unitPrice = raw, exact = false;
++    for (let digits = decimals; digits <= 8; digits++) {
++        const candidate = Number(raw.toFixed(digits));
++        if (Math.abs(arrondiMonetaire(quantity * candidate, decimals) - arrondiMonetaire(t, decimals)) < 1e-8) {
++            unitPrice = candidate;
++            exact = true;
++            break;
++        }
++    }
++    return { quantity, unitPrice, approximate: !exact };
++}
++function formatPrixLigne(quantite, total, devise = 'FCFA') {
++    const value = precisionLigneCommerciale(quantite, total, devise);
++    return (value.approximate ? '≈ ' : '') + value.unitPrice.toLocaleString('fr-FR', { maximumFractionDigits: 8 }) + ' ' + devise;
++}
+--- a/js/utils.js
++++ b/js/utils.js
+@@ -388,6 +388,7 @@
+         docClone.querySelectorAll('[data-hors-pdf]').forEach((n) => n.remove());
+         const cible = docClone.querySelector('[data-pdf-cible]');
+         if (!cible) return;
++        cible.classList.remove('document-mobile-read', 'document-paper');
+         cible.style.width = LARGEUR_CAPTURE + 'px';
+         cible.style.maxWidth = 'none';
+         // Les ancêtres sont souvent une modale à hauteur bornée et
+@@ -430,6 +431,7 @@
+             'overflow:visible', 'pointer-events:none'
+         ].join(';');
+         const copie = element.cloneNode(true);
++        copie.classList.remove('document-mobile-read', 'document-paper');
+         // 2026-09-04 — Ce qui est marqué `data-hors-pdf` disparaît de la copie.
+         // Le ruban de statut est une commodité d'ÉCRAN : il ne doit sortir ni
+         // à l'impression ni dans le PDF exporté — c'est ainsi que Zoho Books

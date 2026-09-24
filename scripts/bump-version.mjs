@@ -29,6 +29,8 @@ const hacher = (tampons) => createHash('sha256').update(Buffer.concat(tampons)).
 // comme la convention manuelle précédente le faisait déjà.
 const FICHIERS_JS = [
     'js/finance-core.js',
+    'js/quote-import.js',
+    'js/project-profitability.js',
     'js/calc-engine.js',
     'js/utils.js',
     'js/quote-templates.js',

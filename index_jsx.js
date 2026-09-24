@@ -10626,7 +10626,13 @@ function TopBarUserProfile({
     activeOrganizationRole,
     onOpenSettings,
     onSignOut,
-    deconnexionGardee
+    deconnexionGardee,
+    onOpenSubscriptionModal,
+    currentSubscription,
+    canOfferPwaInstall,
+    installPwa,
+    isIosDevice,
+    connectionState
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -10659,6 +10665,7 @@ function TopBarUserProfile({
     }, [isOpen]);
 
     const roleLabel = activeOrganizationRole === 'owner' ? '👑 Propriétaire' : (ROLE_LABELS_EQUIPE[activeOrganizationRole] || 'Membre');
+    const planNom = currentSubscription?.isAdminAccess ? 'Entreprise (Admin)' : (currentSubscription?.planId ? currentSubscription.planId.charAt(0).toUpperCase() + currentSubscription.planId.slice(1) : 'Starter');
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -10690,6 +10697,24 @@ function TopBarUserProfile({
                         </div>
                     </div>
                     <div className="py-1 space-y-0.5">
+                        {/* Formule & Abonnement */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsOpen(false);
+                                if (onOpenSubscriptionModal) onOpenSubscriptionModal();
+                                else onOpenSettings('entreprise');
+                            }}
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center justify-between transition-colors"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <i className="fa-solid fa-crown text-amber-500 w-4 text-center"></i>
+                                <span>Formule & Facturation</span>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100">
+                                {planNom}
+                            </span>
+                        </button>
                         <button
                             type="button"
                             onClick={() => {
@@ -10712,17 +10737,38 @@ function TopBarUserProfile({
                             <i className="fa-solid fa-building text-neutral-400 w-4 text-center"></i>
                             <span>Paramètres Entreprise</span>
                         </button>
+                        {/* État de synchronisation discret */}
                         <button
                             type="button"
                             onClick={() => {
                                 setIsOpen(false);
                                 onOpenSettings('diagnostic');
                             }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center justify-between transition-colors"
                         >
-                            <i className="fa-solid fa-heart-pulse text-neutral-400 w-4 text-center"></i>
-                            <span>Diagnostic & Santé</span>
+                            <div className="flex items-center gap-2.5">
+                                <i className="fa-solid fa-cloud text-neutral-400 w-4 text-center"></i>
+                                <span>Santé Cloud & Données</span>
+                            </div>
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {connectionState?.label || 'Synchronisé'}
+                            </span>
                         </button>
+                        {/* Installation PWA (si disponible) */}
+                        {canOfferPwaInstall && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    if (installPwa) installPwa();
+                                }}
+                                className="w-full text-left p-2 rounded-xl text-xs font-semibold text-brand-700 hover:bg-brand-50 flex items-center gap-2.5 transition-colors"
+                            >
+                                <i className="fa-solid fa-mobile-screen-button text-brand-500 w-4 text-center"></i>
+                                <span>{isIosDevice ? "Ajouter à l'écran d'accueil" : 'Installer ikadevis'}</span>
+                            </button>
+                        )}
                     </div>
                     {onSignOut && (
                         <div className="border-t border-neutral-100 pt-1">
@@ -11230,7 +11276,12 @@ function GlobalTopBar({
     connectionState,
     onOpenSettings,
     onSignOut,
-    deconnexionGardee
+    deconnexionGardee,
+    onOpenSubscriptionModal,
+    currentSubscription,
+    canOfferPwaInstall,
+    installPwa,
+    isIosDevice
 }) {
     return (
         <header
@@ -11277,17 +11328,19 @@ function GlobalTopBar({
 
             {/* DROITE : CONTRÔLES GLOBAUX */}
             <div className="mobile-header-actions flex items-center gap-1.5 sm:gap-2.5 lg:gap-3 shrink-0">
-                {/* INDICATEUR DE SYNCHRONISATION */}
-                <button
-                    type="button"
-                    onClick={() => onOpenSettings('diagnostic')}
-                    className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold border transition-all shadow-2xs hover:brightness-95 ${connectionState?.chip || 'bg-neutral-100 text-neutral-700'}`}
-                    title={`État de synchronisation : ${connectionState?.detail || connectionState?.label || 'Synchronisé'}`}
-                    aria-label={`État de synchronisation : ${connectionState?.label || 'Synchronisé'}`}
-                >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${connectionState?.dot || 'bg-emerald-500'} ${connectionState?.key === 'synced' ? 'animate-pulse' : ''}`}></span>
-                    <span className={`${connectionState?.key === 'local' ? 'inline' : 'hidden md:inline'} font-bold`}>{connectionState?.label || 'Synchronisé'}</span>
-                </button>
+                {/* INDICATEUR D'ÉTAT DU RÉSEAU / CLOUD — Silencieux quand tout est normal ('synced') */}
+                {connectionState && connectionState.key !== 'synced' && (
+                    <button
+                        type="button"
+                        onClick={() => onOpenSettings('diagnostic')}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border transition-all shadow-2xs hover:brightness-95 ${connectionState?.chip || 'bg-neutral-100 text-neutral-700'}`}
+                        title={`État de connexion : ${connectionState?.detail || connectionState?.label || ''}`}
+                        aria-label={`État de connexion : ${connectionState?.label || ''}`}
+                    >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${connectionState?.dot || 'bg-neutral-400'} ${connectionState?.key === 'syncing' ? 'animate-spin' : ''}`}></span>
+                        <span className="font-semibold">{connectionState?.label}</span>
+                    </button>
+                )}
 
                 {/* ACCÈS AUX PARAMÈTRES ⚙ */}
                 <button
@@ -11320,6 +11373,12 @@ function GlobalTopBar({
                     onOpenSettings={onOpenSettings}
                     onSignOut={onSignOut}
                     deconnexionGardee={deconnexionGardee}
+                    onOpenSubscriptionModal={onOpenSubscriptionModal}
+                    currentSubscription={currentSubscription}
+                    canOfferPwaInstall={canOfferPwaInstall}
+                    installPwa={installPwa}
+                    isIosDevice={isIosDevice}
+                    connectionState={connectionState}
                 />
             </div>
         </header>
@@ -29320,6 +29379,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 onOpenSettings={openAccountSettings}
                 onSignOut={onSignOut}
                 deconnexionGardee={deconnexionGardee}
+                onOpenSubscriptionModal={() => setIsSubscriptionModalOpen(true)}
+                currentSubscription={currentSubscription}
+                canOfferPwaInstall={canOfferPwaInstall}
+                installPwa={installPwa}
+                isIosDevice={isIosDevice}
             />
 
             {/* CONTENEUR CORPS (SIDEBAR + MAIN) SOUS LA TOP BAR */}
@@ -29362,36 +29426,32 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <SidebarNavItem id="platformAdmin" icon="fa-shield-halved" label={LIBELLES_NAV.platformAdmin} />
                         </>)}
                     </nav>
-                    <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
-                        {/* Carte Statut Abonnement SaaS (2026-09-19) */}
-                        <div
-                            onClick={() => setIsSubscriptionModalOpen(true)}
-                            className="p-3 rounded-2xl bg-gradient-to-br from-neutral-900 via-neutral-800 to-indigo-950 text-white cursor-pointer hover:shadow-md transition-all group border border-neutral-700/60"
-                            title="Gérer votre formule ou passer à un forfait supérieur"
-                        >
-                            <div className="flex items-center justify-between text-[11px] font-bold">
-                                <span className="flex items-center gap-1.5 text-amber-300">
-                                    <i className="fa-solid fa-crown text-[10px]"></i>
-                                    Formule {currentSubscription?.planId ? currentSubscription.planId.toUpperCase() : 'STARTER'}
-                                </span>
-                                <span className="text-[10px] text-brand-300 group-hover:text-white font-medium flex items-center gap-0.5">
-                                    Upgrader <i className="fa-solid fa-chevron-right text-[8px]"></i>
-                                </span>
+                    <div className="sidebar-footer-compact p-3 border-t border-neutral-100 flex flex-col gap-2">
+                        {/* Carte Statut Abonnement SaaS : Uniquement pour les comptes en essai Starter (aucun encombrement pour les comptes payants / entreprise / admin) */}
+                        {(!currentSubscription || currentSubscription.planId === 'starter' || currentSubscription.status === 'trial') && !currentSubscription?.isAdminAccess && (
+                            <div
+                                onClick={() => setIsSubscriptionModalOpen(true)}
+                                className="p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 text-neutral-800 cursor-pointer hover:border-brand-300 transition-all group shadow-2xs"
+                                title="Gérer votre formule ou découvrir les formules illimitées"
+                            >
+                                <div className="flex items-center justify-between text-[11px] font-bold">
+                                    <span className="flex items-center gap-1.5 text-brand-700">
+                                        <i className="fa-solid fa-crown text-amber-500 text-[10px]"></i>
+                                        Formule Starter
+                                    </span>
+                                    <span className="text-[10px] text-brand-600 group-hover:text-brand-800 font-semibold flex items-center gap-0.5">
+                                        Voir offres <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                                    </span>
+                                </div>
+                                <div className="mt-1 text-[10px] text-neutral-500 flex items-center justify-between">
+                                    <span>{currentSubscription?.status === 'trial' ? `${typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14}j restants` : 'Essai'}</span>
+                                    <span className="font-mono text-neutral-600">{savedQuotes.length}/3 devis</span>
+                                </div>
                             </div>
-                            <div className="mt-1.5 text-[10px] text-neutral-300 flex items-center justify-between">
-                                <span>{currentSubscription?.status === 'trial' ? `${typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14}j restants` : 'Actif'}</span>
-                                <span className="font-mono text-neutral-400">{currentSubscription?.planId === 'starter' ? `${savedQuotes.length}/3 devis` : 'Devis illimités'}</span>
-                            </div>
-                        </div>
-                        <PwaInstallButton />
-                        <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
-                            <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
-                        </button>
-                        {onSignOut && (
-                            <button onClick={deconnexionGardee} className="w-full text-xs py-2.5 px-3 rounded-xl text-neutral-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 font-semibold transition-all" aria-label="Se déconnecter">
-                                <i className="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
-                            </button>
                         )}
+                        <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
+                            <i className="fa-solid fa-gear text-neutral-400"></i> Paramètres
+                        </button>
                     </div>
                 </aside>
 
@@ -29411,21 +29471,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} collapsed />
                     </nav>
                     <div className="flex flex-col gap-2 w-full items-center pt-2 border-t border-neutral-100">
-                        <PwaInstallButton compact />
                         <div className="relative sidebar-item-collapsed-wrap">
-                            <button onClick={() => openAccountSettings('entreprise')} className="btn-icon text-brand-500 hover:bg-brand-50" aria-label="Paramètres du compte">
+                            <button onClick={() => openAccountSettings('entreprise')} className="btn-icon text-neutral-500 hover:bg-neutral-100" aria-label="Paramètres du compte">
                                 <i className="fa-solid fa-gear"></i>
                             </button>
-                            <span className="sidebar-tooltip" role="tooltip">Paramètres du Compte</span>
+                            <span className="sidebar-tooltip" role="tooltip">Paramètres</span>
                         </div>
-                        {onSignOut && (
-                            <div className="relative sidebar-item-collapsed-wrap">
-                                <button onClick={deconnexionGardee} className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50" aria-label="Se déconnecter">
-                                    <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                                </button>
-                                <span className="sidebar-tooltip" role="tooltip">Déconnexion</span>
-                            </div>
-                        )}
                     </div>
                 </aside>
 

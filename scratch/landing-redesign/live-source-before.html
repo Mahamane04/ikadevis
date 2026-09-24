@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ikadevis — Le devis BTP juste, en quelques minutes</title>
+<meta name="description" content="ikadevis calcule votre déboursé sec, votre marge et votre prix de vente à partir du métré réel de votre ouvrage, et génère un devis ou une facture professionnelle en PDF. Gros œuvre, métallerie, menuiserie, signalétique, façades ACM.">
+<link rel="icon" type="image/svg+xml" href="assets/icone-ikadevis.svg">
+<link rel="preload" href="vendor-fonts/open-sans.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="vendor-fonts/open-sans.css"></noscript>
+<link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+<style>
+    :root{
+        --ink:#111827; --ink-hover:#000000;
+        --brand-50:#f1f3fa; --brand-100:#e2e7f6; --brand-200:#c7d0ee;
+        --brand-500:#3b5bdb; --brand-600:#2f49b0; --brand-700:#26398a;
+        --neutral-50:#f8fafc; --neutral-100:#f1f5f9; --neutral-200:#e2e8f0;
+        --neutral-400:#94a3b8; --neutral-500:#5f6d80; --neutral-600:#475569;
+        --neutral-700:#334155; --neutral-800:#1e293b; --neutral-900:#0f172a;
+    }
+    *{box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{
+        margin:0; font-family:'Open Sans', sans-serif; color:var(--neutral-800);
+        background:#fff; line-height:1.55; -webkit-font-smoothing:antialiased;
+    }
+    img,svg{max-width:100%;}
+    a{color:inherit;}
+    .wrap{max-width:1120px; margin:0 auto; padding:0 1.5rem;}
+    .btn{
+        display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+        font-weight:700; font-size:.9rem; border-radius:.75rem; padding:.85rem 1.5rem;
+        text-decoration:none; border:1px solid transparent; cursor:pointer; transition:all .15s ease;
+        min-height:44px;
+    }
+    .btn-primary{background:var(--brand-500); color:#fff;}
+    .btn-primary:hover{background:var(--brand-600);}
+    .btn-ghost{background:#fff; color:var(--ink); border-color:var(--neutral-200);}
+    .btn-ghost:hover{border-color:var(--neutral-400);}
+    .btn-block{width:100%;}
+
+    /* ── Header ─────────────────────────────────────────── */
+    header.site{
+        position:sticky; top:0; z-index:40; background:rgba(255,255,255,.9);
+        backdrop-filter:blur(8px); border-bottom:1px solid var(--neutral-200);
+    }
+    header.site .bar{display:flex; align-items:center; gap:1.5rem; padding:.9rem 0;}
+    header.site .logo{height:26px; color:var(--brand-500); flex-shrink:0;}
+    header.site nav{display:flex; gap:1.5rem; margin-left:1rem; flex:1;}
+    header.site nav a{font-size:.875rem; font-weight:600; color:var(--neutral-600); text-decoration:none;}
+    header.site nav a:hover{color:var(--ink);}
+    header.site .actions{display:flex; align-items:center; gap:.75rem; flex-shrink:0;}
+    header.site .actions .btn-ghost{padding:.6rem 1.1rem; white-space:nowrap;}
+    header.site .actions .btn-primary{padding:.6rem 1.1rem; white-space:nowrap;}
+    @media (max-width:760px){
+        header.site nav{display:none;}
+    }
+    @media (max-width:560px){
+        header.site .actions .btn-ghost{display:none;}
+        header.site .actions .btn-primary{padding:.6rem .9rem; font-size:.82rem;}
+    }
+
+    /* ── Hero ───────────────────────────────────────────── */
+    .hero{padding:4rem 0 3.5rem; background:linear-gradient(180deg,var(--brand-50) 0%, #fff 75%);}
+    .hero .grid{display:grid; grid-template-columns:1.1fr 1fr; gap:3rem; align-items:center;}
+    @media (max-width:900px){ .hero .grid{grid-template-columns:1fr;} }
+    .eyebrow{
+        display:inline-flex; align-items:center; gap:.4rem; font-size:.75rem; font-weight:700;
+        text-transform:uppercase; letter-spacing:.04em; color:var(--brand-700);
+        background:var(--brand-100); border-radius:999px; padding:.35rem .75rem; margin-bottom:1.25rem;
+    }
+    .hero h1{
+        font-size:clamp(1.9rem, 4vw, 2.85rem); line-height:1.15; color:var(--ink);
+        margin:0 0 1rem; font-weight:800; letter-spacing:-.01em;
+    }
+    .hero p.lead{font-size:1.05rem; color:var(--neutral-600); max-width:44ch; margin:0 0 1.75rem;}
+    .hero .cta-row{display:flex; flex-wrap:wrap; gap:.85rem; margin-bottom:1.25rem;}
+    .hero .fine{font-size:.8rem; color:var(--neutral-500);}
+    .hero .fine i{color:var(--brand-500); margin-right:.35rem;}
+
+    /* Carte devis illustrative */
+    .devis-card{
+        background:#fff; border:1px solid var(--neutral-200); border-radius:1.25rem;
+        box-shadow:0 20px 45px -20px rgba(15,23,42,.25), 0 2px 8px rgba(15,23,42,.04);
+        padding:1.5rem; transform:rotate(-1.2deg);
+    }
+    .devis-card .dc-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;}
+    .devis-card .dc-head .tag{font-size:.65rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--neutral-500);}
+    .devis-card .dc-head .num{font-size:.85rem; font-weight:700; color:var(--ink);}
+    .devis-card .dc-head .status{font-size:.65rem; font-weight:800; background:#ecfdf5; color:#047857; border-radius:999px; padding:.25rem .6rem;}
+    .devis-card .dc-row{display:flex; justify-content:space-between; gap:1rem; padding:.55rem 0; border-bottom:1px dashed var(--neutral-200); font-size:.8rem;}
+    .devis-card .dc-row .lbl{color:var(--neutral-700); font-weight:600;}
+    .devis-card .dc-row .val{color:var(--neutral-500); white-space:nowrap;}
+    .devis-card .dc-total{display:flex; justify-content:space-between; align-items:baseline; margin-top:1rem; padding-top:1rem; border-top:2px solid var(--neutral-900);}
+    .devis-card .dc-total .lbl{font-size:.75rem; font-weight:700; color:var(--neutral-500); text-transform:uppercase; letter-spacing:.04em;}
+    .devis-card .dc-total .val{font-size:1.5rem; font-weight:800; color:var(--ink);}
+    .dc-badge{
+        position:absolute; background:#fff; border:1px solid var(--neutral-200); border-radius:.85rem;
+        box-shadow:0 10px 25px -10px rgba(15,23,42,.25); padding:.6rem .85rem; font-size:.7rem; font-weight:700;
+        display:flex; align-items:center; gap:.4rem;
+    }
+    @media (max-width:520px){ .dc-badge{ position:static; margin-top:.75rem; box-shadow:none; } }
+    .hero-visual{position:relative;}
+    .dc-badge-1{top:-28px; right:8px; color:var(--brand-700);}
+    .dc-badge-2{bottom:-16px; left:-10px; color:#047857;}
+    .dc-badge i{font-size:.85rem;}
+
+    /* ── Sections génériques ────────────────────────────── */
+    section{padding:4rem 0;}
+    .section-head{max-width:640px; margin:0 auto 2.75rem; text-align:center;}
+    .section-head .eyebrow{display:inline-flex;}
+    .section-head h2{font-size:clamp(1.5rem,3vw,2.1rem); color:var(--ink); margin:.25rem 0 .75rem; font-weight:800;}
+    .section-head p{color:var(--neutral-600); font-size:1rem; margin:0;}
+
+    /* Problème */
+    .problem-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem;}
+    @media (max-width:820px){ .problem-grid{grid-template-columns:1fr;} }
+    .problem-card{background:var(--neutral-50); border:1px solid var(--neutral-200); border-radius:1rem; padding:1.5rem;}
+    .problem-card i{color:#dc2626; font-size:1.1rem; margin-bottom:.75rem; display:block;}
+    .problem-card h3{font-size:.95rem; color:var(--ink); margin:0 0 .4rem; font-weight:700;}
+    .problem-card p{font-size:.85rem; color:var(--neutral-600); margin:0;}
+
+    /* Features */
+    .features{background:var(--neutral-50); border-top:1px solid var(--neutral-200); border-bottom:1px solid var(--neutral-200);}
+    .feature-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem;}
+    @media (max-width:760px){ .feature-grid{grid-template-columns:1fr;} }
+    .feature-card{background:#fff; border:1px solid var(--neutral-200); border-radius:1.1rem; padding:1.75rem; box-shadow:0 2px 8px rgba(15,23,42,.03);}
+    .feature-card .ic{width:2.5rem; height:2.5rem; border-radius:.75rem; background:var(--brand-50); color:var(--brand-600); display:flex; align-items:center; justify-content:center; font-size:1.05rem; margin-bottom:1rem;}
+    .feature-card h3{font-size:1.05rem; color:var(--ink); margin:0 0 .5rem; font-weight:700;}
+    .feature-card p{font-size:.9rem; color:var(--neutral-600); margin:0;}
+
+    /* Métiers */
+    .trades{display:flex; flex-wrap:wrap; gap:.75rem; justify-content:center;}
+    .trade-chip{
+        display:inline-flex; align-items:center; gap:.5rem; background:#fff; border:1px solid var(--neutral-200);
+        border-radius:999px; padding:.6rem 1.1rem; font-size:.85rem; font-weight:700; color:var(--neutral-700);
+    }
+    .trade-chip i{color:var(--brand-500);}
+
+    /* Comment ça marche */
+    .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:2rem; counter-reset:step;}
+    @media (max-width:820px){ .steps{grid-template-columns:1fr;} }
+    .step{position:relative; padding-left:3rem;}
+    .step::before{
+        counter-increment:step; content:counter(step);
+        position:absolute; left:0; top:0; width:2.2rem; height:2.2rem; border-radius:.65rem;
+        background:var(--brand-500); color:#fff; font-weight:800; font-size:.95rem;
+        display:flex; align-items:center; justify-content:center;
+    }
+    .step h3{font-size:1rem; color:var(--ink); margin:0 0 .4rem; font-weight:700;}
+    .step p{font-size:.875rem; color:var(--neutral-600); margin:0;}
+
+    /* Tarifs */
+    .pricing-card{
+        max-width:560px; margin:0 auto; background:#fff; border:1px solid var(--neutral-200);
+        border-radius:1.25rem; padding:2.25rem; text-align:center; box-shadow:0 20px 45px -30px rgba(15,23,42,.3);
+    }
+    .pricing-card .tag{display:inline-block; font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--brand-700); background:var(--brand-100); border-radius:999px; padding:.3rem .75rem; margin-bottom:1rem;}
+    .pricing-card h3{font-size:1.4rem; color:var(--ink); margin:0 0 .6rem; font-weight:800;}
+    .pricing-card p{color:var(--neutral-600); font-size:.9rem; margin:0 0 1.5rem;}
+    .pricing-card ul{list-style:none; padding:0; margin:0 0 1.75rem; text-align:left; display:grid; gap:.6rem;}
+    .pricing-card li{display:flex; gap:.6rem; font-size:.875rem; color:var(--neutral-700);}
+    .pricing-card li i{color:#059669; margin-top:.15rem;}
+
+    /* FAQ */
+    .faq{max-width:760px; margin:0 auto; display:grid; gap:.75rem;}
+    .faq details{background:var(--neutral-50); border:1px solid var(--neutral-200); border-radius:.85rem; padding:1rem 1.25rem;}
+    .faq summary{cursor:pointer; font-weight:700; font-size:.9rem; color:var(--ink); list-style:none; display:flex; justify-content:space-between; align-items:center; gap:1rem;}
+    .faq summary::-webkit-details-marker{display:none;}
+    .faq summary::after{content:'+'; font-size:1.3rem; color:var(--neutral-400); font-weight:400; flex-shrink:0;}
+    .faq details[open] summary::after{content:'−';}
+    .faq p{font-size:.875rem; color:var(--neutral-600); margin:.75rem 0 0;}
+
+    /* CTA final */
+    .final-cta{background:linear-gradient(135deg, var(--brand-600), var(--brand-700)); color:#fff; text-align:center; border-radius:1.5rem; padding:3rem 2rem; margin:0 1.5rem;}
+    .final-cta h2{font-size:clamp(1.4rem,3vw,1.9rem); margin:0 0 .75rem; font-weight:800;}
+    .final-cta p{color:var(--brand-100); margin:0 0 1.75rem; font-size:.95rem;}
+    .final-cta .btn-primary{background:#fff; color:var(--brand-600);}
+    .final-cta .btn-primary:hover{background:var(--brand-50);}
+
+    /* Footer */
+    footer.site{padding:3rem 0 2.5rem; border-top:1px solid var(--neutral-200); margin-top:2rem;}
+    footer.site .fgrid{display:flex; flex-wrap:wrap; justify-content:space-between; gap:2rem; margin-bottom:2rem;}
+    footer.site .logo{height:22px; color:var(--brand-500); margin-bottom:.75rem;}
+    footer.site .brand-col p{font-size:.8rem; color:var(--neutral-500); max-width:32ch; margin:0;}
+    footer.site .flinks{display:flex; gap:3rem; flex-wrap:wrap;}
+    footer.site .flinks h4{font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--neutral-400); margin:0 0 .75rem;}
+    footer.site .flinks a{display:block; font-size:.85rem; color:var(--neutral-600); text-decoration:none; margin-bottom:.5rem;}
+    footer.site .flinks a:hover{color:var(--ink);}
+    footer.site .bottom{border-top:1px solid var(--neutral-200); padding-top:1.5rem; font-size:.78rem; color:var(--neutral-400); text-align:center;}
+</style>
+</head>
+<body>
+
+<header class="site">
+    <div class="wrap bar">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 391.97 124.55" fill="currentColor" role="img" aria-label="ikadevis"><polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/><path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/><g><g><path d="M227.64,93.27c-9.57.55-16.75-6.81-16.63-16.13.12-9.14,7.29-16.17,16.53-15.61,3.88.24,7.25,1.61,10.26,4.48l.02-16.97,5.67-.05v43.92s-5.65-.03-5.65-.03l-.12-4c-2.81,2.8-6.12,4.14-10.09,4.37ZM222.29,86.76c3.82,1.96,8.32,1.44,11.57-1.07,3.62-2.8,4.86-7.42,3.43-11.69-1.35-4.01-5.13-6.9-9.41-7.12s-8.58,2.12-10.24,6.3c-2.02,5.09-.38,11,4.65,13.58Z"/><path d="M198.38,93l-.14-4.19c-3.5,3.54-7.92,4.81-12.62,4.4-5.6-.49-10.37-3.78-12.66-8.95-1.9-4.29-1.95-8.99-.18-13.35,2.17-5.36,7.04-8.77,12.76-9.33,4.83-.47,9.24,1.09,12.71,4.43l.09-3.77h5.71s0,30.59,0,30.59l-5.67.16ZM188.05,87.91c2.78-.11,5.1-1.01,7.03-2.81,3.81-3.53,4.32-9.35,1.5-13.55s-8.2-5.85-13.04-3.84c-4.19,1.74-6.53,5.99-6.24,10.5.36,5.69,4.87,9.92,10.74,9.69Z"/><path d="M265.87,88.38c3.91.06,7.16-1.38,9.43-4.7l4.38,2.83c-2.83,4.55-7.53,6.7-12.57,7.01-9.49.59-16.93-6.43-17.07-15.85-.13-9.1,6.82-16.17,15.99-16.06,9.63.11,16.17,7.75,15.36,17.49h-25.53c.48,5.26,4.56,9.19,10.01,9.27ZM275.63,74.6c-.92-4.99-5.02-7.81-9.64-7.86-4.86-.07-9.12,3.13-9.95,7.89l19.59-.03Z"/><polygon points="169.93 92.83 162.53 92.91 150.93 79.81 146.19 84.26 146.08 92.9 140.41 92.92 140.4 49.09 146.15 49.09 146.16 77.02 160.82 62.32 168.44 62.35 154.78 75.94 169.93 92.83"/><path d="M351.06,91.97c-5.52,2.93-14.01,1.79-18.64-2.96l3.01-3.88c4.27,4.26,13.06,4.8,14.13.57.35-1.36-.03-3.09-1.41-3.74l-4.18-1.97c-4.1-1.93-10.48-3.22-10.01-10.13.19-2.75,1.63-5.3,4.34-6.62,5.4-2.64,11.95-1.88,16.57,2.15l-3.03,3.75c-4.13-3.52-11.61-3.33-12.12.63-.19,1.49.58,2.91,2.06,3.55l8.58,3.7c3.62,1.56,5.49,5.04,4.93,8.87-.39,2.64-1.81,4.8-4.21,6.08Z"/><polygon points="307.68 62.33 313.73 62.3 300.75 92.9 296.18 93.01 283.17 62.31 289.23 62.26 298.49 85.31 307.68 62.33"/><polygon points="325.87 92.86 320.14 92.97 320.14 62.3 325.87 62.28 325.87 92.86"/><polygon points="130.67 92.79 124.98 92.89 124.97 62.29 130.66 62.27 130.67 92.79"/></g><path d="M127.04,50.08c2.16-.46,4.08.9,4.44,2.84s-.72,4.01-2.84,4.42c-1.84.35-3.91-.71-4.34-2.65s.44-4.13,2.75-4.61Z"/><path d="M322.27,50.08c2.2-.46,4.02.94,4.4,2.91s-.82,3.94-2.82,4.36-3.87-.72-4.33-2.61c-.48-2,.46-4.19,2.75-4.66Z"/></g></svg>
+        <nav>
+            <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#metiers">Métiers</a>
+            <a href="#tarifs">Tarifs</a>
+            <a href="#faq">Questions</a>
+        </nav>
+        <div class="actions">
+            <a class="btn btn-ghost" href="https://app.ikadevis.com">Se connecter</a>
+            <a class="btn btn-primary" href="https://app.ikadevis.com">Essayer gratuitement</a>
+        </div>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="wrap grid">
+        <div>
+            <span class="eyebrow"><i class="fa-solid fa-calculator" aria-hidden="true"></i> Étude de prix &amp; devis BTP</span>
+            <h1>Le devis BTP juste, en quelques minutes.</h1>
+            <p class="lead">Matières, main-d'œuvre, pertes et marge calculées pour vous à partir du métré réel de l'ouvrage — du déboursé sec au total TTC. Vous obtenez un prix qui tient, pas une estimation à l'œil.</p>
+            <div class="cta-row">
+                <a class="btn btn-primary" href="https://app.ikadevis.com">Essayer gratuitement</a>
+                <a class="btn btn-ghost" href="#fonctionnalites">Voir comment ça marche</a>
+            </div>
+            <p class="fine"><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Aucune carte bancaire nécessaire pour essayer</p>
+        </div>
+        <div class="hero-visual">
+            <div class="devis-card">
+                <div class="dc-head">
+                    <div>
+                        <div class="tag">Devis</div>
+                        <div class="num">DEV-2026-014</div>
+                    </div>
+                    <span class="status">Prêt à envoyer</span>
+                </div>
+                <div class="dc-row"><span class="lbl">Carrelage grès cérame 60×60 — 84 m²</span><span class="val">1 260 000 F</span></div>
+                <div class="dc-row"><span class="lbl">Peinture satinée 2 couches — 210 m²</span><span class="val">945 000 F</span></div>
+                <div class="dc-row"><span class="lbl">Faux-plafond BA13 suspendu — 32 m²</span><span class="val">403 200 F</span></div>
+                <div class="dc-total"><span class="lbl">Total TTC</span><span class="val">3 077 683 F</span></div>
+            </div>
+            <div class="dc-badge dc-badge-1"><i class="fa-solid fa-ruler-combined" aria-hidden="true"></i> Métré automatique</div>
+            <div class="dc-badge dc-badge-2"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Export PDF prêt à envoyer</div>
+        </div>
+    </div>
+</section>
+
+<section id="probleme">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">Le problème</span>
+            <h2>Le devis à l'œil coûte cher — juste plus tard</h2>
+            <p>Trois façons dont un chiffrage approximatif rattrape une entreprise du BTP, un chantier après l'autre.</p>
+        </div>
+        <div class="problem-grid">
+            <div class="problem-card">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                <h3>Le prix ne couvre pas le coût réel</h3>
+                <p>Sans déboursé sec calculé ligne par ligne, la marge annoncée sur le papier n'est pas celle qui reste à la fin du chantier.</p>
+            </div>
+            <div class="problem-card">
+                <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                <h3>Chaque devis reprend tout à zéro</h3>
+                <p>Un tableur par client, des formules à refaire, un format qui change d'un devis à l'autre — du temps qui devrait aller au chantier.</p>
+            </div>
+            <div class="problem-card">
+                <i class="fa-solid fa-file-circle-exclamation" aria-hidden="true"></i>
+                <h3>Le document envoyé au client ne rassure pas</h3>
+                <p>Une mise en page improvisée fait douter un client avant même d'avoir lu le prix — et se compare mal à la concurrence.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="features" id="fonctionnalites">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">La solution</span>
+            <h2>Un moteur de calcul, pas un tableur de plus</h2>
+            <p>ikadevis part du métré de l'ouvrage, applique vos prix matières et main-d'œuvre, et remonte jusqu'au prix de vente TTC — automatiquement.</p>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="ic"><i class="fa-solid fa-ruler-combined" aria-hidden="true"></i></div>
+                <h3>Métré automatique</h3>
+                <p>Surface, volume, unité ou rectangle : renseignez les dimensions de l'ouvrage, ikadevis calcule les quantités de matière et de main-d'œuvre nécessaires.</p>
+            </div>
+            <div class="feature-card">
+                <div class="ic"><i class="fa-solid fa-sitemap" aria-hidden="true"></i></div>
+                <h3>Déboursé sec → prix juste</h3>
+                <p>Coefficient de marge, frais généraux et TVA appliqués sur le coût réel — pas sur une estimation. Le prix de vente tient la route sur le terrain.</p>
+            </div>
+            <div class="feature-card">
+                <div class="ic"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i></div>
+                <h3>Devis et factures professionnels</h3>
+                <p>Export PDF à votre image — logo, couleurs, mentions légales — et conversion d'un devis accepté en facture numérotée, sans ressaisie.</p>
+            </div>
+            <div class="feature-card">
+                <div class="ic"><i class="fa-solid fa-people-group" aria-hidden="true"></i></div>
+                <h3>Un catalogue qui vous appartient</h3>
+                <p>Matériaux, main-d'œuvre et solutions techniques enregistrés une fois, réutilisés sur chaque devis suivant — avec l'historique des prix.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="metiers">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">Pour qui</span>
+            <h2>Pensé pour les métiers du BTP</h2>
+            <p>Le moteur de calcul s'adapte à la logique de chaque corps de métier, pas l'inverse.</p>
+        </div>
+        <div class="trades">
+            <span class="trade-chip"><i class="fa-solid fa-trowel-bricks" aria-hidden="true"></i>Gros œuvre</span>
+            <span class="trade-chip"><i class="fa-solid fa-industry" aria-hidden="true"></i>Métallerie</span>
+            <span class="trade-chip"><i class="fa-solid fa-hammer" aria-hidden="true"></i>Menuiserie</span>
+            <span class="trade-chip"><i class="fa-solid fa-shop" aria-hidden="true"></i>Signalétique &amp; enseignes</span>
+            <span class="trade-chip"><i class="fa-solid fa-building" aria-hidden="true"></i>Façades Alucobond / ACM</span>
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">En pratique</span>
+            <h2>Du métré au PDF, en trois étapes</h2>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <h3>Décrivez l'ouvrage</h3>
+                <p>Choisissez une solution technique de votre catalogue et renseignez ses dimensions — largeur, hauteur, surface ou quantité.</p>
+            </div>
+            <div class="step">
+                <h3>Le calcul se fait seul</h3>
+                <p>Matière, main-d'œuvre, pertes, marge et frais généraux se calculent automatiquement à partir du métré, ligne par ligne.</p>
+            </div>
+            <div class="step">
+                <h3>Envoyez un document professionnel</h3>
+                <p>Devis PDF prêt à envoyer par WhatsApp ou email, converti en facture numérotée dès que le client accepte.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="tarifs">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">Tarifs</span>
+            <h2>Un tarif adapté à la taille de votre entreprise</h2>
+            <p>ikadevis est en accès anticipé : les conditions commerciales se discutent directement avec vous, pas encore en libre-service.</p>
+        </div>
+        <div class="pricing-card">
+            <span class="tag">Accès anticipé</span>
+            <h3>Sur devis</h3>
+            <p>Essai gratuit pendant la phase d'accès anticipé. Le tarif définitif dépendra du nombre d'utilisateurs et de devis émis par mois — communiqué avant tout engagement.</p>
+            <ul>
+                <li><i class="fa-solid fa-check" aria-hidden="true"></i>Catalogue matériaux, main-d'œuvre et solutions illimité</li>
+                <li><i class="fa-solid fa-check" aria-hidden="true"></i>Devis, factures et export PDF illimités</li>
+                <li><i class="fa-solid fa-check" aria-hidden="true"></i>Vos données isolées, propres à votre entreprise</li>
+                <li><i class="fa-solid fa-check" aria-hidden="true"></i>Accompagnement à la mise en route</li>
+            </ul>
+            <a class="btn btn-primary btn-block" href="mailto:infos@microofficeml.com?subject=ikadevis%20—%20Acc%C3%A8s%20anticip%C3%A9">Nous contacter</a>
+        </div>
+    </div>
+</section>
+
+<section id="faq">
+    <div class="wrap">
+        <div class="section-head">
+            <span class="eyebrow">Questions fréquentes</span>
+            <h2>Ce que les entreprises du BTP nous demandent</h2>
+        </div>
+        <div class="faq">
+            <details>
+                <summary>Puis-je essayer sans créer de compte ?</summary>
+                <p>Oui — le Mode Démo permet de chiffrer un devis complet directement dans le navigateur, sans compte ni carte bancaire. Les données restent alors sur votre appareil.</p>
+            </details>
+            <details>
+                <summary>Mes données sont-elles visibles par d'autres entreprises ?</summary>
+                <p>Non. Chaque entreprise dispose d'un espace isolé au niveau de la base de données (isolation stricte par organisation) : personne d'autre ne peut voir ni modifier vos devis, clients ou catalogues.</p>
+            </details>
+            <details>
+                <summary>ikadevis fonctionne-t-il pour un métier hors de la liste ?</summary>
+                <p>Le moteur de calcul est générique (surface, volume, unité, rectangle) : si votre métier se chiffre au métré, il est probablement compatible. Contactez-nous pour en discuter.</p>
+            </details>
+            <details>
+                <summary>Comment se passe la facturation à mes clients ?</summary>
+                <p>Un devis accepté se convertit en facture numérotée en un clic, avec une numérotation légale qui ne peut plus être modifiée une fois la facture émise.</p>
+            </details>
+            <details>
+                <summary>Y a-t-il un engagement de durée ?</summary>
+                <p>Pendant la phase d'accès anticipé, aucun engagement — l'essai est gratuit et les conditions commerciales définitives seront communiquées avant toute facturation.</p>
+            </details>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="final-cta">
+        <h2>Chiffrez votre prochain devis en quelques minutes</h2>
+        <p>Sans carte bancaire, sans engagement — testez le calcul sur un vrai chantier.</p>
+        <a class="btn btn-primary" href="https://app.ikadevis.com">Essayer ikadevis gratuitement</a>
+    </div>
+</section>
+
+<footer class="site">
+    <div class="wrap">
+        <div class="fgrid">
+            <div class="brand-col">
+                <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 391.97 124.55" fill="currentColor" role="img" aria-label="ikadevis"><polygon points="31.88 47.79 31.9 103.45 36.78 103.42 36.79 71.56 52.8 61.35 52.8 109.05 47.23 109.06 47.23 71.58 42.28 74.69 42.28 109.08 26.39 109.08 26.39 44.54 74.12 12.6 74.15 45.36 85.04 50.98 85 80.55 79.54 85.68 79.54 54.54 65.17 47.08 65.15 93.56 59.59 93.61 59.59 37.96 68.58 42.55 68.54 23.33 31.88 47.79"/><path d="M60.34,101.32c-.66-.74-1.19-1.51-.52-2.42l5.88.02,3.22,4.06,20.14-19,15.35-14.47.12,7.63-23.38,21.96-12.35,11.73-8.45-9.51Z"/><g><g><path d="M227.64,93.27c-9.57.55-16.75-6.81-16.63-16.13.12-9.14,7.29-16.17,16.53-15.61,3.88.24,7.25,1.61,10.26,4.48l.02-16.97,5.67-.05v43.92s-5.65-.03-5.65-.03l-.12-4c-2.81,2.8-6.12,4.14-10.09,4.37ZM222.29,86.76c3.82,1.96,8.32,1.44,11.57-1.07,3.62-2.8,4.86-7.42,3.43-11.69-1.35-4.01-5.13-6.9-9.41-7.12s-8.58,2.12-10.24,6.3c-2.02,5.09-.38,11,4.65,13.58Z"/><path d="M198.38,93l-.14-4.19c-3.5,3.54-7.92,4.81-12.62,4.4-5.6-.49-10.37-3.78-12.66-8.95-1.9-4.29-1.95-8.99-.18-13.35,2.17-5.36,7.04-8.77,12.76-9.33,4.83-.47,9.24,1.09,12.71,4.43l.09-3.77h5.71s0,30.59,0,30.59l-5.67.16ZM188.05,87.91c2.78-.11,5.1-1.01,7.03-2.81,3.81-3.53,4.32-9.35,1.5-13.55s-8.2-5.85-13.04-3.84c-4.19,1.74-6.53,5.99-6.24,10.5.36,5.69,4.87,9.92,10.74,9.69Z"/><path d="M265.87,88.38c3.91.06,7.16-1.38,9.43-4.7l4.38,2.83c-2.83,4.55-7.53,6.7-12.57,7.01-9.49.59-16.93-6.43-17.07-15.85-.13-9.1,6.82-16.17,15.99-16.06,9.63.11,16.17,7.75,15.36,17.49h-25.53c.48,5.26,4.56,9.19,10.01,9.27ZM275.63,74.6c-.92-4.99-5.02-7.81-9.64-7.86-4.86-.07-9.12,3.13-9.95,7.89l19.59-.03Z"/><polygon points="169.93 92.83 162.53 92.91 150.93 79.81 146.19 84.26 146.08 92.9 140.41 92.92 140.4 49.09 146.15 49.09 146.16 77.02 160.82 62.32 168.44 62.35 154.78 75.94 169.93 92.83"/><path d="M351.06,91.97c-5.52,2.93-14.01,1.79-18.64-2.96l3.01-3.88c4.27,4.26,13.06,4.8,14.13.57.35-1.36-.03-3.09-1.41-3.74l-4.18-1.97c-4.1-1.93-10.48-3.22-10.01-10.13.19-2.75,1.63-5.3,4.34-6.62,5.4-2.64,11.95-1.88,16.57,2.15l-3.03,3.75c-4.13-3.52-11.61-3.33-12.12.63-.19,1.49.58,2.91,2.06,3.55l8.58,3.7c3.62,1.56,5.49,5.04,4.93,8.87-.39,2.64-1.81,4.8-4.21,6.08Z"/><polygon points="307.68 62.33 313.73 62.3 300.75 92.9 296.18 93.01 283.17 62.31 289.23 62.26 298.49 85.31 307.68 62.33"/><polygon points="325.87 92.86 320.14 92.97 320.14 62.3 325.87 62.28 325.87 92.86"/><polygon points="130.67 92.79 124.98 92.89 124.97 62.29 130.66 62.27 130.67 92.79"/></g><path d="M127.04,50.08c2.16-.46,4.08.9,4.44,2.84s-.72,4.01-2.84,4.42c-1.84.35-3.91-.71-4.34-2.65s.44-4.13,2.75-4.61Z"/><path d="M322.27,50.08c2.2-.46,4.02.94,4.4,2.91s-.82,3.94-2.82,4.36-3.87-.72-4.33-2.61c-.48-2,.46-4.19,2.75-4.66Z"/></g></svg>
+                <p>Moteur d'étude de prix, de métré et de facturation pour les métiers du BTP.</p>
+            </div>
+            <div class="flinks">
+                <div>
+                    <h4>Produit</h4>
+                    <a href="#fonctionnalites">Fonctionnalités</a>
+                    <a href="#metiers">Métiers</a>
+                    <a href="#tarifs">Tarifs</a>
+                </div>
+                <div>
+                    <h4>Compte</h4>
+                    <a href="https://app.ikadevis.com">Se connecter</a>
+                    <a href="https://app.ikadevis.com">Créer un compte</a>
+                </div>
+                <div>
+                    <h4>Légal</h4>
+                    <a href="https://app.ikadevis.com/conditions">Conditions d'utilisation</a>
+                    <a href="https://app.ikadevis.com/confidentialite">Confidentialité</a>
+                    <a href="mailto:infos@microofficeml.com">Contact</a>
+                </div>
+            </div>
+        </div>
+        <div class="bottom">ikadevis — © 2026 Micro Office. Tous droits réservés.</div>
+    </div>
+</footer>
+
+</body>
+</html>

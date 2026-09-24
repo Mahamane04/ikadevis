@@ -388,6 +388,7 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
         docClone.querySelectorAll('[data-hors-pdf]').forEach((n) => n.remove());
         const cible = docClone.querySelector('[data-pdf-cible]');
         if (!cible) return;
+        cible.classList.remove('document-mobile-read', 'document-paper');
         cible.style.width = LARGEUR_CAPTURE + 'px';
         cible.style.maxWidth = 'none';
         // Les ancêtres sont souvent une modale à hauteur bornée et
@@ -430,6 +431,7 @@ async function telechargerElementEnPdf(element, nomFichier, options = {}) {
             'overflow:visible', 'pointer-events:none'
         ].join(';');
         const copie = element.cloneNode(true);
+        copie.classList.remove('document-mobile-read', 'document-paper');
         // 2026-09-04 — Ce qui est marqué `data-hors-pdf` disparaît de la copie.
         // Le ruban de statut est une commodité d'ÉCRAN : il ne doit sortir ni
         // à l'impression ni dans le PDF exporté — c'est ainsi que Zoho Books

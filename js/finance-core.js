@@ -729,3 +729,27 @@ if (typeof window !== 'undefined') {
         mouvementsDepuisDepenses
     };
 }
+
+// Affichage commercial : le total sauvegardé reste la référence. La précision
+// du PU augmente seulement autant que nécessaire pour expliquer ce total.
+function precisionLigneCommerciale(quantite, total, devise = 'FCFA') {
+    const q = Number(quantite) || 0;
+    const t = Number(total) || 0;
+    const decimals = decimalesDevise(devise);
+    const quantity = Number(q.toFixed(8));
+    const raw = quantity ? t / quantity : 0;
+    let unitPrice = raw, exact = false;
+    for (let digits = decimals; digits <= 8; digits++) {
+        const candidate = Number(raw.toFixed(digits));
+        if (Math.abs(arrondiMonetaire(quantity * candidate, decimals) - arrondiMonetaire(t, decimals)) < 1e-8) {
+            unitPrice = candidate;
+            exact = true;
+            break;
+        }
+    }
+    return { quantity, unitPrice, approximate: !exact };
+}
+function formatPrixLigne(quantite, total, devise = 'FCFA') {
+    const value = precisionLigneCommerciale(quantite, total, devise);
+    return (value.approximate ? '≈ ' : '') + value.unitPrice.toLocaleString('fr-FR', { maximumFractionDigits: 8 }) + ' ' + devise;
+}

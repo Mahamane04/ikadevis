@@ -5073,3 +5073,292 @@ valeur avec erreur explicite si elle diffère.
   stockage de fichiers (Supabase Storage), étape à part.
 - Rentabilité par chantier (lecture de `expense_splits` / `project_ref`) :
   étape « Rapports ».
+
+---
+
+## 🔒 § 73. Abonnement activé sans prélèvement — incident et correction (2026-09-24)
+
+**Signalement de l'utilisateur** : « le prélèvement a été fait et l'abonnement a
+été activé sans prélever l'argent sur le numéro ». Capture à l'appui : la
+fenêtre « Formules & Abonnements ikadevis SaaS » affichant « Félicitations !
+Votre abonnement **STANDARD** a été activé avec succès via SasPay. Vos quotas
+sont désormais débloqués ! » — sur `app.ikadevis.com`, en production.
+
+**Rien n'avait été prélevé parce que rien n'avait été demandé.** Aucune requête
+n'est jamais partie vers `api.saspay.me`. L'application s'est accordé la
+formule toute seule.
+
+### 73.1 Chaîne causale complète
+
+Cinq défauts en cascade, chacun suffisant à lui seul pour produire l'incident :
+
+| # | Emplacement | Défaut |
+|---|---|---|
+| 1 | `js/saspay-platform-config.js:22` | `apiKey: savedKey \|\| ''` — la clé vient de `localStorage`, vide en production. Aucune clé configurée nulle part. |
+| 2 | `js/subscription-service.js` | `createCheckoutSession(sessionParams, configOverride)` appelait avec **deux** arguments une fonction qui n'en prend qu'**un**. `apiKey`, `customerPhone` et `returnUrl` arrivaient donc `undefined`. Les codes réseau envoyés (`orange`, `wave`) n'existent pas chez SasPay, qui attend `orange_ml`, `wave_sn`… |
+| 3 | `js/saspay-service.js:227` | Clé absente ⇒ **simulation silencieuse** : une session `demo_…` fabriquée sur place, `success: true`, sans le moindre appel réseau. |
+| 4 | `js/saspay-service.js:355` | `verifyPayment` renvoyait `status: 'SUCCESS'` immédiatement quand la clé manquait — et, avec une clé, `success: true` sur **tout** HTTP 200, `PENDING` compris. |
+| 5 | `index_jsx.js` (`SubscriptionPlansView`) | Le sondage testait `\|\| verify.success` (vrai dès le 1ᵉʳ passage, 2,5 s après le clic) **et** activait la formule au bout de 8 tentatives infructueuses : `else if (checks >= maxChecks) { … applyPlanUpgrade(…) }`, commenté « En mode démo / test, on finalise automatiquement si l'utilisateur teste ». |
+
+Le défaut n° 5 est le plus grave : même avec une clé valide et un paiement
+**refusé**, l'utilisateur obtenait sa formule après 20 secondes.
+
+### 73.2 Deux failles de même famille trouvées en chemin
+
+- **Factures.** `InvoicePaymentModal` portait deux boutons « Simuler succès
+  (Démo) » / « Simuler validation client (Démo) », **sans aucune condition
+  d'environnement**. Un clic enregistrait un règlement sur une facture réelle,
+  référence `SASPAY-…` à l'appui, sans mouvement d'argent — une écriture fausse
+  dans une comptabilité réelle. Supprimés.
+- **Détournement d'encaissement.** L'ancien `saspay-proxy` résolvait sa clé par
+  `apiKey || Deno.env.get('SASPAY_API_KEY')`. Une organisation n'ayant pas
+  renseigné sa propre clé aurait vu les règlements de **ses** factures partir
+  sur le compte SasPay d'**ikadevis**. Le repli est retiré : les deux familles
+  d'actions ont désormais des clés strictement séparées.
+
+### 73.3 Correction — le navigateur ne décide plus
+
+Décisions prises avec l'utilisateur : clé en secret Supabase, abonnement
+persisté en base, refus franc quand la passerelle n'est pas configurée.
+
+**`migrations_saas_subscriptions_2026-09-24.sql`** — tables `subscriptions`
+(une ligne par organisation) et `subscription_payments` (journal). RLS avec
+**uniquement des policies SELECT** : `authenticated` a `SELECT`, `anon` n'a
+rien, `service_role` a tout. Un `update()` depuis le navigateur échoue donc
+toujours. Amorçage des organisations existantes en essai Starter 14 jours +
+trigger sur `organizations` pour les nouvelles.
+
+**`supabase/functions/saspay-proxy/index.ts`** — réécrite, seule autorité :
+
+- `subscription-initiate` : lit l'organisation **en base** (jamais depuis la
+  requête), exige le rôle `owner`/`admin`, **fixe le montant depuis son propre
+  catalogue** `CATALOGUE_FORMULES`, crée la ligne `pending` *avant* d'appeler
+  SasPay, puis rend **sa propre référence** — le client ne manipule jamais
+  l'identifiant SasPay et ne peut donc pas en présenter un autre.
+- `subscription-verify` : trois verdicts seulement (`paid`/`pending`/`failed`)
+  via `verdictPaiement()`, contrôle du **montant réellement encaissé**, et
+  application idempotente par `.is('applied_at', null)` — deux sondages
+  simultanés ne créditent pas deux périodes.
+- Sans `SASPAY_API_KEY`, refus explicite `GATEWAY_NOT_CONFIGURED` (503).
+
+**`js/saspay-service.js`** — `exigerCle()` remplace toutes les simulations :
+une passerelle non configurée lève `SASPAY_NOT_CONFIGURED`. `verifyPayment`
+expose `paid` (booléen) et `verdict`, plus jamais un `success` qui ne signifie
+que « HTTP 200 ». Le test `key.includes('demo')` est retiré : il validait
+n'importe quelle chaîne contenant ces quatre lettres.
+
+**`js/subscription-service.js`** — `activatePlan()` et `applyPlanUpgrade()`
+**supprimées**, pas corrigées : une fonction capable d'accorder une formule,
+accessible depuis `window.SubscriptionService`, est une faille à une ligne de
+console. Remplacées par `startSubscriptionPayment()` / `verifySubscriptionPayment()`
+/ `refreshFromServer()`, qui ne font que relayer le serveur.
+
+**`index_jsx.js`** — sondage de 2 minutes (40 × 3 s) qui n'active **que** sur
+`paid`. Un délai dépassé affiche « Paiement non confirmé dans le délai
+imparti… Votre formule reste inchangée » au lieu d'activer. Liste d'opérateurs
+construite depuis `SASPAY_COUNTRIES` du pays choisi, et codes réseau réels
+transmis (voir § 73.10 : la première version de ce correctif retirait Wave du
+Mali sur une affirmation **fausse**). `SubscriptionPlansModal`
+(557 lignes, jamais monté, portant un bouton d'auto-attribution) supprimé.
+Au démarrage, `refreshFromServer()` : **le serveur gagne toujours, y compris à
+la baisse** — un cache `localStorage` forgé en « entreprise / active » redevient
+ce qu'il est réellement.
+
+### 73.4 Divergence staging / production découverte
+
+`public.set_updated_at()` — déclarée dans `v5_schema.sql` — est **présente en
+production et absente de staging**. La migration la recrée en `CREATE OR
+REPLACE` (corps identique, donc sans effet là où elle existe) pour être
+autonome. À garder en tête : **les deux bases ont divergé**, un `v5_schema.sql`
+appliqué d'un côté ne l'est pas forcément de l'autre.
+
+### 73.5 Banc d'essai — `scratch/test_abonnement_paiement.mjs`
+
+19 vérifications, enregistré dans `npm test`. Il garde les trois défauts
+d'origine : refus sans clé, verdict à trois valeurs sans zone grise, absence
+des fonctions d'auto-attribution. Sept contrôles portent sur le **code source**
+(constructions interdites) car le mode invité, sans Supabase ni SasPay, ne peut
+pas les exercer autrement.
+
+`scratch/test_saspay_integration.mjs` est **neutralisé** : il certifiait au vert
+que le service savait produire une session et un « SUCCESS » sans aucune clé —
+c'est-à-dire exactement la simulation à l'origine de l'incident. Un banc qui
+certifie un faux succès est pire qu'un banc absent.
+
+### 73.6 Piège de banc rencontré
+
+**Un `grep` de contrôle retrouve les commentaires du correctif.** Les
+vérifications statiques cherchaient `checks >= maxChecks`, `handleSimulateSuccess`
+et `isDemo: true` dans le code — et les trouvaient… dans la documentation de
+leur propre suppression. **Cinq faux rouges d'un coup**, et le symétrique aurait
+été pire : un faux vert. Remède : lire le code amputé de ses lignes de
+commentaire (`sansCommentaires()`). Le même écueil s'était produit une heure
+plus tôt dans un script de correctif, dont la garde vérifiait `"activatePlan"
+in src` au lieu de `"activatePlan: function" in src`.
+
+### 73.7 État — prouvé / pas prouvé
+
+**Prouvé**
+
+- Migration **appliquée sur staging** (`mwfmruzlonsrrfufbsyz`). Contrôle des
+  policies : seules deux policies `SELECT` existent. Contrôle des privilèges :
+  `authenticated` → `SELECT` seul, `anon` → aucune ligne, `service_role` → tout.
+- Edge Function **déployée sur staging**, `status: ACTIVE`, `verify_jwt: true`.
+  Essai fonctionnel : sans en-tête → 401 ; avec la clé anon mais sans session
+  → `{"error":"Session invalide ou expirée."}` (message issu du code déployé,
+  donc le corps s'exécute) ; préflight CORS → 200.
+- Banc `test_abonnement_paiement.mjs` : **19/19**.
+- Suite complète après chantier : **818/844, 9 suites en régression, 7/7
+  étalons**. Comparaison **nominative** avec l'exécution précédant le chantier
+  (28 échecs) : **aucun nouvel échec**, deux disparus — « Aucune erreur console
+  au chargement » (que j'avais moi-même introduit en appelant le serveur en
+  mode invité, puis corrigé) et l'un des deux plantages intermittents
+  (`Waiting failed: Nms exceeded`), qui est passé cette fois. Ces deux
+  plantages expliquent que le total de vérifications varie d'une exécution à
+  l'autre : les suites concernées ne rendent pas leurs résultats.
+
+**Pas prouvé — et il faut le dire**
+
+- **Aucun paiement réel n'a été exercé de bout en bout.** Tant que
+  `SASPAY_API_KEY` n'est pas posée, la chaîne ne peut pas être éprouvée avec de
+  l'argent. Le chemin « SasPay répond PAID → abonnement prolongé » n'a jamais
+  tourné, ni en test ni en production.
+- Migration et Edge Function **non appliquées en production**.
+- L'abonnement déjà accordé à tort en production (STANDARD) **n'a pas été
+  révoqué** : à décider par l'utilisateur.
+
+### 73.8 Faille restante, assumée et documentée
+
+Les quotas (`canCreateDevis`, `canCreateProject`) sont **vérifiés côté
+navigateur**. Un utilisateur qui force son cache local voit l'interface se
+débloquer jusqu'à la prochaine synchronisation, même si la base dit « starter ».
+La fermeture complète suppose des policies RLS sur `quotes`/`projects`
+consultant `subscriptions` — chantier à part, non entrepris ici car une erreur
+y bloquerait des clients légitimes en écriture.
+
+### 73.10 Erreur commise, et ce qu'elle a révélé
+
+En reconstruisant la liste des opérateurs depuis `SASPAY_COUNTRIES`, j'ai
+affirmé — et écrit ici — que **Wave n'opère pas au Mali**. C'est faux.
+`wave_ml` est actif chez SasPay. Mon correctif retirait donc aux clients
+maliens le moyen de paiement le plus répandu du pays, au nom d'une correction.
+
+L'erreur venait d'avoir pris `SASPAY_COUNTRIES` pour la réalité alors que ce
+n'est qu'une liste écrite à la main. Le recoupement avec la source — `GET
+/networks/`, la clé de production étant valide — donne **77 réseaux, dont 65
+actifs**, là où l'application en connaissait 22. **Six opérateurs actifs
+manquaient sur les pays déjà couverts** :
+
+| Pays | Manquants |
+|---|---|
+| Mali | `wave_ml` |
+| Côte d'Ivoire | `djamo_ci` |
+| Sénégal | `expresso_sn`, `djamo_sn`, `paydunya_sn` |
+| Burkina Faso | `touchcash_bf` |
+| Togo | `mixx_tg` (Mixx by Yas ; `togocel` reste actif) |
+
+Tous ajoutés. Et surtout, côté serveur, la liste blanche figée de 22 codes est
+remplacée par une **lecture du catalogue SasPay en direct** (cache d'une
+heure, repli statique si la passerelle est injoignable). Une liste figée
+refusait des opérateurs valides **avant même d'appeler la passerelle**, et se
+périmait en silence à chaque ajout chez SasPay.
+
+SasPay couvre par ailleurs une vingtaine de pays que l'application ne propose
+pas (RDC, Kenya, Nigeria, Ghana, Tanzanie, Ouganda, Rwanda, Zambie,
+Mozambique, Malawi, Gabon, Congo, Niger…), plus `crypto` et les virements
+bancaires. Élargir le référentiel est une décision produit, pas un correctif :
+non entreprise ici.
+
+**Leçon** : un référentiel écrit à la main n'est pas une source. Quand la
+source est interrogeable, la lire.
+
+### 73.11 Champ de clé secrète retiré de l'interface
+
+`SubscriptionSettingsPanel` portait un champ « Clé API Secrète SasPay
+(Master) » qui écrivait un `sk_live_` dans le **localStorage du navigateur**,
+via `SASPAY_PLATFORM_CONFIG.setApiKey()` — lisible par quiconque ouvre la
+console, et donc capable d'encaisser sur le compte de la plateforme. Retiré,
+avec ses deux gestionnaires, et remplacé par la marche à suivre (secret
+Supabase).
+
+Circonstance atténuante : **ce composant n'est monté nulle part**, exactement
+comme `SubscriptionPlansModal`. Aucune clé n'y a donc jamais transité. Le
+branchement de l'historique des règlements sur `subscription_payments` y est
+correct mais **invisible** tant que le composant n'est pas monté — décision
+laissée à l'utilisateur.
+
+⚠️ **Exposition restante, hors périmètre** : la clé SasPay *propre à chaque
+organisation* (Paramètres › Passerelle SasPay, pour encaisser ses propres
+factures) est toujours stockée côté client. C'est sa clé et son compte, mais
+le même raisonnement s'applique. Chantier à part.
+
+### 73.9 Ce que l'utilisateur doit faire
+
+0. **La clé existe déjà** et elle est valide : `SASPAY_API_KEY` est dans le
+   `.env` local (hors dépôt), `sk_live_…`. Éprouvée le 2026-09-24 contre
+   `GET https://api.saspay.me/api/v1/networks/` → **HTTP 200**, 77 réseaux.
+   Le compte SasPay est actif ; il ne manquait que de la porter côté serveur.
+1. Poser le secret sur staging puis production, **dans le tableau de bord
+   Supabase** (Edge Functions › Secrets), jamais dans une conversation. Sans
+   jamais l'afficher :
+   `grep '^SASPAY_API_KEY=' .env | cut -d= -f2- | pbcopy`
+2. Éprouver la chaîne **sur staging avec une clé `sk_test_`**, petit montant.
+3. Déployer en production : migration + `saspay-proxy` + `npm run deploy:build
+   && npx wrangler deploy && node scripts/generate-config.mjs development`.
+4. Décider du sort de l'abonnement STANDARD accordé à tort.
+
+## 74. Corrections UI/UX du chiffrage, priorité smartphone — 2026-09-24
+
+À la suite de l’audit global, correction des prix unitaires affichés, harmonisation des marges et des statuts, distinction entre devis et facturation dans l’objectif mensuel. Fiche d’ouvrage plein écran sur mobile, navigation et actions simplifiées, catalogue ordonné par métiers BTP, premier ajout guidé et aperçu moins encombré.
+
+Validation : compilation complète, 56 assertions de régression réussies et parcours de démonstration locale à 360, 390 et 1440 px. Détails, limites et captures : [notes de livraison](uiux-corrections-2026-09-24/README.md). Modifications présentes dans la version de travail ; aucun déploiement de l’application depuis le dépôt partagé en cours de modification.
+
+## 75. Plan issu du test de découverte entrepreneur — 2026-09-24
+
+Statut : **planifié, non exécuté**. Le test par l’interface a révélé un panneau d’envoi recouvert sur smartphone, une description commerciale absente de l’aperçu et des écarts d’arrondi dans les valeurs affichées. Il a également mis en évidence des difficultés pour confirmer les valeurs initiales et adapter les prix au premier usage.
+
+[Plan détaillé et critères d’acceptation](PLAN_CORRECTIONS_DECOUVERTE_2026-09-24.md) : 1) fiabilité du document et de l’envoi ; 2) quantités, coûts et marge compréhensibles ; 3) premier devis guidé ; 4) relecture mobile et passage au compte ; 5) recette complète et pilote. Chaque lot est lié aux étapes du [rapport illustré](audit-decouverte-2026-09-24/rapport.html). Aucune nouvelle correction produit ni publication réalisée pendant la planification.
+
+
+## 76. Corrections du parcours de découverte — 24 septembre 2026
+
+Plan § 75 exécuté localement pour C01–C09. Compte rendu : `docs/corrections-decouverte-2026-09-24/README.md` ; suivi des acceptations restantes dans `docs/PLAN_CORRECTIONS_DECOUVERTE_2026-09-24.md`.
+
+- Envoi mobile au premier plan ; focus et Échap vérifiés. Démonstration : explication et passage au compte, sans message client.
+- Descriptions commerciales dans les deux documents, décomposition liée à chaque ouvrage et ligne libre conservant son montant. Précision du PU compatible avec les montants sauvegardés ; marges et frais cohérents.
+- Métré initial vide et confirmation ; prix propres au devis ; coûts mobiles en cartes ; marge et coût des lignes libres accessibles en mode simple.
+- Accueil orienté premier devis / reprise ; formulaires allégés, ville vide et statut chantier `prospect` (« En devis »), lot neutre, ajout simple par défaut.
+- Lecture mobile et papier, réglages repliés, inscription avec copie locale récupérable. `calculationSnapshot` rend la reprise indépendante du catalogue cible ; pas d’import du catalogue partagé.
+- 92 contrôles Node passent ; scénario à trois ouvrages et deux lots, 360/390/768/1440 px, PDF Synthèse et Détaillé réels inspectés (deux pages chacun), texte de 620 caractères.
+- Limites : reprise sur compte connecté / autre appareil, iPhone et Android physiques, réseau dégradé et pilote entrepreneurs non réalisés. Pas de déploiement. Diff propre à cette intervention fourni ; les modifications antérieures liées aux paiements/abonnements restent distinctes.
+
+## 77. Première livraison des fonctionnalités prioritaires — 2026-09-24
+
+Développement local : import Excel/CSV de bordereaux dans le devis (aperçu, colonnes, lots, exclusions explicites, cartes mobile et annulation), comparaison devis de référence / dépenses chantier avec simulation du reste à dépenser. Unités libres conservées, coût absent distingué de zéro et marge incomplète annoncée.
+
+Fiabilité : migration additionnelle `migrations_saas_entitlements_2026-09-24.sql` pour quotas et activation atomique/idempotente des abonnements ; proxy scoping explicite par organisation, cache par utilisateur/organisation, montant/devise obligatoires, reprise de vérification depuis l’historique. Invitations précontrôlées ; changements de formule pendant une période payée bloqués avant débit en attendant une règle de prorata.
+
+154 contrôles automatisés réussis (31 abonnements/SQL, 34 import/rentabilité, 89 régressions), parcours réels XLSX/enregistrement local/dépense fictive, contrôle mobile 360/390 px et desktop 1440 px. Build et dist valides. **Non migré et non publié à distance** : la recette des comptes connectés et du prestataire de paiement reste à effectuer sur staging avant publication coordonnée. [Livraison, limites et procédure](priorites-produit-2026-09-24/README.md).
+
+### Demande de publication suivante
+
+Version Cloudflare `8bd0e236-97b8-446b-aae7-9704ae214085` téléversée **sans activation**, ressources vérifiées par HTTP ; site actuel conservé. Le jeton Supabase disponible et la session navigateur n’ont pas accès aux deux projets ikadevis. Tables d’abonnement absentes du cache de schéma production ; connexion au bon compte demandée. Aucune migration distante appliquée. [État précis et reprise](priorites-produit-2026-09-24/publication.md).
+
+
+## 78. Publication des priorités produit et protections SaaS — 2026-09-24
+
+Après connexion au bon compte Supabase, migrations abonnements + entitlements appliquées en transaction sur staging puis production. Vue diagnostique durcie (security_invoker, accès service_role) et deux tests de rôles ajoutés. Recette SQL réelle sur staging avec rollback : quotas, isolation de deux entreprises, permissions, sous-paiement, activation et rejeu ; PASS, aucun compte/entreprise de test conservé. Production : 2 entreprises, 10 devis conservés, 2 essais Starter, aucun paiement inventé.
+
+Proxy et invitations publiés sur les deux projets. Premier proxy production parti sur le fichier modèle choisi comme point d’entrée par l’éditeur Supabase : réponse détectée, frontend revenu temporairement à sa version antérieure, point d’entrée corrigé (`previous-index.ts` côté dashboard, source local toujours `index.ts`). Réponse finale 401 « Session invalide ou expirée. » du bon gestionnaire. Clé SasPay enregistrée par l’utilisateur, présence confirmée avant réactivation finale.
+
+Production 100 % : `8bd0e236-97b8-446b-aae7-9704ae214085`, JS `bbee429296`, CSS `e4e3875d8c`. Staging : `ba76b4b5-4566-4b70-a4f8-5c9bb9f49676`. Six ressources du domaine final identiques au build ; compte connecté et rentabilité à 390 px contrôlés. 67 tests ciblés relancés et 10 contrôles du gestionnaire proxy avec services simulés réussis. Configuration racine restaurée en development.
+
+Limites : aucun paiement réel validé ; secret enregistré différent de l’ancienne clé locale, donc sa présence ne prouve pas un encaissement possible. Aucun envoi d’invitation réel. Dépenses/paramètres Finances encore locaux. Refus du contrôle automatique et résolution consignés dans le [rapport de publication](priorites-produit-2026-09-24/publication.md).
+
+## 79. Refonte visuelle des abonnements et du règlement — 2026-09-24
+
+Interface plus sobre : en-tête blanc, formules compactes, tarifs lisibles et choix placé avant les fonctionnalités. Règlement dans un écran dédié avec récapitulatif, choix du pays et logos réels des opérateurs. Actions « Payer par Mobile Money » et « Payer par carte bancaire ». Adaptation smartphone, retour de focus, fermeture Échap et réduction des animations. Prix, codes de paiement et règles d’activation conservés.
+
+77 contrôles ciblés réussis, parcours local et aperçu hébergé vérifiés, smartphone 360/390 px sans débordement. Publication de l’aperçu `7c328c45-e3ea-450e-a288-8e0f7665fadf`, puis production `8f54172e-199c-4730-8046-bcd3972d74af` ; JS `7288e2e342`, CSS `1fb71a1385`. Dix-neuf ressources publiques identiques au build, dont quatorze images. Formules et règlement vérifiés sur le compte connecté après publication, aucun paiement engagé.
+
+Limites : PayDunya/TouchCash restent en texte faute de logo vérifié ; Mobi Cash Mali utilise la marque actuelle Moov Money. Encaissement réel toujours non éprouvé. [Livraison et recette](abonnements-design-2026-09-24/README.md), [sources des logos](abonnements-design-2026-09-24/sources-logos.md).

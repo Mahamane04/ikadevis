@@ -86,6 +86,23 @@ Deno.serve(async (req) => {
       (u) => (u.email || '').toLowerCase() === email.toLowerCase()
     )?.id;
 
+    // Refus AVANT l'envoi d'une invitation quand la formule n'a plus de place.
+    // Le trigger SQL reste l'autorité en cas d'invitations simultanées.
+    const { data: membership } = targetUserId ? await adminClient.from('organization_members')
+      .select('role').eq('organization_id', organizationId).eq('user_id', targetUserId).maybeSingle() : { data: null };
+    if (membership?.role === 'owner') return jsonResponse({ error: 'Le propriétaire est déjà membre. Son rôle ne peut pas être modifié par une invitation.' }, 409);
+    if (!membership) {
+      const { data: sub, error: subError } = await adminClient.from('subscriptions').select('*').eq('organization_id', organizationId).single();
+      const now = Date.now();
+      const valid = sub && ((sub.status === 'trial' && sub.plan_id === 'starter' && Date.parse(sub.trial_ends_at) > now)
+        || (sub.status === 'active' && ['standard', 'pro', 'entreprise', 'business'].includes(sub.plan_id) && Date.parse(sub.current_period_end) > now));
+      if (subError || !valid) return jsonResponse({ error: 'Un abonnement valide est nécessaire pour inviter un nouveau membre.' }, 409);
+      const limit = sub.plan_id === 'starter' ? 1 : ['standard', 'pro'].includes(sub.plan_id) ? 5 : Infinity;
+      const { count, error: countError } = await adminClient.from('organization_members').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId);
+      if (countError) return jsonResponse({ error: 'Impossible de vérifier les places disponibles. Réessayez.' }, 503);
+      if ((count || 0) >= limit) return jsonResponse({ error: `Votre formule autorise ${limit} utilisateur(s). Choisissez une formule supérieure avant d'inviter.` }, 409);
+    }
+
     if (!targetUserId) {
       const { data: invited, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email);
       if (inviteErr || !invited?.user) {

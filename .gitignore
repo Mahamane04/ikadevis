@@ -10,3 +10,5 @@ config.js
 dist/
 .claude/
 supabase/.temp/
+
+dist-landing/

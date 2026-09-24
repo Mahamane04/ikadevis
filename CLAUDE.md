@@ -16,6 +16,10 @@ chaque fois.
 > (calcul guidé des composants). **Ces trois fichiers peuvent être en avance
 > sur cette fiche — en cas de contradiction, ils font foi.**
 >
+> **§ 73 (2026-09-24)** — **à lire avant toute intervention sur les paiements** :
+> un abonnement s'était activé en production sans prélèvement. La règle qui en
+> sort : le navigateur ne décide jamais d'un encaissement.
+>
 > **§ 68 (2026-09-17)** — transitions généralisées à tout le SaaS, et surtout
 > réparation du **filet de focus**, qui ignorait toute fenêtre animée depuis sa
 > création : dix fenêtres perdaient silencieusement leur piège à focus.
@@ -42,11 +46,14 @@ index_jsx.js (source, JSX)  ──esbuild──>  app.compiled.js (servi)
         ├── js/finance-core.js      arrondi par devise, répartition, conversion, règlements (§ 70)
         ├── js/calc-engine.js       moteur de calcul (déboursé sec → K → HT → TVA → TTC)
         ├── js/quote-templates.js   gabarits de contenu devis
-        └── js/utils.js             utilitaires, dont l'export PDF (html2canvas + jsPDF)
+        ├── js/utils.js             utilitaires, dont l'export PDF (html2canvas + jsPDF)
+        ├── js/saspay-service.js    passerelle de paiement SasPay (§ 73)
+        └── js/subscription-service.js  abonnements SaaS — RELAIS du serveur, n'accorde rien (§ 73)
 
 Supabase (Postgres + RLS par organization_id)  <──requêtes──  app (navigateur)
         └── supabase/functions/*    Edge Functions (Deno) — service_role jamais côté client
                                     invite-member, send-payment-reminders (§ 62.6-62.7 du tracker)
+                                    saspay-proxy — SEULE autorité sur les abonnements (§ 73)
 ```
 
 **Composant `Badge`** (déclaré en tête de `index_jsx.js`, juste après
@@ -248,6 +255,11 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Cloudflare peut servir un `index.html` périmé même avec un paramètre aléatoire** | `cf-cache-status: HIT` malgré un cache-buster changé — revalider avant de conclure qu'un déploiement a échoué. |
 | **Une animation d'entrée rendait le filet de focus AVEUGLE** *(2026-09-17)* | Le filet (`index_jsx.js` ~15515) écartait toute surface à `opacity: 0` — or un fondu vaut 0 pendant ses premières frames. La remontée d'opacité ne modifiant **ni `class` ni `style`**, le `MutationObserver` ne rappelait jamais `reevaluer` : la fenêtre restait **définitivement** sans `role`, sans `aria-modal` et sans piège à focus. Mesuré : rôle toujours absent à 400 ms alors que l'opacité valait déjà 1. Correctif : une animation **en cours** ne vaut plus invisibilité, + rattrapage sur `animationstart`/`animationend`. |
 | **Une classe d'animation présente ne prouve RIEN** *(2026-09-17)* | `animate-scale-up` était invoqué **6 fois** dans `index_jsx.js` et **défini 0 fois** (ni `index.html`, ni `tailwind.css`) : six panneaux surgissaient d'un bloc depuis des mois. Vérifier la règle, pas la classe : `getComputedStyle(n).animationName` vaut `none` quand elle n'existe pas. |
+| **Une passerelle de paiement non configurée « réussissait »** *(2026-09-24, § 73)* | Sans clé API, `saspay-service.js` fabriquait une session `demo_…` et un `SUCCESS` **sans joindre api.saspay.me**. Un abonnement STANDARD s'est activé en production sans le moindre débit. Règle : une passerelle non configurée est une **panne**, pas un succès — elle lève `SASPAY_NOT_CONFIGURED`. |
+| **Le navigateur ne doit JAMAIS accorder une formule** *(2026-09-24, § 73)* | `else if (checks >= maxChecks)` activait l'abonnement après 20 s de sondage infructueux, et `\|\| verify.success` l'activait dès le 1ᵉʳ passage (`success` ne signifiait que « HTTP 200 »). `activatePlan()`/`applyPlanUpgrade()` sont **supprimées** : seule l'Edge Function `saspay-proxy` écrit dans `subscriptions`. Un délai dépassé reste un délai dépassé. |
+| **Un `grep` de contrôle retrouve les commentaires du correctif** *(2026-09-24, § 73)* | Chercher `checks >= maxChecks` ou `handleSimulateSuccess` dans le source les retrouve **dans la documentation de leur propre suppression** : cinq faux rouges d'un coup, et le symétrique (faux vert) serait pire. Lire le code amputé de ses lignes de commentaire. |
+| **Un référentiel écrit à la main n'est pas une source** *(2026-09-24, § 73.10)* | `SASPAY_COUNTRIES` de `js/saspay-service.js` listait 22 réseaux ; l'API SasPay en expose **77, dont 65 actifs**. J'ai affirmé « Wave n'opère pas au Mali » en me fiant à cette liste — **faux**, `wave_ml` est actif, et le correctif privait les Maliens du moyen de paiement le plus répandu. Six opérateurs actifs manquaient sur les pays déjà couverts. Quand la source est interrogeable (`GET /networks/`), la lire. |
+| **staging et production ont DIVERGÉ** *(2026-09-24, § 73.4)* | `public.set_updated_at()` (pourtant dans `v5_schema.sql`) est **présente en production, absente de staging**. Ne jamais supposer qu'une migration ancienne est appliquée des deux côtés : le vérifier avant d'en dépendre. |
 | **Sonder la production juste après un déploiement donne de FAUX échecs** *(2026-09-17)* | `index.html` (~ligne 1139) fait `controllerchange` → `window.location.reload()` : à la **première** visite suivant une mise en ligne, le nouveau service worker prend la main et la page se recharge, ce qui détruit l'arbre React et renvoie à l'écran de connexion. Une sonde automatisée conclut alors « production cassée ». Toujours faire une visite d'échauffement, puis mesurer à la seconde. Code antérieur : commit `0a364c4`. |
 
 ---
@@ -274,6 +286,8 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
 ---
 
 ## État courant (voir tracker § 62-63 pour le détail à jour)
+
+**Publication du 24 septembre 2026 — § 78 :** les deux migrations SaaS, `saspay-proxy`, `invite-member` et le frontend des priorités sont désormais déployés sur staging et production. L’utilisateur a enregistré `SASPAY_API_KEY` en production ; aucun paiement réel validé ici. Dépenses et paramètres Finances encore locaux. Les anciennes indications « production en attente », « quotas navigateur » et « secret posé nulle part » ci-dessous sont historiques : consulter [l’état de publication](docs/priorites-produit-2026-09-24/publication.md).
 
 - Branche `main` : à jour. `codex/v2-uiux` porte encore ~20 commits d'avance
   sans divergence (refonte UI devis, facturation, import CSV, calcul mixte,
@@ -338,6 +352,23 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   `migrations_finance_expenses_2026-09-19.sql` — **pas encore appliquée**.
   Piège de banc : le triple clic ne vide pas un `<input type="number">` —
   utiliser le setter natif + `input`, puis relire la valeur.
+- **Abonnements SaaS — incident et correction (§ 73, 2026-09-24)** : un
+  abonnement STANDARD s'était activé **en production sans aucun prélèvement**
+  (simulation silencieuse faute de clé API + auto-activation du client après
+  20 s). Corrigé de fond en comble : `migrations_saas_subscriptions_2026-09-24.sql`
+  (tables `subscriptions`/`subscription_payments`, RLS **en lecture seule** —
+  aucune policy d'écriture) et `saspay-proxy` réécrite en seule autorité (prix
+  fixés côté serveur, contrôle du montant encaissé, application idempotente).
+  **Appliquées et déployées sur staging uniquement** ; production en attente.
+  ⚠️ **Le secret `SASPAY_API_KEY` n'est posé nulle part** : tant qu'il manque,
+  toute souscription est refusée avec `GATEWAY_NOT_CONFIGURED` — c'est voulu.
+  **Aucun paiement réel n'a encore été exercé de bout en bout.** La clé SasPay
+  existe pourtant et elle est **valide** (dans `.env`, éprouvée contre
+  `GET /networks/` → HTTP 200) : il ne manque qu'à la porter en secret Supabase.
+  Reste ouvert : les quotas restent vérifiés côté navigateur (§ 73.8), et la clé
+  SasPay *par organisation* (facturation) est toujours côté client (§ 73.11).
+  Suite après chantier : **818/844, 9/58 suites, 7/7 étalons** — aucun nouvel
+  échec par rapport à la liste nominative d'avant.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 

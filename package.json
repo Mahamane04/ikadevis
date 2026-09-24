@@ -9,7 +9,9 @@
     "build:dist": "npm run build && node scripts/build-dist.mjs",
     "deploy:build": "node scripts/generate-config.mjs production && npm run build:dist",
     "config": "node scripts/generate-config.mjs",
-    "set-saspay-key": "node scripts/set-saspay-key.mjs"
+    "set-saspay-key": "node scripts/set-saspay-key.mjs",
+    "build:landing": "node scripts/build-landing.mjs",
+    "test:priorities": "node scratch/test_subscription_entitlements.mjs && node scratch/test_priority_features.mjs"
   },
   "dependencies": {
     "puppeteer": "^25.7.0"

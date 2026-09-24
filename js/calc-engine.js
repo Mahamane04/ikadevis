@@ -684,13 +684,21 @@ function generateNextQuoteNumber(existingQuotes, currentYear = new Date().getFul
 
 
 function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quoteFinancials = {}) {
+    if (item.calculationSnapshot) {
+        const snap = item.calculationSnapshot;
+        solutions = [snap.solution];
+        materials = snap.materials || [];
+        labor = snap.labor || [];
+        recipes = snap.recipes || [];
+    }
+
     if (item.isCustom) {
-        const qty = Math.max(1, parseFloat(item.qty) || 1);
+        const qty = Math.max(0, parseFloat(item.qty) || 0);
         const unitPriceHT = Math.max(0, parseFloat(item.unitPriceHT) || 0);
         const totalHT = Math.round(qty * unitPriceHT);
-        const hasKnownCost = parseFloat(item.costUnit) > 0;
+        const hasKnownCost = item.costUnit !== '' && item.costUnit != null && Number.isFinite(Number(item.costUnit)) && Number(item.costUnit) >= 0;
         const debourse = hasKnownCost ? Math.round(parseFloat(item.costUnit) * qty) : null;
-        const overheadRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.overheadRate || 5)));
+        const overheadRate = Math.min(50, Math.max(0, (parseFloat(quoteFinancials.overheadRate ?? 5) || 0)));
         const vatRate = Math.min(50, Math.max(0, parseFloat(quoteFinancials.vatRate !== undefined ? quoteFinancials.vatRate : 18)));
         const fraisGen = hasKnownCost ? Math.round(debourse * (overheadRate / 100)) : null;
         const revient = hasKnownCost ? debourse + fraisGen : null;
@@ -724,6 +732,14 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     const solution = solutions.find(s => s.id === item.solutionId) || solutions[0];
     if (!solution) return { ...item, error: 'Ouvrage non trouvé' };
 
+    // Prix propres à cet ouvrage : jamais de mutation du catalogue partagé.
+    const overrides = item.calcForm?.priceOverrides || {};
+    const overridePrice = (value, fallback) => value !== '' && value != null && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fallback;
+    materials = materials.map(mat => {
+        const priceCalc = overridePrice(overrides.material?.[mat.id], mat.priceCalc);
+        return priceCalc === mat.priceCalc ? mat : { ...mat, priceCalc, priceBuy: priceCalc * (mat.unitSize || 1) };
+    });
+    labor = labor.map(lab => ({ ...lab, rate: overridePrice(overrides.labor?.[lab.id], lab.rate) }));
     const recipeLines = recipes.filter(r => r.solutionId === solution.id);
     const calcForm = item.calcForm || {
         solutionId: solution.id,
@@ -759,7 +775,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
     const surfaceDirectVal = Math.max(0, numOrFallback(calcForm.surfaceDirect, widthVal * heightVal));
     const qtyVal = Math.max(1, parseInt(calcForm.qty || item.qty) || 1);
     const facesVal = Math.max(1, parseInt(calcForm.faces) || 1);
-    const marginVal = Math.min(95, Math.max(0, parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin || 30))));
+    const marginVal = Math.min(95, Math.max(0, (parseFloat(calcForm.margin !== undefined ? calcForm.margin : (quoteFinancials.margin ?? 30)) || 0)));
 
     // Dynamic scope isolated per calculation
     const mode = calcForm.takeoffMode || 'rectangle';
@@ -951,7 +967,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
                 consumedByCategory[cat] = (consumedByCategory[cat] || 0) + cost;
                 consumedByCategoryReel[cat] = (consumedByCategoryReel[cat] || 0) + cost;
                 details.push({
-                    id: line.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
+                    id: line.id, laborId: lab.id, type: 'labor', costCategory: cat, label: line.label, name: lab.name,
                     baseQty: line.baseQty, netQty: line.baseQty, billedQty: line.baseQty, grossQty: line.baseQty,
                     wasteQty: 0, purchasedQty: line.baseQty, remainderQty: 0,
                     unit: lab.unit || 'u', unitCost: lab.rate, totalCost: cost,
@@ -963,7 +979,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
 
     const totalDebourseConsomme = Object.values(consumedByCategory).reduce((a, b) => a + b, 0);
     const totalDebourseConsommeReel = Object.values(consumedByCategoryReel).reduce((a, b) => a + b, 0);
-    const overheadRate = Math.min(50, Math.max(0, parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate || 5))));
+    const overheadRate = Math.min(50, Math.max(0, (parseFloat(calcForm.overheadRate !== undefined ? calcForm.overheadRate : (quoteFinancials.overheadRate ?? 5)) || 0)));
     const fraisGenerauxConsomme = totalDebourseConsomme * (overheadRate / 100);
     const totalRevientConsomme = totalDebourseConsomme + fraisGenerauxConsomme;
 
@@ -1044,7 +1060,7 @@ function calculateSingleWorkItem(item, solutions, materials, labor, recipes, quo
             netHTConsomme: Math.round(netHTConsomme),
             tvaConsomme: Math.round(tvaConsomme),
             totalTTCConsomme: Math.round(totalTTCConsomme),
-            margeValeurConsomme: Math.round(margeValeurConsomme),
+            margeValeurConsomme: Math.round(netHTConsomme) - Math.round(totalRevientConsomme),
             details,
             consumedByCategoryReel
         }
@@ -1125,7 +1141,7 @@ function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
             return calculatedItem;
         });
 
-        const lotFraisGen = lotDebourse * (quoteFinancials.overheadRate / 100);
+        const lotFraisGen = lotRevient - lotDebourse;
         const lotTVA = lotNetHT * (quoteFinancials.vatRate / 100);
         const lotTTC = lotNetHT + lotTVA;
         const lotMarginPct = lotNetHT > 0 ? (lotMargeVal / lotNetHT) * 100 : 0;
@@ -1146,7 +1162,8 @@ function calculateHybridQuote(quote, solutions, materials, labor, recipes) {
             lotTotalTTC: Math.round(lotTTC),
             lotDebourse: Math.round(lotDebourse),
             lotMarginPct: parseFloat(lotMarginPct.toFixed(2)),
-            isComplete: calculatedItems.length > 0 && calculatedItems.every(i => !i.error && i.totalHT > 0)
+            costsComplete: calculatedItems.every(i => i.quoteData?.totalDebourseConsomme != null && !i.error),
+            isComplete: calculatedItems.length > 0 && calculatedItems.every(i => !i.error && !i.needsQuantityConfirmation && i.totalHT > 0 && i.quoteData?.totalDebourseConsomme != null)
         };
     });
 
@@ -1189,6 +1206,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
     const savedLots = (calc.lots || []).map((lot, idx) => ({
         id: lot.id,
         lotNumber: idx + 1,
+        lotCode: lot.code || String(idx + 1).padStart(2, '0'),
         lotName: lot.name,
         solutionId: lot.items?.[0]?.solutionId || 1,
         solutionName: lot.items?.[0]?.name || lot.name,
@@ -1230,7 +1248,7 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         number: quoteNumber,
         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         clientId: hybridQuote.clientId || null,
-        clientName: hybridQuote.clientName?.trim() || 'Client Passage',
+        clientName: hybridQuote.clientName?.trim() || '',
         projectId: hybridQuote.projectId || null,
         projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
         notes: hybridQuote.notes || '',
@@ -1260,7 +1278,8 @@ function adaptSavedQuoteToHybrid(savedQuote, solutions, materials, labor, recipe
             ...calculateHybridQuote(savedQuote.hybridQuoteSnapshot, solutions, materials, labor, recipes),
             id: savedQuote.id,
             serverId: savedQuote.serverId || null,
-            number: savedQuote.number
+            number: savedQuote.number,
+            status: savedQuote.status || 'draft'
         };
     }
     
@@ -1458,4 +1477,24 @@ function calculateAcmNestingOptimal({ width = 12, height = 6, panelWidth = 1.5, 
         totalLinearTubes,
         tubesBarCount: Math.ceil(totalLinearTubes / 6)
     };
+}
+
+// Prépare une reprise démo → compte autonome, sans importer ni écraser le
+// catalogue du compte. Chaque ouvrage transporte les ressources nécessaires.
+function preparerRepriseDemo(quote, solutions, materials, labor, recipes) {
+    const copy = JSON.parse(JSON.stringify(quote));
+    copy.lots = (copy.lots || []).map(lot => ({ ...lot, items: (lot.items || []).map(item => {
+        if (item.isCustom || item.calculationSnapshot) return item;
+        const solution = solutions.find(s => s.id === item.solutionId);
+        if (!solution) throw new Error(`Le modèle de « ${item.name} » est introuvable. Votre devis reste dans la démonstration.`);
+        const lines = recipes.filter(r => r.solutionId === solution.id);
+        const snapshot = {
+            solution,
+            recipes: lines,
+            materials: materials.filter(m => lines.some(r => r.type === 'material' && r.refId === m.id)),
+            labor: labor.filter(l => lines.some(r => r.type === 'labor' && r.refId === l.id))
+        };
+        return { ...item, calculationSnapshot: JSON.parse(JSON.stringify(snapshot)) };
+    }) }));
+    return copy;
 }

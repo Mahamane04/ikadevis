@@ -1,0 +1,121 @@
+[
+  {
+    "step": 1,
+    "image": "01-entree.png",
+    "title": "Découvrir et essayer",
+    "health": "Clair",
+    "note": "Promesse BTP compréhensible ; essai sans compte rassurant. Le formulaire de connexion reste plus visible que la découverte."
+  },
+  {
+    "step": 2,
+    "image": "02-accueil.png",
+    "title": "Choisir par où commencer",
+    "health": "Hésitation",
+    "note": "Nouveau devis visible, mais quatre actions de même importance. Pourquoi un objectif de 15 millions ? Nouveau chantier ou nouveau devis en premier ? Badge démo réduit à un point sur mobile. Bannière de récupération issue d’un test précédent écartée, non comptée comme défaut de première visite."
+  },
+  {
+    "step": 3,
+    "image": "03-devis-vide.png",
+    "title": "Démarrer le devis",
+    "health": "Accessible mais peu guidé",
+    "note": "Ajouter mon premier ouvrage est explicite. Client et Projet apparaissent sans indication obligatoire/facultatif. Le lot imposé « Installation de Chantier » ne correspond pas à mon mur."
+  },
+  {
+    "step": 4,
+    "image": "04-client.png",
+    "title": "Créer le client",
+    "health": "Possible, formulaire intimidant",
+    "note": "Création disponible depuis le devis. Le formulaire demande immédiatement contact, NIF/RCCM, téléphone, email, adresse et ville ; les champs facultatifs ne sont pas distingués. Ville Dakar préremplie pour un client dont la ville est inconnue."
+  },
+  {
+    "step": 5,
+    "image": "05-chantier.png",
+    "title": "Créer le chantier",
+    "health": "Possible, trop tôt détaillé",
+    "note": "Client automatiquement repris, bon point. Le budget est demandé alors que je viens précisément le calculer ; statut En cours par défaut pour un chantier encore au stade du devis. Nom projet/chantier fluctuant et Dakar prérempli."
+  },
+  {
+    "step": 6,
+    "image": "06-recherche-mur.png",
+    "title": "Trouver mon ouvrage",
+    "health": "Réussi",
+    "note": "Le mot courant « mur » retrouve immédiatement la maçonnerie. Bouton Ajouter lisible. Les modes « Multiple », case à cocher, Ajouter et Insérer représentent quatre indications à comprendre pour ajouter une seule ligne."
+  },
+  {
+    "step": 7,
+    "image": "07-ouvrage-ajoute.png",
+    "title": "Découvrir le premier prix",
+    "health": "Risque de confiance",
+    "note": "Sans saisir mes dimensions, 10 m², 10 398 FCFA/m² et 30 % de marge apparaissent. Pas de signal visible expliquant que ce sont des valeurs initiales à contrôler. Quantité ressemble à un champ mais il faut trouver Modifier. Le lot reste Installation de Chantier pour ma maçonnerie."
+  },
+  {
+    "step": 8,
+    "image": "08-surface.png",
+    "title": "Saisir 40 m²",
+    "health": "Réussi, explication du coût absente",
+    "note": "Surface saisie et montant recalculé immédiatement ; fiche claire et bouton Terminer accessible. Pour mon mur 20 × 2 m, je calcule moi-même 40 m². Le mode simple ne montre pas d’où viennent les prix des agglos, du mortier et de la main-d’œuvre ; changer la marge exige Avancé."
+  },
+  {
+    "step": 9,
+    "image": "09-couts.png",
+    "title": "Vérifier mes coûts",
+    "health": "Difficile sur smartphone",
+    "note": "Décomposition utile et concrète : agglos, ciment et maçon. Tableau plus large que l’écran, dernière colonne coupée et textes très comprimés. Prix d’achat visibles comme texte, sans action Modifier mes prix à cet endroit. Je peux régler les pertes, mais je ne sais pas comment appliquer le prix de mon fournisseur. Le contenu technique de la recette n’est pas validé par ce test."
+  },
+  {
+    "step": 10,
+    "image": "10-marge.png",
+    "title": "Choisir ma marge",
+    "health": "Possible mais technique",
+    "note": "Champ réglé à 25 %, prix recalculé. « Taux de marque (sur PV HT) » et formule mathématique exigent un effort ; un exemple concret serait plus parlant. Les frais généraux à 5 % ne sont pas expliqués par un exemple. Écart observé avant modification : marge simple 124 303 FCFA, avancée 124 304 FCFA, à harmoniser dans les arrondis d’affichage."
+  },
+  {
+    "step": 11,
+    "image": "11-enregistrement.png",
+    "title": "Enregistrer mon devis",
+    "health": "Réussi en local",
+    "note": "Confirmation « enregistré en local » et bouton Enregistré observés. Pas d’explication durable sur la conservation entre appareils ou l’intérêt de créer un compte. Ne démontre pas une sauvegarde cloud."
+  },
+  {
+    "step": 12,
+    "image": "12-apercu.png",
+    "title": "Ouvrir l’aperçu client",
+    "health": "Accessible, priorité discutable",
+    "note": "PDF et Envoyer visibles. Convertir en facture reste l’action la plus forte visuellement alors que mon devis est encore Brouillon. Une grande partie de l’écran précède le document. Avertissement de démonstration explicite, bon point."
+  },
+  {
+    "step": 13,
+    "image": "13-document.png",
+    "title": "Relire le document",
+    "health": "Difficile sur smartphone",
+    "note": "Colonnes et nombres coupés sur plusieurs lignes à 390 px. La description commerciale saisie n’apparaît pas dans le mode Synthèse par défaut. Prix affiché 9 668 × 40 = 386 720, contre total affiché 386 722 FCFA : écart de présentation à expliquer ou éliminer. TVA 18 % appliquée sans choix préalable dans ce parcours, sans jugement fiscal sur sa pertinence."
+  },
+  {
+    "step": 14,
+    "image": "14-pdf.png",
+    "title": "Télécharger le PDF",
+    "health": "Téléchargement annoncé",
+    "note": "L’application affiche « PDF téléchargé — il porte le filigrane démonstration. Créez un compte pour l’envoyer à votre client. » Le fichier téléchargé n’est pas contrôlé dans cet audit. Aucun bouton de création de compte n’accompagne ce message. Le mode Détaillé remplace l’ouvrage par les composants ; la description libre reste absente dans les deux aperçus testés."
+  },
+  {
+    "step": 15,
+    "image": "15-envoi.png",
+    "title": "Préparer l’envoi",
+    "health": "Bloqué sur smartphone",
+    "note": "Après Envoyer, le panneau existe mais reste derrière l’aperçu : aucune fenêtre d’envoi visible à 390 px. Le contrôle de l’élément au premier plan confirme que l’aperçu couvre le panneau. Sur ordinateur, ce même panneau est visible et Fermer fonctionne. Aucun WhatsApp ni email ouvert ou envoyé."
+  },
+  {
+    "step": 16,
+    "image": "16-desktop-envoi.png",
+    "title": "Comparer l’envoi sur ordinateur",
+    "health": "Accessible",
+    "note": "Panneau bien visible à 1440 px, avec deux étapes PDF puis WhatsApp. Le message indique déjà « en pièce jointe » alors que l’ajout est manuel. La consigne technique est longue ; aucun envoi externe effectué."
+  },
+  {
+    "step": 17,
+    "image": "17-desktop-document.png",
+    "title": "Comparer la relecture sur ordinateur",
+    "health": "Plus lisible, mêmes omissions",
+    "note": "Le grand écran rend la lecture moins comprimée. La description libre manque également ici et l’écart prix unitaire × quantité / total reste visible : ce ne sont pas seulement des problèmes de smartphone."
+  }
+]

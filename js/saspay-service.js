@@ -16,7 +16,14 @@
 
     const BASE_URL = 'https://api.saspay.me/api/v1';
 
-    // Référentiel des pays supportés avec opérateurs Mobile Money
+    // Référentiel des pays supportés avec opérateurs Mobile Money.
+    //
+    // 2026-09-24 — liste RECOUPÉE avec l'API SasPay (GET /networks/, 77
+    // réseaux dont 65 actifs). Six opérateurs actifs manquaient sur les pays
+    // déjà couverts, dont **wave_ml** : Wave opère bel et bien au Mali, et
+    // son absence ici privait les clients maliens du moyen de paiement le
+    // plus répandu du pays. À recouper de nouveau si SasPay élargit son
+    // catalogue — l'Edge Function, elle, interroge la liste en direct.
     const SASPAY_COUNTRIES = [
         {
             code: 'ML',
@@ -26,6 +33,7 @@
             flag: '🇲🇱',
             networks: [
                 { code: 'orange_ml', name: 'Orange Money Mali', color: '#ff6600', icon: 'fa-mobile-screen-button' },
+                { code: 'wave_ml', name: 'Wave Mali', color: '#1dc3f2', icon: 'fa-wave-square' },
                 { code: 'moov_ml', name: 'Moov Money Mali', color: '#005baa', icon: 'fa-mobile-screen-button' },
                 { code: 'mobi_cash_ml', name: 'Mobi Cash Mali (Malitel)', color: '#008542', icon: 'fa-mobile-screen-button' }
             ]
@@ -40,7 +48,8 @@
                 { code: 'wave_ci', name: 'Wave CI', color: '#1dc3f2', icon: 'fa-wave-square' },
                 { code: 'orange_ci', name: 'Orange Money CI', color: '#ff6600', icon: 'fa-mobile-screen-button' },
                 { code: 'mtn_ci', name: 'MTN MoMo CI', color: '#ffcc00', icon: 'fa-mobile-screen-button' },
-                { code: 'moov_ci', name: 'Moov Money CI', color: '#005baa', icon: 'fa-mobile-screen-button' }
+                { code: 'moov_ci', name: 'Moov Money CI', color: '#005baa', icon: 'fa-mobile-screen-button' },
+                { code: 'djamo_ci', name: 'Djamo CI', color: '#1a4ed8', icon: 'fa-credit-card' }
             ]
         },
         {
@@ -53,7 +62,10 @@
                 { code: 'wave_sn', name: 'Wave Sénégal', color: '#1dc3f2', icon: 'fa-wave-square' },
                 { code: 'orange_sn', name: 'Orange Money Sénégal', color: '#ff6600', icon: 'fa-mobile-screen-button' },
                 { code: 'freemoney_sn', name: 'Free Money Sénégal', color: '#e60000', icon: 'fa-mobile-screen-button' },
-                { code: 'wizall_sn', name: 'Wizall Sénégal', color: '#2b2d42', icon: 'fa-mobile-screen-button' }
+                { code: 'wizall_sn', name: 'Wizall Sénégal', color: '#2b2d42', icon: 'fa-mobile-screen-button' },
+                { code: 'expresso_sn', name: 'Expresso Sénégal', color: '#e8112d', icon: 'fa-mobile-screen-button' },
+                { code: 'djamo_sn', name: 'Djamo Sénégal', color: '#1a4ed8', icon: 'fa-credit-card' },
+                { code: 'paydunya_sn', name: 'PayDunya Sénégal', color: '#00a4e4', icon: 'fa-wallet' }
             ]
         },
         {
@@ -76,7 +88,8 @@
             flag: '🇧🇫',
             networks: [
                 { code: 'orange_bf', name: 'Orange Burkina Faso', color: '#ff6600', icon: 'fa-mobile-screen-button' },
-                { code: 'moov_bf', name: 'Moov Burkina Faso', color: '#005baa', icon: 'fa-mobile-screen-button' }
+                { code: 'moov_bf', name: 'Moov Burkina Faso', color: '#005baa', icon: 'fa-mobile-screen-button' },
+                { code: 'touchcash_bf', name: 'TouchCash Burkina Faso', color: '#f59e0b', icon: 'fa-mobile-screen-button' }
             ]
         },
         {
@@ -86,7 +99,8 @@
             dialCode: '+228',
             flag: '🇹🇬',
             networks: [
-                { code: 'togocel', name: 'T-Money (Togocel)', color: '#009639', icon: 'fa-mobile-screen-button' },
+                { code: 'mixx_tg', name: 'Mixx by Yas (Togo)', color: '#00a0df', icon: 'fa-mobile-screen-button' },
+                { code: 'togocel', name: 'Togocel Money', color: '#009639', icon: 'fa-mobile-screen-button' },
                 { code: 'moov_tg', name: 'Moov Money Togo', color: '#005baa', icon: 'fa-mobile-screen-button' }
             ]
         },
@@ -117,6 +131,19 @@
     const GLOBAL_NETWORKS = [
         { code: 'card', name: 'Carte bancaire (Visa / Mastercard)', color: '#10b981', icon: 'fa-credit-card' }
     ];
+
+    /**
+     * Traduit le statut renvoyé par SasPay en trois verdicts sans
+     * ambiguïté. Tout ce qui n'est pas explicitement payé ou explicitement
+     * échoué reste « en attente » : l'indécision ne vaut jamais
+     * encaissement.
+     */
+    function verdictPaiement(statutBrut) {
+        const s = String(statutBrut || '').toUpperCase().trim();
+        if (s === 'PAID' || s === 'SUCCESS' || s === 'SUCCEEDED' || s === 'COMPLETED') return 'paid';
+        if (s === 'FAILED' || s === 'CANCELLED' || s === 'CANCELED' || s === 'EXPIRED' || s === 'REFUSED') return 'failed';
+        return 'pending';
+    }
 
     /**
      * Génère un identifiant idempotent UUID v4
@@ -175,10 +202,11 @@
         if (!key) {
             return { ok: false, error: 'Veuillez saisir votre clé API SasPay (sk_live_... ou sk_test_...).' };
         }
-        // Mode simulation locale
-        if (key.startsWith('sk_test_demo') || key === 'demo' || key.includes('demo')) {
-            return { ok: true, mode: 'demo', message: 'Clé de simulation / test SasPay validée avec succès.' };
-        }
+        // Aucun raccourci de simulation ici. Une clé dont le libellé
+        // contient « demo » reste une clé : elle est présentée à SasPay
+        // comme les autres. L'ancien test `key.includes('demo')` acceptait
+        // n'importe quelle chaîne contenant ces quatre lettres et faisait
+        // passer pour valide une connexion qui n'avait jamais eu lieu.
 
         try {
             // Interroger le catalogue des réseaux pour valider la clé
@@ -212,6 +240,28 @@
     }
 
     /**
+     * Refuse net l'opération quand aucune clé n'est configurée.
+     *
+     * C'est le garde-fou central ajouté le 2026-09-24. Auparavant, chacune
+     * des fonctions ci-dessous fabriquait une réponse fictive « success:
+     * true » quand la clé manquait — l'application croyait alors à un
+     * paiement qui n'avait jamais été demandé à personne. Un abonnement
+     * STANDARD s'est ainsi activé en production sans le moindre débit.
+     *
+     * Une passerelle non configurée est une panne, pas un succès.
+     */
+    function exigerCle(key, operation) {
+        if (!key) {
+            const err = new Error(
+                'La passerelle de paiement SasPay n\'est pas configurée : ' + operation +
+                ' est impossible. Renseignez la clé API dans les Paramètres.'
+            );
+            err.code = 'SASPAY_NOT_CONFIGURED';
+            throw err;
+        }
+    }
+
+    /**
      * Crée une session de Checkout hébergé (lien de paiement à partager ou ouvrir)
      * Documentation : https://docs.saspay.me/api-reference/payments/checkout-create
      */
@@ -231,23 +281,7 @@
         const key = resolveApiKey(apiKey);
         const amtStr = Number(amount).toFixed(2);
 
-        // Simulation démo si aucune clé ou clé de test démo
-        if (!key || key.startsWith('sk_test_demo') || key === 'demo' || key.includes('demo')) {
-            const fakeSlug = 'demo_' + Date.now();
-            return {
-                success: true,
-                isDemo: true,
-                data: {
-                    id: 'checkout_' + fakeSlug,
-                    slug: fakeSlug,
-                    checkout_url: `https://pay.saspay.me/checkout/${fakeSlug}`,
-                    amount: amtStr,
-                    currency,
-                    description: description || 'Règlement facture',
-                    status: 'PENDING'
-                }
-            };
-        }
+        exigerCle(key, 'la création d\'un lien de paiement');
 
         const payload = {
             amount: amtStr,
@@ -301,23 +335,7 @@
         const key = resolveApiKey(apiKey);
         const amtStr = Number(amount).toFixed(2);
 
-        // Simulation démo
-        if (!key || key.startsWith('sk_test_demo') || key === 'demo' || key.includes('demo')) {
-            const fakeId = 'pay_' + Date.now();
-            return {
-                success: true,
-                isDemo: true,
-                data: {
-                    id: fakeId,
-                    amount: amtStr,
-                    currency,
-                    network,
-                    status: 'PENDING',
-                    instructions: `Une demande de débit de ${amtStr} ${currency} a été simulée sur le numéro ${customer?.phone}.`,
-                    checkout_url: null
-                }
-            };
-        }
+        exigerCle(key, 'la demande de débit Mobile Money');
 
         const payload = {
             amount: amtStr,
@@ -375,15 +393,7 @@
         }
         const key = resolveApiKey(apiKey);
 
-        // En mode démo, simuler un succès
-        if (!key || key.startsWith('sk_test_demo') || key === 'demo' || String(id).startsWith('pay_demo') || String(id).startsWith('checkout_demo') || String(id).startsWith('chk_demo')) {
-            return {
-                success: true,
-                isDemo: true,
-                status: 'SUCCESS',
-                paid_at: new Date().toISOString()
-            };
-        }
+        exigerCle(key, 'la vérification d\'un paiement');
 
         const endpoint = type === 'checkout'
             ? `${BASE_URL}/checkout-sessions/${id}/`
@@ -404,11 +414,16 @@
         }
 
         const data = json.data || json;
-        const status = (data.status || '').toUpperCase();
 
+        // `paid` est le SEUL champ sur lequel un appelant doit se fonder
+        // pour considérer un règlement acquis. L'ancien contrat renvoyait
+        // `success: true` dès que la requête HTTP avait abouti, y compris
+        // pour un paiement PENDING — et index_jsx.js testait `|| verify.
+        // success`, activant donc l'abonnement au premier sondage.
         return {
-            success: true,
-            status: status === 'PAID' ? 'SUCCESS' : status,
+            paid: verdictPaiement(data.status) === 'paid',
+            verdict: verdictPaiement(data.status),
+            status: (data.status || '').toUpperCase(),
             data
         };
     }
@@ -419,6 +434,8 @@
         GLOBAL_NETWORKS,
         normalizePhoneNumber,
         generateIdempotencyKey,
+        verdictPaiement,
+        estConfiguree: function (cle) { return !!resolveApiKey(cle); },
         testConnection,
         createCheckoutSession,
         initiateSoftPay,
