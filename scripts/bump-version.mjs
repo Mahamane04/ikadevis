@@ -27,7 +27,16 @@ const hacher = (tampons) => createHash('sha256').update(Buffer.concat(tampons)).
 // parser AST, utils.js le formatage, quote-templates.js les modèles, et
 // app.compiled.js les consomme tous) : un seul jeton partagé pour les 4,
 // comme la convention manuelle précédente le faisait déjà.
-const FICHIERS_JS = ['js/calc-engine.js', 'js/utils.js', 'js/quote-templates.js', 'app.compiled.js'];
+const FICHIERS_JS = [
+    'js/finance-core.js',
+    'js/calc-engine.js',
+    'js/utils.js',
+    'js/quote-templates.js',
+    'js/saspay-platform-config.js',
+    'js/saspay-service.js',
+    'js/subscription-service.js',
+    'app.compiled.js'
+];
 const jetonJs = hacher(FICHIERS_JS.map((f) => readFileSync(path.join(racine, f))));
 const jetonCss = hacher([readFileSync(path.join(racine, 'tailwind.css'))]);
 

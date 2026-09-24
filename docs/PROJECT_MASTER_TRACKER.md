@@ -4798,3 +4798,278 @@ successifs.
 - **En ligne** : déployé en production (`app.ikadevis.com` et `workers.dev`),
   jetons JS `16cbcfb739` · CSS `6fe0f4df12`.
 
+
+---
+
+## 💶 § 70. Socle du module Finances — précision monétaire, échéances, règlements en table (2026-09-18)
+
+Cadrage : un cahier des charges « Comptabilité simple, internationale et reliée
+aux projets » (≈ 28,5 j en 9 étapes). **Seul le socle a été traité** (étapes 0
+et 3 du plan, ≈ 7 j), à la demande de l'utilisateur. Le cahier avait été rédigé
+par un autre outil sur `~/.codex/.chatgpt-projects/.../ikadevis-v2` — un
+instantané figé au 2026-08-22 (6 538 lignes, sans git ni facturation). Ses deux
+constats de code (« coût d'une ligne libre = 70 % du prix de vente », carte
+« Budget d'Achat Sécurisé ») n'existent plus dans ce dépôt et n'ont **pas** été
+réintroduits. L'interface n'a pas été modifiée (consigne explicite).
+
+### 70.1 Défauts trouvés, mesurés, corrigés
+
+| Défaut | Preuve | Correctif |
+|---|---|---|
+| `migrations_document_numbering_2026-09-06.sql` ne compile pas | `"v_max_existing" is not a known variable` — **et son échec annule tout le fichier** (mesuré sur Postgres 16 : `seq_year` absent). Si c'est ce qui s'est passé en base, `create_quote_v6` réconciliée et `set_document_prefix` manquent aussi. | `migrations_fix_issue_invoice_2026-09-17.sql` rejoue le fichier ENTIER, corrigé, de façon rejouable |
+| `invoices.due_date` jamais écrit → rappels automatiques jamais partis | seule occurrence applicative = une lecture (`index_jsx.js` `mapInvoiceFromDb`) ; l'Edge Function filtre `.eq('due_date', …)` | l'émission pose `due_date = CURRENT_DATE + 30` ; `migrations_due_date_backfill_2026-09-18.sql` rattrape l'historique **en éteignant dans la même transaction tout seuil de rappel déjà passé** (sinon : e-mails rétroactifs à de vrais clients) |
+| `formatMoney(12.34,'EUR')` affichait `12,00 €` | `js/utils.js` arrondissait à l'unité AVANT de formater | précision par devise (ISO 4217) ; FCFA **identique octet pour octet** (200 000 valeurs, séparateur U+202F) |
+| Échéancier 40/30/20/10 : Σ tranches ≠ TTC | sur 1 000 001 : Σ = 1 000 000 | `repartirMontant` (plus forts restes), Σ exacte sur 240 combinaisons |
+| Règlement en euros : centimes effacés | `Math.round(montant)` dans `enregistrerReglement` | `arrondiDevise` (= `Math.round` en FCFA) |
+| Aucune table de règlements | détail sérialisé dans `invoices.notes` (`<!--PAYMENTS:…-->`) | tables `payments` / `payment_allocations`, migration en 5 temps |
+
+### 70.2 Fichiers
+
+- `js/finance-core.js` (nouveau, pur JS, testable en `node:vm`) : `arrondiMonetaire`
+  (branche 0 décimale = `Math.round` par construction), `repartirMontant`,
+  `versIso` (`'FCFA'` → `'XOF'`), `versBase`/`depuisBase` (sens du taux : unités de
+  la devise de base pour 1 unité étrangère ; taux absent ⇒ `null`, jamais 1),
+  `parserMarqueurPaiements`, `etatReglement`, `reglementsDepuisImputations`.
+  **Ajouté à `FICHIERS_JS` de `scripts/bump-version.mjs`** (5 fichiers dans le jeton JS).
+- `index_jsx.js` : `InvoiceService.emettre` renvoie `dateEcheance` ;
+  `enregistrerReglement`/`supprimerReglement` arrondissent selon la devise et
+  écrivent en **double** (notes puis miroir, miroir non bloquant) ;
+  interrupteur `LECTURE_REGLEMENTS_DEPUIS_TABLE = false` (T4).
+- Migrations, **dans l'ordre d'application** :
+  1. `migrations_fix_issue_invoice_2026-09-17.sql`
+  2. `migrations_finance_socle_2026-09-18.sql` (devises, taux datés, triplet FX figé par `protect_issued_invoice`)
+  3. `migrations_due_date_backfill_2026-09-18.sql`
+  4. `migrations_finance_payments_2026-09-18.sql` puis, à la main : `backfill_payments_from_notes_v1(null, true)` (à blanc) → `(null, false)` → `controle_payments_miroir_v1(null)`
+  5. `migrations_finance_payments_gel_T5.sql` — **pas avant 3-4 semaines de double écriture** ; refuse de s'exécuter si le miroir a un écart.
+
+### 70.3 Pourquoi aucun trigger sur `amount_paid` avant le T5
+
+Un navigateur resté sur l'ancien bundle (service worker) écrit `amount_paid` et
+le marqueur sans toucher la table. Un trigger recalculant `amount_paid` depuis la
+table effacerait ce règlement au paiement suivant. Pendant la transition, notes
++ `amount_paid` restent la vérité ; la table est un miroir rattrapable par la
+reprise idempotente (`legacy_payment_key`).
+
+### 70.4 Piège de sécurité évité — privilèges par défaut Supabase
+
+`REVOKE … FROM PUBLIC` **ne suffit pas** : un projet Supabase accorde par défaut
+`EXECUTE` à `anon` et `authenticated` sur toute nouvelle fonction de `public`.
+Sans `REVOKE … FROM anon, authenticated`, la reprise et le contrôle du miroir —
+qui parcourent toutes les organisations — auraient été appelables par
+`supabase.rpc()` et auraient exposé numéros de facture et montants d'un
+locataire à l'autre. Double protection posée : `REVOKE` explicite + garde interne
+(`auth.uid()` non nul et pas admin plateforme ⇒ refus). Le banc reproduit ces
+privilèges par défaut ; c'est lui qui a révélé le trou. `grant_platform_admin`
+vérifié : déjà protégé (`v6_platform_admin.sql:269`).
+
+### 70.5 Deux limites de l'Edge Function `send-payment-reminders` (non corrigées)
+
+- ne relance que `issued` / `partially_paid` : une facture `sent` n'est jamais relancée ;
+- l'e-mail vient de `invoices.client_id`, NULL sur la plupart des factures depuis
+  le correctif du 2026-09-02 : sans client lié, aucun destinataire.
+
+### 70.6 Ligne de base des tests — les chiffres de CLAUDE.md étaient périmés
+
+Mesurée le 2026-09-18 sur `fc5b9db` (HEAD, avant ce chantier) dans un worktree
+séparé : **510/535, 8/52 suites en échec** (et non 521/535, 6/52). Ces 8 suites
+échouaient déjà avant ce chantier.
+
+### 70.7 Bancs ajoutés
+
+- `scratch/test_finance_arrondi_invariants.mjs` — unitaire (`node:vm`).
+- `scratch/test_finance_sql_migrations.mjs` — rejoue toute la chaîne SQL sur un
+  vrai Postgres 16 (**PGlite**, devDependency `@electric-sql/pglite`, sans Docker)
+  avec `auth.uid()`, rôles et privilèges par défaut façon Supabase, RLS active.
+- `scratch/test_finance_reglements_double_ecriture.mjs` — `InvoiceService` réel
+  dans Chromium, faux client Supabase journalisé.
+
+### 70.8 Résultat de la suite complète (2026-09-18)
+
+| | Vérifications | Suites en échec | Étalons (lus ligne à ligne) |
+|---|---|---|---|
+| Référence `fc5b9db` | 510/535 | 8/52 | 0 échec |
+| **Après ce chantier** | **645/670** | **8/55** | **0 échec** |
+
+645 = 510 + 135 vérifications Finances (43 unitaires + 72 SQL + 20 navigateur),
+toutes au vert. Liste nominative des 25 échecs **identique** à la référence
+(`comm` sur les deux journaux : 0 apparu, 0 disparu).
+
+### 70.9 Ce qui reste à faire
+
+- **Appliquer les migrations 1 à 4 sur staging** (l'accès MCP Supabase était
+  déconnecté pendant la session), puis production. Avant chacune, lire sa requête
+  de contrôle d'en-tête.
+- Déployer l'application (double écriture T3 active dès la mise en ligne ;
+  sans la migration 4, le miroir échoue en silence, sans gêne pour l'utilisateur).
+- Dans 3-4 semaines : `controle_payments_miroir_v1(null)` à 0 → passer
+  `LECTURE_REGLEMENTS_DEPUIS_TABLE` à `true` (T4) → appliquer le T5 → publier la
+  version qui n'écrit plus le marqueur.
+
+
+---
+
+## 🏦 § 71. Paramètres Finances : comptes, devises, taxes, catégories (2026-09-19)
+
+Premier écran **visible** du module Finances, à la demande de l'utilisateur
+(« Paramètres Finances : devises, taxes, catégories / Comptes bancaires,
+caisses et mobile money »). Consigne tenue : **aucun écran existant modifié** —
+une nouvelle section « Finances » dans les Paramètres, composant autonome
+branché d'une ligne comme `TeamSettingsPanel`.
+
+### 71.1 Ce qui est livré
+
+| Onglet | Contenu |
+|---|---|
+| **Comptes** | Banque, caisse, mobile money, carte, autre. Seuls nom, type, devise, solde initial et sa date sont obligatoires (une caisse n'a pas d'IBAN). Solde **calculé** (jamais stocké), compte par défaut unique, affichage sur les factures, archivage. Coordonnées masquées (4 derniers caractères) pour les rôles qui ne peuvent pas modifier. |
+| **Devises** | Devise de base (reprise de « Entreprise », verrouillée dès qu'une facture est émise), devises activées parmi les 11 du référentiel, délai de paiement par défaut, mois de début d'exercice. Alerte si la devise d'« Entreprise » diverge de la devise de base, avec bouton « Aligner ». |
+| **Taxes** | Nom libre, trois natures distinctes (**taux normal / taux zéro / exonéré**), portée ventes/achats, incluse ou non, récupérable ou non, dates d'effet, mention légale, une seule par défaut par portée. |
+| **Catégories** | Les 9 du cahier des charges, modifiables, avec une **nature comptable** (équipement, stock, avance fournisseur ≠ charge du chantier). |
+
+À la première ouverture, tout est **repris des réglages existants** : taux de TVA
+des devis, mention d'exonération, et comptes créés depuis les champs
+`bankName/bankAccount/bankSwift/orangeMoneyNumber/waveNumber/moovMoneyNumber` de
+« Facturation & envoi » (ces champs restent en place : le PDF les lit toujours).
+
+### 71.2 Fichiers
+
+- `migrations_finance_settings_accounts_2026-09-19.sql` — tables `finance_settings`,
+  `tax_rates`, `expense_categories`, `financial_accounts`, vue
+  `v_financial_account_balances` (**`security_invoker = on`**), FK
+  `payments.account_id` (ON DELETE RESTRICT), triggers : devise de base
+  verrouillée après facturation, devise d'un compte figée dès le 1er mouvement,
+  mouvement refusé si sa devise ≠ celle du compte. RPC idempotente
+  `seed_finance_defaults_v1(p_org)`. **Dépend des migrations 2 et 4 du § 70.**
+- `js/finance-core.js` — `financeDefautsDepuisEntreprise` (miroir exact du seed
+  SQL, pour le mode local), `validerTaxe/Categorie/Compte` (mêmes règles que les
+  contraintes SQL), `calculerTaxe` (HT + taxe = TTC exactement, taxe incluse ou
+  non), `soldeCompte` (même règle que la vue).
+- `index_jsx.js` — `FinanceSettingsPanel` (inséré avant `TeamSettingsPanel`),
+  entrée `finances` dans `settingsNavigation`, bloc de rendu, et **`finances`
+  ajouté à la liste blanche du lien direct `#settings/…`** (sans quoi un
+  rechargement ne ramenait pas sur la section). NB : `equipe` est absente de
+  cette même liste — défaut préexistant, non corrigé.
+
+Deux modes, mêmes règles : **cloud** (tables ci-dessus) ; **local** (invité,
+hors-ligne, ou base pas encore migrée — l'écran le dit alors en clair et
+enregistre sur l'appareil, clé `costcalc:<org>:finance`).
+
+### 71.3 Règle du solde
+
+Solde = solde initial + entrées − sorties, dans la devise du compte, mouvements
+**confirmés** datés **à partir** du jour du solde initial (solde « au début du
+jour »). Les mouvements antérieurs sont déjà compris dans le solde initial : ils
+ne sont pas recomptés, mais **signalés** sur la carte du compte.
+
+### 71.4 Preuves
+
+- SQL (PGlite, Postgres 16) : **104/104** — dont reprise des réglages, idempotence
+  du seed, contraintes métier, verrou de devise de base, solde 150 000 + 50 000 −
+  20 000 = 180 000, refus EUR sur caisse XOF, suppression refusée / archivage
+  accepté, **aucune fuite de solde entre organisations** via la vue.
+- Unitaire : **76/76** (mêmes défauts que le serveur, validations, calcul de taxe,
+  solde).
+- Navigateur (`scratch/test_finance_parametres_ui.mjs`, mode invité) : **22/22** —
+  création d'une caisse et affichage « 150 000 FCFA », refus d'un compte sans nom,
+  refus « taux normal 0 % » avec renvoi vers « Taux zéro », doublon de catégorie
+  refusé, euro activé qui survit au rechargement, suppression via la fenêtre de
+  confirmation de l'app (`role="dialog"` + `aria-modal` mesurés), zéro erreur JS.
+- Piège de banc rencontré : un helper concaténait texte + `aria-label` avec une
+  espace ; toute regex ancrée en fin (`^Enregistrer$`) échouait **sans signal**,
+  et le test concluait à une sauvegarde perdue alors que le localStorage
+  contenait bien la donnée. Tester texte et libellé séparément.
+
+- Suite complète (2026-09-19) : **732/757, 8/56 suites en échec** — les 25 échecs
+  sont **identiques, vérification par vérification**, à la référence `fc5b9db`
+  (`comm` : 0 apparu, 0 disparu). Étalons A-G : 0 échec, lus ligne à ligne.
+  Suites Finances : 0 échec.
+
+### 71.5 Non prouvé / reste à faire
+
+- Les chemins **cloud** du panneau (upsert, retrait du drapeau « par défaut »,
+  lecture de la vue) ne sont exercés que côté SQL : à vérifier sur **staging**
+  une fois les migrations appliquées.
+- Les soldes ne bougeront qu'avec les mouvements (encaissements rattachés à un
+  compte, dépenses, transferts) : étapes suivantes du chantier.
+
+---
+
+## 🧾 § 72. Dépenses et factures fournisseurs (2026-09-19)
+
+Nouvel écran **« Dépenses »**, placé dans le menu sous « Factures » (choix de
+l'utilisateur, parmi : entrée de menu / onglet dans Factures / Paramètres).
+Composant autonome `ExpensesScreen` ; seuls les **points d'entrée** de
+navigation sont ajoutés, aucun écran existant n'est modifié : barre latérale,
+rail tablette, onglets rapides, menu « Plus » mobile, recherche rapide,
+`LIBELLES_NAV`, aiguillage d'affichage, lien direct `#depenses`.
+
+### 72.1 Règles (cahier des charges § 8), garanties en base ET à l'écran
+
+- **Déjà payée** → exige le compte de sortie ; le décaissement est créé dans la
+  même transaction. **À payer** → exige une échéance (pré-remplie avec le délai
+  des Paramètres) et **refuse** un compte : il sera choisi au règlement.
+- **Avance personnelle** (`advanced_by`) → aucun compte de l'entreprise touché ;
+  la dépense est « à rembourser », et son règlement est libellé
+  « Remboursement à … ».
+- **Répartition entre chantiers** (`expense_splits`) → la somme des parts doit
+  retomber **exactement** sur le montant à répartir : **HT si la taxe est
+  récupérable, TTC sinon** (coût réel). Contrainte différée en base : une
+  répartition fausse annule toute la saisie.
+- **Statut dérivé des règlements** (trigger), jamais d'une case cochée ; un
+  chèque rejeté rouvre la dépense.
+- Une dépense **déjà réglée** garde montant, devise et nature : il faut annuler
+  le règlement d'abord. **Supprimer** une dépense supprime aussi ses
+  décaissements, pour que l'argent revienne au solde.
+- Devise étrangère : taux saisi (« 1 EUR = x XOF »), contre-valeur figée ; le
+  compte payeur doit être dans la devise de la dépense.
+
+### 72.2 Fichiers
+
+- `migrations_finance_expenses_2026-09-19.sql` — tables `expenses`,
+  `expense_splits` ; FK `payment_allocations.expense_id` (RESTRICT) ; fonctions
+  **`SECURITY INVOKER`** (donc sous RLS) `enregistrer_depense_v1`,
+  `regler_depense_v1`, `annuler_reglement_depense_v1`, `supprimer_depense_v1`,
+  qui garantissent l'atomicité. Dépend des migrations des §§ 70-71.
+- `js/finance-core.js` — `calculerDepense`, `montantARepartir`,
+  `validerRepartition`, `validerDepense`, `etatDepense`,
+  `mouvementsDepuisDepenses` (les soldes locaux de Paramètres › Finances
+  incluent désormais les dépenses réglées).
+- `index_jsx.js` — `ExpensesScreen` (avant `FinanceSettingsPanel`) et
+  branchements de navigation.
+
+### 72.3 Preuves
+
+- SQL (PGlite) : **134/134** (+30) — dépense payée et solde −118 000, refus sans
+  compte, facture à payer sans compte ni solde touché, règlements partiels et
+  refus du dépassement, annulation qui rouvre, avance personnelle sans
+  mouvement puis remboursement libellé, répartition exacte acceptée / inexacte
+  refusée **avec annulation complète de la saisie**, taxe non récupérable
+  répartie sur le TTC, montant figé après règlement, refus EUR sur compte XOF,
+  suppression qui rend l'argent, isolation entre organisations.
+- Unitaire : **94/94**.
+- Navigateur (`scratch/test_finance_depenses_ui.mjs`) : **25/25** — dont la
+  **cohérence entre écrans** (le solde de la caisse lu dans Paramètres ›
+  Finances suit chaque dépense, règlement et suppression : 500 000 → 382 000 →
+  332 000 → 450 000), défilement réel à la molette à 390 px.
+
+- Suite complète : **805/830, 8/57 suites en échec** — les 25 échecs sont
+  identiques, vérification par vérification, à la référence `fc5b9db`
+  (0 apparu, 0 disparu). Étalons A-G : 0 échec.
+
+### 72.4 Piège de banc rencontré (deux fois)
+
+Le triple clic **ne sélectionne pas** le contenu d'un `<input type="number">`,
+et Ctrl/Cmd+A non plus dans ce Chromium sans fenêtre : le texte tapé s'ajoute
+derrière l'ancien. Dans `test_finance_parametres_ui.mjs`, « 0 » prérempli +
+« 150000 » donnait « 0150000 », que `Number()` lit 150 000 : **le test passait
+par chance**. Remède, appliqué aux deux bancs : setter natif
+`HTMLInputElement.prototype.value` + événement `input`, puis **relecture** de la
+valeur avec erreur explicite si elle diffère.
+
+### 72.5 Non prouvé / reste à faire
+
+- Chemins **cloud** de l'écran : prouvés côté SQL seulement, à exercer sur
+  staging une fois les migrations appliquées.
+- Justificatif (photo du reçu) : colonne non encore prévue — nécessite un
+  stockage de fichiers (Supabase Storage), étape à part.
+- Rentabilité par chantier (lecture de `expense_splits` / `project_ref`) :
+  étape « Rapports ».

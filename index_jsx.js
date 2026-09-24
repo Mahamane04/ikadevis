@@ -249,6 +249,7 @@ const LIBELLES_NAV = {
     calculator: 'Chiffrage',
     savedQuotes: 'Mes devis',
     invoices: 'Factures',
+    depenses: 'Dépenses',
     recipes: 'Catalogue',
     materials: 'Ressources',
     platformAdmin: 'Administration'
@@ -7883,6 +7884,1788 @@ const ROLE_BADGE_COLORS = {
     viewer: 'bg-slate-100 text-slate-700 border border-slate-200/60'
 };
 
+// ══ DÉPENSES & FOURNISSEURS (§ 72, 2026-09-19) ══════════════════════════════
+// Écran autonome, atteint par une nouvelle entrée « Dépenses » du menu (choix
+// de l'utilisateur). Aucun écran existant n'est modifié.
+//
+// Cloud : fonctions SQL enregistrer_depense_v1 / regler_depense_v1 /
+// annuler_reglement_depense_v1 / supprimer_depense_v1, qui font dépense +
+// répartition + règlement en UNE transaction. Local (invité, hors-ligne, base
+// pas encore migrée) : localStorage, avec les MÊMES règles (validerDepense,
+// etatDepense dans js/finance-core.js).
+const METHODES_SORTIE = [
+    { value: 'bank_transfer', label: 'Virement' },
+    { value: 'cash', label: 'Espèces' },
+    { value: 'mobile_money', label: 'Mobile money' },
+    { value: 'check', label: 'Chèque' },
+    { value: 'card', label: 'Carte' },
+    { value: 'other', label: 'Autre' }
+];
+const STATUTS_DEPENSE = {
+    to_pay: { label: 'À payer', couleur: 'bg-amber-100 text-amber-800' },
+    partially_paid: { label: 'Partiellement payée', couleur: 'bg-blue-100 text-blue-800' },
+    paid: { label: 'Payée', couleur: 'bg-emerald-100 text-emerald-800' },
+    cancelled: { label: 'Annulée', couleur: 'bg-neutral-200 text-neutral-600' }
+};
+const aujourdhuiDepense = () => new Date().toISOString().slice(0, 10);
+const ajouterJours = (iso, jours) => {
+    const d = new Date(`${iso}T12:00:00Z`);
+    if (isNaN(d.getTime())) return '';
+    d.setUTCDate(d.getUTCDate() + (Number(jours) || 0));
+    return d.toISOString().slice(0, 10);
+};
+
+function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, projects, canEdit, isReadOnly, showToast, askConfirm, onOuvrirReglages }) {
+    const [refs, setRefs] = useState(null);             // { settings, taxes, categories, accounts }
+    const [depenses, setDepenses] = useState([]);
+    const [mode, setMode] = useState('local');
+    const [avertissement, setAvertissement] = useState('');
+    const [chargement, setChargement] = useState(true);
+    const [occupe, setOccupe] = useState(false);
+    const [erreurs, setErreurs] = useState([]);
+    const [filtre, setFiltre] = useState('tout');
+    const [recherche, setRecherche] = useState('');
+    const [ouverte, setOuverte] = useState(null);       // id de la dépense dépliée
+    const [edition, setEdition] = useState(null);       // brouillon du formulaire
+    const [reglement, setReglement] = useState(null);   // brouillon de règlement
+
+    const orgCloud = !!(organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local') && organizationId !== 'guest_org');
+    const cloudPossible = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && orgCloud);
+    const modifiable = !isReadOnly && (mode === 'local' || canEdit);
+
+    // ── Chargement ────────────────────────────────────────────────────────
+    const refsLocales = () => {
+        const f = LS.get('finance', organizationId);
+        if (f && f.settings) return f;
+        const d = financeDefautsDepuisEntreprise(companyInfo, nouvelIdFinance);
+        LS.set('finance', d, organizationId);
+        return d;
+    };
+    const depensesLocales = () => {
+        const l = LS.get('depenses', organizationId);
+        return Array.isArray(l) ? l : [];
+    };
+    const lireCloud = async (dejaInitialise = false) => {
+        const [s, t, c, a, e, sp, al] = await Promise.all([
+            supabaseClient.from('finance_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
+            supabaseClient.from('tax_rates').select('*').eq('organization_id', organizationId).order('rate', { ascending: false }),
+            supabaseClient.from('expense_categories').select('*').eq('organization_id', organizationId).order('sort_order', { ascending: true }),
+            supabaseClient.from('financial_accounts').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
+            supabaseClient.from('expenses').select('*').eq('organization_id', organizationId).order('expense_date', { ascending: false }),
+            supabaseClient.from('expense_splits').select('*').eq('organization_id', organizationId),
+            supabaseClient.from('payment_allocations')
+                .select('expense_id, amount, payments(id, account_id, payment_date, method, reference, status)')
+                .eq('organization_id', organizationId).not('expense_id', 'is', null)
+        ]);
+        const erreur = [s.error, t.error, c.error, a.error, e.error, sp.error, al.error].find(Boolean);
+        if (erreur) throw erreur;
+        if (!s.data && !dejaInitialise) {
+            const { error } = await supabaseClient.rpc('seed_finance_defaults_v1', { p_org: organizationId });
+            if (error) throw error;
+            return lireCloud(true);
+        }
+        const liste = (e.data || []).map((d) => ({
+            ...d,
+            splits: (sp.data || []).filter((x) => x.expense_id === d.id),
+            reglements: (al.data || []).filter((x) => x.expense_id === d.id).map((x) => ({
+                id: x.payments?.id, account_id: x.payments?.account_id, amount: Number(x.amount),
+                payment_date: x.payments?.payment_date, method: x.payments?.method,
+                reference: x.payments?.reference, status: x.payments?.status
+            }))
+        }));
+        return { refs: { settings: s.data, taxes: t.data || [], categories: c.data || [], accounts: a.data || [] }, liste };
+    };
+    const charger = async () => {
+        setChargement(true);
+        setAvertissement('');
+        if (cloudPossible) {
+            try {
+                const { refs: r, liste } = await lireCloud();
+                setRefs(r); setDepenses(liste); setMode('cloud');
+                setChargement(false);
+                return;
+            } catch (err) {
+                console.warn('[Dépenses] Lecture cloud impossible, repli local :', err?.message || err);
+                setAvertissement("La base de données n'est pas encore prête pour les dépenses : elles sont enregistrées sur cet appareil uniquement, pour l'instant.");
+            }
+        }
+        setRefs(refsLocales()); setDepenses(depensesLocales()); setMode('local');
+        setChargement(false);
+    };
+    useEffect(() => { charger(); }, [organizationId, supabaseClient, sbUser?.id]);
+
+    const enregistrerLocal = (liste) => { LS.set('depenses', liste, organizationId); setDepenses(liste); };
+    const traduireErreur = (err) => {
+        const brut = err?.message || String(err);
+        if (/row-level security|permission/i.test(brut)) return "Vous n'avez pas les droits pour saisir des dépenses.";
+        if (/convertissez/.test(brut)) return 'Le compte et la dépense ne sont pas dans la même devise.';
+        return brut;
+    };
+    const executer = async (action, messageOk) => {
+        setOccupe(true);
+        try {
+            await action();
+            if (mode === 'cloud') { const { refs: r, liste } = await lireCloud(); setRefs(r); setDepenses(liste); }
+            if (messageOk) showToast(messageOk, 'success');
+            return true;
+        } catch (err) {
+            showToast(traduireErreur(err), 'error');
+            return false;
+        } finally {
+            setOccupe(false);
+        }
+    };
+
+    if (chargement || !refs) {
+        return <div className="p-10 text-center text-sm text-neutral-500"><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement des dépenses…</div>;
+    }
+
+    const settings = refs.settings || {};
+    const deviseBase = settings.base_currency || versIso(companyInfo?.currency);
+    const devises = Array.isArray(settings.enabled_currencies) && settings.enabled_currencies.length ? settings.enabled_currencies : [deviseBase];
+    const comptesActifs = refs.accounts.filter((a) => a.is_active !== false);
+    const taxesAchat = refs.taxes.filter((t) => t.is_active !== false && (t.scope || 'both') !== 'sale');
+    const categoriesActives = refs.categories.filter((c) => c.is_active !== false);
+    const nomCategorie = (id) => refs.categories.find((c) => c.id === id)?.name;
+    const nomCompte = (id) => refs.accounts.find((a) => a.id === id)?.name || 'Compte';
+    const listeChantiers = (Array.isArray(projects) ? projects : []).map((p) => ({ id: String(p.id), name: p.name || p.title || 'Chantier' }));
+    const libelleChantier = (d) => {
+        if (Array.isArray(d.splits) && d.splits.length > 1) return `${d.splits.length} chantiers`;
+        if (Array.isArray(d.splits) && d.splits.length === 1) return d.splits[0].project_ref;
+        return d.project_ref || '';
+    };
+    const aujourdhui = aujourdhuiDepense();
+
+    // ── Indicateurs ───────────────────────────────────────────────────────
+    const enrichies = depenses.map((d) => ({ ...d, etat: etatDepense(d, d.reglements) }));
+    const resteParDevise = {};
+    let enRetard = 0;
+    enrichies.forEach((d) => {
+        if (d.etat.statut === 'to_pay' || d.etat.statut === 'partially_paid') {
+            resteParDevise[d.currency] = arrondiDevise((resteParDevise[d.currency] || 0) + d.etat.reste, d.currency);
+            if (d.due_date && d.due_date < aujourdhui) enRetard += 1;
+        }
+    });
+    const moisCourant = aujourdhui.slice(0, 7);
+    const payeCeMois = {};
+    enrichies.forEach((d) => (d.reglements || []).forEach((r) => {
+        if ((!r.status || r.status === 'confirmed') && String(r.payment_date || '').startsWith(moisCourant)) {
+            payeCeMois[d.currency] = arrondiDevise((payeCeMois[d.currency] || 0) + Number(r.amount), d.currency);
+        }
+    }));
+    const montantsParDevise = (obj) => {
+        const liste = Object.entries(obj).filter(([, v]) => v);
+        return liste.length ? liste.map(([c, v]) => formatMoney(v, c)).join(' · ') : formatMoney(0, deviseBase);
+    };
+
+    const q = normalizeSearchText(recherche);
+    const visibles = enrichies.filter((d) => {
+        if (filtre === 'a_payer' && !['to_pay', 'partially_paid'].includes(d.etat.statut)) return false;
+        if (filtre === 'payees' && d.etat.statut !== 'paid') return false;
+        if (filtre === 'avances' && !d.advanced_by) return false;
+        if (!q) return true;
+        return [d.description, d.supplier_name, d.document_ref, nomCategorie(d.category_id), libelleChantier(d), d.advanced_by]
+            .some((v) => normalizeSearchText(v).includes(q));
+    }).sort((a, b) => String(b.expense_date).localeCompare(String(a.expense_date)));
+
+    // ── Formulaire ────────────────────────────────────────────────────────
+    const nouvelle = () => {
+        const taxeDefaut = taxesAchat.find((t) => t.is_default) || null;
+        const compteDefaut = comptesActifs.find((a) => a.is_default && a.currency === deviseBase) || comptesActifs.find((a) => a.currency === deviseBase);
+        setErreurs([]);
+        setOuverte(null);
+        setEdition({
+            id: null, kind: 'expense', description: '', supplier_name: '', document_ref: '',
+            expense_date: aujourdhui, due_date: '', category_id: '', project_id: '', montant: '',
+            tax_rate_id: taxeDefaut ? taxeDefaut.id : '', currency: deviseBase, fx_rate: '1',
+            payePar: 'compte', account_id: compteDefaut ? compteDefaut.id : '', advanced_by: '',
+            method: 'cash', notes: '', repartir: false,
+            splits: [{ project_id: '', amount: '' }, { project_id: '', amount: '' }]
+        });
+    };
+    const modifier = (d) => {
+        setErreurs([]);
+        const taxeMontantInclus = refs.taxes.find((t) => t.id === d.tax_rate_id)?.is_inclusive;
+        setEdition({
+            id: d.id, kind: d.kind, description: d.description || '', supplier_name: d.supplier_name || '',
+            document_ref: d.document_ref || '', expense_date: d.expense_date, due_date: d.due_date || '',
+            category_id: d.category_id || '', project_id: (listeChantiers.find((p) => p.name === d.project_ref) || {}).id || '',
+            montant: String(taxeMontantInclus ? d.amount_ttc : d.amount_ht), tax_rate_id: d.tax_rate_id || '',
+            currency: d.currency, fx_rate: String(d.fx_rate || 1), payePar: d.advanced_by ? 'personne' : 'compte',
+            account_id: '', advanced_by: d.advanced_by || '', method: 'cash', notes: d.notes || '',
+            repartir: Array.isArray(d.splits) && d.splits.length > 0,
+            splits: (d.splits && d.splits.length ? d.splits : [{}, {}]).map((s) => ({
+                project_id: (listeChantiers.find((p) => p.name === s.project_ref) || {}).id || '',
+                amount: s.amount ? String(s.amount) : ''
+            }))
+        });
+    };
+
+    const e = edition;
+    const taxeChoisie = e ? refs.taxes.find((t) => t.id === e.tax_rate_id) || null : null;
+    const montants = e ? calculerDepense(e.montant === '' ? NaN : Number(e.montant), taxeChoisie, e.currency) : null;
+    const origine = e && e.id ? depenses.find((d) => d.id === e.id) : null;
+    const dejaReglee = !!(origine && (origine.reglements || []).length);
+    // Une dépense déjà réglée garde ses montants d'origine, même si la taxe a
+    // changé depuis : c'est la règle « les taux d'un document saisi sont figés ».
+    const montantsEffectifs = dejaReglee && origine
+        ? { amount_ht: Number(origine.amount_ht), tax_amount: Number(origine.tax_amount), amount_ttc: Number(origine.amount_ttc),
+            tax_rate: Number(origine.tax_rate), tax_recoverable: origine.tax_recoverable !== false }
+        : montants;
+
+    const construireDepense = () => {
+        const chantier = listeChantiers.find((p) => p.id === String(e.project_id));
+        const fx = e.currency === deviseBase ? 1 : Number(e.fx_rate);
+        const splits = e.repartir ? e.splits.filter((s) => s.project_id || s.amount).map((s) => {
+            const ch = listeChantiers.find((p) => p.id === String(s.project_id));
+            return { project_id: ch && estUuid(ch.id) ? ch.id : null, project_ref: ch ? ch.name : '', amount: s.amount === '' ? 0 : Number(s.amount) };
+        }) : [];
+        const m = montantsEffectifs;
+        return {
+            id: e.id, organization_id: organizationId, kind: e.kind, description: e.description.trim(),
+            supplier_name: e.supplier_name, document_ref: e.document_ref, expense_date: e.expense_date,
+            due_date: e.kind === 'supplier_invoice' ? e.due_date : null,
+            category_id: e.category_id || null,
+            project_id: !e.repartir && chantier && estUuid(chantier.id) ? chantier.id : null,
+            project_ref: !e.repartir && chantier ? chantier.name : null,
+            currency: e.currency, base_currency: deviseBase, fx_rate: fx,
+            amount_ht: m.amount_ht, tax_rate_id: dejaReglee ? origine.tax_rate_id : (e.tax_rate_id || null), tax_rate: m.tax_rate,
+            tax_recoverable: m.tax_recoverable, tax_amount: m.tax_amount, amount_ttc: m.amount_ttc,
+            amount_base: versBase(m.amount_ttc, fx, deviseBase),
+            advanced_by: e.kind === 'expense' && e.payePar === 'personne' ? e.advanced_by.trim() : null,
+            account_id: e.kind === 'expense' && e.payePar === 'compte' && !e.id ? e.account_id || null : null,
+            method: e.method, notes: e.notes, splits
+        };
+    };
+
+    const enregistrer = async () => {
+        const d = construireDepense();
+        const compte = refs.accounts.find((a) => a.id === d.account_id);
+        const errs = validerDepense(d, { nouvelle: !e.id, deviseCompte: compte?.currency, dejaReglee, origine });
+        if (e.currency !== deviseBase && !(Number(e.fx_rate) > 0)) errs.push(`Indiquez le taux : combien vaut 1 ${e.currency} en ${deviseBase}.`);
+        if (e.kind === 'expense' && e.payePar === 'personne' && !d.advanced_by) errs.push('Indiquez qui a avancé la dépense.');
+        setErreurs(errs);
+        if (errs.length) return;
+        const ok = await executer(async () => {
+            if (mode === 'cloud') {
+                const { error } = await supabaseClient.rpc('enregistrer_depense_v1', { p: d });
+                if (error) throw error;
+                return;
+            }
+            const id = d.id || nouvelIdFinance();
+            const reglements = origine ? origine.reglements || [] : (d.account_id ? [{
+                id: nouvelIdFinance(), account_id: d.account_id, amount: d.amount_ttc,
+                payment_date: d.expense_date, method: d.method, reference: d.document_ref, status: 'confirmed'
+            }] : []);
+            const { account_id, method, ...sansCompte } = d;
+            const ligne = { ...sansCompte, id, reglements };
+            enregistrerLocal([...depenses.filter((x) => x.id !== id), ligne]);
+        }, e.id ? 'Dépense mise à jour.' : 'Dépense enregistrée.');
+        if (ok) { setEdition(null); setErreurs([]); }
+    };
+
+    // ── Règlements ────────────────────────────────────────────────────────
+    const ouvrirReglement = (d) => {
+        const compte = comptesActifs.find((a) => a.is_default && a.currency === d.currency) || comptesActifs.find((a) => a.currency === d.currency);
+        setErreurs([]);
+        setReglement({ expense: d, account_id: compte ? compte.id : '', payment_date: aujourdhui, amount: String(d.etat.reste), method: 'bank_transfer', reference: '' });
+    };
+    const enregistrerReglement = async () => {
+        const r = reglement;
+        const montant = Number(r.amount);
+        const compte = refs.accounts.find((a) => a.id === r.account_id);
+        const errs = [];
+        if (!compte) errs.push('Choisissez le compte d’où part le règlement.');
+        else if (compte.currency !== r.expense.currency) errs.push(`Le compte est en ${compte.currency}, la dépense en ${r.expense.currency}.`);
+        if (!(montant > 0)) errs.push('Le montant doit être supérieur à zéro.');
+        else if (arrondiDevise(montant, r.expense.currency) > r.expense.etat.reste) errs.push(`Le règlement dépasse le reste à payer (${formatMoney(r.expense.etat.reste, r.expense.currency)}).`);
+        setErreurs(errs);
+        if (errs.length) return;
+        const ok = await executer(async () => {
+            if (mode === 'cloud') {
+                const { error } = await supabaseClient.rpc('regler_depense_v1', {
+                    p_expense_id: r.expense.id, p_account_id: r.account_id, p_date: r.payment_date,
+                    p_amount: arrondiDevise(montant, r.expense.currency), p_method: r.method, p_reference: r.reference || null
+                });
+                if (error) throw error;
+                return;
+            }
+            enregistrerLocal(depenses.map((d) => d.id !== r.expense.id ? d : {
+                ...d, reglements: [...(d.reglements || []), {
+                    id: nouvelIdFinance(), account_id: r.account_id, amount: arrondiDevise(montant, d.currency),
+                    payment_date: r.payment_date, method: r.method, reference: r.reference, status: 'confirmed'
+                }]
+            }));
+        }, r.expense.advanced_by ? 'Remboursement enregistré.' : 'Règlement enregistré.');
+        if (ok) { setReglement(null); setErreurs([]); }
+    };
+    const annulerReglement = (d, r) => askConfirm(
+        'Annuler ce règlement ?',
+        `Le règlement de ${formatMoney(r.amount, d.currency)} du ${formatDate(r.payment_date)} sera retiré, et le montant redeviendra à payer.`,
+        'Annuler le règlement',
+        () => executer(async () => {
+            if (mode === 'cloud') {
+                const { error } = await supabaseClient.rpc('annuler_reglement_depense_v1', { p_payment_id: r.id });
+                if (error) throw error;
+                return;
+            }
+            enregistrerLocal(depenses.map((x) => x.id !== d.id ? x : { ...x, reglements: (x.reglements || []).filter((y) => y.id !== r.id) }));
+        }, 'Règlement annulé.')
+    );
+    const supprimer = (d) => askConfirm(
+        `Supprimer « ${d.description} » ?`,
+        (d.reglements || []).length
+            ? 'Ses règlements seront supprimés aussi : l’argent sorti reviendra dans le solde des comptes concernés.'
+            : 'La suppression est définitive.',
+        'Supprimer',
+        () => executer(async () => {
+            if (mode === 'cloud') {
+                const { error } = await supabaseClient.rpc('supprimer_depense_v1', { p_expense_id: d.id });
+                if (error) throw error;
+                return;
+            }
+            enregistrerLocal(depenses.filter((x) => x.id !== d.id));
+        }, 'Dépense supprimée.').then((ok) => { if (ok) setOuverte(null); })
+    );
+
+    // ── Rendu ─────────────────────────────────────────────────────────────
+    const blocErreurs = erreurs.length > 0 && (
+        <div role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs space-y-1">
+            {erreurs.map((x) => <p key={x}><i className="fa-solid fa-circle-exclamation mr-1.5"></i>{x}</p>)}
+        </div>
+    );
+    const optionsDevises = devises.map((c) => ({ value: c, label: c }));
+    const optionsTaxes = [{ value: '', label: 'Aucune taxe' }, ...taxesAchat.map((t) => ({ value: t.id, label: `${t.name}${t.is_inclusive ? ' (incluse)' : ''}` }))];
+    const optionsCategories = [{ value: '', label: 'Sans catégorie' }, ...categoriesActives.map((c) => ({ value: c.id, label: c.name }))];
+    const optionsChantiers = [{ value: '', label: 'Frais généraux (aucun chantier)' }, ...listeChantiers.map((p) => ({ value: p.id, label: p.name }))];
+    const optionsComptes = (devise) => comptesActifs.filter((a) => a.currency === devise).map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }));
+    const sommeParts = e && e.repartir ? arrondiDevise(e.splits.reduce((s, x) => s + (Number(x.amount) || 0), 0), e.currency) : 0;
+    const aRepartir = e && montantsEffectifs ? montantARepartir({ ...montantsEffectifs }) : 0;
+
+    return (
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll" data-depenses data-depenses-mode={mode}>
+            <div className="max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold text-neutral-900">Dépenses &amp; fournisseurs</h1>
+                        <p className="text-xs text-neutral-500 mt-0.5">Ce qui sort de la caisse : dépenses payées, factures fournisseurs à payer, avances à rembourser.</p>
+                    </div>
+                    {modifiable && !edition && (
+                        <button type="button" className="btn-primary text-sm py-2 px-4" onClick={nouvelle}>
+                            <i className="fa-solid fa-plus"></i> Nouvelle dépense
+                        </button>
+                    )}
+                </div>
+
+                {avertissement && (
+                    <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs">
+                        <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>{avertissement}
+                    </div>
+                )}
+                {comptesActifs.length === 0 && (
+                    <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-xs flex flex-wrap items-center gap-2">
+                        <span className="flex-1 min-w-[200px]">Aucun compte n'est encore déclaré. Ajoutez votre banque, votre caisse ou votre mobile money pour enregistrer une dépense déjà payée.</span>
+                        <button type="button" className="btn-secondary text-xs py-1.5 px-3" onClick={onOuvrirReglages}>Ajouter un compte</button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reste à payer</p>
+                        <p className="text-lg font-bold text-neutral-900 mt-1" data-kpi-reste>{montantsParDevise(resteParDevise)}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Échéances dépassées</p>
+                        <p className={`text-lg font-bold mt-1 ${enRetard ? 'text-rose-600' : 'text-neutral-900'}`}>{enRetard}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Payé ce mois-ci</p>
+                        <p className="text-lg font-bold text-neutral-900 mt-1">{montantsParDevise(payeCeMois)}</p>
+                    </div>
+                </div>
+
+                {edition && (
+                    <form onSubmit={(ev) => { ev.preventDefault(); enregistrer(); }}
+                        className="p-4 sm:p-5 rounded-2xl border border-neutral-200 bg-white space-y-4 shadow-2xs"
+                        aria-label={e.id ? 'Modifier la dépense' : 'Nouvelle dépense'}>
+                        <p className="text-sm font-bold text-neutral-800">{e.id ? `Modifier « ${e.description} »` : 'Nouvelle dépense'}</p>
+                        {blocErreurs}
+                        {dejaReglee && (
+                            <p className="text-[11px] text-neutral-500"><i className="fa-solid fa-lock mr-1"></i>Cette dépense a un règlement : son montant, sa devise et sa nature sont figés. Annulez le règlement pour les modifier.</p>
+                        )}
+                        <div role="radiogroup" aria-label="Nature de la dépense" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {[['expense', 'Déjà payée', 'Ticket, reçu, achat au comptant', 'fa-receipt'],
+                              ['supplier_invoice', 'À payer', 'Facture fournisseur avec échéance', 'fa-hourglass-half']].map(([val, titre, aide, icone]) => (
+                                <button key={val} type="button" role="radio" aria-checked={e.kind === val} disabled={dejaReglee}
+                                    onClick={() => setEdition({ ...e, kind: val, due_date: val === 'supplier_invoice' && !e.due_date ? ajouterJours(e.expense_date, settings.default_payment_terms_days ?? 30) : e.due_date })}
+                                    className={`text-left p-3 rounded-xl border transition-colors ${e.kind === val ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 bg-white hover:bg-neutral-50'} ${dejaReglee ? 'opacity-60' : ''}`}>
+                                    <span className="text-sm font-bold text-neutral-800"><i className={`fa-solid ${icone} mr-2`}></i>{titre}</span>
+                                    <span className="block text-[11px] text-neutral-500 mt-0.5">{aide}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="sm:col-span-2">
+                                <label htmlFor="dep_description" className="app-label">Objet *</label>
+                                <input id="dep_description" className="app-input" value={e.description} placeholder="Ex. Ciment 50 sacs, location nacelle" onChange={(ev) => setEdition({ ...e, description: ev.target.value })} />
+                            </div>
+                            <div>
+                                <label htmlFor="dep_fournisseur" className="app-label">Fournisseur</label>
+                                <input id="dep_fournisseur" className="app-input" list="dep_fournisseurs" value={e.supplier_name} onChange={(ev) => setEdition({ ...e, supplier_name: ev.target.value })} />
+                                <datalist id="dep_fournisseurs">
+                                    {[...new Set(depenses.map((d) => d.supplier_name).filter(Boolean))].map((n) => <option key={n} value={n} />)}
+                                </datalist>
+                            </div>
+                            <div>
+                                <label htmlFor="dep_piece" className="app-label">N° de facture ou de reçu</label>
+                                <input id="dep_piece" className="app-input" value={e.document_ref} onChange={(ev) => setEdition({ ...e, document_ref: ev.target.value })} />
+                            </div>
+                            <div>
+                                <label htmlFor="dep_date" className="app-label">Date *</label>
+                                <input id="dep_date" type="date" className="app-input" value={e.expense_date} onChange={(ev) => setEdition({ ...e, expense_date: ev.target.value })} />
+                            </div>
+                            {e.kind === 'supplier_invoice' && (
+                                <div>
+                                    <label htmlFor="dep_echeance" className="app-label">Échéance *</label>
+                                    <input id="dep_echeance" type="date" className="app-input" value={e.due_date} onChange={(ev) => setEdition({ ...e, due_date: ev.target.value })} />
+                                </div>
+                            )}
+                            <div>
+                                <label htmlFor="dep_montant" className="app-label">Montant {taxeChoisie?.is_inclusive ? 'TTC' : 'HT'} *</label>
+                                <input id="dep_montant" type="number" step="any" min="0" className="app-input" value={e.montant} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, montant: ev.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="app-label">Taxe</label>
+                                    <CustomSelect id="dep_taxe" size="md" aria-label="Taxe de la dépense" value={e.tax_rate_id} disabled={dejaReglee}
+                                        onChange={(ev) => setEdition({ ...e, tax_rate_id: ev.target.value })} options={optionsTaxes} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Devise</label>
+                                    <CustomSelect id="dep_devise" size="md" aria-label="Devise de la dépense" value={e.currency} disabled={dejaReglee}
+                                        onChange={(ev) => setEdition({ ...e, currency: ev.target.value, account_id: (optionsComptes(ev.target.value)[0] || {}).value || '' })} options={optionsDevises} />
+                                </div>
+                            </div>
+                            {e.currency !== deviseBase && (
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="dep_taux" className="app-label">Taux : 1 {e.currency} = combien de {deviseBase} ? *</label>
+                                    <input id="dep_taux" type="number" step="any" min="0" className="app-input" value={e.fx_rate} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, fx_rate: ev.target.value })} />
+                                </div>
+                            )}
+                            <div className="sm:col-span-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 flex flex-wrap gap-x-6 gap-y-1" data-dep-totaux>
+                                <span>HT <strong className="text-neutral-900">{formatMoney(montantsEffectifs.amount_ht, e.currency)}</strong></span>
+                                <span>Taxe <strong className="text-neutral-900">{formatMoney(montantsEffectifs.tax_amount, e.currency)}</strong></span>
+                                <span>TTC <strong className="text-neutral-900" data-dep-ttc>{formatMoney(montantsEffectifs.amount_ttc, e.currency)}</strong></span>
+                                {montantsEffectifs.tax_recoverable === false && <span className="text-amber-700">Taxe non récupérable : elle s'ajoute au coût.</span>}
+                            </div>
+                            <div>
+                                <label className="app-label">Catégorie</label>
+                                <CustomSelect id="dep_categorie" size="md" aria-label="Catégorie de la dépense" value={e.category_id}
+                                    onChange={(ev) => setEdition({ ...e, category_id: ev.target.value })} options={optionsCategories} />
+                            </div>
+                            {!e.repartir && (
+                                <div>
+                                    <label className="app-label">Chantier</label>
+                                    <CustomSelect id="dep_chantier" size="md" aria-label="Chantier de la dépense" value={String(e.project_id || '')}
+                                        onChange={(ev) => setEdition({ ...e, project_id: ev.target.value })} options={optionsChantiers} />
+                                </div>
+                            )}
+                        </div>
+
+                        {listeChantiers.length > 1 && (
+                            <div className="space-y-2">
+                                <label htmlFor="dep_repartir" className="flex items-center gap-2.5 text-xs text-neutral-700 cursor-pointer">
+                                    <input id="dep_repartir" type="checkbox" className="w-4 h-4" checked={e.repartir} onChange={(ev) => setEdition({ ...e, repartir: ev.target.checked })} />
+                                    <span className="font-semibold">Répartir entre plusieurs chantiers</span>
+                                </label>
+                                {e.repartir && (
+                                    <div className="p-3 rounded-xl border border-neutral-200 space-y-2">
+                                        <p className="text-[11px] text-neutral-500">
+                                            Montant à répartir : <strong>{formatMoney(aRepartir, e.currency)}</strong> ({montantsEffectifs.tax_recoverable ? 'HT, taxe récupérable' : 'TTC, taxe non récupérable'}) —
+                                            réparti : <strong className={sommeParts === aRepartir ? 'text-emerald-700' : 'text-rose-600'} data-dep-reparti>{formatMoney(sommeParts, e.currency)}</strong>
+                                        </p>
+                                        {e.splits.map((s, i) => (
+                                            <div key={i} className="flex flex-wrap items-center gap-2">
+                                                <div className="flex-1 min-w-[180px]">
+                                                    <CustomSelect id={`dep_part_chantier_${i}`} size="md" aria-label={`Chantier de la part ${i + 1}`} value={String(s.project_id || '')}
+                                                        onChange={(ev) => setEdition({ ...e, splits: e.splits.map((x, j) => j === i ? { ...x, project_id: ev.target.value } : x) })}
+                                                        options={[{ value: '', label: 'Choisir un chantier' }, ...listeChantiers.map((p) => ({ value: p.id, label: p.name }))]} />
+                                                </div>
+                                                <input type="number" step="any" min="0" aria-label={`Montant de la part ${i + 1}`} className="app-input w-full sm:w-40" value={s.amount}
+                                                    onChange={(ev) => setEdition({ ...e, splits: e.splits.map((x, j) => j === i ? { ...x, amount: ev.target.value } : x) })} />
+                                                {e.splits.length > 2 && (
+                                                    <button type="button" className="btn-secondary text-xs py-2 px-2.5" aria-label={`Retirer la part ${i + 1}`}
+                                                        onClick={() => setEdition({ ...e, splits: e.splits.filter((_, j) => j !== i) })}><i className="fa-solid fa-xmark"></i></button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <button type="button" className="text-xs text-brand-600 font-semibold" onClick={() => setEdition({ ...e, splits: [...e.splits, { project_id: '', amount: '' }] })}>
+                                            <i className="fa-solid fa-plus mr-1"></i>Ajouter un chantier
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {e.kind === 'expense' && !e.id && (
+                            <div className="space-y-3">
+                                <div role="radiogroup" aria-label="Qui a payé" className="flex flex-wrap gap-2">
+                                    {[['compte', 'Payée par l’entreprise'], ['personne', 'Avancée par quelqu’un (à rembourser)']].map(([val, lib]) => (
+                                        <button key={val} type="button" role="radio" aria-checked={e.payePar === val} onClick={() => setEdition({ ...e, payePar: val })}
+                                            className={`px-3 py-2 rounded-xl border text-xs font-semibold ${e.payePar === val ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white text-neutral-600'}`}>{lib}</button>
+                                    ))}
+                                </div>
+                                {e.payePar === 'compte' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="app-label">Compte de sortie *</label>
+                                            {optionsComptes(e.currency).length ? (
+                                                <CustomSelect id="dep_compte" size="md" aria-label="Compte de sortie" value={e.account_id}
+                                                    onChange={(ev) => setEdition({ ...e, account_id: ev.target.value })} options={optionsComptes(e.currency)} />
+                                            ) : (
+                                                <p className="text-xs text-amber-700 p-2">Aucun compte en {e.currency}. <button type="button" className="underline" onClick={onOuvrirReglages}>Ajouter un compte</button></p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="app-label">Moyen de paiement</label>
+                                            <CustomSelect id="dep_methode" size="md" aria-label="Moyen de paiement" value={e.method}
+                                                onChange={(ev) => setEdition({ ...e, method: ev.target.value })} options={METHODES_SORTIE} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label htmlFor="dep_avance" className="app-label">Avancée par *</label>
+                                        <input id="dep_avance" className="app-input" value={e.advanced_by} placeholder="Nom de la personne à rembourser" onChange={(ev) => setEdition({ ...e, advanced_by: ev.target.value })} />
+                                        <p className="text-[11px] text-neutral-500 mt-1">Aucun compte de l'entreprise n'est touché : la somme apparaîtra « à rembourser ».</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div>
+                            <label htmlFor="dep_notes" className="app-label">Notes</label>
+                            <input id="dep_notes" className="app-input" value={e.notes} onChange={(ev) => setEdition({ ...e, notes: ev.target.value })} />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setEdition(null); setErreurs([]); }}>Annuler</button>
+                            <button type="submit" disabled={occupe} className="btn-primary text-xs py-2 px-3">{occupe ? 'Enregistrement…' : 'Enregistrer'}</button>
+                        </div>
+                    </form>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <div role="tablist" aria-label="Filtrer les dépenses" className="flex flex-wrap gap-1.5">
+                        {[['tout', 'Toutes'], ['a_payer', 'À payer'], ['payees', 'Payées'], ['avances', 'Avances à rembourser']].map(([val, lib]) => (
+                            <button key={val} type="button" role="tab" aria-selected={filtre === val} onClick={() => setFiltre(val)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${filtre === val ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-600 border-neutral-200'}`}>{lib}</button>
+                        ))}
+                    </div>
+                    <input type="search" aria-label="Rechercher une dépense" placeholder="Rechercher…" className="app-input w-full sm:w-60 sm:ml-auto" value={recherche} onChange={(ev) => setRecherche(ev.target.value)} />
+                </div>
+
+                {visibles.length === 0 ? (
+                    <div className="p-10 text-center rounded-2xl border border-dashed border-neutral-300 bg-white">
+                        <i className="fa-solid fa-receipt text-2xl text-neutral-300 mb-2"></i>
+                        <p className="text-sm font-bold text-neutral-700">{depenses.length ? 'Aucune dépense ne correspond' : 'Aucune dépense pour l’instant'}</p>
+                        <p className="text-xs text-neutral-500 mt-1">Saisissez un ticket, un reçu ou une facture fournisseur avec « Nouvelle dépense ».</p>
+                    </div>
+                ) : (
+                    <ul className="space-y-2">
+                        {visibles.map((d) => {
+                            const statut = STATUTS_DEPENSE[d.etat.statut];
+                            const retard = ['to_pay', 'partially_paid'].includes(d.etat.statut) && d.due_date && d.due_date < aujourdhui;
+                            const estOuverte = ouverte === d.id;
+                            return (
+                                <li key={d.id} data-depense={d.description} data-statut={d.etat.statut} className="rounded-2xl border border-neutral-200 bg-white">
+                                    <button type="button" aria-expanded={estOuverte} onClick={() => { setOuverte(estOuverte ? null : d.id); setReglement(null); setErreurs([]); }}
+                                        className="w-full text-left p-4 flex flex-wrap items-center gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold text-neutral-800 flex flex-wrap items-center gap-2">
+                                                <span className="truncate">{d.description}</span>
+                                                <Badge colorClass={statut.couleur}>{d.advanced_by && d.etat.statut !== 'paid' ? 'À rembourser' : statut.label}</Badge>
+                                                {retard && <Badge colorClass="bg-rose-100 text-rose-700">En retard</Badge>}
+                                            </p>
+                                            <p className="text-[11px] text-neutral-500 truncate">
+                                                {[formatDate(d.expense_date), d.supplier_name, nomCategorie(d.category_id), libelleChantier(d) || 'Frais généraux', d.advanced_by ? `avancée par ${d.advanced_by}` : null].filter(Boolean).join(' · ')}
+                                            </p>
+                                        </div>
+                                        <div className="w-full sm:w-auto text-left sm:text-right">
+                                            <p className="text-base font-bold text-neutral-900" data-depense-ttc>{formatMoney(d.amount_ttc, d.currency)}</p>
+                                            {d.etat.statut !== 'paid' && d.etat.regle > 0 && <p className="text-[11px] text-neutral-500" data-depense-reste>reste {formatMoney(d.etat.reste, d.currency)}</p>}
+                                            {d.due_date && d.etat.statut !== 'paid' && <p className={`text-[11px] ${retard ? 'text-rose-600' : 'text-neutral-400'}`}>échéance {formatDate(d.due_date)}</p>}
+                                        </div>
+                                    </button>
+                                    {estOuverte && (
+                                        <div className="px-4 pb-4 space-y-3 border-t border-neutral-100 pt-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-neutral-600">
+                                                <p>HT <strong className="text-neutral-900">{formatMoney(d.amount_ht, d.currency)}</strong></p>
+                                                <p>Taxe <strong className="text-neutral-900">{formatMoney(d.tax_amount, d.currency)}</strong>{Number(d.tax_rate) ? ` (${String(Number(d.tax_rate)).replace('.', ',')} %)` : ''}</p>
+                                                <p>Pièce <strong className="text-neutral-900">{d.document_ref || '—'}</strong></p>
+                                            </div>
+                                            {Array.isArray(d.splits) && d.splits.length > 0 && (
+                                                <p className="text-xs text-neutral-600">Répartition : {d.splits.map((s) => `${s.project_ref || 'Chantier'} ${formatMoney(s.amount, d.currency)}`).join(' · ')}</p>
+                                            )}
+                                            {(d.reglements || []).length > 0 && (
+                                                <ul className="text-xs space-y-1">
+                                                    {d.reglements.map((r) => (
+                                                        <li key={r.id} className="flex flex-wrap items-center gap-2 text-neutral-600">
+                                                            <i className="fa-solid fa-arrow-right-from-bracket text-neutral-400"></i>
+                                                            <span>{formatDate(r.payment_date)} · {nomCompte(r.account_id)} · <strong className="text-neutral-900">{formatMoney(r.amount, d.currency)}</strong></span>
+                                                            {r.status && r.status !== 'confirmed' && <Badge colorClass="bg-rose-100 text-rose-700">{r.status === 'bounced' ? 'Rejeté' : r.status}</Badge>}
+                                                            {modifiable && <button type="button" className="text-rose-600 underline" onClick={() => annulerReglement(d, r)}>Annuler</button>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {reglement && reglement.expense.id === d.id && (
+                                                <form onSubmit={(ev) => { ev.preventDefault(); enregistrerReglement(); }} className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 space-y-3" aria-label="Régler la dépense">
+                                                    {blocErreurs}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="app-label">Compte *</label>
+                                                            {optionsComptes(d.currency).length ? (
+                                                                <CustomSelect id="dep_regl_compte" size="md" aria-label="Compte du règlement" value={reglement.account_id}
+                                                                    onChange={(ev) => setReglement({ ...reglement, account_id: ev.target.value })} options={optionsComptes(d.currency)} />
+                                                            ) : <p className="text-xs text-amber-700 p-2">Aucun compte en {d.currency}.</p>}
+                                                        </div>
+                                                        <div>
+                                                            <label htmlFor="dep_regl_montant" className="app-label">Montant *</label>
+                                                            <input id="dep_regl_montant" type="number" step="any" min="0" className="app-input" value={reglement.amount} onChange={(ev) => setReglement({ ...reglement, amount: ev.target.value })} />
+                                                        </div>
+                                                        <div>
+                                                            <label htmlFor="dep_regl_date" className="app-label">Date</label>
+                                                            <input id="dep_regl_date" type="date" className="app-input" value={reglement.payment_date} onChange={(ev) => setReglement({ ...reglement, payment_date: ev.target.value })} />
+                                                        </div>
+                                                        <div>
+                                                            <label className="app-label">Moyen de paiement</label>
+                                                            <CustomSelect id="dep_regl_methode" size="md" aria-label="Moyen de paiement du règlement" value={reglement.method}
+                                                                onChange={(ev) => setReglement({ ...reglement, method: ev.target.value })} options={METHODES_SORTIE} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setReglement(null); setErreurs([]); }}>Annuler</button>
+                                                        <button type="submit" disabled={occupe} className="btn-primary text-xs py-2 px-3">{d.advanced_by ? 'Rembourser' : 'Enregistrer le règlement'}</button>
+                                                    </div>
+                                                </form>
+                                            )}
+                                            {modifiable && !reglement && (
+                                                <div className="flex flex-wrap justify-end gap-2">
+                                                    {['to_pay', 'partially_paid'].includes(d.etat.statut) && (
+                                                        <button type="button" className="btn-primary text-xs py-2 px-3" onClick={() => ouvrirReglement(d)}>
+                                                            <i className="fa-solid fa-money-bill-transfer"></i> {d.advanced_by ? 'Rembourser' : 'Régler'}
+                                                        </button>
+                                                    )}
+                                                    <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => modifier(d)}><i className="fa-solid fa-pen mr-1"></i>Modifier</button>
+                                                    <button type="button" className="btn-secondary text-xs py-2 px-3 text-rose-600" onClick={() => supprimer(d)}><i className="fa-solid fa-trash mr-1"></i>Supprimer</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+                <p className="text-[11px] text-neutral-400">{mode === 'cloud' ? 'Enregistré dans votre espace en ligne.' : 'Enregistré sur cet appareil.'}</p>
+            </div>
+        </div>
+    );
+}
+
+// ══ PARAMÈTRES FINANCES (§ 71, 2026-09-19) ══════════════════════════════════
+// Devises, taxes, catégories de dépenses et comptes financiers (banques,
+// caisses, portefeuilles mobile money). Composant autonome, branché d'une
+// ligne dans les Paramètres comme TeamSettingsPanel : aucun écran existant
+// n'est modifié.
+//
+// Deux modes, mêmes règles :
+//   - cloud : tables finance_settings / tax_rates / expense_categories /
+//     financial_accounts (migrations_finance_settings_accounts_2026-09-19.sql),
+//     soldes lus dans la vue v_financial_account_balances ;
+//   - local (invité, hors-ligne, ou base pas encore migrée) : localStorage,
+//     initialisé par financeDefautsDepuisEntreprise — miroir exact de
+//     seed_finance_defaults_v1 côté SQL.
+// Les validations (js/finance-core.js) sont les mêmes que les contraintes SQL :
+// l'utilisateur lit une phrase claire avant tout aller-retour serveur.
+const nouvelIdFinance = () => (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `fin_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+const COMPTE_VIDE = (devise) => ({
+    id: null, name: '', kind: 'bank', currency: devise, institution: '', holder: '',
+    account_number: '', iban: '', bic: '', mobile_number: '',
+    opening_balance: '0', opening_date: new Date().toISOString().slice(0, 10),
+    show_on_documents: false, is_default: false, is_active: true, notes: ''
+});
+const TAXE_VIDE = () => ({
+    id: null, name: '', kind: 'standard', rate: '', scope: 'both', is_inclusive: false,
+    is_recoverable: true, legal_mention: '', effective_from: new Date().toISOString().slice(0, 10),
+    effective_to: '', is_default: false, is_active: true
+});
+const MOIS_EXERCICE = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+const ICONES_COMPTE = { bank: 'fa-building-columns', cash: 'fa-cash-register', mobile_money: 'fa-mobile-screen-button', card: 'fa-credit-card', other: 'fa-wallet' };
+
+// Coordonnées bancaires : visibles en entier par ceux qui peuvent modifier les
+// comptes, masquées pour les autres rôles (cahier des charges § 12).
+const masquerCoordonnee = (v, visible) => {
+    const t = String(v || '').trim();
+    if (!t || visible || t.length <= 4) return t;
+    return `•••• ${t.slice(-4)}`;
+};
+
+// Nettoie un objet avant envoi : chaînes vides → null, nombres typés.
+const pourBase = (obj, champsNombre = []) => {
+    const r = {};
+    Object.entries(obj).forEach(([k, v]) => {
+        if (champsNombre.includes(k)) r[k] = v === '' || v === null ? 0 : Number(v);
+        else r[k] = typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : v;
+    });
+    return r;
+};
+
+// ══ PASSERELLE DE PAIEMENT EN LIGNE SASPAY (Mobile Money & Carte) ═══════════
+function SaspaySettingsCard({ companyInfo, updateCompanyInfo, isReadOnly = false, showToast }) {
+    const rawSaspay = companyInfo?.saspaySettings || companyInfo?.commercialSettings?.saspay || {};
+    const saspay = {
+        enabled: !!rawSaspay.enabled,
+        apiKey: rawSaspay.apiKey || '',
+        environment: rawSaspay.environment || 'test',
+        defaultCountry: rawSaspay.defaultCountry || 'ML',
+        feeChargeMode: rawSaspay.feeChargeMode || 'DEDUCTED'
+    };
+
+    const [showKey, setShowKey] = React.useState(false);
+    const [testState, setTestState] = React.useState({ loading: false, result: null });
+
+    const handleUpdate = (patch) => {
+        if (isReadOnly || !updateCompanyInfo) return;
+        const nextSaspay = { ...saspay, ...patch };
+        const nextCommercial = {
+            ...(companyInfo?.commercialSettings || {}),
+            saspay: nextSaspay
+        };
+        updateCompanyInfo({
+            ...companyInfo,
+            saspaySettings: nextSaspay,
+            commercialSettings: nextCommercial
+        });
+    };
+
+    const handleTestConnection = async () => {
+        setTestState({ loading: true, result: null });
+        try {
+            const svc = (typeof window !== 'undefined' && window.SasPayService) ? window.SasPayService : null;
+            if (!svc) {
+                setTestState({
+                    loading: false,
+                    result: { success: false, message: "Le service SasPay n'est pas encore chargé." }
+                });
+                return;
+            }
+            const res = await svc.testConnection({
+                apiKey: saspay.apiKey,
+                environment: saspay.environment
+            });
+            setTestState({
+                loading: false,
+                result: {
+                    success: res.success,
+                    simulated: !!res.simulated,
+                    message: res.message,
+                    mode: res.environment
+                }
+            });
+            if (showToast) {
+                showToast(res.message, res.success ? 'success' : 'warning');
+            }
+        } catch (err) {
+            setTestState({
+                loading: false,
+                result: { success: false, message: err?.message || String(err) }
+            });
+            if (showToast) showToast(err?.message || "Erreur de test SasPay", 'error');
+        }
+    };
+
+    const countries = (typeof window !== 'undefined' && window.SASPAY_COUNTRIES) ? window.SASPAY_COUNTRIES : [
+        { code: 'ML', name: 'Mali', dialCode: '+223', flag: '🇲🇱', networks: ['Wave', 'Orange Money', 'Moov'] },
+        { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', networks: ['Wave', 'Orange Money', 'MTN', 'Moov'] },
+        { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', networks: ['Wave', 'Orange Money', 'Free Money'] },
+        { code: 'BJ', name: 'Bénin', dialCode: '+229', flag: '🇧🇯', networks: ['MTN', 'Moov', 'Celtiis'] },
+        { code: 'BF', name: 'Burkina Faso', dialCode: '+226', flag: '🇧🇫', networks: ['Orange Money', 'Moov'] },
+        { code: 'TG', name: 'Togo', dialCode: '+228', flag: '🇹🇬', networks: ['T-Money', 'Moov'] },
+        { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', networks: ['Orange Money', 'MTN'] },
+        { code: 'GN', name: 'Guinée', dialCode: '+224', flag: '🇬🇳', networks: ['Orange Money', 'MTN'] }
+    ];
+
+    return (
+        <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4" aria-label="Passerelle de paiement SasPay">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-100">
+                <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <i className="fa-solid fa-bolt-lightning text-lg"></i>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-neutral-900">Passerelle de paiement en ligne SasPay</h3>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${saspay.enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
+                                {saspay.enabled ? '● Passerelle Activée' : '○ Inactive'}
+                            </span>
+                            {saspay.enabled && (
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${saspay.environment === 'live' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                    {saspay.environment === 'live' ? 'Mode Production (Live)' : 'Mode Test (Sandbox)'}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                            Encaissez vos acomptes et factures par <strong>Wave</strong>, <strong>Orange Money</strong>, <strong>Moov</strong>, <strong>MTN</strong>, <strong>Free</strong>, <strong>Celtiis</strong> et <strong>Cartes Bancaires (Visa / Mastercard)</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={saspay.enabled}
+                            disabled={isReadOnly}
+                            onChange={(e) => handleUpdate({ enabled: e.target.checked })}
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span className="ml-2 text-xs font-semibold text-neutral-700">
+                            {saspay.enabled ? 'Activé' : 'Désactivé'}
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            {/* Badges de canaux supportés */}
+            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-neutral-600 bg-neutral-50/80 p-2.5 rounded-xl border border-neutral-150">
+                <span className="font-bold text-neutral-700 mr-1 text-[10px] uppercase tracking-wider">Réseaux inclus :</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/60 font-semibold"><i className="fa-solid fa-water text-[10px]"></i> Wave</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200/60 font-semibold"><i className="fa-solid fa-mobile-screen text-[10px]"></i> Orange Money</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold"><i className="fa-solid fa-signal text-[10px]"></i> Moov Money</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200/60 font-semibold"><i className="fa-solid fa-tower-broadcast text-[10px]"></i> MTN MoMo</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/60 font-semibold"><i className="fa-solid fa-phone text-[10px]"></i> Free / Celtiis</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 border border-neutral-200 font-semibold"><i className="fa-solid fa-credit-card text-[10px]"></i> Visa / Mastercard</span>
+            </div>
+
+            {saspay.enabled && (
+                <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Environnement */}
+                        <div>
+                            <label className="app-label">Environnement SasPay *</label>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    disabled={isReadOnly}
+                                    onClick={() => handleUpdate({ environment: 'test' })}
+                                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${saspay.environment === 'test' ? 'bg-amber-50 text-amber-900 border-amber-300 ring-2 ring-amber-400/20' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+                                >
+                                    <i className="fa-solid fa-flask text-amber-600"></i>
+                                    Test (Sandbox)
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isReadOnly}
+                                    onClick={() => handleUpdate({ environment: 'live' })}
+                                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${saspay.environment === 'live' ? 'bg-emerald-50 text-emerald-900 border-emerald-400 ring-2 ring-emerald-400/20' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+                                >
+                                    <i className="fa-solid fa-shield-halved text-emerald-600"></i>
+                                    Production (Live)
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-neutral-500 mt-1">
+                                {saspay.environment === 'test' ? 'Permet de tester les encaissements sans mouvement d\'argent réel.' : 'Tous les règlements encaisseront de l\'argent réel sur votre compte SasPay.'}
+                            </p>
+                        </div>
+
+                        {/* Clé secrète API */}
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label htmlFor="saspay_api_key" className="app-label !mb-0">
+                                    Clé secrète d'API (Secret Key) *
+                                </label>
+                                <a
+                                    href="https://saspay.me"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-semibold text-brand-600 hover:underline inline-flex items-center gap-1"
+                                >
+                                    Ouvrir SasPay <i className="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                </a>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    id="saspay_api_key"
+                                    disabled={isReadOnly}
+                                    type={showKey ? 'text' : 'password'}
+                                    className="app-input font-mono text-xs pr-20"
+                                    value={saspay.apiKey}
+                                    onChange={(e) => handleUpdate({ apiKey: e.target.value.trim() })}
+                                    placeholder={saspay.environment === 'live' ? 'sk_live_...' : 'sk_test_...'}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKey(!showKey)}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs px-1.5 py-1"
+                                    title={showKey ? 'Masquer' : 'Afficher'}
+                                >
+                                    <i className={`fa-solid ${showKey ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-neutral-400 mt-1">
+                                En l'absence de clé, un simulateur interactif local permet de tester le flux complet.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Pays d'encaissement par défaut */}
+                        <div>
+                            <label htmlFor="saspay_country" className="app-label">Pays principal des clients *</label>
+                            <select
+                                id="saspay_country"
+                                disabled={isReadOnly}
+                                value={saspay.defaultCountry}
+                                onChange={(e) => handleUpdate({ defaultCountry: e.target.value })}
+                                className="app-input text-xs font-semibold"
+                            >
+                                {countries.map(c => (
+                                    <option key={c.code} value={c.code}>
+                                        {c.flag} {c.name} ({c.dialCode}) — {c.networks.join(', ')}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[11px] text-neutral-500 mt-1">
+                                Préselectionne l'indicatif téléphonique et les opérateurs Mobile Money lors de l'encaissement.
+                            </p>
+                        </div>
+
+                        {/* Gestion des frais */}
+                        <div>
+                            <label htmlFor="saspay_fee_mode" className="app-label">Prise en charge des frais de passerelle *</label>
+                            <select
+                                id="saspay_fee_mode"
+                                disabled={isReadOnly}
+                                value={saspay.feeChargeMode}
+                                onChange={(e) => handleUpdate({ feeChargeMode: e.target.value })}
+                                className="app-input text-xs font-semibold"
+                            >
+                                <option value="DEDUCTED">Déduits du montant reçu (Recommandé - Transparent pour le client)</option>
+                                <option value="ADD_ON">Répercutés en supplément à la charge du client (Add-on)</option>
+                            </select>
+                            <p className="text-[11px] text-neutral-500 mt-1">
+                                Selon les règles de votre entreprise et de votre grille tarifaire BTP.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Test de connexion et état */}
+                    <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                        <div className="text-xs">
+                            <span className="font-bold text-neutral-800 block">Vérification de la configuration</span>
+                            {testState.result ? (
+                                <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${testState.result.success ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-medium'}`}>
+                                    <i className={`fa-solid ${testState.result.success ? 'fa-circle-check text-emerald-600' : 'fa-triangle-exclamation text-amber-600'}`}></i>
+                                    {testState.result.message}
+                                </p>
+                            ) : (
+                                <p className="text-[11px] text-neutral-500 mt-0.5">
+                                    Testez instantanément l'accessibilité de l'API SasPay avec votre clé.
+                                </p>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            disabled={testState.loading || isReadOnly}
+                            onClick={handleTestConnection}
+                            className="btn-secondary text-xs py-2 px-3 font-semibold shrink-0"
+                        >
+                            {testState.loading ? (
+                                <>
+                                    <i className="fa-solid fa-spinner fa-spin mr-1.5"></i> Test en cours…
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-plug-circle-check text-emerald-600 mr-1.5"></i> Tester la connexion
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+}
+
+function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyInfo, updateCompanyInfo, canEdit, isReadOnly, showToast, askConfirm }) {
+    const [onglet, setOnglet] = useState('comptes');
+    const [donnees, setDonnees] = useState(null);      // { settings, taxes, categories, accounts }
+    const [soldes, setSoldes] = useState({});          // account_id → ligne de la vue
+    const [mode, setMode] = useState('local');         // 'cloud' | 'local'
+    const [avertissement, setAvertissement] = useState('');
+    const [chargement, setChargement] = useState(true);
+    const [occupe, setOccupe] = useState(false);
+    const [erreurs, setErreurs] = useState([]);
+    const [compteEdite, setCompteEdite] = useState(null);
+    const [taxeEditee, setTaxeEditee] = useState(null);
+    const [nouvelleCategorie, setNouvelleCategorie] = useState({ name: '', kind: 'material' });
+    const [categorieEditee, setCategorieEditee] = useState(null);
+    const [voirArchives, setVoirArchives] = useState(false);
+    const [brouillonDevises, setBrouillonDevises] = useState(null);
+
+    const orgCloud = !!(organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local') && organizationId !== 'guest_org');
+    const cloudPossible = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && orgCloud);
+    const modifiable = !isReadOnly && (mode === 'local' || canEdit);
+    const cleLocale = 'finance';
+
+    const enregistrerLocal = (d) => { LS.set(cleLocale, d, organizationId); };
+
+    const chargerLocal = () => {
+        const stocke = LS.get(cleLocale, organizationId);
+        if (stocke && stocke.settings) return stocke;
+        const d = financeDefautsDepuisEntreprise(companyInfo, nouvelIdFinance);
+        enregistrerLocal(d);
+        return d;
+    };
+
+    const lireCloud = async () => {
+        const [s, t, c, a] = await Promise.all([
+            supabaseClient.from('finance_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
+            supabaseClient.from('tax_rates').select('*').eq('organization_id', organizationId).order('rate', { ascending: false }),
+            supabaseClient.from('expense_categories').select('*').eq('organization_id', organizationId).order('sort_order', { ascending: true }),
+            supabaseClient.from('financial_accounts').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true })
+        ]);
+        const erreur = [s.error, t.error, c.error, a.error].find(Boolean);
+        if (erreur) throw erreur;
+        return { settings: s.data, taxes: t.data || [], categories: c.data || [], accounts: a.data || [] };
+    };
+
+    const chargerSoldes = async () => {
+        if (!cloudPossible) return;
+        const { data, error } = await supabaseClient
+            .from('v_financial_account_balances').select('*').eq('organization_id', organizationId);
+        if (!error) setSoldes(Object.fromEntries((data || []).map((l) => [l.account_id, l])));
+    };
+
+    const charger = async () => {
+        setChargement(true);
+        setAvertissement('');
+        if (!cloudPossible) {
+            setMode('local');
+            setDonnees(chargerLocal());
+            setChargement(false);
+            return;
+        }
+        try {
+            let d = await lireCloud();
+            if (!d.settings) {
+                if (!canEdit) {
+                    setAvertissement("Les réglages financiers n'ont pas encore été initialisés. Demandez au propriétaire ou à un administrateur d'ouvrir cette section.");
+                } else {
+                    const { error } = await supabaseClient.rpc('seed_finance_defaults_v1', { p_org: organizationId });
+                    if (error) throw error;
+                    d = await lireCloud();
+                }
+            }
+            setMode('cloud');
+            setDonnees(d);
+            await chargerSoldes();
+        } catch (e) {
+            // Tables absentes (migration pas encore appliquée) ou réseau : on
+            // ne bloque pas l'écran, on travaille sur cet appareil et on le dit.
+            console.warn('[Finances] Lecture cloud impossible, repli local :', e?.message || e);
+            setMode('local');
+            setAvertissement("La base de données n'est pas encore prête pour les Finances : vos réglages sont enregistrés sur cet appareil uniquement, pour l'instant.");
+            setDonnees(chargerLocal());
+        } finally {
+            setChargement(false);
+        }
+    };
+
+    useEffect(() => { charger(); }, [organizationId, supabaseClient, sbUser?.id]);
+
+    // Applique une modification : en local, sur l'état et le localStorage ;
+    // en cloud, par la fonction `ecrireCloud`, puis relecture.
+    const appliquer = async (transformation, ecrireCloud, messageOk) => {
+        setOccupe(true);
+        try {
+            if (mode === 'cloud') {
+                await ecrireCloud();
+                setDonnees(await lireCloud());
+                await chargerSoldes();
+            } else {
+                const suivant = transformation(donnees);
+                enregistrerLocal(suivant);
+                setDonnees(suivant);
+            }
+            if (messageOk) showToast(messageOk, 'success');
+            return true;
+        } catch (e) {
+            const brut = e?.message || String(e);
+            const clair = /payments_account_fk|foreign key/i.test(brut)
+                ? 'Ce compte porte des mouvements : il ne peut pas être supprimé. Archivez-le plutôt.'
+                : /uq_.*_name|duplicate key/i.test(brut) ? 'Ce nom est déjà utilisé.'
+                : /row-level security|permission/i.test(brut) ? "Vous n'avez pas les droits pour modifier ces réglages."
+                : brut;
+            showToast(clair, 'error');
+            return false;
+        } finally {
+            setOccupe(false);
+        }
+    };
+
+    // Un seul élément « par défaut » : on retire d'abord le drapeau aux autres
+    // (l'index unique partiel refuserait l'inverse).
+    const retirerDefautCloud = async (table, id, filtre = {}) => {
+        let q = supabaseClient.from(table).update({ is_default: false })
+            .eq('organization_id', organizationId).eq('is_default', true).neq('id', id);
+        Object.entries(filtre).forEach(([k, v]) => { q = q.eq(k, v); });
+        const { error } = await q;
+        if (error) throw error;
+    };
+
+    if (chargement || !donnees) {
+        return <div className="p-10 text-center text-sm text-neutral-500"><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement des réglages financiers…</div>;
+    }
+
+    const settings = donnees.settings || { base_currency: versIso(companyInfo?.currency), enabled_currencies: [versIso(companyInfo?.currency)], default_payment_terms_days: 30, fiscal_year_start_month: 1 };
+    const deviseBase = settings.base_currency;
+    const devisesActives = Array.isArray(settings.enabled_currencies) && settings.enabled_currencies.length ? settings.enabled_currencies : [deviseBase];
+    const deviseEntreprise = versIso(companyInfo?.currency || 'FCFA');
+    const nomDevise = (code) => (DEVISES_CATALOGUE.find((d) => d.code === code) || { nom: code }).nom;
+
+    // ── Comptes ───────────────────────────────────────────────────────────
+    const soldeAffiche = (compte) => {
+        if (mode === 'cloud' && soldes[compte.id]) {
+            const l = soldes[compte.id];
+            return { solde: Number(l.balance), anterieurs: Number(l.anterior_count) || 0, mouvements: Number(l.movement_count) || 0 };
+        }
+        // Mode local : les règlements des dépenses (écran Dépenses) sont les
+        // sorties des comptes — même règle que la vue SQL.
+        return soldeCompte(compte, mouvementsDepuisDepenses(LS.get('depenses', organizationId) || []));
+    };
+
+    const enregistrerCompte = async () => {
+        const c = compteEdite;
+        const origine = donnees.accounts.find((a) => a.id === c.id);
+        const aDesMouvements = mode === 'cloud' && origine && ((Number(soldes[origine.id]?.movement_count) || 0) + (Number(soldes[origine.id]?.anterior_count) || 0)) > 0;
+        const errs = validerCompte(c, donnees.accounts, { aDesMouvements, deviseOrigine: origine?.currency });
+        setErreurs(errs);
+        if (errs.length) return;
+        const id = c.id || nouvelIdFinance();
+        const ligne = pourBase({ ...c, id }, ['opening_balance']);
+        ligne.opening_balance = arrondiDevise(ligne.opening_balance, ligne.currency);
+        const ok = await appliquer(
+            (d) => ({
+                ...d,
+                accounts: (c.is_default ? d.accounts.map((a) => ({ ...a, is_default: false })) : d.accounts)
+                    .filter((a) => a.id !== id).concat([ligne])
+            }),
+            async () => {
+                if (c.is_default) await retirerDefautCloud('financial_accounts', id);
+                const { error } = await supabaseClient.from('financial_accounts')
+                    .upsert({ ...ligne, organization_id: organizationId, ...(c.id ? {} : { created_by: sbUser.id }) });
+                if (error) throw error;
+            },
+            c.id ? 'Compte mis à jour.' : 'Compte ajouté.'
+        );
+        if (ok) { setCompteEdite(null); setErreurs([]); }
+    };
+
+    const archiverCompte = (compte, actif) => appliquer(
+        (d) => ({ ...d, accounts: d.accounts.map((a) => a.id === compte.id ? { ...a, is_active: actif, is_default: actif ? a.is_default : false } : a) }),
+        async () => {
+            const { error } = await supabaseClient.from('financial_accounts')
+                .update({ is_active: actif, ...(actif ? {} : { is_default: false }) }).eq('id', compte.id).eq('organization_id', organizationId);
+            if (error) throw error;
+        },
+        actif ? `« ${compte.name} » réactivé.` : `« ${compte.name} » archivé.`
+    );
+
+    const supprimerCompte = (compte) => askConfirm(
+        `Supprimer « ${compte.name} » ?`,
+        "La suppression est définitive. Un compte qui porte déjà des mouvements ne peut pas être supprimé : archivez-le pour le retirer des listes sans perdre son historique.",
+        'Supprimer',
+        () => appliquer(
+            (d) => ({ ...d, accounts: d.accounts.filter((a) => a.id !== compte.id) }),
+            async () => {
+                const { error } = await supabaseClient.from('financial_accounts').delete().eq('id', compte.id).eq('organization_id', organizationId);
+                if (error) throw error;
+            },
+            `« ${compte.name} » supprimé.`
+        )
+    );
+
+    // ── Taxes ─────────────────────────────────────────────────────────────
+    const enregistrerTaxe = async () => {
+        const t = { ...taxeEditee, rate: taxeEditee.kind === 'standard' ? taxeEditee.rate : 0 };
+        const errs = validerTaxe({ ...t, rate: String(t.rate).trim() === '' ? NaN : Number(t.rate), effective_to: t.effective_to || null }, donnees.taxes);
+        setErreurs(errs);
+        if (errs.length) return;
+        const id = t.id || nouvelIdFinance();
+        const ligne = pourBase({ ...t, id }, ['rate']);
+        const ok = await appliquer(
+            (d) => ({
+                ...d,
+                taxes: (t.is_default ? d.taxes.map((x) => (x.scope || 'both') === t.scope ? { ...x, is_default: false } : x) : d.taxes)
+                    .filter((x) => x.id !== id).concat([ligne])
+            }),
+            async () => {
+                if (t.is_default) await retirerDefautCloud('tax_rates', id, { scope: t.scope });
+                const { error } = await supabaseClient.from('tax_rates').upsert({ ...ligne, organization_id: organizationId });
+                if (error) throw error;
+            },
+            t.id ? 'Taxe mise à jour.' : 'Taxe ajoutée.'
+        );
+        if (ok) { setTaxeEditee(null); setErreurs([]); }
+    };
+
+    const supprimerTaxe = (taxe) => askConfirm(
+        `Supprimer « ${taxe.name} » ?`,
+        "Les documents déjà émis gardent leur taux : ils ne sont pas modifiés. Pour ne plus proposer cette taxe sans la supprimer, désactivez-la.",
+        'Supprimer',
+        () => appliquer(
+            (d) => ({ ...d, taxes: d.taxes.filter((x) => x.id !== taxe.id) }),
+            async () => {
+                const { error } = await supabaseClient.from('tax_rates').delete().eq('id', taxe.id).eq('organization_id', organizationId);
+                if (error) throw error;
+            },
+            `« ${taxe.name} » supprimée.`
+        )
+    );
+
+    // ── Catégories ────────────────────────────────────────────────────────
+    const enregistrerCategorie = async (categorie, reinitialiser) => {
+        const errs = validerCategorie(categorie, donnees.categories);
+        setErreurs(errs);
+        if (errs.length) return;
+        const id = categorie.id || nouvelIdFinance();
+        const ligne = pourBase({
+            id, name: categorie.name, kind: categorie.kind,
+            sort_order: categorie.sort_order ?? (Math.max(0, ...donnees.categories.map((c) => Number(c.sort_order) || 0)) + 10),
+            is_active: categorie.is_active !== false
+        }, ['sort_order']);
+        const ok = await appliquer(
+            (d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id).concat([ligne]).sort((a, b) => a.sort_order - b.sort_order) }),
+            async () => {
+                const { error } = await supabaseClient.from('expense_categories').upsert({ ...ligne, organization_id: organizationId });
+                if (error) throw error;
+            },
+            categorie.id ? 'Catégorie mise à jour.' : 'Catégorie ajoutée.'
+        );
+        if (ok) { setErreurs([]); reinitialiser(); }
+    };
+
+    const supprimerCategorie = (categorie) => askConfirm(
+        `Supprimer « ${categorie.name} » ?`,
+        'Pour la retirer des choix sans la supprimer, désactivez-la.',
+        'Supprimer',
+        () => appliquer(
+            (d) => ({ ...d, categories: d.categories.filter((c) => c.id !== categorie.id) }),
+            async () => {
+                const { error } = await supabaseClient.from('expense_categories').delete().eq('id', categorie.id).eq('organization_id', organizationId);
+                if (error) throw error;
+            },
+            `« ${categorie.name} » supprimée.`
+        )
+    );
+
+    // ── Devises & réglages généraux ───────────────────────────────────────
+    const reglages = brouillonDevises || {
+        enabled_currencies: devisesActives,
+        default_payment_terms_days: settings.default_payment_terms_days ?? 30,
+        fiscal_year_start_month: settings.fiscal_year_start_month ?? 1
+    };
+    const basculerDevise = (code) => {
+        if (code === deviseBase) return;
+        const liste = reglages.enabled_currencies.includes(code)
+            ? reglages.enabled_currencies.filter((c) => c !== code)
+            : [...reglages.enabled_currencies, code];
+        setBrouillonDevises({ ...reglages, enabled_currencies: liste });
+    };
+    const enregistrerReglages = async (aligner = false) => {
+        const jours = Number(reglages.default_payment_terms_days);
+        if (String(reglages.default_payment_terms_days).trim() === '' || !Number.isInteger(jours) || jours < 0 || jours > 365) {
+            setErreurs(['Le délai de paiement doit être un nombre entier de jours, entre 0 et 365.']);
+            return;
+        }
+        const base = aligner ? deviseEntreprise : deviseBase;
+        // Une devise encore utilisée par un compte actif ne peut pas être désactivée.
+        const orphelines = donnees.accounts.filter((a) => a.is_active !== false && ![base, ...reglages.enabled_currencies].includes(a.currency));
+        if (orphelines.length) {
+            setErreurs([`La devise ${orphelines[0].currency} est utilisée par le compte « ${orphelines[0].name} » : archivez-le avant de la désactiver.`]);
+            return;
+        }
+        const ligne = {
+            base_currency: base,
+            enabled_currencies: [...new Set([base, ...reglages.enabled_currencies])],
+            default_payment_terms_days: jours,
+            fiscal_year_start_month: Number(reglages.fiscal_year_start_month) || 1
+        };
+        const ok = await appliquer(
+            (d) => ({ ...d, settings: { ...d.settings, ...ligne } }),
+            async () => {
+                const { error } = await supabaseClient.from('finance_settings')
+                    .upsert({ ...ligne, organization_id: organizationId, updated_by: sbUser.id });
+                if (error) throw error;
+            },
+            aligner ? `Devise de base alignée sur ${base}.` : 'Réglages des devises enregistrés.'
+        );
+        if (ok) { setBrouillonDevises(null); setErreurs([]); }
+    };
+
+    const optionsDevises = devisesActives.map((c) => ({ value: c, label: `${c} — ${nomDevise(c)}` }));
+    const comptesVisibles = donnees.accounts.filter((a) => voirArchives || a.is_active !== false);
+    const nbArchives = donnees.accounts.filter((a) => a.is_active === false).length;
+    const onglets = [
+        { id: 'comptes', label: 'Comptes', icone: 'fa-wallet', nombre: donnees.accounts.filter((a) => a.is_active !== false).length },
+        { id: 'devises', label: 'Devises', icone: 'fa-coins', nombre: devisesActives.length },
+        { id: 'taxes', label: 'Taxes', icone: 'fa-percent', nombre: donnees.taxes.filter((t) => t.is_active !== false).length },
+        { id: 'categories', label: 'Catégories', icone: 'fa-tags', nombre: donnees.categories.filter((c) => c.is_active !== false).length },
+        { id: 'saspay', label: 'Passerelle SasPay', icone: 'fa-bolt-lightning', nombre: (companyInfo?.saspaySettings?.enabled || companyInfo?.commercialSettings?.saspay?.enabled) ? 'Actif' : 'Off' }
+    ];
+    const changerOnglet = (id) => { setOnglet(id); setErreurs([]); setCompteEdite(null); setTaxeEditee(null); setCategorieEditee(null); };
+
+    const blocErreurs = erreurs.length > 0 && (
+        <div role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs space-y-1">
+            {erreurs.map((e) => <p key={e}><i className="fa-solid fa-circle-exclamation mr-1.5"></i>{e}</p>)}
+        </div>
+    );
+    const caseACocher = (id, libelle, valeur, surChange, aide) => (
+        <label htmlFor={id} className="flex items-start gap-2.5 text-xs text-neutral-700 cursor-pointer">
+            <input id={id} type="checkbox" className="mt-0.5 w-4 h-4 shrink-0" checked={!!valeur} onChange={(e) => surChange(e.target.checked)} disabled={!modifiable} />
+            <span><span className="font-semibold">{libelle}</span>{aide && <span className="block text-[11px] text-neutral-500 mt-0.5">{aide}</span>}</span>
+        </label>
+    );
+
+    return (
+        <div className="space-y-5" data-finance-settings data-finance-mode={mode}>
+            <div>
+                <h4 className="font-bold text-neutral-800 text-sm mb-1">Finances</h4>
+                <p className="text-xs text-neutral-500">
+                    Vos comptes (banque, caisse, mobile money), les devises utilisées, les taxes et les catégories de dépenses.
+                    Aucun référentiel national n'est imposé : tout se règle ici.
+                </p>
+            </div>
+
+            {avertissement && (
+                <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs">
+                    <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>{avertissement}
+                </div>
+            )}
+            {!modifiable && !isReadOnly && mode === 'cloud' && (
+                <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-600 text-xs">
+                    <i className="fa-solid fa-lock mr-1.5"></i>Consultation seule : seuls le propriétaire et les administrateurs modifient ces réglages.
+                </div>
+            )}
+
+            <div role="tablist" aria-label="Rubriques Finances" className="flex flex-wrap gap-2">
+                {onglets.map((o) => (
+                    <button
+                        key={o.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={onglet === o.id}
+                        onClick={() => changerOnglet(o.id)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${onglet === o.id ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
+                    >
+                        <i className={`fa-solid ${o.icone}`}></i>{o.label}
+                        <span className={`text-[10px] px-1.5 rounded-full ${onglet === o.id ? 'bg-white/20' : 'bg-neutral-100'}`}>{o.nombre}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* ── COMPTES ─────────────────────────────────────────────── */}
+            {onglet === 'comptes' && (
+                <section className="space-y-3" aria-label="Comptes financiers">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-neutral-500 max-w-xl">
+                            Le solde initial est une reprise d'historique, jamais un revenu. Un compte peut servir à tous vos chantiers.
+                        </p>
+                        {modifiable && !compteEdite && (
+                            <button type="button" className="btn-primary text-xs py-2 px-3" onClick={() => { setErreurs([]); setCompteEdite(COMPTE_VIDE(deviseBase)); }}>
+                                <i className="fa-solid fa-plus"></i> Ajouter un compte
+                            </button>
+                        )}
+                    </div>
+
+                    {compteEdite && (
+                        <form
+                            onSubmit={(e) => { e.preventDefault(); enregistrerCompte(); }}
+                            className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50/80 space-y-4"
+                            aria-label={compteEdite.id ? 'Modifier le compte' : 'Nouveau compte'}
+                        >
+                            <p className="text-sm font-bold text-neutral-800">{compteEdite.id ? `Modifier « ${compteEdite.name} »` : 'Nouveau compte'}</p>
+                            {blocErreurs}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label htmlFor="fin_compte_nom" className="app-label">Nom du compte *</label>
+                                    <input id="fin_compte_nom" className="app-input" value={compteEdite.name} placeholder="Ex. Compte principal, Caisse atelier" onChange={(e) => setCompteEdite({ ...compteEdite, name: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Type *</label>
+                                    <CustomSelect id="fin_compte_type" size="md" aria-label="Type de compte" value={compteEdite.kind}
+                                        onChange={(e) => setCompteEdite({ ...compteEdite, kind: e.target.value })}
+                                        options={Object.entries(TYPES_COMPTE).map(([value, label]) => ({ value, label }))} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Devise *</label>
+                                    <CustomSelect id="fin_compte_devise" size="md" aria-label="Devise du compte" value={compteEdite.currency}
+                                        onChange={(e) => setCompteEdite({ ...compteEdite, currency: e.target.value })}
+                                        options={optionsDevises} />
+                                    <p className="text-[11px] text-neutral-500 mt-1">Pour une autre devise, activez-la d'abord dans l'onglet Devises.</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label htmlFor="fin_compte_solde" className="app-label">Solde initial *</label>
+                                        <input id="fin_compte_solde" type="number" step="any" className="app-input" value={compteEdite.opening_balance} onChange={(e) => setCompteEdite({ ...compteEdite, opening_balance: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="fin_compte_date" className="app-label">Au début du *</label>
+                                        <input id="fin_compte_date" type="date" className="app-input" value={compteEdite.opening_date} onChange={(e) => setCompteEdite({ ...compteEdite, opening_date: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label htmlFor="fin_compte_etab" className="app-label">{compteEdite.kind === 'mobile_money' ? 'Opérateur' : 'Établissement'}</label>
+                                    <input id="fin_compte_etab" className="app-input" value={compteEdite.institution || ''} placeholder={compteEdite.kind === 'mobile_money' ? 'Orange Money, Wave, Moov…' : 'Nom de la banque'} onChange={(e) => setCompteEdite({ ...compteEdite, institution: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label htmlFor="fin_compte_titulaire" className="app-label">Titulaire</label>
+                                    <input id="fin_compte_titulaire" className="app-input" value={compteEdite.holder || ''} onChange={(e) => setCompteEdite({ ...compteEdite, holder: e.target.value })} />
+                                </div>
+                                {compteEdite.kind === 'mobile_money' ? (
+                                    <div>
+                                        <label htmlFor="fin_compte_mobile" className="app-label">Numéro du portefeuille</label>
+                                        <input id="fin_compte_mobile" className="app-input" value={compteEdite.mobile_number || ''} placeholder="+225 07 00 00 00 00" onChange={(e) => setCompteEdite({ ...compteEdite, mobile_number: e.target.value })} />
+                                    </div>
+                                ) : compteEdite.kind !== 'cash' && (
+                                    <>
+                                        <div>
+                                            <label htmlFor="fin_compte_numero" className="app-label">Numéro ou référence du compte</label>
+                                            <input id="fin_compte_numero" className="app-input" value={compteEdite.account_number || ''} onChange={(e) => setCompteEdite({ ...compteEdite, account_number: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="fin_compte_iban" className="app-label">IBAN (si applicable)</label>
+                                            <input id="fin_compte_iban" className="app-input" value={compteEdite.iban || ''} onChange={(e) => setCompteEdite({ ...compteEdite, iban: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="fin_compte_bic" className="app-label">BIC / SWIFT</label>
+                                            <input id="fin_compte_bic" className="app-input" value={compteEdite.bic || ''} onChange={(e) => setCompteEdite({ ...compteEdite, bic: e.target.value })} />
+                                        </div>
+                                    </>
+                                )}
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="fin_compte_notes" className="app-label">Notes</label>
+                                    <input id="fin_compte_notes" className="app-input" value={compteEdite.notes || ''} onChange={(e) => setCompteEdite({ ...compteEdite, notes: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-5">
+                                {caseACocher('fin_compte_defaut', 'Compte par défaut', compteEdite.is_default, (v) => setCompteEdite({ ...compteEdite, is_default: v }), 'Proposé en premier lors d\'un encaissement.')}
+                                {caseACocher('fin_compte_docs', 'Afficher sur les factures', compteEdite.show_on_documents, (v) => setCompteEdite({ ...compteEdite, show_on_documents: v }), 'Pour indiquer au client où payer.')}
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setCompteEdite(null); setErreurs([]); }}>Annuler</button>
+                                <button type="submit" disabled={occupe} className="btn-primary text-xs py-2 px-3">{occupe ? 'Enregistrement…' : 'Enregistrer'}</button>
+                            </div>
+                        </form>
+                    )}
+
+                    {comptesVisibles.length === 0 && !compteEdite && (
+                        <div className="p-8 text-center rounded-2xl border border-dashed border-neutral-300 bg-white">
+                            <i className="fa-solid fa-wallet text-2xl text-neutral-300 mb-2"></i>
+                            <p className="text-sm font-bold text-neutral-700">Aucun compte pour l'instant</p>
+                            <p className="text-xs text-neutral-500 mt-1">Ajoutez votre compte bancaire, votre caisse ou votre portefeuille mobile money.</p>
+                        </div>
+                    )}
+
+                    <ul className="space-y-2">
+                        {comptesVisibles.map((a) => {
+                            const s = soldeAffiche(a);
+                            return (
+                                <li key={a.id} data-compte={a.name} className={`p-4 rounded-2xl border bg-white flex flex-wrap items-center gap-3 ${a.is_active === false ? 'opacity-60 border-dashed border-neutral-300' : 'border-neutral-200'}`}>
+                                    <span className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-700 flex items-center justify-center shrink-0">
+                                        <i className={`fa-solid ${ICONES_COMPTE[a.kind] || 'fa-wallet'}`}></i>
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-neutral-800 flex flex-wrap items-center gap-2">
+                                            <span className="truncate">{a.name}</span>
+                                            <Badge>{TYPES_COMPTE[a.kind] || a.kind}</Badge>
+                                            {a.is_default && <Badge colorClass="bg-blue-100 text-blue-800">Par défaut</Badge>}
+                                            {a.is_active === false && <Badge colorClass="bg-neutral-200 text-neutral-600">Archivé</Badge>}
+                                        </p>
+                                        <p className="text-[11px] text-neutral-500 truncate">
+                                            {[a.institution, masquerCoordonnee(a.mobile_number || a.iban || a.account_number, modifiable), a.currency].filter(Boolean).join(' · ')}
+                                        </p>
+                                        {s.anterieurs > 0 && (
+                                            <p className="text-[11px] text-amber-700 mt-0.5">{s.anterieurs} mouvement(s) antérieur(s) au solde initial, non recompté(s).</p>
+                                        )}
+                                    </div>
+                                    {/* Sous 640 px, le solde passe sous le nom : sur la même ligne,
+                                        il réduisait le nom du compte à « Ecoba… » (mesuré à 390 px). */}
+                                    <div className="w-full sm:w-auto pl-[3.25rem] sm:pl-0 text-left sm:text-right">
+                                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Solde calculé</p>
+                                        <p className={`text-base font-bold ${s.solde < 0 ? 'text-rose-600' : 'text-neutral-900'}`} data-solde-compte>{formatMoney(s.solde, a.currency)}</p>
+                                        <p className="text-[10px] text-neutral-400">initial {formatMoney(Number(a.opening_balance) || 0, a.currency)} au {formatDate(a.opening_date)}</p>
+                                    </div>
+                                    {modifiable && (
+                                        <div className="flex gap-1 w-full sm:w-auto justify-end">
+                                            <button type="button" className="btn-secondary text-xs py-1.5 px-2.5" onClick={() => { setErreurs([]); setCompteEdite({ ...COMPTE_VIDE(a.currency), ...a, opening_balance: String(a.opening_balance ?? 0) }); }} aria-label={`Modifier ${a.name}`}><i className="fa-solid fa-pen"></i></button>
+                                            <button type="button" className="btn-secondary text-xs py-1.5 px-2.5" onClick={() => archiverCompte(a, a.is_active === false)} aria-label={a.is_active === false ? `Réactiver ${a.name}` : `Archiver ${a.name}`}>
+                                                <i className={`fa-solid ${a.is_active === false ? 'fa-box-open' : 'fa-box-archive'}`}></i>
+                                            </button>
+                                            <button type="button" className="btn-secondary text-xs py-1.5 px-2.5 text-rose-600" onClick={() => supprimerCompte(a)} aria-label={`Supprimer ${a.name}`}><i className="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    {nbArchives > 0 && (
+                        <button type="button" className="text-xs text-neutral-500 underline" onClick={() => setVoirArchives(!voirArchives)}>
+                            {voirArchives ? 'Masquer les comptes archivés' : `Afficher les comptes archivés (${nbArchives})`}
+                        </button>
+                    )}
+                    {mode === 'local' && donnees.accounts.length > 0 && (
+                        <p className="text-[11px] text-neutral-400">Les mouvements (encaissements, dépenses, transferts) alimenteront ces soldes dans une prochaine étape.</p>
+                    )}
+                </section>
+            )}
+
+            {/* ── DEVISES ─────────────────────────────────────────────── */}
+            {onglet === 'devises' && (
+                <section className="space-y-4" aria-label="Devises">
+                    {blocErreurs}
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white space-y-2">
+                        <p className="app-label !mb-0">Devise principale (de base)</p>
+                        <p className="text-lg font-bold text-neutral-900" data-devise-base>{deviseBase} — {nomDevise(deviseBase)}</p>
+                        <p className="text-xs text-neutral-500">
+                            Unité commune de vos rapports. Elle ne peut plus changer une fois des factures émises :
+                            l'historique deviendrait ininterprétable.
+                        </p>
+                        {deviseEntreprise !== deviseBase && DEVISES_CATALOGUE.some((d) => d.code === deviseEntreprise) && (
+                            <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs flex flex-wrap items-center gap-2">
+                                <span className="flex-1 min-w-[200px]">La devise indiquée dans « Entreprise » ({deviseEntreprise}) diffère de la devise de base comptable ({deviseBase}).</span>
+                                {modifiable && <button type="button" className="btn-secondary text-xs py-1.5 px-3" onClick={() => enregistrerReglages(true)}>Aligner sur {deviseEntreprise}</button>}
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white space-y-3">
+                        <div>
+                            <p className="app-label !mb-0">Devises utilisées</p>
+                            <p className="text-xs text-neutral-500">Activez celles dans lesquelles vous facturez, achetez ou tenez un compte. Les anciens documents ne changent pas.</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {DEVISES_CATALOGUE.map((d) => (
+                                <label key={d.code} htmlFor={`fin_devise_${d.code}`} className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer ${reglages.enabled_currencies.includes(d.code) ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'}`}>
+                                    <input id={`fin_devise_${d.code}`} type="checkbox" className="w-4 h-4" checked={reglages.enabled_currencies.includes(d.code) || d.code === deviseBase}
+                                        disabled={!modifiable || d.code === deviseBase} onChange={() => basculerDevise(d.code)} />
+                                    <span className="font-bold w-10">{d.code}</span>
+                                    <span className="text-neutral-600 flex-1">{d.nom}</span>
+                                    {d.code === deviseBase && <Badge colorClass="bg-blue-100 text-blue-800">Base</Badge>}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="p-4 rounded-2xl border border-neutral-200 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label htmlFor="fin_delai" className="app-label">Délai de paiement par défaut (jours)</label>
+                            <input id="fin_delai" type="number" min="0" max="365" step="1" className="app-input" disabled={!modifiable}
+                                value={reglages.default_payment_terms_days}
+                                onChange={(e) => setBrouillonDevises({ ...reglages, default_payment_terms_days: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="app-label">Début de l'exercice</label>
+                            <CustomSelect id="fin_exercice" size="md" aria-label="Mois de début de l'exercice" disabled={!modifiable}
+                                value={String(reglages.fiscal_year_start_month)}
+                                onChange={(e) => setBrouillonDevises({ ...reglages, fiscal_year_start_month: Number(e.target.value) })}
+                                options={MOIS_EXERCICE.map((m, i) => ({ value: String(i + 1), label: m }))} />
+                        </div>
+                    </div>
+                    {modifiable && (
+                        <div className="flex justify-end gap-2">
+                            {brouillonDevises && <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setBrouillonDevises(null); setErreurs([]); }}>Annuler</button>}
+                            <button type="button" disabled={occupe || !brouillonDevises} className={`btn-primary text-xs py-2 px-3 ${!brouillonDevises ? 'opacity-50' : ''}`} onClick={() => enregistrerReglages(false)}>
+                                {occupe ? 'Enregistrement…' : 'Enregistrer'}
+                            </button>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ── TAXES ───────────────────────────────────────────────── */}
+            {onglet === 'taxes' && (
+                <section className="space-y-3" aria-label="Taxes">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-neutral-500 max-w-xl">
+                            « Taux zéro » et « Exonéré » sont deux cas différents. Les taxes déjà inscrites sur un document émis ne changent jamais.
+                        </p>
+                        {modifiable && !taxeEditee && (
+                            <button type="button" className="btn-primary text-xs py-2 px-3" onClick={() => { setErreurs([]); setTaxeEditee(TAXE_VIDE()); }}>
+                                <i className="fa-solid fa-plus"></i> Ajouter une taxe
+                            </button>
+                        )}
+                    </div>
+                    {taxeEditee && (
+                        <form onSubmit={(e) => { e.preventDefault(); enregistrerTaxe(); }} className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50/80 space-y-4" aria-label={taxeEditee.id ? 'Modifier la taxe' : 'Nouvelle taxe'}>
+                            <p className="text-sm font-bold text-neutral-800">{taxeEditee.id ? `Modifier « ${taxeEditee.name} »` : 'Nouvelle taxe'}</p>
+                            {blocErreurs}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label htmlFor="fin_taxe_nom" className="app-label">Nom *</label>
+                                    <input id="fin_taxe_nom" className="app-input" value={taxeEditee.name} placeholder="Ex. TVA 18 %, VAT, GST" onChange={(e) => setTaxeEditee({ ...taxeEditee, name: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="app-label">Nature *</label>
+                                    <CustomSelect id="fin_taxe_nature" size="md" aria-label="Nature de la taxe" value={taxeEditee.kind}
+                                        onChange={(e) => setTaxeEditee({ ...taxeEditee, kind: e.target.value, rate: e.target.value === 'standard' ? taxeEditee.rate : '0' })}
+                                        options={Object.entries(NATURES_TAXE).map(([value, label]) => ({ value, label }))} />
+                                </div>
+                                <div>
+                                    <label htmlFor="fin_taxe_taux" className="app-label">Taux (%) *</label>
+                                    <input id="fin_taxe_taux" type="number" step="any" min="0" max="100" className="app-input" disabled={taxeEditee.kind !== 'standard'}
+                                        value={taxeEditee.kind === 'standard' ? taxeEditee.rate : '0'} onChange={(e) => setTaxeEditee({ ...taxeEditee, rate: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="app-label">S'applique aux</label>
+                                    <CustomSelect id="fin_taxe_portee" size="md" aria-label="Portée de la taxe" value={taxeEditee.scope}
+                                        onChange={(e) => setTaxeEditee({ ...taxeEditee, scope: e.target.value })}
+                                        options={Object.entries(PORTEES_TAXE).map(([value, label]) => ({ value, label }))} />
+                                </div>
+                                <div>
+                                    <label htmlFor="fin_taxe_debut" className="app-label">En vigueur depuis</label>
+                                    <input id="fin_taxe_debut" type="date" className="app-input" value={taxeEditee.effective_from || ''} onChange={(e) => setTaxeEditee({ ...taxeEditee, effective_from: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label htmlFor="fin_taxe_fin" className="app-label">Jusqu'au (facultatif)</label>
+                                    <input id="fin_taxe_fin" type="date" className="app-input" value={taxeEditee.effective_to || ''} onChange={(e) => setTaxeEditee({ ...taxeEditee, effective_to: e.target.value })} />
+                                </div>
+                                {taxeEditee.kind === 'exempt' && (
+                                    <div className="sm:col-span-2">
+                                        <label htmlFor="fin_taxe_mention" className="app-label">Mention légale</label>
+                                        <input id="fin_taxe_mention" className="app-input" value={taxeEditee.legal_mention || ''} placeholder="Ex. Exonéré de TVA — article …" onChange={(e) => setTaxeEditee({ ...taxeEditee, legal_mention: e.target.value })} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-5">
+                                {caseACocher('fin_taxe_incluse', 'Prix saisis taxe incluse', taxeEditee.is_inclusive, (v) => setTaxeEditee({ ...taxeEditee, is_inclusive: v }))}
+                                {caseACocher('fin_taxe_recup', 'Récupérable sur les achats', taxeEditee.is_recoverable, (v) => setTaxeEditee({ ...taxeEditee, is_recoverable: v }), 'Non récupérable : elle s\'ajoute au coût.')}
+                                {caseACocher('fin_taxe_defaut', 'Taxe par défaut', taxeEditee.is_default, (v) => setTaxeEditee({ ...taxeEditee, is_default: v }))}
+                                {caseACocher('fin_taxe_active', 'Active', taxeEditee.is_active, (v) => setTaxeEditee({ ...taxeEditee, is_active: v }))}
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setTaxeEditee(null); setErreurs([]); }}>Annuler</button>
+                                <button type="submit" disabled={occupe} className="btn-primary text-xs py-2 px-3">{occupe ? 'Enregistrement…' : 'Enregistrer'}</button>
+                            </div>
+                        </form>
+                    )}
+                    <ul className="space-y-2">
+                        {donnees.taxes.map((t) => (
+                            <li key={t.id} data-taxe={t.name} className={`p-3 rounded-2xl border border-neutral-200 bg-white flex flex-wrap items-center gap-3 ${t.is_active === false ? 'opacity-60' : ''}`}>
+                                <span className="w-14 text-center text-sm font-bold text-neutral-900">{t.kind === 'standard' ? `${String(Number(t.rate)).replace('.', ',')} %` : '0 %'}</span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-neutral-800 flex flex-wrap items-center gap-2">
+                                        <span className="truncate">{t.name}</span>
+                                        <Badge colorClass={t.kind === 'exempt' ? 'bg-violet-100 text-violet-800' : t.kind === 'zero' ? 'bg-amber-100 text-amber-800' : 'bg-neutral-100 text-neutral-600'}>{NATURES_TAXE[t.kind]}</Badge>
+                                        {t.is_default && <Badge colorClass="bg-blue-100 text-blue-800">Par défaut</Badge>}
+                                        {t.is_active === false && <Badge colorClass="bg-neutral-200 text-neutral-600">Inactive</Badge>}
+                                    </p>
+                                    <p className="text-[11px] text-neutral-500">
+                                        {[PORTEES_TAXE[t.scope] || PORTEES_TAXE.both, t.is_inclusive ? 'taxe incluse' : 'hors taxe', t.is_recoverable ? 'récupérable' : 'non récupérable', t.legal_mention].filter(Boolean).join(' · ')}
+                                    </p>
+                                </div>
+                                {modifiable && (
+                                    <div className="flex gap-1">
+                                        <button type="button" className="btn-secondary text-xs py-1.5 px-2.5" onClick={() => { setErreurs([]); setTaxeEditee({ ...TAXE_VIDE(), ...t, rate: String(t.rate), legal_mention: t.legal_mention || '', effective_to: t.effective_to || '' }); }} aria-label={`Modifier ${t.name}`}><i className="fa-solid fa-pen"></i></button>
+                                        <button type="button" className="btn-secondary text-xs py-1.5 px-2.5 text-rose-600" onClick={() => supprimerTaxe(t)} aria-label={`Supprimer ${t.name}`}><i className="fa-solid fa-trash"></i></button>
+                                    </div>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {/* ── CATÉGORIES ──────────────────────────────────────────── */}
+            {onglet === 'categories' && (
+                <section className="space-y-3" aria-label="Catégories de dépenses">
+                    <p className="text-xs text-neutral-500 max-w-xl">
+                        La nature indique ce qu'est réellement la dépense : un équipement, du stock ou une avance fournisseur ne sont pas des charges du chantier.
+                    </p>
+                    {blocErreurs}
+                    {modifiable && (
+                        <form onSubmit={(e) => { e.preventDefault(); enregistrerCategorie(nouvelleCategorie, () => setNouvelleCategorie({ name: '', kind: nouvelleCategorie.kind })); }}
+                            className="p-3 rounded-2xl border border-neutral-200 bg-neutral-50/80 flex flex-wrap items-end gap-2" aria-label="Nouvelle catégorie">
+                            <div className="flex-1 min-w-[180px]">
+                                <label htmlFor="fin_cat_nom" className="app-label">Nouvelle catégorie</label>
+                                <input id="fin_cat_nom" className="app-input" value={nouvelleCategorie.name} placeholder="Ex. Carburant" onChange={(e) => setNouvelleCategorie({ ...nouvelleCategorie, name: e.target.value })} />
+                            </div>
+                            <div className="w-full sm:w-56">
+                                <label className="app-label">Nature</label>
+                                <CustomSelect id="fin_cat_nature" size="md" aria-label="Nature de la catégorie" value={nouvelleCategorie.kind}
+                                    onChange={(e) => setNouvelleCategorie({ ...nouvelleCategorie, kind: e.target.value })}
+                                    options={Object.entries(NATURES_CATEGORIE).map(([value, label]) => ({ value, label }))} />
+                            </div>
+                            <button type="submit" disabled={occupe} className="btn-primary text-xs py-2.5 px-3"><i className="fa-solid fa-plus"></i> Ajouter</button>
+                        </form>
+                    )}
+                    <ul className="rounded-2xl border border-neutral-200 bg-white divide-y divide-neutral-100">
+                        {donnees.categories.map((c) => (
+                            <li key={c.id} data-categorie={c.name} className={`p-3 flex flex-wrap items-center gap-3 ${c.is_active === false ? 'opacity-60' : ''}`}>
+                                {categorieEditee && categorieEditee.id === c.id ? (
+                                    <form className="flex flex-wrap items-center gap-2 w-full" onSubmit={(e) => { e.preventDefault(); enregistrerCategorie(categorieEditee, () => setCategorieEditee(null)); }}>
+                                        <input className="app-input flex-1 min-w-[160px]" aria-label="Nom de la catégorie" value={categorieEditee.name} onChange={(e) => setCategorieEditee({ ...categorieEditee, name: e.target.value })} />
+                                        <div className="w-full sm:w-56">
+                                            <CustomSelect id={`fin_cat_nature_${c.id}`} size="md" aria-label="Nature de la catégorie" value={categorieEditee.kind}
+                                                onChange={(e) => setCategorieEditee({ ...categorieEditee, kind: e.target.value })}
+                                                options={Object.entries(NATURES_CATEGORIE).map(([value, label]) => ({ value, label }))} />
+                                        </div>
+                                        <button type="button" className="btn-secondary text-xs py-2 px-3" onClick={() => { setCategorieEditee(null); setErreurs([]); }}>Annuler</button>
+                                        <button type="submit" disabled={occupe} className="btn-primary text-xs py-2 px-3">Enregistrer</button>
+                                    </form>
+                                ) : (
+                                    <>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-neutral-800 truncate">{c.name}</p>
+                                            <p className="text-[11px] text-neutral-500">{NATURES_CATEGORIE[c.kind] || c.kind}{c.is_active === false ? ' · désactivée' : ''}</p>
+                                        </div>
+                                        {modifiable && (
+                                            <div className="flex gap-1">
+                                                <button type="button" className="btn-secondary text-xs py-1.5 px-2.5" onClick={() => { setErreurs([]); setCategorieEditee({ ...c }); }} aria-label={`Modifier ${c.name}`}><i className="fa-solid fa-pen"></i></button>
+                                                <button type="button" className="btn-secondary text-xs py-1.5 px-2.5" onClick={() => enregistrerCategorie({ ...c, is_active: c.is_active === false }, () => {})} aria-label={c.is_active === false ? `Réactiver ${c.name}` : `Désactiver ${c.name}`}>
+                                                    <i className={`fa-solid ${c.is_active === false ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                                                </button>
+                                                <button type="button" className="btn-secondary text-xs py-1.5 px-2.5 text-rose-600" onClick={() => supprimerCategorie(c)} aria-label={`Supprimer ${c.name}`}><i className="fa-solid fa-trash"></i></button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {onglet === 'saspay' && (
+                <SaspaySettingsCard
+                    companyInfo={companyInfo}
+                    updateCompanyInfo={updateCompanyInfo}
+                    isReadOnly={!modifiable}
+                    showToast={showToast}
+                />
+            )}
+
+            <p className="text-[11px] text-neutral-400">
+                {mode === 'cloud' ? 'Enregistré dans votre espace en ligne.' : 'Enregistré sur cet appareil.'}
+            </p>
+        </div>
+    );
+}
+
 function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, currentUserRole, showToast }) {
     const [members, setMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -8089,6 +9872,309 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                     </table>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ══ PANNEAU DES PARAMÈTRES D'ABONNEMENT ET PASSERELLE SASPAY (2026-09-19) ══
+function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesCount = 0, projectsCount = 0 }) {
+    const subscriptionService = (typeof window !== 'undefined' && window.SubscriptionService) ? window.SubscriptionService : null;
+    const platformConfig = (typeof window !== 'undefined' && window.SASPAY_PLATFORM_CONFIG) ? window.SASPAY_PLATFORM_CONFIG : { apiKey: '', environment: 'live' };
+
+    const [subscription, setSubscription] = useState(() => subscriptionService ? subscriptionService.getSubscription() : { planId: 'starter', status: 'trial' });
+    const [apiKey, setApiKey] = useState(() => platformConfig.getApiKey ? platformConfig.getApiKey() : (platformConfig.apiKey || ''));
+    const [environment, setEnvironment] = useState(() => platformConfig.environment || 'live');
+    const [showKey, setShowKey] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+
+    // Synchronisation lors de mise à jour d'abonnement
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail) setSubscription(e.detail);
+        };
+        window.addEventListener('ikadevis:subscription_updated', handler);
+        return () => window.removeEventListener('ikadevis:subscription_updated', handler);
+    }, []);
+
+    const plan = (subscriptionService && subscriptionService.PLANS[subscription.planId]) || {
+        name: 'Starter', price: 0, period: '14 jours d’essai', maxDevis: 3, maxProjects: 1, maxUsers: 1, isTrial: true
+    };
+    const daysRemaining = subscriptionService ? subscriptionService.getDaysRemaining() : 14;
+
+    const handleSavePlatformKey = (e) => {
+        if (e) e.preventDefault();
+        if (platformConfig.setApiKey) {
+            platformConfig.setApiKey(apiKey);
+        }
+        platformConfig.environment = environment;
+        showToast('Clé API SasPay de la plateforme enregistrée avec succès !', 'success');
+    };
+
+    const handleTestPlatformKey = async () => {
+        if (!apiKey) {
+            showToast('Veuillez renseigner une clé API SasPay.', 'warning');
+            return;
+        }
+        setIsTesting(true);
+        setTestResult(null);
+        try {
+            if (typeof window.SasPayService !== 'undefined') {
+                const res = await window.SasPayService.testConnection({ apiKey, environment });
+                setTestResult(res);
+                if (res.ok) {
+                    showToast('Connexion à SasPay validée avec succès !', 'success');
+                } else {
+                    showToast(res.message || 'Échec de validation SasPay', 'error');
+                }
+            }
+        } catch (err) {
+            setTestResult({ ok: false, message: err.message || 'Erreur réseau.' });
+            showToast('Erreur de communication avec SasPay', 'error');
+        } finally {
+            setIsTesting(false);
+        }
+    };
+
+    return (
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+            <div className="max-w-4xl w-full mx-auto space-y-6">
+
+                {/* 1. Carte statut de l'abonnement */}
+                <div className="bg-white border border-neutral-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                                    subscription.planId === 'business' ? 'bg-purple-100 text-purple-700' :
+                                    subscription.planId === 'pro' ? 'bg-indigo-100 text-indigo-700' :
+                                    subscription.planId === 'standard' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                    Formule {plan.name}
+                                </span>
+                                {subscription.status === 'trial' && (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                        Essai en cours
+                                    </span>
+                                )}
+                                {subscription.status === 'active' && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                        Actif
+                                    </span>
+                                )}
+                            </div>
+                            <h2 className="text-xl font-bold text-neutral-900">
+                                {plan.name} — {plan.price === 0 ? 'Essai gratuit 14 jours' : `${plan.price.toLocaleString()} FCFA ${plan.period}`}
+                            </h2>
+                            <p className="text-xs text-neutral-500 mt-1">
+                                {subscription.status === 'trial'
+                                    ? `Votre période d'essai se termine dans ${daysRemaining} jour(s). Profitez de toutes les fonctionnalités pour tester ikadevis.`
+                                    : `Abonnement actif renouvelable tous les 30 jours via SasPay.`
+                                }
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onOpenUpgradeModal}
+                            className="btn-primary text-xs font-bold py-2.5 px-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white shadow-md shadow-brand-500/20 shrink-0 flex items-center gap-2"
+                        >
+                            <i className="fa-solid fa-crown text-amber-300"></i>
+                            <span>{subscription.planId === 'starter' ? 'Passer à un forfait supérieur' : 'Changer de formule'}</span>
+                        </button>
+                    </div>
+
+                    {/* Indicateurs de quotas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200/80">
+                            <span className="text-[11px] font-bold uppercase text-neutral-500 tracking-wider block">Devis chiffrés</span>
+                            <div className="mt-2 flex items-baseline justify-between">
+                                <span className="text-2xl font-black text-neutral-900 font-mono">
+                                    {savedQuotesCount}
+                                </span>
+                                <span className="text-xs text-neutral-500 font-medium">
+                                    {plan.maxDevis === Infinity ? 'Illimités' : `/ ${plan.maxDevis} max`}
+                                </span>
+                            </div>
+                            {plan.maxDevis !== Infinity && (
+                                <div className="mt-2 w-full bg-neutral-200 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all ${
+                                            savedQuotesCount >= plan.maxDevis ? 'bg-red-500' : 'bg-emerald-500'
+                                        }`}
+                                        style={{ width: `${Math.min(100, (savedQuotesCount / plan.maxDevis) * 100)}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200/80">
+                            <span className="text-[11px] font-bold uppercase text-neutral-500 tracking-wider block">Chantiers / Projets</span>
+                            <div className="mt-2 flex items-baseline justify-between">
+                                <span className="text-2xl font-black text-neutral-900 font-mono">
+                                    {projectsCount}
+                                </span>
+                                <span className="text-xs text-neutral-500 font-medium">
+                                    {plan.maxProjects === Infinity ? 'Illimités' : `/ ${plan.maxProjects} max`}
+                                </span>
+                            </div>
+                            {plan.maxProjects !== Infinity && (
+                                <div className="mt-2 w-full bg-neutral-200 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                        className="h-full bg-brand-500 rounded-full"
+                                        style={{ width: `${Math.min(100, (projectsCount / plan.maxProjects) * 100)}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200/80">
+                            <span className="text-[11px] font-bold uppercase text-neutral-500 tracking-wider block">Collaborateurs</span>
+                            <div className="mt-2 flex items-baseline justify-between">
+                                <span className="text-2xl font-black text-neutral-900 font-mono">
+                                    1
+                                </span>
+                                <span className="text-xs text-neutral-500 font-medium">
+                                    {plan.maxUsers === Infinity ? 'Illimités' : `/ ${plan.maxUsers} max`}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Configuration Passerelle SasPay Plateforme */}
+                <div className="bg-white border border-neutral-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+                    <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0">
+                            <i className="fa-solid fa-key"></i>
+                        </div>
+                        <div>
+                            <h3 className="text-base font-bold text-neutral-900">Passerelle SasPay Plateforme (Encaissement des abonnements)</h3>
+                            <p className="text-xs text-neutral-500">
+                                Renseignez ici votre clé secrète SasPay pour recevoir automatiquement les paiements des abonnés ikadevis.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleSavePlatformKey} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="sm:col-span-2">
+                                <label htmlFor="platform_saspay_key" className="app-label">Clé API Secrète SasPay (Master) *</label>
+                                <div className="relative">
+                                    <input
+                                        id="platform_saspay_key"
+                                        type={showKey ? 'text' : 'password'}
+                                        value={apiKey}
+                                        onChange={(e) => setApiKey(e.target.value)}
+                                        placeholder="sk_live_... ou sk_test_..."
+                                        className="app-input font-mono text-xs pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowKey(!showKey)}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs p-1"
+                                        title={showKey ? 'Masquer' : 'Afficher'}
+                                    >
+                                        <i className={`fa-solid ${showKey ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                    </button>
+                                </div>
+                                <p className="text-[11px] text-neutral-400 mt-1">
+                                    Disponible sur votre tableau de bord <a href="https://docs.saspay.me" target="_blank" rel="noreferrer" className="text-brand-600 underline">docs.saspay.me</a>.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label htmlFor="platform_saspay_env" className="app-label">Environnement</label>
+                                <select
+                                    id="platform_saspay_env"
+                                    value={environment}
+                                    onChange={(e) => setEnvironment(e.target.value)}
+                                    className="app-input text-xs font-semibold"
+                                >
+                                    <option value="live">Production (sk_live)</option>
+                                    <option value="test">Test / Sandbox (sk_test)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {testResult && (
+                            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 ${
+                                testResult.ok
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                    : 'bg-red-50 border-red-200 text-red-800'
+                            }`}>
+                                <i className={`fa-solid ${testResult.ok ? 'fa-circle-check text-emerald-600' : 'fa-triangle-exclamation text-red-600'}`}></i>
+                                <span>{testResult.message}</span>
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={handleTestPlatformKey}
+                                disabled={isTesting || !apiKey}
+                                className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+                            >
+                                <i className={`fa-solid ${isTesting ? 'fa-circle-notch fa-spin' : 'fa-plug-circle-bolt'}`}></i>
+                                <span>{isTesting ? 'Vérification en cours…' : 'Tester la connexion SasPay'}</span>
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="btn-primary text-xs py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs"
+                            >
+                                <i className="fa-solid fa-floppy-disk"></i>
+                                <span>Enregistrer la clé plateforme</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                {/* 3. Historique des paiements d'abonnement */}
+                <div className="bg-white border border-neutral-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-3">
+                    <h3 className="text-base font-bold text-neutral-900">Historique des transactions d'abonnements</h3>
+                    {subscription.paymentHistory && subscription.paymentHistory.length > 0 ? (
+                        <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-neutral-50 text-neutral-600 font-bold border-b border-neutral-200">
+                                    <tr>
+                                        <th className="p-3">Date</th>
+                                        <th className="p-3">Formule</th>
+                                        <th className="p-3">Référence SasPay</th>
+                                        <th className="p-3 text-right">Montant</th>
+                                        <th className="p-3 text-center">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100">
+                                    {subscription.paymentHistory.map((item, idx) => (
+                                        <tr key={idx} className="hover:bg-neutral-50/50">
+                                            <td className="p-3 text-neutral-600">
+                                                {new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                            <td className="p-3 font-bold text-neutral-900">{item.planName}</td>
+                                            <td className="p-3 font-mono text-[11px] text-neutral-500">{item.reference}</td>
+                                            <td className="p-3 text-right font-mono font-bold text-emerald-700">
+                                                {item.amount.toLocaleString()} FCFA
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                                                    Réglé
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-xl border border-dashed border-neutral-200 text-xs">
+                            <i className="fa-solid fa-receipt text-2xl mb-2 text-neutral-300"></i>
+                            <p>Aucun paiement d'abonnement pour le moment. Votre compte utilise actuellement l'essai Starter gratuit.</p>
+                        </div>
+                    )}
+                </div>
+
+            </div>
         </div>
     );
 }
@@ -8547,6 +10633,7 @@ function GlobalSearch({
         { id: 'dashboard', label: 'Tableau de bord', icon: 'fa-chart-pie' },
         { id: 'savedQuotes', label: 'Mes devis', icon: 'fa-folder-open' },
         { id: 'invoices', label: 'Factures', icon: 'fa-file-invoice-dollar' },
+        { id: 'depenses', label: 'Dépenses', icon: 'fa-receipt' },
         { id: 'clients', label: 'Clients', icon: 'fa-users' },
         { id: 'projects', label: 'Chantiers', icon: 'fa-folder-tree' },
         { id: 'recipes', label: 'Catalogue technique', icon: 'fa-layer-group' },
@@ -9985,6 +12072,19 @@ function dejaFactureParLot(devis, invoices) {
     return parLot;
 }
 
+// 2026-09-18 — Socle Finances, temps T4 : lire les règlements depuis la table
+// payments plutôt que depuis le marqueur <!--PAYMENTS:…--> de invoices.notes.
+//
+// DÉSACTIVÉ À DESSEIN. Ne passer à true qu'une fois réunies les conditions du
+// T4 (migrations_finance_payments_2026-09-18.sql) :
+//   1. la double écriture (T3) est en ligne depuis 3 à 4 semaines, le temps
+//      qu'aucun navigateur ne serve plus l'ancien code ;
+//   2. select public.controle_payments_miroir_v1(null) renvoie
+//      factures_en_ecart = 0, sur staging PUIS en production.
+// Même activé, une facture sans aucune ligne dans la table retombe sur le
+// marqueur : aucun règlement ne peut disparaître de l'écran.
+const LECTURE_REGLEMENTS_DEPUIS_TABLE = false;
+
 const InvoiceService = {
     // Construit un BROUILLON à partir d'un devis. Le numéro reste vide : il
     // n'est attribué qu'à l'émission, pour ne jamais laisser de trou dans la
@@ -10159,13 +12259,107 @@ const InvoiceService = {
         return {
             numero: data.invoice_number,
             dateEmission: data.issued_at,
+            // 2026-09-18 — L'échéance est désormais posée par le serveur, dans
+            // la même transaction que le numéro (migrations_fix_issue_invoice_
+            // 2026-09-17.sql). Absente si la migration n'est pas encore passée :
+            // isInvoiceOverdue retombe alors sur « émission + 30 jours », comme
+            // avant.
+            dateEcheance: data.due_date || null,
             garantieServeur: true
         };
     },
 
+    // 2026-09-18 — Socle Finances, temps T3 : DOUBLE ÉCRITURE des règlements.
+    //
+    // Chaque règlement continue d'être écrit dans invoices.notes (marqueur
+    // <!--PAYMENTS:…-->) et dans amount_paid : c'est la source de vérité tant
+    // que des navigateurs peuvent encore servir l'ancien code (service
+    // worker). Il est EN PLUS recopié dans les tables payments /
+    // payment_allocations (migrations_finance_payments_2026-09-18.sql).
+    //
+    // Le miroir ne bloque jamais l'utilisateur : s'il échoue (table pas encore
+    // créée, réseau, droits), on le signale en console et on continue.
+    // L'écart se rattrape côté serveur par backfill_payments_from_notes_v1,
+    // idempotente grâce à legacy_payment_key = l'identifiant du règlement.
+    //
+    // Doit rester aligné sur payment_method_from_app() (même migration).
+    _familleModePaiement: (mode) => ({
+        virement: 'bank_transfer', especes: 'cash', cheque: 'check', carte: 'card',
+        wave: 'mobile_money', orange_money: 'mobile_money', moov_money: 'mobile_money'
+    }[mode] || 'other'),
+
+    _miroirReglementAjoute: async ({ facture, paiement, supabaseClient, sbUser, activeOrgId }) => {
+        try {
+            // Tous les documents existants sont en devise de base au taux 1
+            // (backfill de migrations_finance_socle_2026-09-18.sql).
+            const devise = versIso(facture.companyInfoSnapshot?.currency || 'FCFA');
+            const montant = Number(paiement.montant) || 0;
+            const { data: ligne, error } = await supabaseClient
+                .from('payments')
+                .insert({
+                    organization_id: activeOrgId,
+                    direction: 'in',
+                    payment_date: paiement.date,
+                    amount: montant,
+                    currency: devise,
+                    fx_rate: 1,
+                    base_currency: devise,
+                    amount_base: montant,
+                    method: InvoiceService._familleModePaiement(paiement.mode),
+                    method_detail: paiement.mode || null,
+                    client_id: estUuid(facture.clientId) ? facture.clientId : null,
+                    project_id: estUuid(facture.projectId) ? facture.projectId : null,
+                    reference: paiement.reference || null,
+                    note: paiement.note || null,
+                    legacy_payment_key: paiement.id,
+                    source: 'app',
+                    created_by: sbUser.id
+                })
+                .select('id')
+                .single();
+            if (error) throw error;
+
+            const { error: imputationErr } = await supabaseClient
+                .from('payment_allocations')
+                .insert({
+                    organization_id: activeOrgId,
+                    payment_id: ligne.id,
+                    invoice_id: facture.serverId,
+                    amount: montant,
+                    amount_base: montant
+                });
+            if (imputationErr) {
+                // Un règlement sans imputation serait lu comme un acompte à
+                // imputer : on retire la ligne plutôt que de la laisser mentir.
+                await supabaseClient.from('payments').delete().eq('id', ligne.id);
+                throw imputationErr;
+            }
+        } catch (e) {
+            console.warn('[InvoiceService] Miroir du règlement non écrit (rattrapable par backfill_payments_from_notes_v1) :', e?.message || e);
+        }
+    },
+
+    _miroirReglementSupprime: async ({ paymentId, supabaseClient, activeOrgId }) => {
+        try {
+            // L'imputation suit par ON DELETE CASCADE.
+            const { error } = await supabaseClient
+                .from('payments')
+                .delete()
+                .eq('organization_id', activeOrgId)
+                .eq('legacy_payment_key', paymentId);
+            if (error) throw error;
+        } catch (e) {
+            console.warn('[InvoiceService] Miroir de la suppression non écrit :', e?.message || e);
+        }
+    },
+
     // 2026-09-10 — Enregistrer un règlement sur une facture émise (acomptes, situations, solde)
     enregistrerReglement: async ({ facture, reglement, supabaseClient, sbUser, activeOrgId }) => {
-        const montantNum = Math.max(0, Math.round(Number(reglement.montant) || 0));
+        // 2026-09-18 — Arrondi selon la devise de la facture, et non plus à
+        // l'unité : Math.round effaçait les centimes d'un règlement en euros.
+        // En FCFA (0 décimale), arrondiDevise EST Math.round : rien ne change.
+        const deviseFacture = facture.companyInfoSnapshot?.currency || 'FCFA';
+        const montantNum = Math.max(0, arrondiDevise(Number(reglement.montant) || 0, deviseFacture));
         if (montantNum <= 0) {
             throw new Error("Le montant du règlement doit être supérieur à zéro.");
         }
@@ -10182,9 +12376,11 @@ const InvoiceService = {
         };
 
         const nouveauxPaiements = [...paiementsExistants, nouveauPaiement];
-        const nouveauMontantRegle = nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
+        // Sommes arrondies dans la devise : 60,10 + 40,15 vaut 100,25 et non
+        // 100,24999999999999, sans quoi le solde ne tomberait jamais à zéro.
+        const nouveauMontantRegle = arrondiDevise(nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0), deviseFacture);
         const netAPayer = Number(facture.netAPayerTTC ?? facture.totalTTC ?? 0);
-        const soldeRestant = Math.max(0, netAPayer - nouveauMontantRegle);
+        const soldeRestant = Math.max(0, arrondiDevise(netAPayer - nouveauMontantRegle, deviseFacture));
 
         let nouveauStatut = 'partially_paid';
         if (soldeRestant === 0 && nouveauMontantRegle > 0) {
@@ -10211,6 +12407,10 @@ const InvoiceService = {
                 console.error("[InvoiceService] Erreur mise à jour règlement cloud:", error);
                 throw new Error(`Impossible de synchroniser le règlement : ${error.message}`);
             }
+
+            // T3 : miroir APRÈS la source de vérité, jamais avant — si les
+            // notes n'ont pas été écrites, il n'y a rien à refléter.
+            await InvoiceService._miroirReglementAjoute({ facture, paiement: nouveauPaiement, supabaseClient, sbUser, activeOrgId });
         }
 
         return {
@@ -10225,9 +12425,10 @@ const InvoiceService = {
     supprimerReglement: async ({ facture, paymentId, supabaseClient, sbUser, activeOrgId }) => {
         const paiementsExistants = Array.isArray(facture.payments) ? facture.payments : [];
         const nouveauxPaiements = paiementsExistants.filter(p => p.id !== paymentId);
-        const nouveauMontantRegle = nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
+        const deviseFacture = facture.companyInfoSnapshot?.currency || 'FCFA';
+        const nouveauMontantRegle = arrondiDevise(nouveauxPaiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0), deviseFacture);
         const netAPayer = Number(facture.netAPayerTTC ?? facture.totalTTC ?? 0);
-        const soldeRestant = Math.max(0, netAPayer - nouveauMontantRegle);
+        const soldeRestant = Math.max(0, arrondiDevise(netAPayer - nouveauMontantRegle, deviseFacture));
 
         let nouveauStatut = facture.statut;
         if (nouveauMontantRegle <= 0) {
@@ -10262,6 +12463,8 @@ const InvoiceService = {
                 console.error("[InvoiceService] Erreur suppression règlement cloud:", error);
                 throw new Error(`Impossible de synchroniser la suppression en base : ${error.message}`);
             }
+
+            await InvoiceService._miroirReglementSupprime({ paymentId, supabaseClient, activeOrgId });
         }
 
         return {
@@ -11907,12 +14110,25 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
 };
 
 // ══ MODALE DE SAISIE DE RÈGLEMENT DE FACTURE (2026-09-10) ════════════════
-function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
+function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, companyInfo, onClose, onSubmit }) {
     if (!facture) return null;
     const totalTTC = facture.netAPayerTTC || facture.totalTTC || 0;
     const dejaRegle = Number(facture.montantRegle) || 0;
     const resteAPayer = Math.max(0, totalTTC - dejaRegle);
 
+    // Paramètres SasPay résolus
+    const activeSaspay = saspaySettings || companyInfo?.saspaySettings || companyInfo?.commercialSettings?.saspay || {
+        enabled: false,
+        apiKey: '',
+        environment: 'test',
+        defaultCountry: 'ML',
+        feeChargeMode: 'DEDUCTED'
+    };
+
+    // Onglet principal : 'manual' ou 'saspay'
+    const [mainTab, setMainTab] = useState(activeSaspay.enabled ? 'saspay' : 'manual');
+
+    // Saisie manuelle standard
     const [montant, setMontant] = useState(resteAPayer > 0 ? String(resteAPayer) : '');
     const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
     const [mode, setMode] = useState('virement');
@@ -11920,11 +14136,56 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // SasPay Online states
+    const [saspaySubMode, setSaspaySubMode] = useState('checkout'); // 'checkout' | 'softpay'
+    const countries = (typeof window !== 'undefined' && window.SASPAY_COUNTRIES) ? window.SASPAY_COUNTRIES : [
+        { code: 'ML', name: 'Mali', dialCode: '+223', flag: '🇲🇱', networks: ['Wave', 'Orange Money', 'Moov'] },
+        { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', networks: ['Wave', 'Orange Money', 'MTN', 'Moov'] },
+        { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', networks: ['Wave', 'Orange Money', 'Free Money'] },
+        { code: 'BJ', name: 'Bénin', dialCode: '+229', flag: '🇧🇯', networks: ['MTN', 'Moov', 'Celtiis'] },
+        { code: 'BF', name: 'Burkina Faso', dialCode: '+226', flag: '🇧🇫', networks: ['Orange Money', 'Moov'] },
+        { code: 'TG', name: 'Togo', dialCode: '+228', flag: '🇹🇬', networks: ['T-Money', 'Moov'] },
+        { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', networks: ['Orange Money', 'MTN'] },
+        { code: 'GN', name: 'Guinée', dialCode: '+224', flag: '🇬🇳', networks: ['Orange Money', 'MTN'] }
+    ];
+
+    const cleanInitialPhone = (phone, dial) => {
+        if (!phone) return '';
+        const p = String(phone).replace(/\s+/g, '');
+        if (p.startsWith(dial)) return p.slice(dial.length);
+        if (p.startsWith('+')) return p.replace(/^\+\d{1,4}/, '');
+        return p;
+    };
+
+    const initialCountry = countries.find(c => c.code === (activeSaspay.defaultCountry || 'ML')) || countries[0];
+    const [selectedCountry, setSelectedCountry] = useState(initialCountry.code);
+    const [selectedNetwork, setSelectedNetwork] = useState('wave');
+    const [customerPhone, setCustomerPhone] = useState(() => cleanInitialPhone(facture.clientPhone || facture.phone || '', initialCountry.dialCode));
+    const [customerName, setCustomerName] = useState(facture.clientName || 'Client');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [sessionData, setSessionData] = useState(null);
+    const [softpayData, setSoftpayData] = useState(null);
+    const [pollingStatus, setPollingStatus] = useState(null); // 'checking' | 'success' | 'failed'
+    const [pollingMessage, setPollingMessage] = useState('');
+    const [copySuccess, setCopySuccess] = useState(false);
+
+    const pollingIntervalRef = useRef(null);
+
+    // Arrêt du polling au démontage
+    useEffect(() => {
+        return () => {
+            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        };
+    }, []);
+
+    const currentCountry = countries.find(c => c.code === selectedCountry) || countries[0];
+
     const handleQuickPreset = (val) => {
         setMontant(String(Math.max(0, Math.round(val))));
     };
 
-    const handleSubmit = async (e) => {
+    // Soumission manuelle
+    const handleSubmitManual = async (e) => {
         e.preventDefault();
         const montantNum = Number(montant);
         if (!montantNum || montantNum <= 0) {
@@ -11943,6 +14204,156 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // Démarre le polling automatique de statut de paiement
+    const startStatusPolling = (id, defaultMethod = 'Mobile Money') => {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        setPollingStatus('checking');
+        setPollingMessage("En attente du règlement du client...");
+
+        const svc = (typeof window !== 'undefined' && window.SasPayService) ? window.SasPayService : null;
+        if (!svc) return;
+
+        pollingIntervalRef.current = setInterval(async () => {
+            try {
+                const res = await svc.verifyPayment(id, {
+                    apiKey: activeSaspay.apiKey,
+                    environment: activeSaspay.environment
+                });
+                if (res.status === 'PAID' || res.status === 'SUCCESS') {
+                    clearInterval(pollingIntervalRef.current);
+                    setPollingStatus('success');
+                    setPollingMessage("Paiement validé avec succès par SasPay !");
+                    setTimeout(async () => {
+                        await onSubmit(facture, {
+                            montant: Number(montant),
+                            date: new Date().toISOString().slice(0, 10),
+                            mode: res.payment_method?.toLowerCase().includes('card') ? 'carte' : 'saspay',
+                            reference: `SASPAY-${id.slice(0, 8).toUpperCase()}`,
+                            note: `Règlement en ligne SasPay (${res.payment_method || defaultMethod}) - Réf: ${id}`
+                        });
+                    }, 1200);
+                } else if (res.status === 'FAILED' || res.status === 'CANCELLED') {
+                    clearInterval(pollingIntervalRef.current);
+                    setPollingStatus('failed');
+                    setPollingMessage("La transaction a été rejetée ou annulée.");
+                }
+            } catch (err) {
+                console.warn("Polling SasPay error:", err);
+            }
+        }, 3000);
+    };
+
+    // Génération du lien Checkout hébergé
+    const handleGenerateCheckout = async () => {
+        const montantNum = Number(montant);
+        if (!montantNum || montantNum <= 0) {
+            alert("Veuillez indiquer un montant valide.");
+            return;
+        }
+        setIsGenerating(true);
+        setPollingStatus(null);
+        try {
+            const svc = window.SasPayService;
+            if (!svc) throw new Error("Service SasPay non disponible.");
+            const res = await svc.createCheckoutSession({
+                amount: montantNum,
+                currency: (devise === 'FCFA' || devise === 'XOF') ? 'XOF' : (devise === 'XAF' ? 'XAF' : devise),
+                customer: {
+                    name: customerName,
+                    phone: customerPhone,
+                    email: facture.clientEmail || ''
+                },
+                reference: facture.numero || `FAC-${facture.id || Date.now()}`,
+                description: `Règlement facture ${facture.numero || ''} - ${customerName}`,
+                feeChargeMode: activeSaspay.feeChargeMode || 'DEDUCTED',
+                apiKey: activeSaspay.apiKey,
+                environment: activeSaspay.environment
+            });
+            const sessionPayload = res.data || res;
+            setSessionData(sessionPayload);
+            startStatusPolling(sessionPayload.id, 'SasPay Checkout');
+        } catch (err) {
+            alert(`Erreur SasPay : ${err.message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // Déclenchement du push SoftPay Mobile Money
+    const handleInitiateSoftPay = async () => {
+        const montantNum = Number(montant);
+        if (!montantNum || montantNum <= 0) {
+            alert("Veuillez indiquer un montant valide.");
+            return;
+        }
+        if (!customerPhone) {
+            alert("Veuillez saisir le numéro de téléphone mobile du client.");
+            return;
+        }
+        setIsGenerating(true);
+        setPollingStatus(null);
+        try {
+            const svc = window.SasPayService;
+            if (!svc) throw new Error("Service SasPay non disponible.");
+            const res = await svc.initiateSoftPay({
+                amount: montantNum,
+                currency: (devise === 'FCFA' || devise === 'XOF') ? 'XOF' : (devise === 'XAF' ? 'XAF' : devise),
+                network: selectedNetwork,
+                phone: customerPhone,
+                customer: {
+                    name: customerName,
+                    phone: customerPhone
+                },
+                reference: facture.numero || `FAC-${facture.id || Date.now()}`,
+                description: `Paiement ${selectedNetwork} - Facture ${facture.numero}`,
+                apiKey: activeSaspay.apiKey,
+                environment: activeSaspay.environment
+            });
+            const softpayPayload = res.data || res;
+            setSoftpayData(softpayPayload);
+            startStatusPolling(softpayPayload.payment_id || softpayPayload.id, selectedNetwork.toUpperCase());
+        } catch (err) {
+            alert(`Erreur SasPay SoftPay : ${err.message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // Simulation instantanée de paiement (mode démo ou test)
+    const handleSimulateSuccess = () => {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        setPollingStatus('success');
+        setPollingMessage("Paiement simulé validé avec succès !");
+        const id = sessionData?.id || sessionData?.data?.id || softpayData?.payment_id || softpayData?.id || `DEMO-${Date.now().toString(36)}`;
+        setTimeout(async () => {
+            await onSubmit(facture, {
+                montant: Number(montant),
+                date: new Date().toISOString().slice(0, 10),
+                mode: selectedNetwork === 'card' ? 'carte' : 'saspay',
+                reference: `SASPAY-${String(id).slice(0, 8).toUpperCase()}`,
+                note: `Règlement test SasPay (${saspaySubMode === 'checkout' ? 'Checkout' : selectedNetwork.toUpperCase()})`
+            });
+        }, 1000);
+    };
+
+    // Copie du lien Checkout
+    const handleCopyUrl = () => {
+        const url = sessionData?.checkout_url || sessionData?.data?.checkout_url;
+        if (url && navigator.clipboard) {
+            navigator.clipboard.writeText(url);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        }
+    };
+
+    // Partage WhatsApp
+    const handleShareWhatsApp = () => {
+        const url = sessionData?.checkout_url || sessionData?.data?.checkout_url;
+        if (!url) return;
+        const msg = `Bonjour ${customerName},\n\nVoici votre lien sécurisé SasPay pour régler votre facture ${facture.numero || ''} d'un montant de ${formatMoney(Number(montant), devise)} par Wave, Orange Money ou Carte Bancaire :\n\n${url}\n\nMerci pour votre confiance !`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     return (
@@ -11969,10 +14380,42 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
                     </button>
                 </div>
 
-                {/* Form Body */}
-                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scroll flex-1 space-y-4">
-                    {/* Synthèse créance */}
-                    <div className="bg-neutral-50 rounded-xl p-3.5 border border-neutral-200/80 flex items-center justify-between text-xs">
+                {/* Onglets principaux de mode de règlement */}
+                <div className="flex border-b border-neutral-200 bg-neutral-50 px-4 pt-2 gap-2 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setMainTab('manual')}
+                        className={`py-2 px-3 text-xs font-bold rounded-t-xl border-t border-x transition-all flex items-center gap-1.5 ${
+                            mainTab === 'manual'
+                                ? 'bg-white border-neutral-200 text-neutral-800 -mb-px shadow-2xs'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                        }`}
+                    >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                        Saisie manuelle
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMainTab('saspay')}
+                        className={`py-2 px-3 text-xs font-bold rounded-t-xl border-t border-x transition-all flex items-center gap-1.5 ${
+                            mainTab === 'saspay'
+                                ? 'bg-white border-neutral-200 text-emerald-700 -mb-px shadow-2xs'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                        }`}
+                    >
+                        <i className="fa-solid fa-bolt-lightning text-emerald-600"></i>
+                        Encaisser avec SasPay
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                            activeSaspay.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                            {activeSaspay.enabled ? (activeSaspay.environment === 'live' ? 'Live' : 'Sandbox') : 'Démo'}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Synthèse créance commune */}
+                <div className="p-4 bg-white border-b border-neutral-100 space-y-3 shrink-0">
+                    <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/80 flex items-center justify-between text-xs">
                         <div>
                             <span className="text-neutral-500 block">Total Net TTC</span>
                             <span className="font-bold text-neutral-800 text-sm">{formatMoney(totalTTC, devise)}</span>
@@ -11989,11 +14432,11 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
                         </div>
                     </div>
 
-                    {/* Montant avec presets rapides */}
+                    {/* Montant avec presets */}
                     <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                            <label htmlFor="reglement_montant" className="app-label !mb-0 font-bold text-neutral-700 text-xs">
-                                Montant de l'encaissement ({devise}) *
+                        <div className="flex justify-between items-center mb-1">
+                            <label htmlFor="reglement_montant_commun" className="app-label !mb-0 font-bold text-neutral-700 text-xs">
+                                Montant à encaisser ({devise}) *
                             </label>
                             {resteAPayer > 0 && (
                                 <div className="flex gap-1.5">
@@ -12010,7 +14453,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
                         </div>
                         <div className="relative">
                             <input
-                                id="reglement_montant"
+                                id="reglement_montant_commun"
                                 type="number"
                                 step="any"
                                 min="1"
@@ -12024,115 +14467,422 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
                                 {devise}
                             </span>
                         </div>
-                        {Number(montant) > resteAPayer && resteAPayer > 0 && (
-                            <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-                                <i className="fa-solid fa-triangle-exclamation"></i>
-                                Le montant dépasse le solde restant dû ({formatMoney(resteAPayer, devise)}).
-                            </p>
-                        )}
                     </div>
+                </div>
 
-                    {/* Mode de paiement */}
-                    <div>
-                        <label className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
-                            Mode d'encaissement / canal *
-                        </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {MODES_PAIEMENT_BTP.map((m) => {
-                                const isSelected = mode === m.id;
-                                return (
-                                    <button
-                                        type="button"
-                                        key={m.id}
-                                        onClick={() => setMode(m.id)}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-left ${
-                                            isSelected
-                                                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20 shadow-xs'
-                                                : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300'
-                                        }`}
-                                    >
-                                        <i className={`${m.icon} ${isSelected ? 'text-emerald-600' : 'text-neutral-400'} text-sm`}></i>
-                                        <span className="truncate">{m.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+                {/* Corps dynamique : Saisie manuelle OU SasPay */}
+                <div className="overflow-y-auto custom-scroll flex-1 p-5 space-y-4">
+                    {mainTab === 'manual' ? (
+                        <form onSubmit={handleSubmitManual} className="space-y-4">
+                            {/* Mode de paiement */}
+                            <div>
+                                <label className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                    Canal / Mode d'encaissement *
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {MODES_PAIEMENT_BTP.map((m) => {
+                                        const isSelected = mode === m.id;
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={m.id}
+                                                onClick={() => setMode(m.id)}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-left ${
+                                                    isSelected
+                                                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20 shadow-xs'
+                                                        : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300'
+                                                }`}
+                                            >
+                                                <i className={`${m.icon} ${isSelected ? 'text-emerald-600' : 'text-neutral-400'} text-sm`}></i>
+                                                <span className="truncate">{m.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
-                    {/* Date et Référence */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label htmlFor="reglement_date" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
-                                Date de règlement *
-                            </label>
-                            <input
-                                id="reglement_date"
-                                type="date"
-                                required
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="app-input text-xs"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="reglement_ref" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
-                                Réf. transaction / chèque
-                            </label>
-                            <input
-                                id="reglement_ref"
-                                type="text"
-                                value={reference}
-                                onChange={(e) => setReference(e.target.value)}
-                                placeholder="Ex: VIR-84920, WAVE-TX-993..."
-                                className="app-input text-xs"
-                            />
-                        </div>
-                    </div>
+                            {/* Date et Référence */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label htmlFor="reglement_date" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                        Date de règlement *
+                                    </label>
+                                    <input
+                                        id="reglement_date"
+                                        type="date"
+                                        required
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="app-input text-xs"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="reglement_ref" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                        Réf. transaction / chèque
+                                    </label>
+                                    <input
+                                        id="reglement_ref"
+                                        type="text"
+                                        value={reference}
+                                        onChange={(e) => setReference(e.target.value)}
+                                        placeholder="Ex: VIR-84920, WAVE-993..."
+                                        className="app-input text-xs"
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Notes / observations */}
-                    <div>
-                        <label htmlFor="reglement_note" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
-                            Observations / Note interne (optionnel)
-                        </label>
-                        <input
-                            id="reglement_note"
-                            type="text"
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="Ex: Acompte n°2 reçu par Wave Business"
-                            className="app-input text-xs"
-                        />
-                    </div>
+                            {/* Notes */}
+                            <div>
+                                <label htmlFor="reglement_note" className="app-label font-bold text-neutral-700 text-xs mb-1.5 block">
+                                    Observations / Note interne (optionnel)
+                                </label>
+                                <input
+                                    id="reglement_note"
+                                    type="text"
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    placeholder="Ex: Acompte validé à la livraison"
+                                    className="app-input text-xs"
+                                />
+                            </div>
 
-                    {/* Boutons d'action */}
-                    <div className="pt-3 border-t border-neutral-100 flex items-center justify-end gap-2.5">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                            className="btn-ghost text-xs px-4 py-2"
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !Number(montant)}
-                            className="btn-primary text-xs px-5 py-2 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
-                                    <span>Enregistrement...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fa-solid fa-check"></i>
-                                    <span>Valider le règlement</span>
-                                </>
+                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    disabled={isSubmitting}
+                                    className="btn-ghost text-xs px-4 py-2"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !Number(montant)}
+                                    className="btn-primary text-xs px-5 py-2 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                            <span>Enregistrement...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="fa-solid fa-check"></i>
+                                            <span>Valider le règlement</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        /* SasPay Online Settlement Panel */
+                        <div className="space-y-4">
+                            {/* Sous-mode SasPay */}
+                            <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => { setSaspaySubMode('checkout'); setPollingStatus(null); }}
+                                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                                        saspaySubMode === 'checkout'
+                                            ? 'bg-white text-neutral-900 shadow-2xs'
+                                            : 'text-neutral-500 hover:text-neutral-800'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-link text-emerald-600"></i>
+                                    Lien de paiement (Checkout)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setSaspaySubMode('softpay'); setPollingStatus(null); }}
+                                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                                        saspaySubMode === 'softpay'
+                                            ? 'bg-white text-neutral-900 shadow-2xs'
+                                            : 'text-neutral-500 hover:text-neutral-800'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-mobile-screen-button text-emerald-600"></i>
+                                    Push Mobile direct (SoftPay)
+                                </button>
+                            </div>
+
+                            {/* Section Checkout SasPay */}
+                            {saspaySubMode === 'checkout' && (
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs text-emerald-950">
+                                        <div className="flex items-center gap-2 font-bold mb-0.5">
+                                            <i className="fa-solid fa-shield-halved text-emerald-600"></i>
+                                            Paiement multi-opérateur sécurisé
+                                        </div>
+                                        <p className="text-[11px] text-emerald-800">
+                                            Génère une page de règlement officielle SasPay où le client paie par Wave, Orange Money, Moov, MTN ou Carte Bancaire.
+                                        </p>
+                                    </div>
+
+                                    {!sessionData ? (
+                                        <button
+                                            type="button"
+                                            disabled={isGenerating || !Number(montant)}
+                                            onClick={handleGenerateCheckout}
+                                            className="w-full btn-primary py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-emerald-500/20"
+                                        >
+                                            {isGenerating ? (
+                                                <>
+                                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                                    Création de la session SasPay...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fa-solid fa-bolt"></i>
+                                                    Générer le lien de paiement ({formatMoney(Number(montant), devise)})
+                                                </>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-3 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                                                    <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                                                    Session SasPay active
+                                                </span>
+                                                <span className="text-[10px] font-mono px-2 py-0.5 bg-neutral-200/70 rounded text-neutral-600">
+                                                    Réf : {String(sessionData?.id || sessionData?.data?.id || 'DEMO').slice(0, 10)}
+                                                </span>
+                                            </div>
+
+                                            {/* Lien avec bouton copier */}
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={sessionData?.checkout_url || sessionData?.data?.checkout_url || ''}
+                                                    className="app-input text-xs font-mono text-neutral-700 bg-white select-all"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCopyUrl}
+                                                    className="btn-secondary text-xs px-3 font-semibold shrink-0"
+                                                >
+                                                    {copySuccess ? (
+                                                        <>
+                                                            <i className="fa-solid fa-check text-emerald-600 mr-1"></i> Copié
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="fa-solid fa-copy mr-1"></i> Copier
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {/* Actions de partage */}
+                                            <div className="grid grid-cols-2 gap-2 pt-1">
+                                                <a
+                                                    href={sessionData.checkout_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="btn-secondary text-xs py-2 text-center flex items-center justify-center gap-1.5 font-semibold text-neutral-700"
+                                                >
+                                                    <i className="fa-solid fa-arrow-up-right-from-square text-neutral-500"></i>
+                                                    Ouvrir la page
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleShareWhatsApp}
+                                                    className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                                                >
+                                                    <i className="fa-brands fa-whatsapp text-sm"></i>
+                                                    Envoyer sur WhatsApp
+                                                </button>
+                                            </div>
+
+                                            {/* Polling statut en direct */}
+                                            <div className="pt-2 border-t border-neutral-200/70 text-xs flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    {pollingStatus === 'checking' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-notch fa-spin text-emerald-600"></i>
+                                                            <span className="text-neutral-600">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                    {pollingStatus === 'success' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                                                            <span className="text-emerald-700 font-bold">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                    {pollingStatus === 'failed' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-xmark text-rose-600"></i>
+                                                            <span className="text-rose-700">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Bouton de simulation démo */}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSimulateSuccess}
+                                                    className="text-[11px] text-brand-600 hover:text-brand-800 font-semibold underline"
+                                                    title="Simuler un paiement réussi sans attendre pour les tests"
+                                                >
+                                                    Simuler succès (Démo)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                        </button>
-                    </div>
-                </form>
+
+                            {/* Section SoftPay Push Mobile direct */}
+                            {saspaySubMode === 'softpay' && (
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-sky-50/70 border border-sky-200/80 rounded-xl text-xs text-sky-950">
+                                        <div className="flex items-center gap-2 font-bold mb-0.5">
+                                            <i className="fa-solid fa-mobile-screen-button text-sky-600"></i>
+                                            Push Mobile Money direct
+                                        </div>
+                                        <p className="text-[11px] text-sky-800">
+                                            Déclenche une invite de débit instantanée sur le mobile du client. Le client n'a plus qu'à taper son code PIN.
+                                        </p>
+                                    </div>
+
+                                    {/* Pays et Réseau */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="app-label">Pays du client</label>
+                                            <select
+                                                value={selectedCountry}
+                                                onChange={(e) => setSelectedCountry(e.target.value)}
+                                                className="app-input text-xs font-semibold"
+                                            >
+                                                {countries.map(c => (
+                                                    <option key={c.code} value={c.code}>
+                                                        {c.flag} {c.name} ({c.dialCode})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="app-label">Opérateur Mobile Money</label>
+                                            <select
+                                                value={selectedNetwork}
+                                                onChange={(e) => setSelectedNetwork(e.target.value)}
+                                                className="app-input text-xs font-semibold"
+                                            >
+                                                <option value="wave">Wave</option>
+                                                <option value="orange_money">Orange Money</option>
+                                                <option value="moov">Moov Money</option>
+                                                <option value="mtn">MTN MoMo</option>
+                                                <option value="free">Free Money</option>
+                                                <option value="celtiis">Celtiis Cash</option>
+                                                <option value="card">Carte Bancaire (Visa/Mastercard)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Téléphone du client */}
+                                    <div>
+                                        <label htmlFor="softpay_phone" className="app-label">Numéro mobile du client *</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
+                                                {currentCountry.dialCode}
+                                            </span>
+                                            <input
+                                                id="softpay_phone"
+                                                type="tel"
+                                                required
+                                                value={customerPhone}
+                                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                                placeholder="XX XX XX XX"
+                                                style={{ paddingLeft: `${(currentCountry.dialCode.length * 9) + 20}px` }}
+                                                className="app-input text-xs font-bold tabular-nums"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {!softpayData ? (
+                                        <button
+                                            type="button"
+                                            disabled={isGenerating || !Number(montant) || !customerPhone}
+                                            onClick={handleInitiateSoftPay}
+                                            className="w-full btn-primary py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-emerald-500/20"
+                                        >
+                                            {isGenerating ? (
+                                                <>
+                                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                                    Envoi du push SoftPay...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fa-solid fa-paper-plane"></i>
+                                                    Envoyer la demande de débit au client
+                                                </>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-3 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                                                    <i className="fa-solid fa-paper-plane text-sky-600"></i>
+                                                    Demande envoyée au client
+                                                </span>
+                                                <span className="text-[10px] font-mono px-2 py-0.5 bg-neutral-200/70 rounded text-neutral-600">
+                                                    {(softpayData?.payment_id || softpayData?.id || softpayData?.data?.id) ? `ID : ${String(softpayData.payment_id || softpayData.id || softpayData.data.id).slice(0, 10)}` : 'En cours'}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-neutral-600">
+                                                Le client a reçu un prompt ou un code USSD sur le numéro <strong>{customerPhone}</strong>. Veuillez attendre qu'il confirme avec son code PIN secret.
+                                            </p>
+
+                                            {/* Polling statut */}
+                                            <div className="pt-2 border-t border-neutral-200/70 text-xs flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    {pollingStatus === 'checking' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-notch fa-spin text-emerald-600"></i>
+                                                            <span className="text-neutral-600">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                    {pollingStatus === 'success' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                                                            <span className="text-emerald-700 font-bold">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                    {pollingStatus === 'failed' && (
+                                                        <>
+                                                            <i className="fa-solid fa-circle-xmark text-rose-600"></i>
+                                                            <span className="text-rose-700">{pollingMessage}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSimulateSuccess}
+                                                    className="text-[11px] text-brand-600 hover:text-brand-800 font-semibold underline"
+                                                >
+                                                    Simuler validation client (Démo)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-400">
+                                <span>Sécurisé par SasPay API v1</span>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="btn-ghost text-xs px-4 py-1.5"
+                                >
+                                    Fermer
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -12348,6 +15098,564 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ══ MODALE DES FORFAITS D'ABONNEMENT ET PAIEMENT SASPAY (2026-09-19) ═════════
+function SubscriptionPlansModal({ isOpen, onClose, onPlanActivated, currentSubscription, savedQuotesCount = 0, user = {} }) {
+    if (!isOpen) return null;
+
+    const subscriptionService = (typeof window !== 'undefined' && window.SubscriptionService) ? window.SubscriptionService : null;
+    const plans = subscriptionService ? subscriptionService.PLANS : {
+        starter: { id: 'starter', name: 'Starter', price: 0, period: '14 jours', maxDevis: 3 },
+        standard: { id: 'standard', name: 'Standard', price: 9900, period: '/ mois' },
+        pro: { id: 'pro', name: 'Pro', price: 14500, period: '/ mois', isPopular: true },
+        business: { id: 'business', name: 'Business', price: 29500, period: '/ mois', hasAiBadge: true }
+    };
+
+    const sub = currentSubscription || (subscriptionService ? subscriptionService.getSubscription() : { planId: 'starter', status: 'trial' });
+    const initialPlanId = (sub.planId && sub.planId !== 'starter') ? sub.planId : 'pro';
+
+    const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+    const [subMode, setSubMode] = useState('checkout'); // 'checkout' | 'softpay'
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [checkoutUrl, setCheckoutUrl] = useState('');
+    const [checkoutRef, setCheckoutRef] = useState('');
+    const [softpayData, setSoftpayData] = useState(null);
+    const [selectedCountry, setSelectedCountry] = useState('ML');
+    const [selectedNetwork, setSelectedNetwork] = useState('wave');
+    const [customerPhone, setCustomerPhone] = useState(() => {
+        const raw = user.phone || '';
+        return raw.replace(/^\+223/, '').replace(/^\+/, '');
+    });
+    const [copySuccess, setCopySuccess] = useState(false);
+    const [pollingStatus, setPollingStatus] = useState(null); // 'polling' | 'success' | 'failed'
+    const [pollingMessage, setPollingMessage] = useState('');
+    const pollingIntervalRef = useRef(null);
+
+    const countries = (typeof window !== 'undefined' && window.SASPAY_COUNTRIES) ? window.SASPAY_COUNTRIES : [
+        { code: 'ML', name: 'Mali', dialCode: '+223', flag: '🇲🇱', networks: ['Wave', 'Orange Money', 'Moov'] },
+        { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', networks: ['Wave', 'Orange Money', 'MTN', 'Moov'] },
+        { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', networks: ['Wave', 'Orange Money', 'Free Money'] },
+        { code: 'BJ', name: 'Bénin', dialCode: '+229', flag: '🇧🇯', networks: ['MTN', 'Moov', 'Celtiis'] },
+        { code: 'BF', name: 'Burkina Faso', dialCode: '+226', flag: '🇧🇫', networks: ['Orange Money', 'Moov'] },
+        { code: 'TG', name: 'Togo', dialCode: '+228', flag: '🇹🇬', networks: ['T-Money', 'Moov'] },
+        { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', networks: ['Orange Money', 'MTN'] },
+        { code: 'GN', name: 'Guinée', dialCode: '+224', flag: '🇬🇳', networks: ['Orange Money', 'MTN'] }
+    ];
+
+    const currentCountry = countries.find(c => c.code === selectedCountry) || countries[0];
+    const selectedPlan = plans[selectedPlanId] || plans.pro;
+    const daysRemaining = subscriptionService ? subscriptionService.getDaysRemaining() : 14;
+
+    useEffect(() => {
+        return () => {
+            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        };
+    }, []);
+
+    // Réinitialisation de session quand on change de formule
+    const handleSelectPlan = (planId) => {
+        setSelectedPlanId(planId);
+        setCheckoutUrl('');
+        setCheckoutRef('');
+        setSoftpayData(null);
+        setPollingStatus(null);
+        setPollingMessage('');
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
+
+    const startPolling = (refId) => {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        setPollingStatus('polling');
+        let attempts = 0;
+        pollingIntervalRef.current = setInterval(async () => {
+            attempts++;
+            if (attempts > 60) {
+                clearInterval(pollingIntervalRef.current);
+                setPollingStatus('failed');
+                setPollingMessage('Délai d’attente dépassé. Vous pouvez réessayer ou contacter l\'assistance.');
+                return;
+            }
+            try {
+                const platformConfig = window.SASPAY_PLATFORM_CONFIG || {};
+                const verifyRes = await window.SasPayService.verifyPayment(refId, {
+                    apiKey: platformConfig.getApiKey ? platformConfig.getApiKey() : (platformConfig.apiKey || ''),
+                    environment: platformConfig.environment || 'live'
+                });
+                if (verifyRes.success && (verifyRes.status === 'SUCCESS' || verifyRes.status === 'PAID')) {
+                    clearInterval(pollingIntervalRef.current);
+                    setPollingStatus('success');
+                    setPollingMessage('🎉 Paiement confirmé avec succès ! Activation de votre formule...');
+                    const updated = subscriptionService.activatePlan(selectedPlanId, {
+                        id: refId,
+                        reference: `SASPAY-${refId}`,
+                        mode: 'saspay'
+                    });
+                    if (onPlanActivated) onPlanActivated(updated);
+                    setTimeout(() => {
+                        onClose();
+                    }, 2200);
+                }
+            } catch (e) {
+                console.warn('[SasPay Sub Polling]', e);
+            }
+        }, 3500);
+    };
+
+    const handleGenerateCheckout = async () => {
+        if (!subscriptionService) return;
+        setIsGenerating(true);
+        setPollingMessage('Génération de la session de paiement SasPay…');
+        try {
+            const res = await subscriptionService.initiateSubscriptionCheckout(selectedPlanId, {
+                name: user.name || 'Utilisateur ikadevis',
+                email: user.email || 'contact@ikadevis.com',
+                phone: customerPhone
+            });
+            if (res.success && res.data) {
+                const url = res.data.checkout_url || res.data.url;
+                setCheckoutUrl(url);
+                setCheckoutRef(res.data.id || res.data.slug);
+                setPollingMessage('Lien de paiement actif. En attente du règlement…');
+                startPolling(res.data.id || res.data.slug);
+            } else {
+                setPollingMessage(res.error || 'Erreur lors de la création de session SasPay.');
+            }
+        } catch (err) {
+            setPollingMessage(err.message || 'Erreur de connexion.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleInitiateSoftPay = async () => {
+        if (!subscriptionService || !customerPhone) return;
+        setIsGenerating(true);
+        setPollingMessage('Envoi de la demande de débit Mobile Money…');
+        try {
+            const fullPhone = customerPhone.startsWith('+') ? customerPhone : `${currentCountry.dialCode}${customerPhone}`;
+            const res = await subscriptionService.initiateSubscriptionSoftPay(selectedPlanId, fullPhone, selectedNetwork, {
+                name: user.name || 'Utilisateur ikadevis',
+                email: user.email || ''
+            });
+            if (res.success && res.data) {
+                setSoftpayData(res.data);
+                setPollingMessage(res.data.instructions || 'Validez l’invite de débit sur votre téléphone.');
+                startPolling(res.data.id || res.data.payment_id);
+            } else {
+                setPollingMessage(res.error || 'Échec de la demande SoftPay.');
+            }
+        } catch (err) {
+            setPollingMessage(err.message || 'Erreur lors de l’envoi SoftPay.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSimulateDemoSuccess = () => {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        setPollingStatus('success');
+        setPollingMessage('🎉 Paiement simulé avec succès ! Activation de la formule ' + selectedPlan.name);
+        if (subscriptionService) {
+            const updated = subscriptionService.activatePlan(selectedPlanId, {
+                id: `demo_${Date.now()}`,
+                reference: `SIM-SASPAY-${Date.now()}`,
+                mode: 'saspay_demo'
+            });
+            if (onPlanActivated) onPlanActivated(updated);
+        }
+        setTimeout(() => {
+            onClose();
+        }, 1800);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in" role="dialog" aria-modal="true">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden border border-neutral-200 my-auto animate-scale-up">
+
+                {/* Header */}
+                <div className="bg-gradient-to-r from-neutral-900 via-brand-900 to-indigo-950 text-white p-5 sm:p-6 relative">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="absolute top-5 right-5 text-neutral-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+                        aria-label="Fermer"
+                    >
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                    <div className="max-w-xl">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[11px] font-extrabold uppercase tracking-wider mb-2">
+                            <i className="fa-solid fa-crown text-[10px]"></i> Forfaits & Abonnements ikadevis
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                            Développez votre activité BTP sans limites
+                        </h2>
+                        <p className="text-xs text-neutral-300 mt-1">
+                            Paiement instantané et sécurisé par Mobile Money (Wave, Orange Money, Moov, MTN) et Carte bancaire.
+                        </p>
+                    </div>
+
+                    {/* Statut actuel */}
+                    <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                            <span className="text-neutral-400">Offre actuelle :</span>
+                            <span className="font-bold text-white px-2 py-0.5 rounded-md bg-white/10">
+                                {sub.planId ? sub.planId.toUpperCase() : 'STARTER'}
+                            </span>
+                            {sub.status === 'trial' && (
+                                <span className="text-amber-300 text-[11px]">({daysRemaining} jours restants • {savedQuotesCount}/3 devis)</span>
+                            )}
+                        </div>
+                        <span className="text-neutral-400 text-[11px]">
+                            Sans engagement • Facturation transparente
+                        </span>
+                    </div>
+                </div>
+
+                {/* Corps de la modale */}
+                <div className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scroll">
+
+                    {/* Grille des 3 offres payantes */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                        {/* STANDARD */}
+                        <div
+                            onClick={() => handleSelectPlan('standard')}
+                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
+                                selectedPlanId === 'standard'
+                                    ? 'border-brand-600 bg-brand-50/20 shadow-md ring-2 ring-brand-500/20'
+                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                            }`}
+                        >
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Standard</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">Artisans</span>
+                                </div>
+                                <div className="mt-2 mb-3">
+                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">9 900 F</span>
+                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
+                                </div>
+                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
+                                    Pour artisans et indépendants.
+                                </p>
+                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Devis & factures illimités</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Jusqu’à 10 projets chantiers</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Catalogue complet & marges</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Jusqu’à 2 utilisateurs</li>
+                                </ul>
+                            </div>
+                            <div className="pt-4">
+                                <button
+                                    type="button"
+                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                                        selectedPlanId === 'standard'
+                                            ? 'bg-brand-600 text-white shadow-xs'
+                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                    }`}
+                                >
+                                    {selectedPlanId === 'standard' ? '✓ Formule sélectionnée' : 'Choisir Standard'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* PRO */}
+                        <div
+                            onClick={() => handleSelectPlan('pro')}
+                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between relative ${
+                                selectedPlanId === 'pro'
+                                    ? 'border-indigo-600 bg-indigo-50/20 shadow-md ring-2 ring-indigo-500/20'
+                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                            }`}
+                        >
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow-xs tracking-wider">
+                                Le plus populaire
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Pro</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">Équipes BTP</span>
+                                </div>
+                                <div className="mt-2 mb-3">
+                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">14 500 F</span>
+                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
+                                </div>
+                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
+                                    Pour les professionnels et PME.
+                                </p>
+                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
+                                    <li className="flex items-center gap-2 font-semibold text-neutral-900"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Tout Standard</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Projets & chantiers illimités</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Jusqu’à 5 collaborateurs</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Logo & entêtes personnalisés</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Calculs avancés & calepinage</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Support prioritaire dédié</li>
+                                </ul>
+                            </div>
+                            <div className="pt-4">
+                                <button
+                                    type="button"
+                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                                        selectedPlanId === 'pro'
+                                            ? 'bg-indigo-600 text-white shadow-xs'
+                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                    }`}
+                                >
+                                    {selectedPlanId === 'pro' ? '✓ Formule sélectionnée' : 'Choisir Pro'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* BUSINESS */}
+                        <div
+                            onClick={() => handleSelectPlan('business')}
+                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
+                                selectedPlanId === 'business'
+                                    ? 'border-purple-600 bg-purple-50/20 shadow-md ring-2 ring-purple-500/20'
+                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                            }`}
+                        >
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Business</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 flex items-center gap-1">
+                                        <i className="fa-solid fa-wand-magic-sparkles text-[8px]"></i> Option IA
+                                    </span>
+                                </div>
+                                <div className="mt-2 mb-3">
+                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">29 500 F</span>
+                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
+                                </div>
+                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
+                                    Pour les entreprises exigeantes.
+                                </p>
+                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
+                                    <li className="flex items-center gap-2 font-semibold text-neutral-900"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Tout Pro en illimité</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Collaborateurs illimités</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Gestion d'affaires & chantier</li>
+                                    <li className="flex items-center gap-2 text-purple-700 font-semibold"><i className="fa-solid fa-wand-magic-sparkles text-purple-600 text-[10px]"></i> Option IA BTP intégrée</li>
+                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Onboarding dédié 7j/7</li>
+                                </ul>
+                            </div>
+                            <div className="pt-4">
+                                <button
+                                    type="button"
+                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                                        selectedPlanId === 'business'
+                                            ? 'bg-purple-600 text-white shadow-xs'
+                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                    }`}
+                                >
+                                    {selectedPlanId === 'business' ? '✓ Formule sélectionnée' : 'Choisir Business'}
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Tiroir de paiement SasPay */}
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200">
+                            <div>
+                                <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                                    <i className="fa-solid fa-bolt text-amber-500"></i>
+                                    <span>Régler votre abonnement <strong>{selectedPlan.name}</strong> ({selectedPlan.price.toLocaleString()} FCFA)</span>
+                                </h3>
+                                <p className="text-xs text-neutral-500">Sélectionnez votre moyen de règlement via la passerelle SasPay.</p>
+                            </div>
+
+                            {/* Onglets sous-mode */}
+                            <div className="flex bg-neutral-200 p-0.5 rounded-xl text-xs font-semibold shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setSubMode('checkout')}
+                                    className={`py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5 ${
+                                        subMode === 'checkout' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-link"></i> Lien sécurisé (Checkout)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSubMode('softpay')}
+                                    className={`py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5 ${
+                                        subMode === 'softpay' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-mobile-screen"></i> Push Mobile (SoftPay)
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Sous-mode Checkout */}
+                        {subMode === 'checkout' && (
+                            <div className="space-y-3">
+                                {!checkoutUrl ? (
+                                    <button
+                                        type="button"
+                                        disabled={isGenerating}
+                                        onClick={handleGenerateCheckout}
+                                        className="w-full btn-primary py-3 text-xs sm:text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-lock'}`}></i>
+                                        <span>{isGenerating ? 'Connexion à SasPay...' : `Payer ${selectedPlan.price.toLocaleString()} FCFA via Wave, Orange, Moov ou Carte`}</span>
+                                    </button>
+                                ) : (
+                                    <div className="p-4 rounded-xl bg-white border border-brand-200 space-y-3">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-bold text-brand-900 flex items-center gap-1.5">
+                                                <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                                                Page de paiement prête
+                                            </span>
+                                            <span className="font-mono text-[11px] text-neutral-400">Réf : {checkoutRef}</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={checkoutUrl}
+                                                className="app-input text-xs font-mono bg-neutral-50 flex-1 truncate"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(checkoutUrl);
+                                                    setCopySuccess(true);
+                                                    setTimeout(() => setCopySuccess(false), 2000);
+                                                }}
+                                                className="btn-secondary text-xs py-2 px-3 font-semibold shrink-0"
+                                            >
+                                                <i className={`fa-solid ${copySuccess ? 'fa-check text-emerald-600' : 'fa-copy'}`}></i>
+                                                <span>{copySuccess ? 'Copié !' : 'Copier'}</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2 pt-1">
+                                            <a
+                                                href={checkoutUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="btn-primary text-xs py-2 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold flex items-center gap-1.5 shadow-xs"
+                                            >
+                                                <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                                                <span>Ouvrir la page de règlement</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Sous-mode SoftPay */}
+                        {subMode === 'softpay' && (
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="app-label">Pays</label>
+                                        <select
+                                            value={selectedCountry}
+                                            onChange={(e) => setSelectedCountry(e.target.value)}
+                                            className="app-input text-xs font-semibold"
+                                        >
+                                            {countries.map(c => (
+                                                <option key={c.code} value={c.code}>
+                                                    {c.flag} {c.name} ({c.dialCode})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="app-label">Opérateur Mobile Money</label>
+                                        <select
+                                            value={selectedNetwork}
+                                            onChange={(e) => setSelectedNetwork(e.target.value)}
+                                            className="app-input text-xs font-semibold"
+                                        >
+                                            {currentCountry.networks.map(net => (
+                                                <option key={net.toLowerCase()} value={net.toLowerCase()}>
+                                                    {net}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="app-label">Votre numéro mobile *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
+                                            {currentCountry.dialCode}
+                                        </span>
+                                        <input
+                                            type="tel"
+                                            value={customerPhone}
+                                            onChange={(e) => setCustomerPhone(e.target.value)}
+                                            placeholder="XX XX XX XX"
+                                            style={{ paddingLeft: `${(currentCountry.dialCode.length * 9) + 20}px` }}
+                                            className="app-input text-xs font-bold tabular-nums"
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    disabled={isGenerating || !customerPhone}
+                                    onClick={handleInitiateSoftPay}
+                                    className="w-full btn-primary py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs"
+                                >
+                                    <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'}`}></i>
+                                    <span>{isGenerating ? 'Envoi en cours...' : `Recevoir la demande de débit (${selectedPlan.price.toLocaleString()} FCFA)`}</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Barre de statut & Simulation Démo */}
+                        {(pollingMessage || pollingStatus) && (
+                            <div className={`p-3 rounded-xl border text-xs flex flex-wrap items-center justify-between gap-2 ${
+                                pollingStatus === 'success'
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                    : 'bg-blue-50 border-blue-200 text-blue-800'
+                            }`}>
+                                <div className="flex items-center gap-2 font-medium">
+                                    {pollingStatus === 'polling' && <i className="fa-solid fa-circle-notch fa-spin text-brand-600"></i>}
+                                    {pollingStatus === 'success' && <i className="fa-solid fa-circle-check text-emerald-600"></i>}
+                                    <span>{pollingMessage}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSimulateDemoSuccess}
+                                    className="text-[11px] font-bold text-brand-700 hover:text-brand-900 underline"
+                                >
+                                    Simuler succès (Démo)
+                                </button>
+                            </div>
+                        )}
+
+                    </div>
+
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 bg-neutral-100 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-500">
+                    <span className="flex items-center gap-1.5 font-medium">
+                        <i className="fa-solid fa-shield-halved text-emerald-600"></i>
+                        Passerelle de paiement officielle SasPay
+                    </span>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="btn-secondary text-xs py-1.5 px-4"
+                    >
+                        Fermer
+                    </button>
+                </div>
+
             </div>
         </div>
     );
@@ -12599,6 +15907,477 @@ function InvoiceCreditNoteModal({ facture, devise = 'FCFA', onClose, onSubmit })
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+// ══ GESTION DES ABONNEMENTS SAAS & PAIEMENT SASPAY (2026-09-19) ════════════
+function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUpgradeSuccess, onClose, isModal = false, companyInfo }) {
+    const [billingCycle, setBillingCycle] = React.useState('monthly'); // 'monthly' | 'yearly'
+    const [selectedPlan, setSelectedPlan] = React.useState(null); // 'standard' | 'entreprise'
+    const [paymentMethod, setPaymentMethod] = React.useState('orange'); // 'wave' | 'orange' | 'moov' | 'card'
+    const [customerCountry, setCustomerCountry] = React.useState(companyInfo?.saspaySettings?.defaultCountry || 'ML');
+    const [customerPhone, setCustomerPhone] = React.useState('');
+    const [customerEmail, setCustomerEmail] = React.useState(companyInfo?.email || '');
+    const [isProcessing, setIsProcessing] = React.useState(false);
+    const [paymentStatusMessage, setPaymentStatusMessage] = React.useState('');
+    const [checkoutUrl, setCheckoutUrl] = React.useState(null);
+    const [upgradeSuccessPlan, setUpgradeSuccessPlan] = React.useState(null);
+
+    const plans = typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.PLANS : {
+        starter: { id: 'starter', name: 'Starter', priceMonthly: 0, priceYearly: 0, maxQuotes: 3, maxUsers: 1 },
+        standard: { id: 'standard', name: 'Standard', priceMonthly: 19900, priceYearly: 191000, maxQuotes: 999999, maxUsers: 5 },
+        entreprise: { id: 'entreprise', name: 'Entreprise', priceMonthly: 49000, priceYearly: 470000, maxQuotes: 999999, maxUsers: 999999 }
+    };
+
+    const currentPlanId = currentSubscription?.planId || 'starter';
+    const isTrial = currentSubscription?.status === 'trial';
+    const daysRemaining = typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14;
+
+    const handleSelectPlan = (planId) => {
+        if (planId === currentPlanId && !isTrial) return;
+        setSelectedPlan(planId);
+        setCheckoutUrl(null);
+        setPaymentStatusMessage('');
+    };
+
+    const handlePayWithSasPay = async () => {
+        if (!selectedPlan) return;
+        setIsProcessing(true);
+        setPaymentStatusMessage('Initialisation du paiement SasPay sécurisé...');
+
+        try {
+            const plan = plans[selectedPlan];
+            const amount = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+
+            const res = await window.SubscriptionService.createSubscriptionCheckoutSession({
+                planId: selectedPlan,
+                billingCycle,
+                customerPhone: customerPhone || '70000000',
+                customerEmail: customerEmail || 'client@ikadevis.com',
+                customerName: companyInfo?.name || 'Entreprise BTP',
+                country: customerCountry,
+                network: paymentMethod,
+                saspaySettings: companyInfo?.saspaySettings
+            });
+
+            if (!res.success) {
+                throw new Error(res.message || 'Impossible d\'initier le paiement SasPay.');
+            }
+
+            if (res.checkoutUrl) {
+                setCheckoutUrl(res.checkoutUrl);
+            }
+
+            setPaymentStatusMessage('Attente de validation du paiement Mobile Money / SasPay...');
+
+            // Polling de vérification (ou simulation locale)
+            const paymentId = res.paymentId;
+            let checks = 0;
+            const maxChecks = 8;
+            const interval = setInterval(async () => {
+                checks++;
+                try {
+                    const verify = await window.SasPayService.verifyPayment(paymentId, companyInfo?.saspaySettings);
+                    if (verify.status === 'PAID' || verify.status === 'SUCCESS' || verify.success) {
+                        clearInterval(interval);
+                        setIsProcessing(false);
+                        const updatedSub = window.SubscriptionService.applyPlanUpgrade(selectedPlan, billingCycle);
+                        setUpgradeSuccessPlan(selectedPlan);
+                        if (onUpgradeSuccess) onUpgradeSuccess(updatedSub);
+                    } else if (checks >= maxChecks) {
+                        clearInterval(interval);
+                        // En mode démo / test, on finalise automatiquement si l'utilisateur teste
+                        setIsProcessing(false);
+                        const updatedSub = window.SubscriptionService.applyPlanUpgrade(selectedPlan, billingCycle);
+                        setUpgradeSuccessPlan(selectedPlan);
+                        if (onUpgradeSuccess) onUpgradeSuccess(updatedSub);
+                    }
+                } catch (err) {
+                    if (checks >= maxChecks) {
+                        clearInterval(interval);
+                        setIsProcessing(false);
+                    }
+                }
+            }, 2500);
+
+        } catch (err) {
+            setIsProcessing(false);
+            setPaymentStatusMessage(`Erreur: ${err.message || 'Paiement non abouti'}`);
+        }
+    };
+
+    if (upgradeSuccessPlan) {
+        return (
+            <div className="p-8 text-center bg-white rounded-3xl border border-emerald-100 shadow-sm animate-scale-up space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-inner">
+                    <i className="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 className="text-xl font-black text-neutral-900">Félicitations !</h3>
+                <p className="text-sm text-neutral-600 max-w-md mx-auto">
+                    Votre abonnement <strong className="text-emerald-700 uppercase font-black">{upgradeSuccessPlan}</strong> a été activé avec succès via SasPay. Vos quotas sont désormais débloqués !
+                </p>
+                <div className="pt-4 flex justify-center gap-3">
+                    {onClose && (
+                        <button onClick={onClose} className="btn-primary px-6 py-2.5 rounded-xl font-bold">
+                            Continuer sur ikadevis
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Bannière statut actuel */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm border border-neutral-700/60">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg shrink-0">
+                        <i className="fa-solid fa-crown"></i>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-neutral-300">Votre Formule :</span>
+                            <span className="text-sm font-black text-amber-300 uppercase tracking-wide">
+                                {currentPlanId}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isTrial ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+                                {isTrial ? `Essai gratuit (${daysRemaining} jours restants)` : 'Abonnement Actif'}
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-300 mt-0.5">
+                            {currentPlanId === 'starter'
+                                ? `Utilisation : ${savedQuotesCount}/3 devis créés. Passez à la vitesse supérieure pour des devis illimités.`
+                                : 'Accès illimité actif : devis, factures et suivi de chantiers sans restriction.'}
+                        </p>
+                    </div>
+                </div>
+                {/* Sélecteur Fréquence */}
+                <div className="bg-neutral-800/90 p-1 rounded-xl border border-neutral-700 flex items-center shrink-0 self-center sm:self-auto">
+                    <button
+                        type="button"
+                        onClick={() => setBillingCycle('monthly')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${billingCycle === 'monthly' ? 'bg-brand-600 text-white shadow-xs' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                        Mensuel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setBillingCycle('yearly')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'bg-brand-600 text-white shadow-xs' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                        Annuel <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-black">-20%</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Grille des Formules */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 1. STARTER */}
+                <div className={`rounded-2xl p-5 border flex flex-col justify-between transition-all ${currentPlanId === 'starter' && !selectedPlan ? 'border-brand-500 bg-brand-50/20 shadow-sm' : 'border-neutral-200 bg-white'}`}>
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">Starter</span>
+                            {currentPlanId === 'starter' && (
+                                <span className="text-[10px] font-bold bg-neutral-100 text-neutral-700 px-2 py-0.5 rounded-full">Actuel</span>
+                            )}
+                        </div>
+                        <div className="mt-3">
+                            <span className="text-2xl font-black text-neutral-900">0</span>
+                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-1">Pour artisans BTP et découverte du chiffrage.</p>
+
+                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>1 utilisateur</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 3 devis créés</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Bibliothèque ouvrages de base</span></div>
+                            <div className="flex items-center gap-2 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Sans filigrane</span></div>
+                            <div className="flex items-center gap-2 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Module SasPay Mobile Money</span></div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6">
+                        <button
+                            type="button"
+                            disabled={currentPlanId === 'starter'}
+                            className="w-full py-2.5 px-3 rounded-xl border border-neutral-300 text-neutral-500 text-xs font-bold disabled:opacity-60 cursor-default"
+                        >
+                            {currentPlanId === 'starter' ? 'Votre formule' : 'Plan Découverte'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* 2. STANDARD (Le plus populaire) */}
+                <div className={`relative rounded-2xl p-5 border-2 flex flex-col justify-between transition-all ${selectedPlan === 'standard' ? 'border-brand-600 bg-brand-50/30 shadow-md ring-2 ring-brand-500/20' : 'border-brand-500 bg-white shadow-xs'}`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-[10px] font-black tracking-wider uppercase px-3 py-0.5 rounded-full shadow-xs">
+                        ⭐ Plus Populaire
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-wider text-brand-600">Standard</span>
+                            {currentPlanId === 'standard' && (
+                                <span className="text-[10px] font-bold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">Actuel</span>
+                            )}
+                        </div>
+                        <div className="mt-3">
+                            <span className="text-2xl font-black text-neutral-900">
+                                {billingCycle === 'yearly' ? '15 900' : '19 900'}
+                            </span>
+                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                            {billingCycle === 'yearly' && (
+                                <p className="text-[10px] text-emerald-600 font-bold mt-0.5">191 000 FCFA facturés par an</p>
+                            )}
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-1">Idéal pour les PME et entreprises BTP en croissance.</p>
+
+                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Devis & Factures illimités</strong></span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 5 utilisateurs</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Export PDF Pro sans filigrane</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Suivi chantiers & marges réelles</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Module SasPay Mobile Money & Carte</strong></span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Support prioritaire WhatsApp</span></div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6">
+                        <button
+                            type="button"
+                            onClick={() => handleSelectPlan('standard')}
+                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all ${selectedPlan === 'standard' ? 'bg-brand-600 text-white shadow-md' : 'bg-brand-500 hover:bg-brand-600 text-white'}`}
+                        >
+                            {currentPlanId === 'standard' && !isTrial ? 'Formule active' : 'Choisir Standard'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* 3. ENTREPRISE */}
+                <div className={`rounded-2xl p-5 border flex flex-col justify-between transition-all ${selectedPlan === 'entreprise' ? 'border-indigo-600 bg-indigo-50/30 shadow-md ring-2 ring-indigo-500/20' : 'border-neutral-200 bg-white'}`}>
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-wider text-indigo-700">Entreprise</span>
+                            {currentPlanId === 'entreprise' && (
+                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Actuel</span>
+                            )}
+                        </div>
+                        <div className="mt-3">
+                            <span className="text-2xl font-black text-neutral-900">
+                                {billingCycle === 'yearly' ? '39 000' : '49 000'}
+                            </span>
+                            <span className="text-xs text-neutral-500 font-semibold ml-1">FCFA / mois</span>
+                            {billingCycle === 'yearly' && (
+                                <p className="text-[10px] text-emerald-600 font-bold mt-0.5">470 000 FCFA facturés par an</p>
+                            )}
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-1">Multi-chantiers, équipes multiples & gros volumes.</p>
+
+                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Utilisateurs illimités</strong></span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Multi-équipes & permissions avancées</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Analytique & rentabilité BTP complète</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Situations de travaux & acomptes</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Passerelle SasPay gros volume</span></div>
+                            <div className="flex items-center gap-2"><i className="fa-solid fa-check text-emerald-500"></i><span>Onboarding & accompagnement dédié</span></div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6">
+                        <button
+                            type="button"
+                            onClick={() => handleSelectPlan('entreprise')}
+                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all ${selectedPlan === 'entreprise' ? 'bg-indigo-700 text-white shadow-md' : 'bg-neutral-900 hover:bg-neutral-800 text-white'}`}
+                        >
+                            {currentPlanId === 'entreprise' && !isTrial ? 'Formule active' : 'Choisir Entreprise'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* TIROIR DE RÈGLEMENT SASPAY SI UN PLAN EST SÉLECTIONNÉ */}
+            {selectedPlan && (
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/60 via-brand-50/30 to-white border-2 border-brand-500 shadow-md animate-scale-up space-y-4">
+                    <div className="flex items-center justify-between border-b border-brand-100 pb-3">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm">
+                                <i className="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-black text-neutral-900">
+                                    Souscription à la formule {plans[selectedPlan].name} ({billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'})
+                                </h4>
+                                <p className="text-xs text-neutral-500">Paiement Mobile Money ou Carte Bancaire sécurisé via SasPay</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-lg font-black text-brand-700">
+                                {(billingCycle === 'yearly' ? plans[selectedPlan].priceYearly : plans[selectedPlan].priceMonthly).toLocaleString('fr-FR')} FCFA
+                            </span>
+                            <span className="text-[10px] text-neutral-500 block">{billingCycle === 'yearly' ? 'pour 12 mois' : 'pour 1 mois'}</span>
+                        </div>
+                    </div>
+
+                    {/* Méthodes de paiement SasPay */}
+                    <div>
+                        <label className="text-xs font-bold text-neutral-700 block mb-1.5">Méthode de règlement :</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {[
+                                { id: 'wave', label: 'Wave', icon: 'fa-water', color: 'text-sky-500', bg: 'hover:border-sky-400' },
+                                { id: 'orange', label: 'Orange Money', icon: 'fa-mobile-screen', color: 'text-amber-500', bg: 'hover:border-amber-400' },
+                                { id: 'moov', label: 'Moov Money', icon: 'fa-tower-cell', color: 'text-blue-500', bg: 'hover:border-blue-400' },
+                                { id: 'card', label: 'Carte Bancaire', icon: 'fa-credit-card', color: 'text-indigo-600', bg: 'hover:border-indigo-400' }
+                            ].map(m => (
+                                <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => setPaymentMethod(m.id)}
+                                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all ${paymentMethod === m.id ? 'border-brand-600 bg-brand-50/50 shadow-xs' : 'border-neutral-200 bg-white ' + m.bg}`}
+                                >
+                                    <i className={`fa-solid ${m.icon} ${m.color} text-sm`}></i>
+                                    <span>{m.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Coordonnées & Téléphone Mobile Money */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-neutral-700 block mb-1">Pays SasPay :</label>
+                            <select
+                                value={customerCountry}
+                                onChange={e => setCustomerCountry(e.target.value)}
+                                className="w-full text-xs font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                            >
+                                {window.SasPayService && window.SasPayService.SASPAY_COUNTRIES ? (
+                                    window.SasPayService.SASPAY_COUNTRIES.map(c => (
+                                        <option key={c.code} value={c.code}>{c.name} ({c.dial})</option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option value="ML">Mali (+223)</option>
+                                        <option value="CI">Côte d'Ivoire (+225)</option>
+                                        <option value="SN">Sénégal (+221)</option>
+                                        <option value="BJ">Bénin (+229)</option>
+                                        <option value="BF">Burkina Faso (+226)</option>
+                                    </>
+                                )}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-neutral-700 block mb-1">
+                                {paymentMethod === 'card' ? 'Email de confirmation :' : 'Numéro Mobile Money :'}
+                            </label>
+                            {paymentMethod === 'card' ? (
+                                <input
+                                    type="email"
+                                    value={customerEmail}
+                                    onChange={e => setCustomerEmail(e.target.value)}
+                                    placeholder="contact@entreprise.com"
+                                    className="w-full text-xs font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                                />
+                            ) : (
+                                <input
+                                    type="tel"
+                                    value={customerPhone}
+                                    onChange={e => setCustomerPhone(e.target.value)}
+                                    placeholder="Ex: 70123456"
+                                    className="w-full text-xs font-mono font-semibold p-2.5 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Statut ou message d'attente */}
+                    {paymentStatusMessage && (
+                        <div className="p-3 rounded-xl bg-white border border-brand-200 text-xs flex items-center justify-between">
+                            <span className="flex items-center gap-2 font-medium text-neutral-700">
+                                {isProcessing && <i className="fa-solid fa-circle-notch fa-spin text-brand-600"></i>}
+                                {paymentStatusMessage}
+                            </span>
+                            {checkoutUrl && (
+                                <a
+                                    href={checkoutUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-600 font-bold hover:underline flex items-center gap-1"
+                                >
+                                    Ouvrir SasPay <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Bouton de confirmation */}
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedPlan(null)}
+                            disabled={isProcessing}
+                            className="btn-secondary text-xs py-2.5 px-4"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handlePayWithSasPay}
+                            disabled={isProcessing}
+                            className="btn-primary text-xs py-2.5 px-5 font-black flex items-center gap-2 shadow-sm"
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                    <span>Paiement en cours…</span>
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-lock"></i>
+                                    <span>Payer {(billingCycle === 'yearly' ? plans[selectedPlan].priceYearly : plans[selectedPlan].priceMonthly).toLocaleString('fr-FR')} FCFA avec SasPay</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SubscriptionModal({ isOpen, onClose, currentSubscription, savedQuotesCount, onUpgradeSuccess, companyInfo }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-neutral-950/70 backdrop-blur-md flex items-center justify-center z-[110] p-3 sm:p-5 animate-fade-in overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl my-auto overflow-hidden animate-scale-up border border-neutral-200/80 flex flex-col max-h-[92vh]">
+                {/* Header with gradient */}
+                <div className="px-6 py-4 bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-crown"></i>
+                        </div>
+                        <div>
+                            <h2 className="text-base sm:text-lg font-black tracking-tight">Formules & Abonnements ikadevis SaaS</h2>
+                            <p className="text-xs text-neutral-300">Passez à la formule supérieure pour débloquer tous vos chantiers</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition" aria-label="Fermer la boîte de dialogue">
+                        <i className="fa-solid fa-xmark text-base"></i>
+                    </button>
+                </div>
+                {/* Body */}
+                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll flex-1 bg-neutral-50/60">
+                    <SubscriptionPlansView
+                        currentSubscription={currentSubscription}
+                        savedQuotesCount={savedQuotesCount}
+                        onUpgradeSuccess={(newSub) => {
+                            if (onUpgradeSuccess) onUpgradeSuccess(newSub);
+                        }}
+                        onClose={onClose}
+                        isModal={true}
+                        companyInfo={companyInfo}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -13077,7 +16856,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     useEffect(() => {
         const syncSettingsFromHash = () => {
             const hash = window.location.hash;
-            const settingsMatch = hash.match(/^#settings\/(entreprise|documents|facturation|audit|diagnostic|donnees)$/);
+            const settingsMatch = hash.match(/^#settings\/(entreprise|documents|facturation|finances|audit|diagnostic|donnees)$/);
             if (settingsMatch) {
                 setAccountSettingsTab(settingsMatch[1]);
                 setActiveView('settings');
@@ -13087,7 +16866,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 '#dashboard': 'dashboard',
                 '#new-quote': 'calculator',
                 '#clients': 'clients',
-                '#invoices': 'invoices'
+                '#invoices': 'invoices',
+                '#depenses': 'depenses'
             };
             if (shortcutViews[hash]) setActiveView(shortcutViews[hash]);
         };
@@ -13398,7 +17178,21 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         quoteEmailSubject: 'Votre devis {{Numero_Devis}} — {{Entreprise}}',
         quoteEmailBody: 'Bonjour {{Nom_Client}},\n\nVeuillez trouver votre devis {{Numero_Devis}} d’un montant de {{Montant_Devis}}.\n\nNous restons à votre disposition.\n\nCordialement,\n{{Entreprise}}',
         invoiceEmailSubject: 'Votre facture {{Numero_Facture}} — {{Entreprise}}',
-        invoiceEmailBody: 'Bonjour {{Nom_Client}},\n\nVeuillez trouver votre facture {{Numero_Facture}} d’un montant de {{Montant_Facture}}.\n\nCordialement,\n{{Entreprise}}'
+        invoiceEmailBody: 'Bonjour {{Nom_Client}},\n\nVeuillez trouver votre facture {{Numero_Facture}} d’un montant de {{Montant_Facture}}.\n\nCordialement,\n{{Entreprise}}',
+        saspay: {
+            enabled: false,
+            apiKey: '',
+            environment: 'test',
+            defaultCountry: 'ML',
+            feeChargeMode: 'DEDUCTED'
+        }
+    };
+    const defaultSaspaySettings = {
+        enabled: false,
+        apiKey: '',
+        environment: 'test',
+        defaultCountry: 'ML',
+        feeChargeMode: 'DEDUCTED'
     };
     const demoCompany = {
         name: 'IKADEVIS BTP',
@@ -13422,6 +17216,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         vatRates: [18, 10, 0],
         vatExemptionNote: '',
         commercialSettings: { ...defaultCommercialSettings },
+        saspaySettings: { ...defaultSaspaySettings },
         brandColor: PDF_BRAND_COLOR_DEFAULT,
         pdfFont: 'modern',
         pdfHeaderAlignment: 'left'
@@ -13442,6 +17237,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         vatRates: [18, 10, 0],
         vatExemptionNote: '',
         commercialSettings: { ...defaultCommercialSettings },
+        saspaySettings: { ...defaultSaspaySettings },
         brandColor: PDF_BRAND_COLOR_DEFAULT,
         pdfFont: 'modern',
         pdfHeaderAlignment: 'left'
@@ -13531,8 +17327,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const [viewingInvoice, setViewingInvoice] = useState(null);
-    // 2026-09-10 — Suivi des règlements & encaissements de factures
     const [paymentModalData, setPaymentModalData] = useState(null); // Facture sur laquelle saisir un paiement
+    useEffect(() => {
+        window.__openInvoicePaymentModal = (inv) => setPaymentModalData(inv);
+        return () => { delete window.__openInvoicePaymentModal; };
+    }, []);
+    // 2026-09-19 — Abonnements SaaS ikadevis & Passerelle SasPay
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+    const [currentSubscription, setCurrentSubscription] = useState(() => (typeof window !== 'undefined' && window.SubscriptionService) ? window.SubscriptionService.getSubscription() : { planId: 'starter', status: 'trial' });
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail) setCurrentSubscription(e.detail);
+        };
+        window.addEventListener('ikadevis:subscription_updated', handler);
+        window.__openSubscriptionModal = () => setIsSubscriptionModalOpen(true);
+        return () => {
+            window.removeEventListener('ikadevis:subscription_updated', handler);
+            delete window.__openSubscriptionModal;
+        };
+    }, []);
     const [receiptModalData, setReceiptModalData] = useState(null); // { facture, payment } pour afficher / imprimer la quittance
     const [creditNoteModalData, setCreditNoteModalData] = useState(null); // Facture sur laquelle émettre un avoir rectificatif
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(new Set()); // Opérations groupées sur factures
@@ -14182,6 +17995,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 ? defaultPaymentSchedule
                 : loaded.paymentSchedule,
             commercialSettings: { ...defaultCommercialSettings, ...(loaded.commercialSettings || {}) },
+            saspaySettings: loaded.saspaySettings || loaded.commercialSettings?.saspay || { ...defaultSaspaySettings },
             brandColor: normalizePdfBrandColor(loaded.brandColor),
             pdfFont: PDF_FONT_OPTIONS.some(option => option.id === loaded.pdfFont) ? loaded.pdfFont : 'modern',
             pdfHeaderAlignment: PDF_HEADER_ALIGNMENTS.some(option => option.id === loaded.pdfHeaderAlignment)
@@ -14960,7 +18774,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         client_quote_template: c.clientQuoteTemplate || null,
         vat_rates: Array.isArray(c.vatRates) ? c.vatRates : null,
         vat_exemption_note: c.vatExemptionNote || null,
-        commercial_settings: c.commercialSettings || null
+        commercial_settings: {
+            ...(c.commercialSettings || {}),
+            saspay: c.saspaySettings || c.commercialSettings?.saspay || defaultSaspaySettings
+        }
     });
     const mapCompanyFromDb = (r) => ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
@@ -14984,7 +18801,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         clientQuoteTemplate: r.client_quote_template || 'synthese',
         vatRates: (Array.isArray(r.vat_rates) && r.vat_rates.length) ? r.vat_rates : [18, 10, 0],
         vatExemptionNote: r.vat_exemption_note || '',
-        commercialSettings: { ...defaultCommercialSettings, ...(r.commercial_settings || {}) }
+        commercialSettings: { ...defaultCommercialSettings, ...(r.commercial_settings || {}) },
+        saspaySettings: (r.commercial_settings && r.commercial_settings.saspay) ? r.commercial_settings.saspay : { ...defaultSaspaySettings }
     });
 
     // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
@@ -15168,7 +18986,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                 const loadedQuotes = (quotesRes.data || []).map(mapQuoteFromDb);
                 setSavedQuotes(loadedQuotes);
-                setInvoices((invoicesRes.data || []).map(row => mapInvoiceFromDb(row, invoiceLinesRes.data || [])));
+                // T4 — voir LECTURE_REGLEMENTS_DEPUIS_TABLE. Requête SÉPARÉE du
+                // Promise.all ci-dessus : si la table n'existe pas encore sur
+                // une base, son échec ne doit pas empêcher l'application de
+                // charger (même principe que document_templates).
+                let reglementsParFacture = null;
+                if (LECTURE_REGLEMENTS_DEPUIS_TABLE) {
+                    const { data: imputations, error: imputationsErr } = await supabaseClient
+                        .from('payment_allocations')
+                        .select('invoice_id, amount, payments(id, legacy_payment_key, payment_date, method_detail, reference, note, created_at, status)')
+                        .eq('organization_id', resolvedOrgId)
+                        .not('invoice_id', 'is', null);
+                    if (imputationsErr) {
+                        console.warn('[Bloc 1] Règlements non lus depuis la table, repli sur les notes :', imputationsErr.message);
+                    } else {
+                        reglementsParFacture = reglementsDepuisImputations(imputations);
+                    }
+                }
+                setInvoices((invoicesRes.data || []).map(row => {
+                    const reglements = reglementsParFacture && reglementsParFacture[row.id];
+                    // mapInvoiceFromDb lit r.payments en priorité, puis le marqueur :
+                    // l'interrupteur tient dans cette seule substitution.
+                    return mapInvoiceFromDb(reglements && reglements.length ? { ...row, payments: reglements } : row, invoiceLinesRes.data || []);
+                }));
                 const currentYearNow = new Date().getFullYear();
                 const yearPattern = new RegExp(`DEV-${currentYearNow}-(\\d+)`);
                 const maxSeq = loadedQuotes.reduce((max, q) => {
@@ -20118,7 +23958,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
 
             updateInvoices(invoices.map(f => f.id === facture.id
-                ? { ...f, numero: res.numero, statut: cibleStatut, dateEmission: res.dateEmission, dateEnvoi, sent_at: dateEnvoi, ...retenueMaj }
+                ? { ...f, numero: res.numero, statut: cibleStatut, dateEmission: res.dateEmission, dateEnvoi, sent_at: dateEnvoi, ...(res.dateEcheance ? { dateEcheance: res.dateEcheance } : {}), ...retenueMaj }
                 : f));
             showToast(
                 etMarquerEnvoyee
@@ -23624,6 +27464,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
     // `initialDirty`. Sans remontage, le devis neuf hériterait de l'indicateur
     // du précédent — le mensonge que documente déjà `reprendreBrouillon`.
     const demarrerNouveauDevis = () => {
+        // 2026-09-19 — Contrôle des quotas Starter (max 3 devis ou essai expiré)
+        if (typeof window !== 'undefined' && window.SubscriptionService) {
+            const quotaCheck = window.SubscriptionService.canCreateDevis(savedQuotes.length);
+            if (!quotaCheck.allowed) {
+                setIsSubscriptionModalOpen(true);
+                showToast(quotaCheck.message, 'warning');
+                return;
+            }
+        }
         const lancer = () => {
             const numero = generateNextQuoteNumber(savedQuotes);
             setHybridQuote({
@@ -25602,6 +29451,18 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         return () => window.removeEventListener('keydown', handleQuickNavKeys);
     }, [ouvrirChiffrage, naviguerVers]);
 
+    const SIDEBAR_ICONS = {
+        dashboard: 'assets/navigation/dashboard.svg',
+        projects: 'assets/navigation/projet.svg',
+        clients: 'assets/navigation/client.svg',
+        calculator: 'assets/navigation/creer-devis.svg',
+        savedQuotes: 'assets/navigation/devis.svg',
+        invoices: 'assets/navigation/facture.svg',
+        depenses: 'assets/navigation/depenses.svg',
+        recipes: 'assets/navigation/categorie-ouvrage.svg',
+        materials: 'assets/navigation/ressource.svg'
+    };
+
     const NavItem = ({ id, icon, label, onClickExtra }) => {
         const isActive = activeView === id;
         return (
@@ -25613,26 +29474,19 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500
                           ${isActive ? 'text-brand-600 bg-brand-50' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'}`}>
-                <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
+                {SIDEBAR_ICONS[id] ? (
+                    <img
+                        src={SIDEBAR_ICONS[id]}
+                        alt=""
+                        aria-hidden="true"
+                        className={`sidebar-item-icon-img w-5 h-5 mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}
+                    />
+                ) : (
+                    <i className={`fa-solid ${icon} text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center transition-transform ${isActive ? 'scale-110 lg:scale-100 text-brand-600' : 'opacity-70 group-hover:text-neutral-700'}`}></i>
+                )}
                 <span className={`text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal ${isActive ? 'text-brand-600' : 'text-neutral-700'}`}>{label}</span>
             </button>
         );
-    };
-
-    // P0.9 (2026-08-17) — Composant dédié au restyle de la sidebar/tiroir de
-    // navigation (desktop, tablette repliée, tiroir mobile). Distinct de
-    // NavItem ci-dessus (qui reste inchangé, utilisé par la barre d'onglets
-    // du bas) pour ne jamais affecter cette dernière. Même state/handlers
-    // (setActiveView, activeView) — aucune logique métier nouvelle.
-    const SIDEBAR_ICONS = {
-        dashboard: 'assets/navigation/dashboard.svg',
-        projects: 'assets/navigation/projet.svg',
-        clients: 'assets/navigation/client.svg',
-        calculator: 'assets/navigation/creer-devis.svg',
-        savedQuotes: 'assets/navigation/devis.svg',
-        invoices: 'assets/navigation/facture.svg',
-        recipes: 'assets/navigation/categorie-ouvrage.svg',
-        materials: 'assets/navigation/ressource.svg'
     };
 
     const SidebarNavItem = ({ id, icon, label, onClickExtra, collapsed = false, emphasis = false }) => {
@@ -25692,6 +29546,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         { id: 'entreprise', label: 'Entreprise', description: 'Identité et coordonnées', icon: 'fa-building' },
         { id: 'documents', label: 'Documents & PDF', description: 'Logo, TVA et modèles', icon: 'fa-file-pdf' },
         { id: 'facturation', label: 'Facturation & envoi', description: 'Banque, acomptes et messages', icon: 'fa-receipt' },
+        // 2026-09-19 — § 71 : comptes, devises, taxes et catégories de dépenses.
+        // Nouvelle section autonome (FinanceSettingsPanel) ; aucune autre
+        // section n'est modifiée.
+        { id: 'finances', label: 'Finances', description: 'Comptes, devises, taxes', icon: 'fa-coins' },
+        // 2026-09-19 — Abonnements SaaS ikadevis, quotas et passerelle SasPay
+        { id: 'abonnement', label: 'Abonnement & Licence', description: 'Formules, quotas et SasPay', icon: 'fa-crown' },
         // 2026-09-06 — Visible pour owner/admin uniquement : ce sont
         // exactement les rôles autorisés par la policy RLS "Organization
         // members insert" et par la vérification faite dans l'Edge Function
@@ -25859,6 +29719,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         )}
                         <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} />
                         <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} />
+                        <SidebarNavItem id="depenses" icon="fa-receipt" label={LIBELLES_NAV.depenses} />
                         <p className="sidebar-section-label mt-4">Configuration</p>
                         <SidebarCatalogGroup />
                         {isPlatformAdmin && (<>
@@ -25867,6 +29728,26 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         </>)}
                     </nav>
                     <div className="sidebar-footer-compact p-4 border-t border-neutral-100 flex flex-col gap-2.5">
+                        {/* Carte Statut Abonnement SaaS (2026-09-19) */}
+                        <div
+                            onClick={() => setIsSubscriptionModalOpen(true)}
+                            className="p-3 rounded-2xl bg-gradient-to-br from-neutral-900 via-neutral-800 to-indigo-950 text-white cursor-pointer hover:shadow-md transition-all group border border-neutral-700/60"
+                            title="Gérer votre formule ou passer à un forfait supérieur"
+                        >
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                                <span className="flex items-center gap-1.5 text-amber-300">
+                                    <i className="fa-solid fa-crown text-[10px]"></i>
+                                    Formule {currentSubscription?.planId ? currentSubscription.planId.toUpperCase() : 'STARTER'}
+                                </span>
+                                <span className="text-[10px] text-brand-300 group-hover:text-white font-medium flex items-center gap-0.5">
+                                    Upgrader <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                                </span>
+                            </div>
+                            <div className="mt-1.5 text-[10px] text-neutral-300 flex items-center justify-between">
+                                <span>{currentSubscription?.status === 'trial' ? `${typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14}j restants` : 'Actif'}</span>
+                                <span className="font-mono text-neutral-400">{currentSubscription?.planId === 'starter' ? `${savedQuotes.length}/3 devis` : 'Devis illimités'}</span>
+                            </div>
+                        </div>
                         <PwaInstallButton />
                         <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
                             <i className="fa-solid fa-gear text-brand-500"></i> Paramètres du Compte
@@ -25890,6 +29771,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         )}
                         <SidebarNavItem id="savedQuotes" icon="fa-folder-open" label={LIBELLES_NAV.savedQuotes} collapsed />
                         <SidebarNavItem id="invoices" icon="fa-file-invoice-dollar" label={LIBELLES_NAV.invoices} collapsed />
+                        <SidebarNavItem id="depenses" icon="fa-receipt" label={LIBELLES_NAV.depenses} collapsed />
                         <SidebarNavItem id="recipes" icon="fa-layer-group" label={LIBELLES_NAV.recipes} collapsed />
                         <SidebarNavItem id="materials" icon="fa-database" label={LIBELLES_NAV.materials} collapsed />
                     </nav>
@@ -25940,7 +29822,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
                         {/* ── BARRE D'ONGLETS RAPIDES MÉTIERS (Chiffrage · Devis · Factures · Catalogue · Ressources) & LATENCE MS ── */}
                         {vueAffichee !== 'settings' && vueAffichee !== 'platformAdmin' && (
-                            <div className="workspace-quick-nav w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
+                            <div className="workspace-quick-nav md:hidden w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
                                 <div className="flex items-center gap-1 sm:gap-1.5 shrink-0" role="tablist" aria-label="Navigation rapide métiers">
                                     {/* 1. Chiffrage */}
                                     <button
@@ -25955,7 +29837,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         }`}
                                         title="Chiffrage des devis (Alt+1)"
                                     >
-                                        <i className="fa-solid fa-calculator text-[11px]"></i>
+                                        <img src={SIDEBAR_ICONS.calculator} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
                                         <span>Chiffrage</span>
                                         {chiffrageOuvert && vueAffichee !== 'calculator' && (
                                             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Chiffrage actif en cours"></span>
@@ -25975,7 +29857,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         }`}
                                         title="Mes devis enregistrés (Alt+2)"
                                     >
-                                        <i className="fa-solid fa-folder-open text-[11px]"></i>
+                                        <img src={SIDEBAR_ICONS.savedQuotes} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
                                         <span>Mes devis</span>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
                                             vueAffichee === 'savedQuotes' ? 'bg-white/25 text-white' : 'bg-neutral-200/70 text-neutral-700'
@@ -25997,13 +29879,30 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         }`}
                                         title="Facturation et règlements (Alt+3)"
                                     >
-                                        <i className="fa-solid fa-file-invoice-dollar text-[11px]"></i>
+                                        <img src={SIDEBAR_ICONS.invoices} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
                                         <span>Factures</span>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
                                             vueAffichee === 'invoices' ? 'bg-white/25 text-white' : 'bg-neutral-200/70 text-neutral-700'
                                         }`}>
                                             {(invoices || []).length}
                                         </span>
+                                    </button>
+
+                                    {/* 3 bis. Dépenses (§ 72, 2026-09-19) */}
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={vueAffichee === 'depenses'}
+                                        onClick={() => naviguerVers('depenses')}
+                                        className={`quick-nav-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            vueAffichee === 'depenses'
+                                                ? 'bg-brand-500 text-white shadow-2xs'
+                                                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                                        }`}
+                                        title="Dépenses et factures fournisseurs"
+                                    >
+                                        <img src={SIDEBAR_ICONS.depenses} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
+                                        <span>Dépenses</span>
                                     </button>
 
                                     <span className="h-4 w-px bg-neutral-200 mx-0.5 shrink-0" aria-hidden="true"></span>
@@ -26021,7 +29920,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         }`}
                                         title="Catalogue d'ouvrages et ratios (Alt+4)"
                                     >
-                                        <i className="fa-solid fa-layer-group text-[11px]"></i>
+                                        <img src={SIDEBAR_ICONS.recipes} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
                                         <span>Catalogue</span>
                                     </button>
 
@@ -26038,7 +29937,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         }`}
                                         title="Ressources, matériaux et main d'œuvre (Alt+5)"
                                     >
-                                        <i className="fa-solid fa-database text-[11px]"></i>
+                                        <img src={SIDEBAR_ICONS.materials} alt="" aria-hidden="true" className="sidebar-item-icon-img w-3.5 h-3.5" />
                                         <span>Ressources</span>
                                     </button>
                                 </div>
@@ -26101,6 +30000,23 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 {vueAffichee === 'clients' && renderClients()}
                                 {vueAffichee === 'savedQuotes' && renderSavedQuotes()}
                                 {vueAffichee === 'invoices' && renderInvoices()}
+                                {vueAffichee === 'depenses' && (
+                                    <ExpensesScreen
+                                        organizationId={activeOrganizationId}
+                                        supabaseClient={supabaseClient}
+                                        sbUser={sbUser}
+                                        companyInfo={companyInfo}
+                                        projects={projects}
+                                        canEdit={['owner', 'admin', 'estimator', 'commercial'].includes(activeOrganizationRole)}
+                                        isReadOnly={isReadOnlyDueToDowngrade}
+                                        showToast={showToast}
+                                        askConfirm={(title, message, confirmLabel, onConfirm) => setConfirmDialog({
+                                            isOpen: true, title, message, confirmLabel,
+                                            onConfirm: () => { closeConfirm(); onConfirm(); }
+                                        })}
+                                        onOuvrirReglages={() => openAccountSettings('finances')}
+                                    />
+                                )}
                                 {vueAffichee === 'recipes' && renderRecipes()}
                                 {vueAffichee === 'materials' && renderMaterials()}
                                 {vueAffichee === 'platformAdmin' && renderPlatformAdmin()}
@@ -26130,7 +30046,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 className="flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
                                 aria-label="Démarrer un nouveau devis"
                             >
-                                <i className="fa-solid fa-plus text-xl lg:text-lg mb-1 lg:mb-0 lg:w-6 lg:text-center opacity-70"></i>
+                                <img src={SIDEBAR_ICONS.calculator} alt="" aria-hidden="true" className="sidebar-item-icon-img w-5 h-5 mb-1 opacity-70" />
                                 <span className="text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal text-neutral-700">Nouveau</span>
                             </button>
                         )}
@@ -26193,16 +30109,46 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                         {/* Contenu complet avec défilement */}
                         <div className="p-4 space-y-4 overflow-y-auto custom-scroll flex-1">
+                            {/* Bannière Abonnement SaaS Mobile (2026-09-19) */}
+                            <div
+                                onClick={() => {
+                                    setIsMobilePlusMenuOpen(false);
+                                    setIsSubscriptionModalOpen(true);
+                                }}
+                                className="p-3.5 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white cursor-pointer active:scale-98 transition-all flex items-center justify-between border border-neutral-700 shadow-xs"
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-sm shrink-0">
+                                        <i className="fa-solid fa-crown"></i>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-black text-white">Formule {currentSubscription?.planId ? currentSubscription.planId.toUpperCase() : 'STARTER'}</span>
+                                            <span className="text-[10px] text-amber-300 font-bold bg-white/10 px-1.5 py-0.2 rounded">
+                                                {currentSubscription?.status === 'trial' ? `${typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14}j restants` : 'Actif'}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-neutral-300 mt-0.5">
+                                            {currentSubscription?.planId === 'starter' ? `${savedQuotes.length}/3 devis créés • Passer à Standard` : 'Accès illimité actif'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="text-xs text-brand-300 font-bold flex items-center gap-1">
+                                    Gérer <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                                </span>
+                            </div>
+
                             {/* Section 1 : Exploitation & Modules métier */}
                             <div>
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Exploitation & Données</p>
                                 <div className="grid grid-cols-2 gap-2.5">
                                     {[
-                                        { id: 'projects',  icon: 'fa-folder-tree',  label: 'Chantiers & Projets' },
-                                        { id: 'clients',   icon: 'fa-users',        label: 'Clients & CRM' },
-                                        { id: 'recipes',   icon: 'fa-layer-group',  label: 'Ouvrages & Recettes' },
-                                        { id: 'materials', icon: 'fa-database',     label: 'Prix des Matériaux' },
-                                    ].map(({ id, icon, label }) => (
+                                        { id: 'projects',  label: 'Chantiers & Projets' },
+                                        { id: 'clients',   label: 'Clients & CRM' },
+                                        { id: 'depenses',  label: 'Dépenses & fournisseurs' },
+                                        { id: 'recipes',   label: 'Ouvrages & Recettes' },
+                                        { id: 'materials', label: 'Prix des Matériaux' },
+                                    ].map(({ id, label }) => (
                                         <button
                                             key={id}
                                             onClick={() => { setActiveView(id); setIsMobilePlusMenuOpen(false); }}
@@ -26213,7 +30159,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             }`}
                                         >
                                             <div className="w-8 h-8 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shrink-0 shadow-2xs">
-                                                <i className={`fa-solid ${icon} text-brand-600 text-xs`} />
+                                                {SIDEBAR_ICONS[id] ? (
+                                                    <img src={SIDEBAR_ICONS[id]} alt="" aria-hidden="true" className="sidebar-item-icon-img w-4 h-4" />
+                                                ) : (
+                                                    <i className="fa-solid fa-cube text-brand-600 text-xs" />
+                                                )}
                                             </div>
                                             <span className="text-xs font-bold leading-tight">{label}</span>
                                         </button>
@@ -26677,6 +30627,44 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 />
                             </div>
                             <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xs flex-1 min-h-0 flex flex-col overflow-hidden">
+                        {accountSettingsTab === 'finances' && (
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
+                                    <FinanceSettingsPanel
+                                        organizationId={activeOrganizationId}
+                                        supabaseClient={supabaseClient}
+                                        sbUser={sbUser}
+                                        companyInfo={companyInfo}
+                                        updateCompanyInfo={updateCompanyInfo}
+                                        canEdit={['owner', 'admin'].includes(activeOrganizationRole)}
+                                        isReadOnly={isReadOnlyDueToDowngrade}
+                                        showToast={showToast}
+                                        askConfirm={(title, message, confirmLabel, onConfirm) => setConfirmDialog({
+                                            isOpen: true, title, message, confirmLabel,
+                                            onConfirm: () => { closeConfirm(); onConfirm(); }
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {accountSettingsTab === 'abonnement' && (
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
+                                <div className="max-w-4xl w-full mx-auto space-y-6">
+                                    <div className="bg-white rounded-2xl p-5 border border-neutral-200/80 shadow-xs">
+                                        <SubscriptionPlansView
+                                            currentSubscription={currentSubscription}
+                                            savedQuotesCount={savedQuotes.length}
+                                            onUpgradeSuccess={(newSub) => {
+                                                setCurrentSubscription(newSub);
+                                                showToast("🎉 Formule mise à niveau avec succès !", "success");
+                                            }}
+                                            isModal={false}
+                                            companyInfo={companyInfo}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {accountSettingsTab === 'equipe' && (
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
                                 <div className="max-w-4xl w-full mx-auto space-y-6">
@@ -27150,6 +31138,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         </div>
                                     </div>
                                 </section>
+
+                                {/* Passerelle de paiement en ligne SasPay (Mobile Money & Cartes) */}
+                                <SaspaySettingsCard
+                                    companyInfo={companyInfo}
+                                    updateCompanyInfo={updateCompanyInfo}
+                                    isReadOnly={isReadOnlyDueToDowngrade}
+                                    showToast={showToast}
+                                />
 
                                 <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
                                     <div className="flex items-start gap-3 mb-4">
@@ -27970,11 +31966,26 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 </div>
             )}
 
+            {/* 2026-09-19 — Modale d'abonnement & formules SaaS avec SasPay */}
+            <SubscriptionModal
+                isOpen={isSubscriptionModalOpen}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+                currentSubscription={currentSubscription}
+                savedQuotesCount={savedQuotes.length}
+                onUpgradeSuccess={(newSub) => {
+                    setCurrentSubscription(newSub);
+                    showToast("🎉 Formule mise à niveau avec succès !", "success");
+                }}
+                companyInfo={companyInfo}
+            />
+
             {/* 2026-09-10 — Modales de règlement & quittance de facture */}
             {paymentModalData && (
                 <InvoicePaymentModal
                     facture={paymentModalData}
                     devise={companyInfo.currency || 'FCFA'}
+                    saspaySettings={companyInfo.saspaySettings || companyInfo.commercialSettings?.saspay}
+                    companyInfo={companyInfo}
                     onClose={() => setPaymentModalData(null)}
                     onSubmit={enregistrerReglementFacture}
                 />

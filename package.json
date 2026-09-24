@@ -8,12 +8,14 @@
     "build:js": "esbuild index_jsx.js --outfile=app.compiled.js --minify --loader:.js=jsx --jsx-factory=React.createElement --jsx-fragment=React.Fragment",
     "build:dist": "npm run build && node scripts/build-dist.mjs",
     "deploy:build": "node scripts/generate-config.mjs production && npm run build:dist",
-    "config": "node scripts/generate-config.mjs"
+    "config": "node scripts/generate-config.mjs",
+    "set-saspay-key": "node scripts/set-saspay-key.mjs"
   },
   "dependencies": {
     "puppeteer": "^25.7.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17",
     "esbuild": "^0.24.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

@@ -39,6 +39,7 @@ Workers (mode Static Assets).
 ```
 index_jsx.js (source, JSX)  ──esbuild──>  app.compiled.js (servi)
         │
+        ├── js/finance-core.js      arrondi par devise, répartition, conversion, règlements (§ 70)
         ├── js/calc-engine.js       moteur de calcul (déboursé sec → K → HT → TVA → TTC)
         ├── js/quote-templates.js   gabarits de contenu devis
         └── js/utils.js             utilitaires, dont l'export PDF (html2canvas + jsPDF)
@@ -145,7 +146,7 @@ ex. `96a219cd90`). Deux jetons distincts :
 
 | Jeton | Calculé sur |
 |---|---|
-| **JS** | les 4 fichiers servis ensemble : `js/calc-engine.js`, `js/utils.js`, `js/quote-templates.js`, `app.compiled.js` |
+| **JS** | les 5 fichiers servis ensemble : `js/finance-core.js`, `js/calc-engine.js`, `js/utils.js`, `js/quote-templates.js`, `app.compiled.js` — **tout nouveau fichier `js/` doit être ajouté à `FICHIERS_JS` de `scripts/bump-version.mjs`**, sinon il n'est jamais rafraîchi chez les utilisateurs |
 | **CSS** | `tailwind.css` seul |
 
 ⚠️ **`index.html` n'entre dans AUCUN des deux calculs.** Modifier son `<style>`
@@ -317,6 +318,26 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   Contrôleurs avec séquençage par token (`useRef`) pour ignorer automatiquement
   les requêtes obsolètes en cas de clics rapides successifs (anti-race condition).
   Déployé en ligne (`b584350`, jetons JS `16cbcfb739` · CSS `6fe0f4df12`).
+- **Socle Finances (§ 70, 2026-09-18)** : précision monétaire par devise
+  (FCFA inchangé octet pour octet, centimes EUR/USD rétablis), échéance posée à
+  l'émission, tables `payments`/`payment_allocations` en **double écriture**
+  (T3). Cinq migrations écrites et prouvées sur Postgres (PGlite) — **pas encore
+  appliquées** sur staging ni production. Ordre et conditions : tracker § 70.2/70.9.
+  **Ligne de base des tests corrigée : 510/535 et 8/52 avant ce chantier** (et
+  non 521/535, 6/52) ; après : **645/670, 8/55, mêmes échecs, 7/7 étalons**.
+  La ligne « Étalons métier : 7/7 » du résumé est un `console.log` inconditionnel :
+  lire les suites Étalon elles-mêmes.
+- **Paramètres › Finances (§ 71, 2026-09-19)** : comptes (banque, caisse,
+  mobile money), devises activées, taxes (normal / zéro / exonéré), catégories.
+  Nouvelle section autonome `FinanceSettingsPanel`, aucun écran existant modifié.
+  Migration `migrations_finance_settings_accounts_2026-09-19.sql` — **pas encore
+  appliquée** ; tant qu'elle ne l'est pas, l'écran bascule en mode local et le dit.
+- **Dépenses (§ 72, 2026-09-19)** : nouvel écran `ExpensesScreen`, entrée de
+  menu « Dépenses » (+ `#depenses`). Déjà payée / à payer / avance personnelle,
+  répartition exacte entre chantiers, règlements partiels. Migration
+  `migrations_finance_expenses_2026-09-19.sql` — **pas encore appliquée**.
+  Piège de banc : le triple clic ne vide pas un `<input type="number">` —
+  utiliser le setter natif + `input`, puis relire la valeur.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 

@@ -22,15 +22,34 @@ const formatMoney = (amount, currency = 'FCFA') => {
     if (isNaN(amount) || amount === null || amount === undefined) {
         return normalized === 'EUR' ? '0,00 €' : normalized === 'USD' ? '$0.00' : `0 ${normalized}`;
     }
-    const rounded = Math.round(amount);
+    // La précision vient de la devise, plus d'un Math.round() imposé à tout le
+    // monde. Corrige un bug silencieux vieux du parc : l'ancienne version
+    // arrondissait à l'unité AVANT de formater sur 2 décimales, si bien que
+    // formatMoney(12.34, 'EUR') affichait « 12,00 € » — les centimes étaient
+    // perdus à l'écran alors que la colonne SQL est NUMERIC(15,2).
+    //
+    // XOF/FCFA ayant 0 décimale à l'ISO 4217, la sortie en franc CFA est
+    // rigoureusement inchangée : c'est ce qui permet aux 7 devis étalons de ne
+    // pas bouger d'un franc — ils lisent ces chaînes formatées via
+    // scratch/lib/harness.mjs:116 (readFinancials), pas les nombres internes.
+    //
+    // decimalesDevise et arrondiMonetaire viennent de js/finance-core.js,
+    // chargé avant ce fichier (index.html) donc en portée globale partagée.
+    // Le garde typeof couvre un chargement isolé, hors navigateur.
+    const decimales = typeof decimalesDevise === 'function' ? decimalesDevise(normalized) : 0;
+    const options = { minimumFractionDigits: decimales, maximumFractionDigits: decimales };
+    const rounded = typeof arrondiMonetaire === 'function'
+        ? arrondiMonetaire(amount, decimales)
+        : Math.round(amount);
+
     if (normalized === 'EUR') {
-        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(rounded);
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', ...options }).format(rounded);
     }
     if (normalized === 'USD') {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(rounded);
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', ...options }).format(rounded);
     }
-    if (normalized === 'FCFA') return `${rounded.toLocaleString('fr-FR')} FCFA`;
-    return `${rounded.toLocaleString('fr-FR')} ${normalized}`;
+    if (normalized === 'FCFA') return `${rounded.toLocaleString('fr-FR', options)} FCFA`;
+    return `${rounded.toLocaleString('fr-FR', options)} ${normalized}`;
 };
 
 // 2026-08-20 — "Mode: rectangle • 2m × 1m" affichait le nom interne du mode

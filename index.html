@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=6fe0f4df12">
+    <link rel="stylesheet" href="tailwind.css?v=d5e4d1fe20">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -423,6 +423,12 @@
         .sidebar-item-icon-img { height: 19px; object-fit: contain; filter: invert(35%) sepia(61%) saturate(1800%) hue-rotate(205deg) brightness(88%) contrast(92%); }
         .sidebar-item:not(.sidebar-item-active) .sidebar-item-icon-img { opacity: 0.62; }
         .sidebar-item-active .sidebar-item-icon-img { opacity: 1; }
+        .mobile-bottom-nav .sidebar-item-icon-img { width: 22px; height: 22px; margin-bottom: 2px; }
+        .mobile-bottom-nav button[aria-current="page"] .sidebar-item-icon-img { opacity: 1; filter: invert(35%) sepia(61%) saturate(1800%) hue-rotate(205deg) brightness(88%) contrast(92%); }
+        .mobile-bottom-nav button:not([aria-current="page"]) .sidebar-item-icon-img { opacity: 0.55; }
+        .quick-nav-tab .sidebar-item-icon-img { width: 14px; height: 14px; }
+        .quick-nav-tab[aria-selected="true"] .sidebar-item-icon-img { filter: brightness(0) invert(1); opacity: 1; }
+        .quick-nav-tab[aria-selected="false"] .sidebar-item-icon-img { opacity: 0.75; }
         .sidebar-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         /* Audit UX (2026-08-31) — indice de défilement de la barre latérale.
            À 720 px de haut, 141 px de navigation restaient sous la ligne de
@@ -1125,10 +1131,14 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/calc-engine.js?v=16cbcfb739"></script>
-    <script src="js/utils.js?v=16cbcfb739"></script>
-    <script src="js/quote-templates.js?v=16cbcfb739"></script>
-    <script src="app.compiled.js?v=16cbcfb739"></script>
+    <script src="js/finance-core.js?v=7690a67f88"></script>
+    <script src="js/calc-engine.js?v=7690a67f88"></script>
+    <script src="js/utils.js?v=7690a67f88"></script>
+    <script src="js/quote-templates.js?v=7690a67f88"></script>
+    <script src="js/saspay-platform-config.js?v=7690a67f88"></script>
+    <script src="js/saspay-service.js?v=7690a67f88"></script>
+    <script src="js/subscription-service.js?v=7690a67f88"></script>
+    <script src="app.compiled.js?v=7690a67f88"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

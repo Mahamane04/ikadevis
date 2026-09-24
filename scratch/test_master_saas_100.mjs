@@ -75,6 +75,11 @@ import * as recipeRatioField from './test_recipe_ratio_field.mjs';
 import * as saveQuoteNoDuplicate from './test_save_quote_no_duplicate.mjs';
 import * as errorFeedback from './test_error_feedback.mjs';
 import * as chiffrageUiuxOptim from './test_chiffrage_uiux_optim.mjs';
+import * as financeArrondiInvariants from './test_finance_arrondi_invariants.mjs';
+import * as financeSqlMigrations from './test_finance_sql_migrations.mjs';
+import * as financeDoubleEcriture from './test_finance_reglements_double_ecriture.mjs';
+import * as financeParametresUi from './test_finance_parametres_ui.mjs';
+import * as financeDepensesUi from './test_finance_depenses_ui.mjs';
 
 const SUITES = [
     { name: 'Fumée', mod: smoke, expectedToFail: false },
@@ -129,6 +134,11 @@ const SUITES = [
     { name: 'Fix "doublon à chaque Enregistrer" — mise à jour en place, pas de nouvelle fiche (mode Local)', mod: saveQuoteNoDuplicate, expectedToFail: false },
     { name: 'Audit UX P1-1 — une erreur se voit ET montre où corriger', mod: errorFeedback, expectedToFail: false },
     { name: 'Optimisation UI/UX Chiffrage — navigation lots permanente, options popover, synthèse et déplacement d\'ouvrage', mod: chiffrageUiuxOptim, expectedToFail: false },
+    { name: 'Socle Finances — invariants d\'arrondi, répartition et marqueur de paiements legacy', mod: financeArrondiInvariants, expectedToFail: false },
+    { name: 'Socle Finances — migrations SQL rejouées sur Postgres (PGlite) : numérotation, échéances, devises, règlements, RLS', mod: financeSqlMigrations, expectedToFail: false },
+    { name: 'Socle Finances — double écriture des règlements (T3) : ordre, clé partagée, échecs non bloquants', mod: financeDoubleEcriture, expectedToFail: false },
+    { name: 'Finances — Paramètres (comptes, devises, taxes, catégories) : parcours réel en mode invité', mod: financeParametresUi, expectedToFail: false },
+    { name: 'Finances — Dépenses : payée, à payer, répartie, avance, règlement, suppression, soldes cohérents, mobile', mod: financeDepensesUi, expectedToFail: false },
 ];
 
 let unexpectedFailures = 0;
