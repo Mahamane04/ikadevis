@@ -6,7 +6,7 @@
 // et deux mécanismes de cache désalignés servent tôt ou tard une version
 // périmée sans que rien ne le signale — le piège déjà rencontré sur ce
 // projet avec un tailwind.css obsolète. Un seul jeton pilote les deux.
-const VERSION = '6a32dfa0a1';
+const VERSION = '3b92c78113';
 const CACHE = `ikadevis-${VERSION}`;
 
 // Coquille minimale : ce qu'il faut pour que l'application DÉMARRE sans
@@ -27,6 +27,8 @@ const COQUILLE = [
     './vendor/fonts/open-sans.css',
     './config.js',
     './js/finance-core.js',
+    './js/quote-import.js',
+    './js/project-profitability.js',
     './js/calc-engine.js',
     './js/utils.js',
     './js/quote-templates.js',

@@ -16,6 +16,17 @@ const sb = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL && 
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
     : null;
 
+// js/subscription-service.js est chargé AVANT app.compiled.js et n'a donc
+// aucun moyen d'atteindre ce client autrement. Il en a besoin pour appeler
+// l'Edge Function saspay-proxy, seule habilitée depuis le 2026-09-24 à
+// ouvrir ou prolonger un abonnement.
+if (typeof window !== 'undefined') {
+    window.ikadevisSupabase = sb;
+    if (window.SubscriptionService && window.SubscriptionService.setSupabaseClient) {
+        window.SubscriptionService.setSupabaseClient(sb);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MODES DE MÉTRÉ — LIBELLÉS UTILISATEUR
 // ═══════════════════════════════════════════════════════════════
@@ -48,7 +59,7 @@ const libelleModes = (modes, secours = 'Ouvrage métier') => {
 const LIBELLES_MODE_LONGS = {
     rectangle: 'Rectangle (Largeur × Hauteur)',
     surface: 'Surface Directe (m²)',
-    volume: 'Volume Béton (m³)',
+    volume: 'Volume (m³)',
     linear: 'Mètre Linéaire (ml)',
     floor: 'Sol / Plafond (m²)',
     unit: 'Unité / Forfait (u)'
@@ -187,10 +198,11 @@ const STATUTS_DEVIS = {
     to_verify: ['À vérifier', 'bg-amber-50/80 text-amber-800 border border-amber-200/60'],
     ready: ['Prêt', 'bg-sky-50/80 text-sky-800 border border-sky-200/60'],
     sent: ['Envoyé', 'bg-slate-100 text-slate-700 border border-slate-200/60'],
-    approved: ['Approuvé', 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60'],
+    approved: ['Accepté', 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60'],
     accepted: ['Accepté', 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60']
 };
 const statutDevis = (s) => STATUTS_DEVIS[s] || ['À suivre', 'bg-neutral-100 text-neutral-600 border border-neutral-200/60'];
+const normaliserStatutDevis = (s) => ({ approved: 'accepted', review: 'to_verify' }[s] || s || 'draft');
 
 // 2026-09-08 — Système de design, badges de statut/rôle. Signalé : chaque
 // écran (devis, factures, équipe, audit) réinventait sa propre pastille —
@@ -239,7 +251,7 @@ const etatBoutonEnregistrement = (statut, dejaEnregistre, modifieDepuis = false)
     // le mensonge exact que la règle est censée supprimer.
     if (statut === 'saved' && !modifieDepuis) return { icone: 'fa-circle-check', libelle: 'Enregistré', occupe: false };
     if (statut === 'error') return { icone: 'fa-triangle-exclamation', libelle: 'Réessayer', occupe: false };
-    return { icone: 'fa-floppy-disk', libelle: dejaEnregistre ? 'Mettre à jour' : 'Enregistrer', occupe: false };
+    return { icone: 'fa-floppy-disk', libelle: 'Enregistrer', occupe: false };
 };
 
 const LIBELLES_NAV = {
@@ -257,7 +269,7 @@ const LIBELLES_NAV = {
 
 // Configuration par défaut du Tableau de Bord Personnalisable
 const DEFAULT_DASHBOARD_CONFIG = {
-    monthlyGoal: 15000000, // Objectif de CA mensuel (en devise de l'entreprise)
+    monthlyGoal: 0, // Objectif de CA mensuel (en devise de l'entreprise)
     defaultPeriod: 'all',  // 'all' | 'month' | 'quarter' | 'year'
     widgets: {
         monthlyGoal: true,     // Jauge d'avancement de l'objectif mensuel
@@ -399,7 +411,7 @@ const ligneFacturee = (item) => {
 // Affichage compact d'une quantité : 25 et non 25.00, mais 2.5 conservé.
 const formatQuantite = (q) => {
     const n = Number(q) || 0;
-    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+    return Number.isInteger(n) ? String(n) : n.toFixed(8).replace(/\.?0+$/, '');
 };
 
 // Modes réellement proposables pour un ouvrage donné.
@@ -579,8 +591,8 @@ const messageErreurAuth = (err, secours = 'Une erreur est survenue.') => {
     return brut || secours;
 };
 
-function AuthScreen({ onAuthSuccess }) {
-    const [mode, setMode] = useState('login');
+function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
+    const [mode, setMode] = useState(initialMode);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [orgName, setOrgName] = useState('');
@@ -861,7 +873,7 @@ function AuthScreen({ onAuthSuccess }) {
                                 Essayer sans compte
                             </button>
                             <p className="text-neutral-400 text-[11px] leading-relaxed -mt-1">
-                                Devis d'exemple déjà chiffré · rien n'est envoyé
+                                {LS.get('demoTransfer', 'guest') ? 'Votre devis d’essai est conservé ici. Retrouvez-le en démonstration ou récupérez-le après connexion.' : 'Devis d’exemple déjà chiffré · rien n’est envoyé'}
                             </p>
                             {mode === 'login' && (
                                 <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-600 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-600 underline underline-offset-2">Créer un compte</span></button>
@@ -1576,7 +1588,7 @@ function ProjectCombobox({
                     onKeyDown={handleKeyDown}
                     placeholder="Projet"
                     className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    aria-label="Projet du devis"
+                    aria-label="Chantier du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-project-listbox"
                     aria-expanded={isOpen}
@@ -3099,7 +3111,7 @@ function WorkItemMetreVisualizer2D({
                         <span className="font-mono font-bold text-neutral-900 dark:text-white text-xs">{metricPrimaryValue}</span>
                     </div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-neutral-200/80 dark:border-slate-700">
-                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Déboursé Sec</span>
+                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Coût de revient</span>
                         <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-xs">
                             {formatMoney(dsConsomme, currency)}
                         </span>
@@ -3293,7 +3305,7 @@ function QuoteHeader({
 
                     {/* Statut Pill — Menu déroulant Design System */}
                     <QuoteStatusDropdown
-                        value={quote.status || 'draft'}
+                        value={normaliserStatutDevis(quote.status)}
                         onChange={(e) => onUpdateQuote({ status: e.target.value })}
                         options={statusOptions}
                     />
@@ -3588,7 +3600,7 @@ function LotNavigator({
                                     {formatMoney(subtotal, currency)}
                                 </span>
                                 {lot.lotMarginPct !== undefined && (
-                                    <span className="text-neutral-500 font-medium shrink-0">&bull; {lot.lotMarginPct}%</span>
+                                    <span className="text-neutral-500 font-medium shrink-0">&bull; {lot.costsComplete === false ? 'Marge à compléter' : `${lot.lotMarginPct}%`}</span>
                                 )}
                                 <span className="text-neutral-500 font-medium truncate">
                                     &bull; {itemsCount} {itemsCount > 1 ? 'ouvrages' : 'ouvrage'}
@@ -4454,7 +4466,7 @@ function ActiveLotHeader({
                     </span>
                     {lot.lotMarginPct !== undefined && (
                         <span className="text-neutral-500 font-medium">
-                            &bull; Marge : <span className="font-bold text-emerald-700">{lot.lotMarginPct}%</span>
+                            &bull; Marge : <span className="font-bold text-emerald-700">{lot.costsComplete === false ? 'À compléter' : `${lot.lotMarginPct}%`}</span>
                         </span>
                     )}
                     <span className="text-neutral-500 font-medium">
@@ -4603,7 +4615,7 @@ function WorkItemTable({
                                             <span className="font-bold uppercase tracking-wide text-amber-700">Ligne libre</span>
                                             <span className="text-neutral-500" aria-hidden="true">•</span>
                                             <span className={item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}>
-                                                {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
+                                                {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à renseigner dans Modifier'}
                                             </span>
                                             {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
                                             {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600">Tarif à compléter</span>}
@@ -4641,7 +4653,7 @@ function WorkItemTable({
                                         )}
                                         {item.isCustom ? (
                                             <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="px-1.5 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
-                                                {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                                                {[...new Set([item.unit || 'forfait', 'forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'm³', 'ml', 'kg', 't', 'l', 'u'])].map(unit => <option key={unit} value={unit}>{unit}</option>)}
                                             </select>
                                         ) : <span className="px-2 py-1.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[11px] shrink-0">{facture.unite}</span>}
                                     </div>
@@ -4650,12 +4662,14 @@ function WorkItemTable({
                                     <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Prix unitaire HT</label>
                                     <input
                                         type="number" min="0" step="any"
-                                        value={item.unitPriceHT === '' ? '' : (item.unitPriceHT !== undefined ? item.unitPriceHT : Math.round(facture.prixUnitaire))}
+                                        value={item.isCustom ? (item.unitPriceHT ?? '') : precisionLigneCommerciale(facture.quantite, facture.totalHT, currency).unitPrice}
+                                        readOnly={!item.isCustom}
+                                        onClick={() => { if (!item.isCustom) onOpenInspector(idx); }}
                                         onFocus={(e) => e.target.select()}
                                         onChange={(e) => {
                                             const raw = e.target.value;
                                             const val = raw === '' ? '' : (parseFloat(raw) || 0);
-                                            const q = item.qty === '' ? 1 : (item.qty || facture.quantite);
+                                            const q = facture.quantite;
                                             onUpdateItem(idx, {
                                                 unitPriceHT: val,
                                                 qty: q,
@@ -4700,8 +4714,8 @@ function WorkItemTable({
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <button type="button" onClick={() => onOpenInspector(idx)} className="p-2 rounded-lg border border-neutral-200 hover:border-brand-300 hover:bg-brand-50 text-neutral-600 hover:text-brand-600 text-sm transition-all" title="Voir et modifier les détails techniques & métrés" aria-label={`Détails techniques de ${item.name}`}>
-                                        <i className="fa-solid fa-sliders"></i>
+                                    <button type="button" onClick={() => onOpenInspector(idx)} className="min-h-[44px] p-2 rounded-lg border border-brand-200 hover:border-brand-300 hover:bg-brand-50 text-brand-700 text-xs transition-all" title="Voir et modifier les détails techniques & métrés" aria-label={`Détails techniques de ${item.name}`}>
+                                        <i className="fa-solid fa-sliders mr-1"></i> Modifier
                                     </button>
                                     <button type="button" onClick={() => onDuplicateItem(idx)} className="p-2 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-800 text-sm transition-all" title="Dupliquer cette ligne" aria-label={`Dupliquer ${item.name}`}>
                                         <i className="fa-solid fa-copy"></i>
@@ -4716,14 +4730,14 @@ function WorkItemTable({
                 })}
             </div>
 
-            {/* Tableau Desktop : conçu pour s'adapter à 100% de la largeur disponible SANS aucun défilement horizontal (scroll), même lorsque l'inspecteur latéral est ouvert */}
-            <div data-testid="quote-items-desktop" className="hidden md:block overflow-hidden border border-neutral-200 rounded-2xl bg-white shadow-xs">
-                <table className="w-full table-fixed text-left text-xs border-collapse">
+            {/* Les colonnes numériques gardent leur largeur ; le tableau défile si l'inspecteur réduit l'espace disponible. */}
+            <div data-testid="quote-items-desktop" className="hidden md:block overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-xs">
+                <table className="w-full min-w-[640px] table-fixed text-left text-xs border-collapse">
                     <colgroup>
                         <col />
                         <col style={{ width: '40px' }} />
                         <col style={{ width: '30px' }} />
-                        <col style={{ width: '70px' }} />
+                        <col style={{ width: '112px' }} />
                         <col style={{ width: '118px' }} />
                         <col style={{ width: '74px' }} />
                     </colgroup>
@@ -4810,7 +4824,7 @@ function WorkItemTable({
                                                         <span className="font-bold uppercase tracking-wide text-amber-700 shrink-0">Ligne libre</span>
                                                         <span className="text-neutral-500" aria-hidden="true">•</span>
                                                         <span className={`truncate ${item.costUnit ? 'text-neutral-500' : 'font-semibold text-amber-700'}`}>
-                                                            {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à définir dans Avancé'}
+                                                            {item.costUnit ? `Coût achat : ${formatMoney(item.costUnit, currency)}` : 'Coût achat à renseigner dans Modifier'}
                                                         </span>
                                                         {!item.costUnit && <i className="fa-solid fa-triangle-exclamation text-amber-500 shrink-0" title="Sans coût, cette ligne ne compte pas dans le déboursé du lot"></i>}
                                                         {!(item.unitPriceHT > 0) && <span className="font-bold text-red-600 shrink-0">Tarif à compléter</span>}
@@ -4879,7 +4893,7 @@ function WorkItemTable({
                                     <td className="py-2.5 px-0.5 text-center text-neutral-600 font-medium">
                                         {item.isCustom ? (
                                             <select value={item.unit || 'forfait'} onChange={(e) => onUpdateItem(idx, { unit: e.target.value })} className="w-8 max-w-full min-w-0 px-0.5 py-1 rounded bg-neutral-100 text-neutral-700 font-mono text-[9.5px] border-0 outline-none" aria-label={`Unité pour ${item.name}`}>
-                                                {['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                                                {[...new Set([item.unit || 'forfait', 'forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'm³', 'ml', 'kg', 't', 'l', 'u'])].map(unit => <option key={unit} value={unit}>{unit}</option>)}
                                             </select>
                                         ) : <span className="inline-block px-1 py-0.5 rounded bg-neutral-100 text-neutral-700 font-mono text-[10px] truncate max-w-full">{facture.unite}</span>}
                                     </td>
@@ -4891,7 +4905,9 @@ function WorkItemTable({
                                             step="any"
                                             data-col="price"
                                             data-row={idx}
-                                            value={item.unitPriceHT === '' ? '' : (item.unitPriceHT !== undefined ? item.unitPriceHT : Math.round(facture.prixUnitaire))}
+                                            value={item.isCustom ? (item.unitPriceHT ?? '') : precisionLigneCommerciale(facture.quantite, facture.totalHT, currency).unitPrice}
+                                            readOnly={!item.isCustom}
+                                            onClick={() => { if (!item.isCustom) onOpenInspector(idx); }}
                                             onFocus={(e) => e.target.select()}
                                             onKeyDown={(e) => {
                                                 const inputs = Array.from(document.querySelectorAll('[data-testid="quote-items-desktop"] [data-col="price"]'));
@@ -4913,7 +4929,7 @@ function WorkItemTable({
                                             onChange={(e) => {
                                                 const raw = e.target.value;
                                                 const val = raw === '' ? '' : (parseFloat(raw) || 0);
-                                                const q = item.qty === '' ? 1 : (item.qty || facture.quantite);
+                                                const q = facture.quantite;
                                                 onUpdateItem(idx, {
                                                     unitPriceHT: val,
                                                     qty: q,
@@ -4927,7 +4943,7 @@ function WorkItemTable({
                                                     onUpdateItem(idx, { unitPriceHT: 0 });
                                                 }
                                             }}
-                                            className="w-full max-w-[64px] min-w-0 text-right py-1 px-1 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
+                                            className="w-full min-w-0 text-right py-1 px-2 font-bold font-mono text-neutral-900 bg-white border border-neutral-300/80 hover:border-brand-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 rounded-lg outline-none shadow-2xs text-xs transition-all"
                                             aria-label={`Prix unitaire pour ${item.name}`}
                                             title={item.calcForm ? `Prix au ${facture.unite}, recalculé selon le métrage` : 'Prix unitaire modifiable'}
                                         />
@@ -5027,6 +5043,20 @@ function WorkItemTable({
     );
 }
 
+// Ordre des travaux : le gros œuvre précède les métiers spécialisés.
+const familleOuvrage = (solution) => {
+    const name = normalizeSearchText(solution.name || '');
+    if (/fouille|terrassement|decapage/.test(name)) return { category: 'btp', rank: 0 };
+    if (/beton|fondation|poteau|chainage|structure/.test(name)) return { category: 'btp', rank: 1 };
+    if (/maconnerie|agglo|mur porteur/.test(name)) return { category: 'btp', rank: 2 };
+    if (/cloison|plafond|electri|plomberie|carrelage/.test(name)) return { category: 'second', rank: 3 };
+    if (/peinture|enduit/.test(name)) return { category: 'paint', rank: 4 };
+    if (/facade|alucobond|acm/.test(name)) return { category: 'acm', rank: 5 };
+    if (/menuiserie|metallerie|garde.corps|dressing|bois|baie vitree/.test(name)) return { category: 'menuiserie', rank: 6 };
+    return { category: 'signage', rank: 7 };
+};
+const trierOuvrages = (solutions) => [...solutions].sort((a, b) => familleOuvrage(a).rank - familleOuvrage(b).rank);
+
 function WorkItemPicker({
     isOpen,
     onClose,
@@ -5040,7 +5070,7 @@ function WorkItemPicker({
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
-    const [isBulkMode, setIsBulkMode] = useState(true);
+    const [isBulkMode, setIsBulkMode] = useState(false);
     const [bulkSelections, setBulkSelections] = useState({});
     // Nombre d'ouvrages ajoutés sans quitter la bibliothèque — sert au retour
     // visuel et au libellé du bouton de sortie. Remis à zéro à chaque ouverture.
@@ -5052,7 +5082,7 @@ function WorkItemPicker({
             setSearchQuery('');
             setSelectedCategory('all');
             setNbAjoutes(0);
-            setIsBulkMode(true);
+            setIsBulkMode(false);
             setBulkSelections({});
             setTimeout(() => searchInputRef.current?.focus(), 100);
         }
@@ -5061,29 +5091,20 @@ function WorkItemPicker({
     if (!isOpen) return null;
 
     const categories = [
-        { id: 'all', label: 'Tous les Ouvrages' },
-        { id: 'favs', label: '⭐ Favoris' },
-        { id: 'recents', label: '🕘 Récents' },
-        { id: 'popular', label: '🔥 Plus Utilisés' },
-        { id: 'btp', label: '🏠 BTP & Gros Œuvre' },
-        { id: 'acm', label: '🏢 Façade & Alucobond' },
-        { id: 'signage', label: '🪧 Enseigne & Branding' },
-        { id: 'paint', label: '🎨 Peinture & Finitions' },
-        { id: 'menuiserie', label: '🪵 Menuiserie & Alu' }
+        { id: 'all', label: 'Tous' },
+        { id: 'btp', label: 'Gros œuvre' },
+        { id: 'second', label: 'Second œuvre' },
+        { id: 'paint', label: 'Finitions' },
+        { id: 'acm', label: 'Façades' },
+        { id: 'menuiserie', label: 'Menuiserie & Métallerie' },
+        { id: 'signage', label: 'Signalétique & Autres' }
     ];
 
     const normalizedQuery = normalizeSearchText(searchQuery);
-    const filteredSolutions = solutions.filter(s => {
+    const filteredSolutions = trierOuvrages(solutions).filter(s => {
         const matchesName = normalizeSearchText(s.name).includes(normalizedQuery);
         const matchesKeyword = (s.keywords || []).some(k => normalizeSearchText(k).includes(normalizedQuery));
-        if (!matchesName && !matchesKeyword) return false;
-        if (selectedCategory === 'all') return true;
-        if (selectedCategory === 'btp') return s.name.toLowerCase().includes('béton') || s.name.toLowerCase().includes('cadre') || s.name.toLowerCase().includes('btp');
-        if (selectedCategory === 'acm') return s.name.toLowerCase().includes('alucobond') || s.name.toLowerCase().includes('plaque') || s.name.toLowerCase().includes('façade');
-        if (selectedCategory === 'signage') return s.name.toLowerCase().includes('enseigne') || s.name.toLowerCase().includes('lettre') || s.name.toLowerCase().includes('vinyle') || s.name.toLowerCase().includes('panneau');
-        if (selectedCategory === 'paint') return s.name.toLowerCase().includes('peint') || s.name.toLowerCase().includes('enduit');
-        if (selectedCategory === 'menuiserie') return s.name.toLowerCase().includes('alu') || s.name.toLowerCase().includes('bois') || s.name.toLowerCase().includes('vitre');
-        return true;
+        return (matchesName || matchesKeyword) && (selectedCategory === 'all' || familleOuvrage(s).category === selectedCategory);
     });
 
     const selectedCount = Object.values(bulkSelections).filter(v => v !== undefined).length;
@@ -5276,6 +5297,7 @@ function WorkItemPicker({
                                     {isBulkMode && (
                                         <input
                                             type="checkbox"
+                                            aria-label={`Sélectionner ${sol.name}`}
                                             checked={isChecked}
                                             onChange={() => handleToggleBulk(sol.id)}
                                             onClick={(e) => e.stopPropagation()}
@@ -5454,6 +5476,38 @@ function WorkItemInspector({
 }) {
     const [inspectorMode, setInspectorMode] = useState('simple'); // 'simple' | 'advanced'
     const [activeTab, setActiveTab] = useState('dimensions'); // 'dimensions' | 'costs' | 'pricing' | 'client' | 'calepinage'
+    const inspectorRef = useRef(null);
+    const closeInspectorRef = useRef(onClose);
+    closeInspectorRef.current = onClose;
+    const [compactInspector, setCompactInspector] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 1023px)');
+        const update = () => setCompactInspector(media.matches);
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+    useEffect(() => {
+        if (!isOpen || !compactInspector) return;
+        const root = inspectorRef.current;
+        if (!root) return;
+        const previous = document.activeElement;
+        const targets = () => [...root.querySelectorAll('button:not([disabled]), input, textarea, select, [tabindex="0"]')]
+            .filter(el => el.getBoundingClientRect().width > 0);
+        targets()[0]?.focus({ preventScroll: true });
+        const keyboard = (event) => {
+            if (document.querySelector('[role="dialog"][aria-modal="true"]:not(.work-item-inspector)')) return;
+            if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); closeInspectorRef.current(); }
+            if (event.key !== 'Tab') return;
+            const list = targets(), first = list[0], last = list[list.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        document.addEventListener('keydown', keyboard, true);
+        return () => {
+            document.removeEventListener('keydown', keyboard, true);
+            if (previous?.isConnected) previous.focus({ preventScroll: true });
+        };
+    }, [isOpen, compactInspector]);
 
     // Raccourcis clavier pour feuilleter les ouvrages du lot : ⌥ + ← et ⌥ + → (Alt/Option sur Mac & PC)
     useEffect(() => {
@@ -5481,12 +5535,12 @@ function WorkItemInspector({
 
     if (!isOpen || !item) return null;
 
-    const solution = solutions.find(s => s.id === item.solutionId);
+    const solution = item.calculationSnapshot?.solution || solutions.find(s => s.id === item.solutionId);
     const calcForm = item.calcForm || {};
     const quoteData = item.quoteData || {};
     const facture = ligneFacturee(item);
     const qtyCalc = facture.quantite > 0 ? facture.quantite : (item.qty || 1);
-    const dsTotal = quoteData.totalRevientConsomme != null ? quoteData.totalRevientConsomme : (item.isCustom && item.costUnit ? item.costUnit * qtyCalc : 0);
+    const dsTotal = quoteData.totalRevientConsomme ?? ((quoteData.totalDebourseConsomme ?? (item.costUnit ? item.costUnit * qtyCalc : 0)) + (quoteData.fraisGenerauxConsomme || 0));
     const dsUnitaire = qtyCalc > 0 ? dsTotal / qtyCalc : dsTotal;
     const pvTotal = item.totalHT != null ? item.totalHT : (facture.prixUnitaire || item.unitPriceHT || 0) * qtyCalc;
     const pvUnitaire = qtyCalc > 0 ? pvTotal / qtyCalc : (facture.prixUnitaire || item.unitPriceHT || 0);
@@ -5506,7 +5560,7 @@ function WorkItemInspector({
     }
 
     // M5 (2026-08-18) — Mode réellement actif de cet ouvrage.
-    const isManualLine = Boolean(item.isCustom && !item.calcForm);
+    const isManualLine = Boolean(item.isCustom);
     const activeMode = isManualLine ? 'unit' : (calcForm.takeoffMode || solution?.allowedModes?.[0] || 'rectangle');
 
     // Champs de métré dont la valeur saisie est négative, nommés comme à l'écran.
@@ -5519,6 +5573,7 @@ function WorkItemInspector({
         .map(cle => LIBELLES_DIMENSIONS[cle]);
 
     const handleParamChange = (field, val) => {
+        if (isManualLine && field === 'qty') { onUpdateItem({ qty: val }); return; }
         const updatedCalcForm = {
             ...calcForm,
             [field]: val
@@ -5552,8 +5607,45 @@ function WorkItemInspector({
         handleParamChange('customVarValues', customVarValues);
     };
 
+    const quantityValid = activeMode === 'unit'
+        ? Number(calcForm.qty || item.qty) > 0
+        : activeMode === 'surface' ? Number(calcForm.surfaceDirect) > 0
+        : activeMode === 'linear' ? Number(calcForm.lengthDirect) > 0
+        : activeMode === 'floor' ? Number(calcForm.width) > 0 && Number(calcForm.lengthDirect) > 0
+        : Number(calcForm.width) > 0 && Number(calcForm.height) > 0 && (activeMode !== 'volume' || Number(calcForm.depth) > 0);
+    const resourcePrices = <div className="space-y-3">
+        <p className="text-xs text-neutral-600">Prix du catalogue à vérifier auprès de vos fournisseurs. Vos modifications restent dans cet ouvrage, sans changer le catalogue ni les autres devis.</p>
+        {(quoteData.details || []).map((d, idx) => {
+            const resourceId = d.type === 'material' ? d.matId : d.laborId;
+            const override = calcForm.priceOverrides?.[d.type]?.[resourceId];
+            const setPrice = value => handleParamChange('priceOverrides', { ...(calcForm.priceOverrides || {}), [d.type]: { ...(calcForm.priceOverrides?.[d.type] || {}), [resourceId]: value } });
+            return <section key={d.id || idx} className="rounded-xl border border-neutral-200 bg-white p-3 space-y-2">
+                <p className="font-semibold text-sm text-neutral-900">{d.name || d.label}</p>
+                <p className="text-xs text-neutral-600">{formatQuantite(d.billedQty)} {d.unit} consommé(s) · Coût : <strong>{formatMoney(d.totalCost, currency)}</strong></p>
+                {resourceId != null && <label className="block text-xs font-semibold text-neutral-700">Prix d’achat par {d.unit} ({currency})
+                    <input aria-label={`Prix d’achat — ${d.name || d.label}`} type="number" inputMode="decimal" min="0" step="any" value={override ?? d.unitCost ?? ''} onChange={e => setPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))} className="app-input mt-1" />
+                </label>}
+                {override !== undefined && override !== '' && <button type="button" className="text-xs text-brand-700 underline" onClick={() => setPrice(null)}>Revenir au prix du catalogue</button>}
+                {d.type === 'material' && <details className="text-xs text-neutral-600"><summary className="cursor-pointer py-2">Pertes et conditionnement</summary>
+                    <p>Besoin net : {formatQuantite(d.netQty)} {d.unit} · Perte : {d.wastePct}%</p>
+                    <p>À acheter : {formatQuantite(d.packsNeeded)} {d.packUnitBuy} · {formatMoney(d.purchasedCost, currency)}. Reliquat : {formatQuantite(d.remainderQty)} {d.unit}.</p>
+                </details>}
+            </section>;
+        })}
+    </div>;
+    const simplePricing = !isManualLine && <section className="rounded-2xl border border-neutral-200 p-4 space-y-3">
+        <h4 className="font-semibold text-sm">Vos prix et votre marge</h4>
+        <details><summary className="cursor-pointer py-2 text-brand-700 text-sm font-semibold">Modifier mes prix d’achat</summary>{resourcePrices}</details>
+        <div className="grid grid-cols-2 gap-3">
+            <label className="text-xs font-semibold">Marge souhaitée (%)<input aria-label="Marge souhaitée (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="95" step="any" value={calcForm.margin ?? 30} onChange={e => handleParamChange('margin', e.target.value)} /></label>
+            <label className="text-xs font-semibold">Frais généraux (%)<input aria-label="Frais généraux (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="50" step="any" value={calcForm.overheadRate ?? 5} onChange={e => handleParamChange('overheadRate', e.target.value)} /></label>
+        </div>
+        <p className="text-xs text-neutral-600">{calcForm.marginType === 'markup' ? 'Majoration appliquée au coût de revient.' : 'La marge représente une part du prix de vente HT, après les frais.'} Sur {formatMoney(pvTotal, currency)} vendus, il reste {formatMoney(margeValeur, currency)} après {formatMoney(dsTotal, currency)} de coûts.</p>
+        <p className="text-xs text-neutral-600">TVA du devis : {calcForm.vatRate ?? 18} %. Vérifiez le taux applicable dans les réglages du devis.</p>
+    </section>;
+
     return (
-        <div className="flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
+        <div ref={inspectorRef} role={compactInspector ? 'dialog' : undefined} aria-modal={compactInspector ? 'true' : undefined} aria-label={compactInspector ? `Modifier l’ouvrage ${item.name}` : undefined} className="work-item-inspector flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
                 <div className="p-3.5 sm:p-4 border-b border-neutral-200 bg-white space-y-2.5 shrink-0">
                     {/* Rangée 1 : Navigation retour, Sélecteur direct de lot, Pagination d'ouvrage et Toggle Simple/Avancé */}
                     <div className="flex items-center justify-between gap-2">
@@ -5644,7 +5736,7 @@ function WorkItemInspector({
                                     onClick={() => setInspectorMode('simple')}
                                     aria-label="Mode simple"
                                     className={`px-2.5 py-1 rounded-md transition-all ${
-                                        inspectorMode === 'simple' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
+                                        (inspectorMode === 'simple' || isManualLine) ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
                                     }`}
                                 >
                                     <i className="fa-solid fa-eye mr-1"></i>Simple
@@ -5652,7 +5744,7 @@ function WorkItemInspector({
                                 <button
                                     type="button"
                                     onClick={() => setInspectorMode('advanced')}
-                                    aria-label="Mode avancé"
+                                    aria-label="Mode avancé" hidden={isManualLine}
                                     className={`px-2.5 py-1 rounded-md transition-all ${
                                         inspectorMode === 'advanced' ? 'bg-white text-neutral-900 shadow-xs font-bold' : 'text-neutral-600 hover:text-neutral-900'
                                     }`}
@@ -5688,19 +5780,23 @@ function WorkItemInspector({
                     </div>
                 </div>
 
+                {item.needsQuantityConfirmation && <div role="status" className="p-3 bg-amber-50 border-b border-amber-200 text-xs shrink-0">
+                    <p className="font-semibold">Quantités à confirmer</p><p className="mt-1">Renseignez votre métré. Le montant reste provisoire jusqu’à votre confirmation.</p>
+                    <button type="button" disabled={!quantityValid} onClick={() => onUpdateItem({ needsQuantityConfirmation: false })} className="btn-primary mt-2 disabled:opacity-50">Confirmer mes quantités</button>
+                </div>}
                 {/* MODE SIMPLE (Novice / Rapide) */}
-                {inspectorMode === 'simple' ? (
+                {(inspectorMode === 'simple' || isManualLine) ? (
                     <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-5 space-y-5 clear-totals-bar animate-fade-in">
                         <div className="p-4 rounded-2xl bg-brand-50/40 border border-brand-200/60 space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Paramètres Essentiels de l'Ouvrage</span>
+                                <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Métré de l’ouvrage</span>
                                 <span className="text-[11px] font-bold text-neutral-500 font-mono">Mode Simple</span>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                                 <div className="min-w-0">
                                     <label className="app-label">Désignation Ouvrage</label>
-                                    <input
+                                    <input aria-label="Désignation Ouvrage"
                                         type="text"
                                         value={item.name || ''}
                                         onChange={(e) => onUpdateItem({ name: e.target.value })}
@@ -5709,11 +5805,11 @@ function WorkItemInspector({
                                 </div>
 
                                 <div className="min-w-0">
-                                    <label className="app-label">Quantité &amp; Unité</label>
+                                    <label className="app-label">Nombre d’ouvrages identiques</label>
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <input
-                                            type="number"
-                                            min="1"
+                                        <input aria-label="Nombre d’ouvrages identiques"
+                                            inputMode="decimal" type="number"
+                                            min={isManualLine ? "0" : "1"} step="any"
                                             value={calcForm.qty === '' ? '' : (calcForm.qty !== undefined ? calcForm.qty : (item.qty === '' ? '' : (item.qty || 1)))}
                                             onChange={(e) => {
                                                 const raw = e.target.value;
@@ -5726,15 +5822,15 @@ function WorkItemInspector({
                                             }}
                                             className="flex-1 min-w-0 max-w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900 text-center focus:border-brand-500"
                                         />
-                                        <CustomSelect
+                                        {isManualLine ? <CustomSelect
                                             value={item.unit || 'forfait'}
                                             onChange={(e) => onUpdateItem({ unit: e.target.value })}
-                                            options={['forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'u'].map(unit => ({ value: unit, label: unit }))}
+                                            options={[...new Set([item.unit || 'forfait', 'forfait', 'jour', 'heure', 'personne', 'pièce', 'm²', 'm³', 'ml', 'kg', 't', 'l', 'u'])].map(unit => ({ value: unit, label: unit }))}
                                             aria-label={`Unité pour ${item.name}`}
                                             size="sm"
                                             className="flex-1 min-w-0"
                                             buttonClassName="!py-2.5 !text-xs !font-bold bg-white justify-between"
-                                        />
+                                        /> : <span className="text-xs text-neutral-600">ouvrage(s)</span>}
                                     </div>
                                 </div>
                             </div>
@@ -5775,8 +5871,8 @@ function WorkItemInspector({
                                 <div className="grid grid-cols-2 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input
-                                            type="number" min="0"
+                                        <input aria-label="Largeur (m)"
+                                            inputMode="decimal" type="number" min="0"
                                             step="any"
                                             value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)}
                                             onChange={(e) => {
@@ -5788,9 +5884,9 @@ function WorkItemInspector({
                                         />
                                     </div>
                                     <div className="min-w-0">
-                                        <label className="app-label">Hauteur (m)</label>
-                                        <input
-                                            type="number" min="0"
+                                        <label className="app-label">{activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'}</label>
+                                        <input aria-label={activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'}
+                                            inputMode="decimal" type="number" min="0"
                                             step="any"
                                             value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)}
                                             onChange={(e) => {
@@ -5804,42 +5900,42 @@ function WorkItemInspector({
                                 </div>
                             )}
                             {activeMode === 'volume' && (
-                                <div className="grid grid-cols-3 gap-3 pt-2 min-w-0">
+                                <div className="grid grid-cols-3 items-end gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input aria-label="Largeur (m)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
-                                        <label className="app-label">Hauteur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('height', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('height', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <label className="app-label">{activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'}</label>
+                                        <input aria-label={activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'} inputMode="decimal" type="number" min="0" step="any" value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('height', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('height', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Profondeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.depth === '' ? '' : (calcForm.depth !== undefined ? calcForm.depth : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('depth', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('depth', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input aria-label="Profondeur (m)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.depth === '' ? '' : (calcForm.depth !== undefined ? calcForm.depth : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('depth', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('depth', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
                             {activeMode === 'surface' && (
                                 <div className="pt-2">
                                     <label className="app-label">Surface directe (m²)</label>
-                                    <input type="number" min="0" step="any" value={calcForm.surfaceDirect === '' ? '' : (calcForm.surfaceDirect !== undefined ? calcForm.surfaceDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('surfaceDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('surfaceDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input aria-label="Surface directe (m²)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.surfaceDirect === '' ? '' : (calcForm.surfaceDirect !== undefined ? calcForm.surfaceDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('surfaceDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('surfaceDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'linear' && (
                                 <div className="pt-2">
                                     <label className="app-label">Longueur directe (ml)</label>
-                                    <input type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                    <input aria-label="Longueur directe (ml)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                 </div>
                             )}
                             {activeMode === 'floor' && (
                                 <div className="grid grid-cols-2 gap-3 pt-2 min-w-0">
                                     <div className="min-w-0">
                                         <label className="app-label">Largeur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input aria-label="Largeur (m)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('width', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('width', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                     <div className="min-w-0">
                                         <label className="app-label">Longueur (m)</label>
-                                        <input type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
+                                        <input aria-label="Longueur (m)" inputMode="decimal" type="number" min="0" step="any" value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)} onChange={(e) => { const raw = e.target.value; handleParamChange('lengthDirect', raw === '' ? '' : (parseFloat(raw) || 0)); }} onBlur={(e) => { if (e.target.value === '') handleParamChange('lengthDirect', 0); }} className="w-full p-2 bg-white border border-neutral-200 rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             )}
@@ -5848,16 +5944,22 @@ function WorkItemInspector({
                             )}
                         </div>
 
+                        {isManualLine && <section className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                            <label className="block text-xs font-semibold">Prix de vente unitaire HT ({currency})<input aria-label="Prix de vente unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.unitPriceHT ?? ''} onChange={e => onUpdateItem({ unitPriceHT: e.target.value })} /></label>
+                            <label className="block text-xs font-semibold">Coût d’achat unitaire HT ({currency})<input aria-label="Coût d’achat unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.costUnit ?? ''} onChange={e => onUpdateItem({ costUnit: e.target.value })} /></label>
+                            <p className="text-xs text-neutral-600">Saisissez votre coût pour connaître la marge de cette ligne. Les frais généraux du devis s’appliquent à ce coût.</p>
+                        </section>}
+                        {simplePricing}
                         {/* Récapitulatif Prix Simple */}
-                        {(() => {
-                            const debourse = quoteData?.totalDebourseConsomme || 0;
-                            const prixVente = quoteData?.netHTConsomme || 0;
-                            const margeMontant = Math.max(0, prixVente - debourse);
+                        {isManualLine && !(Number(item.costUnit) > 0) ? <p className="text-xs text-amber-800 bg-amber-50 rounded-xl p-3">Marge à vérifier : renseignez le coût d’achat de cette ligne.</p> : (() => {
+                            const debourse = dsTotal;
+                            const prixVente = pvTotal;
+                            const margeMontant = margeValeur;
                             const margePct = prixVente > 0 ? Math.round((margeMontant / prixVente) * 100) : 0;
                             return (
                                 <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-2 text-xs">
                                     <div className="flex justify-between font-bold text-neutral-700">
-                                        <span>Coût Déboursé Estimé :</span>
+                                        <span>Coût de revient (frais inclus) :</span>
                                         <span className="font-semibold font-mono">{formatMoney(debourse, currency)}</span>
                                     </div>
                                     <div className="flex justify-between font-semibold text-brand-600 text-sm border-t border-emerald-200/60 pt-2">
@@ -5865,9 +5967,9 @@ function WorkItemInspector({
                                         <span className="font-bold font-mono">{formatMoney(prixVente, currency)}</span>
                                     </div>
                                     <div className="flex justify-between items-center font-bold text-emerald-800 text-xs border-t border-emerald-200/60 pt-1.5">
-                                        <span>Marge Bénéficiaire Réelle :</span>
+                                        <span>Marge après frais :</span>
                                         <div className="flex items-center gap-1.5 font-mono">
-                                            <span>+{formatMoney(margeMontant, currency)}</span>
+                                            <span className={margeMontant < 0 ? 'text-red-700' : ''}>{margeMontant < 0 ? '' : '+'}{formatMoney(margeMontant, currency)}</span>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                                                 margePct < 5
                                                     ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
@@ -5877,7 +5979,7 @@ function WorkItemInspector({
                                                             ? 'bg-blue-100 text-blue-800'
                                                             : 'bg-emerald-100 text-emerald-800'
                                             }`}>
-                                                +{margePct}%
+                                                {margePct < 0 ? '' : '+'}{margePct}%
                                             </span>
                                         </div>
                                     </div>
@@ -5887,7 +5989,7 @@ function WorkItemInspector({
 
                         <div>
                             <label className="app-label">Description commerciale pour le devis client</label>
-                            <textarea
+                            <textarea aria-label="Description commerciale pour le devis client"
                                 rows="3"
                                 value={item.description || ''}
                                 onChange={(e) => onUpdateItem({ description: e.target.value })}
@@ -5925,7 +6027,7 @@ function WorkItemInspector({
                         <div data-testid="inspector-mini-kpis" className="bg-neutral-50/90 border-b border-neutral-200/80 px-4 py-2 flex items-center justify-between gap-3 text-xs shrink-0">
                             <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                                 <div>
-                                    <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Déboursé Sec</span>
+                                    <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Coût de revient</span>
                                     <div className="flex items-baseline gap-1">
                                         <span className="font-mono font-bold text-neutral-800 text-xs">{formatMoney(dsTotal, currency)}</span>
                                         <span className="text-[10px] text-neutral-500 hidden sm:inline font-mono">({formatMoney(dsUnitaire, currency)}/{facture.unite})</span>
@@ -5941,7 +6043,7 @@ function WorkItemInspector({
                                 </div>
                             </div>
                             <div className="text-right shrink-0">
-                                <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Marge Réelle</span>
+                                <span className="text-[9px] uppercase font-bold text-neutral-500 tracking-wider block">Marge après frais</span>
                                 <span className={`inline-flex items-center gap-1 font-mono font-bold text-xs px-2 py-0.5 rounded-md ${isLoss ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
                                     {isLoss && <i className="fa-solid fa-triangle-exclamation text-[9px]"></i>}
                                     <span>{isLoss ? '' : '+'}{Math.round(margePct)}%</span>
@@ -5975,8 +6077,8 @@ function WorkItemInspector({
 
                                                 <div className="min-w-0">
                                                     <label className="app-label">Quantité d'ouvrages</label>
-                                                    <input
-                                                        type="number"
+                                                    <input aria-label="Quantité d'ouvrages"
+                                                        inputMode="decimal" type="number"
                                                         min="1"
                                                         value={calcForm.qty === '' ? '' : (calcForm.qty !== undefined ? calcForm.qty : (item.qty === '' ? '' : (item.qty || 1)))}
                                                         onChange={(e) => {
@@ -5998,8 +6100,8 @@ function WorkItemInspector({
                                                 {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume' || calcForm.takeoffMode === 'floor') && (
                                                     <div className="min-w-0">
                                                         <label className="app-label">Largeur (m)</label>
-                                                        <input
-                                                            type="number"
+                                                        <input aria-label="Largeur (m)"
+                                                            inputMode="decimal" type="number"
                                                             min="0"
                                                             step="any"
                                                             value={calcForm.width === '' ? '' : (calcForm.width !== undefined ? calcForm.width : 0)}
@@ -6015,9 +6117,9 @@ function WorkItemInspector({
 
                                                 {(calcForm.takeoffMode === 'rectangle' || calcForm.takeoffMode === 'volume') && (
                                                     <div className="min-w-0">
-                                                        <label className="app-label">Hauteur (m)</label>
-                                                        <input
-                                                            type="number"
+                                                        <label className="app-label">{activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'}</label>
+                                                        <input aria-label={activeMode === 'volume' ? 'Longueur (m)' : 'Hauteur (m)'}
+                                                            inputMode="decimal" type="number"
                                                             min="0"
                                                             step="any"
                                                             value={calcForm.height === '' ? '' : (calcForm.height !== undefined ? calcForm.height : 0)}
@@ -6034,8 +6136,8 @@ function WorkItemInspector({
                                                 {calcForm.takeoffMode === 'volume' && (
                                                     <div className="min-w-0 sm:col-span-2">
                                                         <label className="app-label">Épaisseur / Profondeur (m)</label>
-                                                        <input
-                                                            type="number"
+                                                        <input aria-label="Épaisseur / Profondeur (m)"
+                                                            inputMode="decimal" type="number"
                                                             min="0"
                                                             step="any"
                                                             value={calcForm.depth === '' ? '' : (calcForm.depth !== undefined ? calcForm.depth : 0.15)}
@@ -6052,8 +6154,8 @@ function WorkItemInspector({
                                                 {calcForm.takeoffMode === 'surface' && (
                                                     <div className="sm:col-span-2 min-w-0">
                                                         <label className="app-label">Surface Directe (m²)</label>
-                                                        <input
-                                                            type="number"
+                                                        <input aria-label="Surface Directe (m²)"
+                                                            inputMode="decimal" type="number"
                                                             min="0"
                                                             step="any"
                                                             value={calcForm.surfaceDirect === '' ? '' : (calcForm.surfaceDirect !== undefined ? calcForm.surfaceDirect : 0)}
@@ -6070,8 +6172,8 @@ function WorkItemInspector({
                                                 {calcForm.takeoffMode === 'linear' && (
                                                     <div className="sm:col-span-2 min-w-0">
                                                         <label className="app-label">Longueur (ml)</label>
-                                                        <input
-                                                            type="number"
+                                                        <input aria-label="Longueur (ml)"
+                                                            inputMode="decimal" type="number"
                                                             min="0"
                                                             step="any"
                                                             value={calcForm.lengthDirect === '' ? '' : (calcForm.lengthDirect !== undefined ? calcForm.lengthDirect : 0)}
@@ -6095,7 +6197,7 @@ function WorkItemInspector({
                                                     <div key={cv.name} className="min-w-0">
                                                         <label className="app-label">{cv.label}</label>
                                                         <input
-                                                            type="number"
+                                                            inputMode="decimal" type="number"
                                                             step="any"
                                                             value={(calcForm.customVarValues && calcForm.customVarValues[cv.name] !== undefined) ? calcForm.customVarValues[cv.name] : cv.defaultValue}
                                                             onChange={(e) => handleCustomVarChange(cv.name, e.target.value)}
@@ -6145,7 +6247,9 @@ function WorkItemInspector({
                                         </div>
                                     </div>
 
-                                    <table className="w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
+                                    <div className="lg:hidden">{resourcePrices}</div>
+                                    <details className="hidden lg:block"><summary className="cursor-pointer text-brand-700 font-semibold py-2">Modifier mes prix d’achat</summary>{resourcePrices}</details>
+                                    <table className="hidden lg:table w-full text-xs border-collapse border border-neutral-200 rounded-xl overflow-hidden">
                                         <thead>
                                             <tr className="bg-neutral-50 text-[10px] font-bold text-neutral-500 uppercase">
                                                 {/* 2026-08-26 — « Quantité Nette » affichait en réalité le
@@ -6224,7 +6328,7 @@ function WorkItemInspector({
                                                             <div className="flex flex-col items-end gap-0.5">
                                                                 <div className="flex items-center justify-end gap-1">
                                                                     <input
-                                                                        type="number" min="0" max="100" step="0.1"
+                                                                        inputMode="decimal" type="number" min="0" max="100" step="0.1"
                                                                         aria-label={`Taux de perte pour ${d.label}`}
                                                                         title={`Taux catalogue par défaut : ${d.defaultWastePct}%`}
                                                                         className={`w-14 p-1 text-right text-xs font-bold border rounded-md ${d.isWasteOverridden ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-neutral-200 bg-white text-neutral-700'}`}
@@ -6291,7 +6395,7 @@ function WorkItemInspector({
                                         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-1.5">
                                             <label className="app-label text-amber-800">Coût d’achat unitaire HT</label>
                                             <input
-                                                type="number"
+                                                inputMode="decimal" type="number"
                                                 min="0"
                                                 step="any"
                                                 value={item.costUnit || ''}
@@ -6329,8 +6433,8 @@ function WorkItemInspector({
                                             <label className="app-label">
                                                 {(calcForm.marginType || 'reel') === 'reel' ? 'Taux de marque (%)' : 'Majoration (%)'}
                                             </label>
-                                            <input
-                                                type="number"
+                                            <input aria-label="Taux de marge (%)"
+                                                inputMode="decimal" type="number"
                                                 min="0"
                                                 max={(calcForm.marginType || 'reel') === 'reel' ? 99 : 1000}
                                                 value={calcForm.margin === '' ? '' : (calcForm.margin !== undefined ? calcForm.margin : 30)}
@@ -6351,8 +6455,8 @@ function WorkItemInspector({
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="app-label">Frais Généraux (%)</label>
-                                            <input
-                                                type="number"
+                                            <input aria-label="Frais Généraux (%)"
+                                                inputMode="decimal" type="number"
                                                 min="0"
                                                 max="50"
                                                 value={calcForm.overheadRate === '' ? '' : (calcForm.overheadRate !== undefined ? calcForm.overheadRate : 5)}
@@ -6366,8 +6470,8 @@ function WorkItemInspector({
                                         </div>
                                         <div>
                                             <label className="app-label">Remise Client (%)</label>
-                                            <input
-                                                type="number"
+                                            <input aria-label="Remise Client (%)"
+                                                inputMode="decimal" type="number"
                                                 min="0"
                                                 max="100"
                                                 value={calcForm.discountRate === '' ? '' : (calcForm.discountRate !== undefined ? calcForm.discountRate : 0)}
@@ -6388,7 +6492,7 @@ function WorkItemInspector({
                                         </div>
                                         <div className="flex justify-between font-bold text-emerald-900">
                                             <span>Marge Dégagée :</span>
-                                            <span className="font-bold">+{formatMoney(quoteData.margeValeurConsomme, currency)}</span>
+                                            <span className="font-bold">{margeValeur < 0 ? '' : '+'}{formatMoney(margeValeur, currency)}</span>
                                         </div>
                                         {parseFloat(calcForm.discountRate) > 0 && (
                                             <div className="flex justify-between font-bold text-red-700">
@@ -6410,7 +6514,7 @@ function WorkItemInspector({
                                 <div className="space-y-4">
                                     <div>
                                         <label className="app-label">Description visible sur le devis client</label>
-                                        <textarea
+                                        <textarea aria-label="Description visible sur le devis client"
                                             rows="4"
                                             value={item.description || ''}
                                             onChange={(e) => onUpdateItem({ description: e.target.value })}
@@ -6449,13 +6553,13 @@ function WorkItemInspector({
                     l'en-tête du panneau porte déjà sa flèche de retour — ce
                     bouton n'y ajoute rien. Réservé au mobile, où il est le seul
                     chemin de retour. */}
-                <div className="lg:hidden p-4 mb-28 border-t border-neutral-200 bg-neutral-50 flex justify-end shrink-0">
+                <div className="inspector-done lg:hidden p-3 border-t border-neutral-200 bg-white flex justify-end shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
                         className="btn-primary text-xs py-2 px-5 font-semibold"
                     >
-                        <i className="fa-solid fa-arrow-left mr-1.5"></i> Retour aux ouvrages du lot
+                        <i className="fa-solid fa-check mr-1.5"></i> Terminer
                     </button>
                 </div>
         </div>
@@ -6491,7 +6595,7 @@ function QuoteTotalsBar({
     // Réelle deviennent alors des chiffres qui ne veulent rien dire, sans
     // que rien ne le signale. On prévient plutôt que de laisser croire à
     // une rentabilité qui n'a pas été vérifiée.
-    const hasIncompleteCustomLines = (quote.lots || []).some(lot => (lot.items || []).some(it => it.isCustom && !it.costUnit));
+    const hasIncompleteCustomLines = (quote.lots || []).some(lot => (lot.items || []).some(it => it.isCustom && (it.costUnit === '' || it.costUnit == null)));
 
     // Audit UX (2026-08-31) — sur un téléphone de 812 px, cette barre occupait
     // 192 px de haut pour 227 px de contenu : elle défilait donc À L'INTÉRIEUR
@@ -6545,12 +6649,12 @@ function QuoteTotalsBar({
 
                     <div className="hidden sm:block pl-3 border-l border-neutral-200">
                         <span className="text-[10px] text-neutral-500 block uppercase font-bold flex items-center gap-1">
-                            Marge Réelle
+                            {hasIncompleteCustomLines ? 'Marge à compléter' : 'Marge prévue'}
                             {isLowProfit && <span className="text-amber-700 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
                             {hasIncompleteCustomLines && <sup className="text-amber-700">*</sup>}
                         </span>
                         <span className={`font-bold text-sm sm:text-base ${isLowProfit ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            +{formatMoney(marginVal, currency)} ({marginPct}%)
+                            {hasIncompleteCustomLines ? 'Coûts manquants' : `${marginVal < 0 ? '' : '+'}${formatMoney(marginVal, currency)} (${marginPct}%)`}
                         </span>
                     </div>
 
@@ -6586,11 +6690,11 @@ function QuoteTotalsBar({
                         <div>
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
-                                {!totauxDeplies && marginPct != null && (
+                                {!totauxDeplies && !hasIncompleteCustomLines && marginPct != null && (
                                     <span className={`sm:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
                                         isLowProfit ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' : 'bg-emerald-100 text-emerald-800'
                                     }`}>
-                                        +{marginPct}%
+                                        {marginPct < 0 ? '' : '+'}{marginPct}%
                                     </span>
                                 )}
                             </div>
@@ -6675,6 +6779,85 @@ function QuoteTotalsBar({
     );
 }
 
+function QuoteImportModal({ onClose, onImport, currency }) {
+    const api = window.QuoteImport;
+    const [sheets, setSheets] = useState([]);
+    const [sheetIndex, setSheetIndex] = useState(0);
+    const [header, setHeader] = useState(0);
+    const [mapping, setMapping] = useState({});
+    const [excluded, setExcluded] = useState([]);
+    const [paste, setPaste] = useState('');
+    const [sourceName, setSourceName] = useState('Tableau collé');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const fileRequest = React.useRef(0);
+    useEffect(() => () => { fileRequest.current++; }, []);
+    const choose = (list, index) => {
+        const sheet = list[index], h = api.detectHeader(sheet.rows);
+        setSheets(list); setSheetIndex(index); setHeader(h); setMapping(api.mapHeaders(sheet.rows[h] || [])); setExcluded([]); setError(sheet.error || (!sheet.rows.length ? 'Cette feuille est vide. Choisissez une autre feuille.' : ''));
+    };
+    const rows = sheets[sheetIndex]?.rows || [];
+    const preview = useMemo(() => api.preview(rows, header, mapping, excluded), [rows, header, mapping, excluded]);
+    const columns = rows[header] || [];
+    const [acknowledged, setAcknowledged] = useState(false);
+    useEffect(() => setAcknowledged(false), [rows, header, mapping, excluded]);
+    return ReactDOM.createPortal(
+        <div role="dialog" aria-modal="true" aria-labelledby="quote-import-title" className="fixed inset-0 z-[130] bg-neutral-900/60 flex items-center justify-center p-2 sm:p-5" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } }}>
+            <section className="bg-white rounded-2xl shadow-floating w-full max-w-4xl max-h-[94dvh] flex flex-col overflow-hidden">
+                <header className="p-4 sm:p-5 border-b border-neutral-200 flex items-start justify-between gap-3 shrink-0">
+                    <div><h2 id="quote-import-title" className="text-lg font-bold text-neutral-900">Importer un bordereau</h2><p className="text-sm text-neutral-500 mt-1">Récupérez vos travaux depuis Excel, puis vérifiez les quantités et les prix.</p></div>
+                    <button type="button" className="btn-icon min-w-[44px] min-h-[44px]" onClick={onClose} aria-label="Fermer l’import"><i className="fa-solid fa-xmark" /></button>
+                </header>
+                <div className="p-4 sm:p-5 space-y-5 overflow-y-auto min-h-0">
+                    <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 space-y-3">
+                        <label className="block text-sm font-semibold">Fichier Excel ou CSV
+                            <input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" disabled={busy} className="block mt-2 w-full text-sm min-h-[44px]" onChange={async e => {
+                                const file = e.target.files?.[0]; if (!file) return;
+                                const request = ++fileRequest.current;
+                                setBusy(true); setError(''); setSheets([]); setAcknowledged(false);
+                                try { const list = await api.readFile(file); if (request === fileRequest.current) { if (!list.length) throw new Error('Aucune feuille trouvée.'); setSourceName(file.name); choose(list, 0); } }
+                                catch (err) { if (request === fileRequest.current) setError(err.message || 'Fichier illisible.'); }
+                                finally { if (request === fileRequest.current) setBusy(false); }
+                            }} />
+                        </label>
+                        <p className="text-xs text-neutral-600">Lecture sur cet appareil · 5 Mo maximum · 1 000 lignes de travaux. Les formules Excel utilisent leurs dernières valeurs enregistrées.</p>
+                        <a className="text-sm font-semibold text-brand-700 underline" href="assets/templates/bordereau-ikadevis.csv" download>Télécharger un modèle de bordereau</a>
+                    </div>
+                    <details className="border border-neutral-200 rounded-xl p-3">
+                        <summary className="cursor-pointer text-sm font-semibold min-h-[32px]">Ou coller un tableau depuis Excel</summary>
+                        <label className="block text-xs mt-3">Incluez la ligne des titres de colonnes<textarea aria-label="Tableau à importer" className="app-input mt-2 w-full min-h-[100px] font-mono text-xs" value={paste} onChange={e => setPaste(e.target.value)} placeholder={'Lot\tDésignation\tUnité\tQuantité\tPU HT'} /></label>
+                        <button type="button" disabled={busy || !paste.trim()} className="btn-secondary mt-2 min-h-[44px]" onClick={() => { try { setSourceName('Tableau collé'); choose([{ name: 'Tableau collé', rows: api.parseText(paste) }], 0); } catch (err) { setSheets([]); setError(err.message); } }}>Analyser le tableau</button>
+                    </details>
+                    {busy && <p role="status" className="text-sm">Lecture du fichier…</p>}
+                    {error && <p role="alert" className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</p>}
+                    {!rows.length && sheets.length > 1 && <label className="block text-sm font-semibold">Choisir une autre feuille<select className="app-input w-full mt-1 min-h-[44px]" value={sheetIndex} onChange={e => choose(sheets, Number(e.target.value))}>{sheets.map((sheet, i) => <option key={i} value={i}>{sheet.name}</option>)}</select></label>}
+                    {rows.length > 0 && <>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            <label className="text-sm font-semibold">Feuille<select className="app-input mt-1 w-full min-h-[44px]" value={sheetIndex} onChange={e => choose(sheets, Number(e.target.value))}>{sheets.map((s, i) => <option key={i} value={i}>{s.name}</option>)}</select></label>
+                            <label className="text-sm font-semibold">Ligne des titres de colonnes<input type="number" min="1" max={rows.length} className="app-input mt-1 w-full min-h-[44px]" value={header + 1} onChange={e => { const h = Math.max(0, Math.min(rows.length - 1, Number(e.target.value) - 1)); setHeader(h); setMapping(api.mapHeaders(rows[h] || [])); setExcluded([]); }} /></label>
+                        </div>
+                        <div><h3 className="font-bold text-sm mb-2">1. Associez les colonnes</h3><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{api.fields.map(field => <label key={field.key} className="text-xs font-semibold">{field.label}{field.required ? ' *' : ''}<select className="app-input mt-1 w-full min-h-[44px]" value={mapping[field.key] ?? ''} onChange={e => setMapping(prev => ({ ...prev, [field.key]: e.target.value }))}><option value="">Non associée</option>{columns.map((c, i) => <option key={i} value={i}>{i + 1}. {String(c || 'Sans titre')}</option>)}</select></label>)}</div><p className="text-xs text-neutral-500 mt-2">Pour un BPU, renseignez les quantités du chantier dans votre tableau avant l’import. Aucun prix ni coût n’est inventé.</p></div>
+                        {preview.errors.length > 0 && <ul className="text-sm text-red-700 list-disc pl-5" role="alert">{preview.errors.map(x => <li key={x}>{x}</li>)}</ul>}
+                        <div><h3 className="font-bold text-sm mb-2">2. Vérifiez les lignes</h3><p className="text-xs text-neutral-500 mb-2">Décochez les titres, sous-totaux et lignes à exclure. Les lignes identiques sont conservées.</p>
+                            <div className="sm:hidden space-y-3">{preview.lines.map(line => <div key={line.rowNumber} className={`rounded-xl border p-3 text-sm ${line.ignored ? 'bg-neutral-50 border-neutral-200 text-neutral-400' : line.issues.length ? 'bg-red-50 border-red-200' : 'border-neutral-200'}`}>
+                                <label className="flex items-start gap-3 min-h-[44px]"><input className="mt-1" type="checkbox" aria-label={`Inclure la ligne ${line.rowNumber}`} checked={!line.ignored} onChange={() => setExcluded(prev => line.ignored ? prev.filter(n => n !== line.rowNumber) : [...prev, line.rowNumber])} /><span className="min-w-0 break-words"><span className="text-xs block">Ligne {line.rowNumber} · {line.lot}</span><strong>{line.name || 'Sans désignation'}</strong></span></label>
+                                {!line.ignored && <><p className="mt-2">{Number.isFinite(line.qty) ? line.qty.toLocaleString('fr-FR') : '—'} {line.unit} × {Number.isFinite(line.price) ? formatMoney(line.price, currency) : '—'} HT</p><p className="font-bold mt-1">Total : {formatMoney(line.total, currency)} HT</p>{line.issues.length > 0 && <p className="text-xs text-red-700 mt-2">{line.issues.join(' · ')}</p>}</>}
+                            </div>)}</div>
+                            <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-xl max-h-[320px] overflow-y-auto"><table className="w-full text-xs min-w-[620px]"><thead className="bg-neutral-50 sticky top-0"><tr>{['Garder', 'Lot / désignation', 'Quantité', 'Unité', 'PU HT', 'Total HT'].map(x => <th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{preview.lines.map(line => <tr key={line.rowNumber} className={`border-t border-neutral-100 ${line.ignored ? 'bg-neutral-50 text-neutral-400' : line.issues.length ? 'bg-red-50' : ''}`}><td className="p-3"><label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" aria-label={`Inclure la ligne ${line.rowNumber}`} checked={!line.ignored} onChange={() => setExcluded(prev => line.ignored ? prev.filter(n => n !== line.rowNumber) : [...prev, line.rowNumber])} />{line.rowNumber}</label></td><td className="p-3 max-w-[260px] break-words"><span className="text-neutral-500 block">{line.lot}</span><strong>{line.name || 'Sans désignation'}</strong>{!line.ignored && line.issues.length > 0 && <p className="text-red-700 mt-1">{line.issues.join(' · ')}</p>}</td><td className="p-3">{Number.isFinite(line.qty) ? line.qty.toLocaleString('fr-FR') : '—'}</td><td className="p-3">{line.unit}</td><td className="p-3 whitespace-nowrap">{Number.isFinite(line.price) ? formatMoney(line.price, currency) : '—'}</td><td className="p-3 whitespace-nowrap">{formatMoney(line.total, currency)}</td></tr>)}</tbody></table></div>
+                        </div>
+                        {preview.missingCosts > 0 && <p className="bg-amber-50 text-amber-800 rounded-xl p-3 text-sm">{preview.missingCosts} ligne(s) sans coût d’achat : le prix de vente sera importé, mais la marge restera à compléter.</p>}
+                        <label className="flex gap-3 items-start text-sm p-3 border border-neutral-200 rounded-xl"><input type="checkbox" className="mt-1" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} /><span>J’ai vérifié les lignes, les quantités et les prix. Les montants sont HT, en {currency}, et la TVA du devis sera appliquée.</span></label>
+                    </>}
+                </div>
+                <footer className="p-4 border-t border-neutral-200 shrink-0 bg-white flex flex-wrap justify-between gap-3 items-center">
+                    <div className="text-sm"><strong>{preview.lines.filter(l => !l.ignored).length} ligne(s) · {formatMoney(preview.total, currency)} HT</strong><p className="text-xs text-neutral-500">Ajout au devis en cours · {preview.skipped} ligne(s) exclue(s)</p></div>
+                    <button type="button" className="btn-primary min-h-[44px] w-full sm:w-auto" disabled={busy || !!error || !preview.valid || !acknowledged} onClick={() => onImport(api.toLots(preview, sourceName))}>Ajouter au devis</button>
+                </footer>
+            </section>
+        </div>
+    , document.body);
+}
+
 function QuoteWorkspace({
     onDirtyChange,
     onRegisterSave,
@@ -6709,6 +6892,7 @@ function QuoteWorkspace({
     brouillonPropose = null,
     onReprendreBrouillon = null
 }) {
+    const [isQuoteImportOpen, setIsQuoteImportOpen] = useState(false);
     const [activeLotIndex, setActiveLotIndex] = useState(0);
     // Sous lg:, la liste des lots (LotNavigator) et le détail du lot actif
     // (ActiveLotHeader + WorkItemTable) s'affichaient tous les deux à la fois,
@@ -6719,7 +6903,6 @@ function QuoteWorkspace({
     // inspectorItemIndex un niveau plus bas (liste des ouvrages ↔ inspecteur).
     const [mobileShowLotList, setMobileShowLotList] = useState(true);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
-    const [isMobileFabOpen, setIsMobileFabOpen] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     const [isLotsOverviewOpen, setIsLotsOverviewOpen] = useState(false);
     // Audit UX (2026-09-01) — signale au champ Client qu'il est en faute après
@@ -7054,14 +7237,15 @@ function QuoteWorkspace({
             solutionId: sol.id,
             name: sol.name,
             qty: 1,
+            needsQuantityConfirmation: true,
             calcForm: {
                 solutionId: sol.id,
                 takeoffMode: sol.allowedModes?.[0] || 'rectangle',
-                width: 2, height: 1, lengthDirect: 2, surfaceDirect: 10, depth: 0.15,
+                width: '', height: '', lengthDirect: '', surfaceDirect: '', depth: '',
                 qty: 1, faces: 1,
-                margin: hybridQuote.margin || 30,
+                margin: hybridQuote.margin ?? 30,
                 marginType: hybridQuote.marginType || 'reel',
-                overheadRate: hybridQuote.overheadRate || 5,
+                overheadRate: hybridQuote.overheadRate ?? 5,
                 vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
                 discountRate: hybridQuote.discountRate || 0,
                 includeInstall: true,
@@ -7075,6 +7259,8 @@ function QuoteWorkspace({
             items: [...(updatedLots[activeLotIndex].items || []), newItem]
         };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+        setInspectorItemIndex(updatedLots[activeLotIndex].items.length - 1);
+        setIsPickerOpen(false);
         showToast(`« ${sol.name} » ajouté au Lot ${updatedLots[activeLotIndex].code || activeLotIndex + 1} !`);
     };
 
@@ -7084,14 +7270,15 @@ function QuoteWorkspace({
             solutionId: entry.solution.id,
             name: entry.solution.name,
             qty: entry.qty || 1,
+            needsQuantityConfirmation: true,
             calcForm: {
                 solutionId: entry.solution.id,
                 takeoffMode: entry.solution.allowedModes?.[0] || 'rectangle',
-                width: 2, height: 1, lengthDirect: 2, surfaceDirect: 10, depth: 0.15,
+                width: '', height: '', lengthDirect: '', surfaceDirect: '', depth: '',
                 qty: entry.qty || 1, faces: 1,
-                margin: hybridQuote.margin || 30,
+                margin: hybridQuote.margin ?? 30,
                 marginType: hybridQuote.marginType || 'reel',
-                overheadRate: hybridQuote.overheadRate || 5,
+                overheadRate: hybridQuote.overheadRate ?? 5,
                 vatRate: hybridQuote.vatRate !== undefined ? hybridQuote.vatRate : 18,
                 discountRate: hybridQuote.discountRate || 0,
                 includeInstall: true,
@@ -7262,19 +7449,16 @@ function QuoteWorkspace({
         return () => onRegisterSave(null);
     });
 
+    const confirmPendingQuantities = () => {
+        const lotIndex = (calculatedQuote.lots || []).findIndex(l => l.items.some(i => i.needsQuantityConfirmation));
+        if (lotIndex < 0) return true;
+        setActiveLotIndex(lotIndex);
+        setInspectorItemIndex(calculatedQuote.lots[lotIndex].items.findIndex(i => i.needsQuantityConfirmation));
+        showToast('Confirmez les quantités de chaque ouvrage avant de finaliser le devis.', 'info');
+        return false;
+    };
     const handleSaveQuoteAction = () => {
-        if (!calculatedQuote.clientName?.trim()) {
-            // Audit UX (2026-09-01) — le message seul ne dit pas OÙ corriger.
-            // Le champ Client passe en rouge et prend le focus, comme le fait
-            // déjà l'ancien formulaire d'enregistrement (`clientNameError`).
-            setClientManquant(true);
-            showToast("Nom du client manquant — indiquez-le en haut du devis pour enregistrer.", "error");
-            // 'bloque' : la validation a refusé. Le parent, quand il enregistre
-            // pour quitter l'écran (garde de navigation du 2026-09-02), doit
-            // pouvoir distinguer ce cas d'un enregistrement réussi — naviguer
-            // ici reviendrait à perdre le devis en prétendant l'avoir sauvé.
-            return 'bloque';
-        }
+        if (!confirmPendingQuantities()) return 'bloque';
         setClientManquant(false);
         const doSave = () => {
             const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
@@ -7305,8 +7489,9 @@ function QuoteWorkspace({
     };
 
     const handlePreviewQuoteAction = () => {
+        if (!confirmPendingQuantities()) return;
         const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
-        onPreviewQuote(savedQ);
+        onPreviewQuote({ ...savedQ, isWorkingPreview: hasUnsavedChanges || !quoteAlreadySaved });
     };
 
     // B4 (2026-08-17) — Garde-fou avant tout remplacement du devis en cours.
@@ -7364,7 +7549,7 @@ function QuoteWorkspace({
                 {
                     id: 'lot_1',
                     code: '01',
-                    name: 'Lot 01 — Installation de Chantier',
+                    name: 'Lot 01 — Travaux',
                     items: []
                 }
             ]
@@ -7386,6 +7571,9 @@ function QuoteWorkspace({
                 visible casserait le `sticky top-0` et la répartition en
                 colonne. À partir de lg: elle est toujours affichée. */}
             <div className={(mobileShowLotList && inspectorItemIndex === null) ? 'contents' : 'hidden lg:contents'}>
+            <nav aria-label="Progression du devis" className="discovery-progress flex flex-wrap gap-2 px-4 py-2 text-xs text-neutral-600">
+                <span>1. Travaux</span><span aria-hidden="true">→</span><span>2. Quantités</span><span aria-hidden="true">→</span><span>3. Prix et marge</span><span aria-hidden="true">→</span><span>4. Vérification</span>
+            </nav>
             <QuoteHeader
                 quote={calculatedQuote}
                 clients={clients}
@@ -7413,6 +7601,18 @@ function QuoteWorkspace({
             />
             </div>
 
+            <div className={`shrink-0 px-4 py-2 border-b border-neutral-200 bg-white flex-wrap items-center justify-between gap-2 ${(mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden lg:flex'}`}>
+                <span className="text-xs text-neutral-500">Vous avez déjà un bordereau ou un ancien devis ?</span>
+                <button type="button" className="btn-secondary text-xs min-h-[44px]" disabled={isReadOnlyDueToDowngrade} onClick={() => setIsQuoteImportOpen(true)}><i className="fa-solid fa-file-import" /> Importer Excel / CSV</button>
+            </div>
+            {isQuoteImportOpen && <QuoteImportModal currency={companyInfo.currency} onClose={() => setIsQuoteImportOpen(false)} onImport={lots => {
+                pushState();
+                const existing = (hybridQuote.lots || []).filter(l => l.items?.length);
+                const appended = lots.map((l, i) => ({ ...l, code: String(existing.length + i + 1).padStart(2, '0') }));
+                setHybridQuote(prev => ({ ...prev, lots: [...existing, ...appended] }));
+                setActiveLotIndex(existing.length); setMobileShowLotList(true); setIsQuoteImportOpen(false);
+                showToast(`${appended.length} lot(s) ajouté(s). Vérifiez le devis puis enregistrez-le.`, 'success');
+            }} />}
             {/* Assistant Intelligent de Démarrage */}
             <NewQuoteWizardModal
                     modelesUtilisateur={modelesDevis}
@@ -7458,7 +7658,7 @@ function QuoteWorkspace({
                 {/* Quand l'inspecteur est ouvert, la liste des lots se replie pour
                     libérer l'espace au tableau. Le bouton retour de l'inspecteur
                     la restaure sans perdre le lot sélectionné. */}
-                <div className={`${(mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} ${inspectorItemIndex === null ? 'lg:flex' : 'lg:hidden'} lg:h-full lg:min-h-0`}>
+                <div className={`${(mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} flex-col ${inspectorItemIndex === null ? 'lg:flex' : 'lg:hidden'} lg:h-full lg:min-h-0`}>
                     <LotNavigator
                         lots={calculatedQuote.lots || []}
                         activeLotIndex={activeLotIndex}
@@ -7469,6 +7669,11 @@ function QuoteWorkspace({
                         onDeleteLot={handleDeleteLot}
                         currency={companyInfo.currency}
                     />
+                    {(activeLot?.items || []).length === 0 && (
+                        <button type="button" className="lg:hidden btn-primary m-4 min-h-[48px]" onClick={() => { setMobileShowLotList(false); setIsPickerOpen(true); }}>
+                            <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter mon premier ouvrage
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
@@ -7479,7 +7684,7 @@ function QuoteWorkspace({
                         devient une section nommée. */}
                     <section
                         aria-label="Ouvrages du lot sélectionné"
-                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[540px] xl:w-[600px] 2xl:w-[660px] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
+                        className={`${(!mobileShowLotList && inspectorItemIndex === null) ? 'flex' : 'hidden'} lg:flex ${inspectorItemIndex !== null ? 'lg:w-[52%] lg:shrink-0 border-r border-neutral-200' : 'flex-1'} min-w-0 bg-white flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scroll clear-totals-bar`}
                     >
                         {/* Barre d'onglets de lots (Axe 1 : Navigation fluide & visible même avec inspecteur ouvert) */}
                         <LotTabsBar
@@ -7509,6 +7714,12 @@ function QuoteWorkspace({
                             currency={companyInfo.currency}
                         />
 
+                        <div className="md:hidden flex gap-2 px-4 pb-3">
+                            <button type="button" onClick={() => setIsPickerOpen(true)} className="btn-secondary flex-1 min-h-[44px] text-xs justify-center text-brand-700" aria-label="Ajouter un ouvrage au lot">
+                                <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter un ouvrage
+                            </button>
+                            <button type="button" onClick={handleAddCustomLine} className="btn-secondary min-h-[44px] text-xs" aria-label="Ajouter une ligne libre personnalisée">Ligne libre</button>
+                        </div>
                         <WorkItemTable
                             items={activeLot.items || []}
                             solutions={solutions}
@@ -7536,7 +7747,7 @@ function QuoteWorkspace({
                     </section>
 
                     <aside
-                        className={`${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:flex-1 min-w-0 min-h-0 bg-white lg:h-full`}
+                        className={`work-item-sheet ${inspectorItemIndex !== null ? 'flex' : 'hidden'} w-full lg:flex-1 min-w-0 min-h-0 bg-white lg:h-full`}
                         aria-label="Inspecteur de l'ouvrage"
                     >
                         <WorkItemInspector
@@ -7599,59 +7810,6 @@ function QuoteWorkspace({
                     handleSelectSolutionForLot(newSol);
                 }}
             />
-
-            {/* FAB Mobile (Speed-Dial) : Ajout Rapide d'Ouvrage ou Ligne Libre au Pouce sur Chantier */}
-            {(!mobileShowLotList && inspectorItemIndex === null && activeLot) && (
-                <div className="md:hidden fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+76px)] z-30 flex flex-col items-end gap-2.5 pointer-events-none">
-                    {/* Sous-actions du speed dial */}
-                    {isMobileFabOpen && (
-                        <div className="flex flex-col items-end gap-2 pointer-events-auto animate-scale-up mb-1">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsMobileFabOpen(false);
-                                    handleAddCustomLine();
-                                }}
-                                className="flex items-center gap-2.5 bg-white text-neutral-800 font-semibold text-xs px-3.5 py-2 rounded-full shadow-floating border border-neutral-200 active:scale-95 transition-all"
-                                aria-label="Ajouter une ligne libre personnalisée"
-                            >
-                                <span className="text-[11px] font-bold text-neutral-700">Ligne libre</span>
-                                <span className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs">
-                                    <i className="fa-solid fa-pen"></i>
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsMobileFabOpen(false);
-                                    setIsPickerOpen(true);
-                                }}
-                                className="flex items-center gap-2.5 bg-white text-neutral-800 font-semibold text-xs px-3.5 py-2 rounded-full shadow-floating border border-neutral-200 active:scale-95 transition-all"
-                                aria-label="Parcourir la bibliothèque d'ouvrages"
-                            >
-                                <span className="text-[11px] font-bold text-neutral-700">Bibliothèque</span>
-                                <span className="w-7 h-7 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs">
-                                    <i className="fa-solid fa-wand-magic-sparkles"></i>
-                                </span>
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Bouton FAB Principal */}
-                    <button
-                        type="button"
-                        onClick={() => setIsMobileFabOpen(prev => !prev)}
-                        className={`pointer-events-auto w-12 h-12 rounded-full shadow-floating flex items-center justify-center text-white font-bold transition-all duration-200 active:scale-95 ${
-                            isMobileFabOpen ? 'bg-neutral-800 rotate-45' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-500/30'
-                        }`}
-                        aria-label={isMobileFabOpen ? 'Fermer le menu d’ajout' : 'Ajouter un ouvrage au lot'}
-                        title="Ajout rapide au lot"
-                    >
-                        <i className="fa-solid fa-plus text-base"></i>
-                    </button>
-                </div>
-            )}
 
             {/* Barre de Totaux Basse */}
             <QuoteTotalsBar
@@ -7915,7 +8073,50 @@ const ajouterJours = (iso, jours) => {
     return d.toISOString().slice(0, 10);
 };
 
-function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, projects, canEdit, isReadOnly, showToast, askConfirm, onOuvrirReglages }) {
+function ProjectProfitabilityPanel({ projects = [], quotes = [], expenses = [], currency, organizationId, mode }) {
+    const [projectId, setProjectId] = useState('');
+    const [quoteId, setQuoteId] = useState('');
+    const [remaining, setRemaining] = useState('');
+    const api = window.ProjectProfitability;
+    const project = projects.find(p => String(p.id) === projectId) || (projects.length === 1 ? projects[0] : null);
+    const candidates = project ? quotes.filter(q => api.quoteMatches(q, project, projects) && !['rejected', 'cancelled', 'archived'].includes(q.status)) : [];
+    const accepted = candidates.filter(q => q.status === 'accepted');
+    const quote = candidates.find(q => String(q.id) === quoteId) || (!quoteId && accepted.length === 1 ? accepted[0] : null);
+    const result = project ? api.calculate({ project, projects, quote, expenses, currency, remaining, organizationId }) : null;
+    const amount = x => x == null ? 'À compléter' : formatMoney(x, currency);
+    return <details className="rounded-2xl border border-brand-200 bg-white overflow-hidden" data-project-profitability>
+        <summary className="cursor-pointer p-4 sm:p-5 text-brand-800 font-bold min-h-[56px]">Rentabilité du chantier · prévu et dépenses réelles</summary>
+        <div className="p-4 sm:p-5 pt-0 space-y-4">
+            <p className="text-sm text-neutral-600">Comparez un devis de référence aux coûts déjà saisis, y compris les factures fournisseurs encore à payer.</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+                <label className="text-xs font-semibold">Chantier<select aria-label="Chantier à analyser" className="app-input mt-1 w-full min-h-[44px]" value={project ? String(project.id) : ''} onChange={e => { setProjectId(e.target.value); setQuoteId(''); setRemaining(''); }}><option value="">Choisir un chantier</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                <label className="text-xs font-semibold">Devis de référence<select aria-label="Devis de référence" className="app-input mt-1 w-full min-h-[44px]" disabled={!project} value={quote ? String(quote.id) : ''} onChange={e => setQuoteId(e.target.value)}><option value="">Choisir le devis retenu</option>{candidates.map(q => <option key={q.id} value={q.id}>{q.number} · {q.status === 'accepted' ? 'Accepté' : q.status === 'approved' ? 'Validé en interne' : 'Non accepté'}</option>)}</select></label>
+            </div>
+            {project && !candidates.length && <p className="text-sm text-neutral-500">Aucun devis rattaché à ce chantier. Sélectionnez ce chantier dans votre devis, puis enregistrez-le.</p>}
+            {quote && quote.status !== 'accepted' && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg p-3">Ce devis n’est pas marqué comme accepté par le client. Il sert ici d’hypothèse de comparaison.</p>}
+            {result && <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[['Montant du devis HT', result.sales], ['Budget de coûts directs prévu', result.planned], ['Coûts saisis à ce jour', result.actual]].map(([label, value]) => <div key={label} className="rounded-xl p-4 bg-neutral-50 border border-neutral-200"><p className="text-xs text-neutral-600">{label}</p><p className="font-bold text-lg mt-1 break-words">{amount(value)}</p></div>)}
+                </div>
+                {result.variance > 0 && <p role="status" className="p-3 rounded-xl text-red-800 bg-red-50 text-sm"><strong>Budget de coûts dépassé de {amount(result.variance)}.</strong> Vérifiez les achats et le reste des travaux à réaliser.</p>}
+                <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div className="p-4 border border-neutral-200 rounded-xl"><p className="text-neutral-500">Marge prévue au devis, frais généraux inclus</p><strong className="block text-lg mt-1">{amount(result.margin)}</strong></div>
+                    <div className="p-4 border border-neutral-200 rounded-xl"><p className="text-neutral-500">Montant du devis moins coûts saisis</p><strong className={`block text-lg mt-1 ${result.available < 0 ? 'text-red-700' : ''}`}>{amount(result.available)}</strong><p className="text-xs text-neutral-500 mt-1">Ce montant doit encore couvrir les dépenses à venir.</p></div>
+                </div>
+                <div className="p-4 bg-brand-50 rounded-xl space-y-2">
+                    <label className="block text-sm font-semibold">Reste à dépenser estimé ({currency})<input aria-label="Reste à dépenser estimé" type="number" inputMode="decimal" min="0" step="any" placeholder="Matériaux, main-d’œuvre, frais…" value={remaining} onChange={e => setRemaining(e.target.value)} className="app-input mt-2 w-full min-h-[44px]" /></label>
+                    <p className="text-sm">Marge estimée en fin de chantier : <strong>{amount(result.projected)}</strong></p>
+                    <p className="text-xs text-neutral-600">Simulation non enregistrée. Incluez tous les coûts restant à engager, dont les frais généraux. Ne comptez pas à nouveau une facture fournisseur déjà saisie.</p>
+                </div>
+                {result.warnings.length > 0 && <ul className="list-disc pl-5 text-xs text-amber-800 space-y-1">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+                <details className="text-sm border border-neutral-200 rounded-xl p-3"><summary className="cursor-pointer min-h-[32px]">{result.rows.length} dépense(s) retenue(s) dans le calcul</summary><div className="divide-y divide-neutral-100">{result.rows.map((r, i) => <div key={`${r.id}-${i}`} className="py-3 flex justify-between gap-4"><span className="min-w-0 break-words">{r.description || 'Dépense'}</span><strong className="shrink-0">{amount(r.cost)}</strong></div>)}</div></details>
+            </>}
+            <p className="text-xs text-neutral-500">{mode === 'local' ? 'Données de cet appareil uniquement. ' : ''}Coûts hors TVA récupérable, avec TVA non récupérable. Les règlements et remboursements ne sont pas comptés une deuxième fois. Le résultat dépend des dépenses affectées au chantier ; il ne constitue pas une marge finale validée.</p>
+        </div>
+    </details>;
+}
+
+function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, projects, savedQuotes, canEdit, isReadOnly, showToast, askConfirm, onOuvrirReglages }) {
     const [refs, setRefs] = useState(null);             // { settings, taxes, categories, accounts }
     const [depenses, setDepenses] = useState([]);
     const [mode, setMode] = useState('local');
@@ -8262,6 +8463,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                         <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>{avertissement}
                     </div>
                 )}
+                <ProjectProfitabilityPanel key={organizationId} projects={projects} quotes={savedQuotes} expenses={depenses} currency={deviseBase} organizationId={organizationId} mode={mode} />
                 {comptesActifs.length === 0 && (
                     <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-xs flex flex-wrap items-center gap-2">
                         <span className="flex-1 min-w-[200px]">Aucun compte n'est encore déclaré. Ajoutez votre banque, votre caisse ou votre mobile money pour enregistrer une dépense déjà payée.</span>
@@ -8269,7 +8471,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`${depenses.length ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-3 gap-3`}>
                     <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
                         <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reste à payer</p>
                         <p className="text-lg font-bold text-neutral-900 mt-1" data-kpi-reste>{montantsParDevise(resteParDevise)}</p>
@@ -9879,14 +10081,18 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
 // ══ PANNEAU DES PARAMÈTRES D'ABONNEMENT ET PASSERELLE SASPAY (2026-09-19) ══
 function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesCount = 0, projectsCount = 0 }) {
     const subscriptionService = (typeof window !== 'undefined' && window.SubscriptionService) ? window.SubscriptionService : null;
-    const platformConfig = (typeof window !== 'undefined' && window.SASPAY_PLATFORM_CONFIG) ? window.SASPAY_PLATFORM_CONFIG : { apiKey: '', environment: 'live' };
 
     const [subscription, setSubscription] = useState(() => subscriptionService ? subscriptionService.getSubscription() : { planId: 'starter', status: 'trial' });
-    const [apiKey, setApiKey] = useState(() => platformConfig.getApiKey ? platformConfig.getApiKey() : (platformConfig.apiKey || ''));
-    const [environment, setEnvironment] = useState(() => platformConfig.environment || 'live');
-    const [showKey, setShowKey] = useState(false);
-    const [isTesting, setIsTesting] = useState(false);
-    const [testResult, setTestResult] = useState(null);
+    // Plus aucun état ne porte la clé : elle n'entre plus dans cette page.
+
+    // Historique lu dans `subscription_payments` (2026-09-24).
+    //
+    // Il vivait auparavant dans localStorage, alimenté par le client au
+    // moment où il s'accordait la formule — il affichait donc les
+    // règlements fictifs comme « Réglé ». La table ne contient que des
+    // règlements réellement passés par la passerelle, avec leur vrai
+    // statut : un paiement échoué ne s'y affiche plus en vert.
+    const [historiqueReglements, setHistoriqueReglements] = useState([]);
 
     // Synchronisation lors de mise à jour d'abonnement
     useEffect(() => {
@@ -9894,7 +10100,18 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
             if (e.detail) setSubscription(e.detail);
         };
         window.addEventListener('ikadevis:subscription_updated', handler);
-        return () => window.removeEventListener('ikadevis:subscription_updated', handler);
+
+        let vivant = true;
+        if (subscriptionService && subscriptionService.getPaymentHistory) {
+            subscriptionService.getPaymentHistory().then((lignes) => {
+                if (vivant) setHistoriqueReglements(lignes || []);
+            });
+        }
+
+        return () => {
+            vivant = false;
+            window.removeEventListener('ikadevis:subscription_updated', handler);
+        };
     }, []);
 
     const plan = (subscriptionService && subscriptionService.PLANS[subscription.planId]) || {
@@ -9902,39 +10119,14 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
     };
     const daysRemaining = subscriptionService ? subscriptionService.getDaysRemaining() : 14;
 
-    const handleSavePlatformKey = (e) => {
-        if (e) e.preventDefault();
-        if (platformConfig.setApiKey) {
-            platformConfig.setApiKey(apiKey);
-        }
-        platformConfig.environment = environment;
-        showToast('Clé API SasPay de la plateforme enregistrée avec succès !', 'success');
-    };
-
-    const handleTestPlatformKey = async () => {
-        if (!apiKey) {
-            showToast('Veuillez renseigner une clé API SasPay.', 'warning');
-            return;
-        }
-        setIsTesting(true);
-        setTestResult(null);
-        try {
-            if (typeof window.SasPayService !== 'undefined') {
-                const res = await window.SasPayService.testConnection({ apiKey, environment });
-                setTestResult(res);
-                if (res.ok) {
-                    showToast('Connexion à SasPay validée avec succès !', 'success');
-                } else {
-                    showToast(res.message || 'Échec de validation SasPay', 'error');
-                }
-            }
-        } catch (err) {
-            setTestResult({ ok: false, message: err.message || 'Erreur réseau.' });
-            showToast('Erreur de communication avec SasPay', 'error');
-        } finally {
-            setIsTesting(false);
-        }
-    };
+    // handleSavePlatformKey / handleTestPlatformKey : SUPPRIMÉS le 2026-09-24.
+    //
+    // Le premier écrivait la clé secrète `sk_live_` dans le localStorage du
+    // navigateur via SASPAY_PLATFORM_CONFIG.setApiKey(). Le second la
+    // présentait à SasPay depuis la page. Les deux sont devenus à la fois
+    // inutiles — `saspay-proxy` détient seule la clé — et dangereux : ils
+    // invitaient à déposer un secret d'encaissement dans le poste client.
+    // Voir tracker § 73.
 
     return (
         <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
@@ -10056,84 +10248,59 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                         </div>
                     </div>
 
-                    <form onSubmit={handleSavePlatformKey} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="sm:col-span-2">
-                                <label htmlFor="platform_saspay_key" className="app-label">Clé API Secrète SasPay (Master) *</label>
-                                <div className="relative">
-                                    <input
-                                        id="platform_saspay_key"
-                                        type={showKey ? 'text' : 'password'}
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        placeholder="sk_live_... ou sk_test_..."
-                                        className="app-input font-mono text-xs pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowKey(!showKey)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs p-1"
-                                        title={showKey ? 'Masquer' : 'Afficher'}
-                                    >
-                                        <i className={`fa-solid ${showKey ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                    </button>
-                                </div>
-                                <p className="text-[11px] text-neutral-400 mt-1">
-                                    Disponible sur votre tableau de bord <a href="https://docs.saspay.me" target="_blank" rel="noreferrer" className="text-brand-600 underline">docs.saspay.me</a>.
+                    {/* 2026-09-24 — Le champ de saisie de la clé a été RETIRÉ.
+                        Il écrivait une clé secrète `sk_live_` dans le
+                        localStorage du navigateur : lisible par quiconque ouvre
+                        la console, et donc capable d'encaisser sur le compte
+                        SasPay de la plateforme. Depuis que `saspay-proxy` est
+                        seule à parler à SasPay, ce champ n'avait plus d'usage —
+                        seulement un risque. Voir tracker § 73. */}
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200/80 space-y-3">
+                        <div className="flex items-start gap-2.5">
+                            <span className="shrink-0 pt-0.5">
+                                <i className="fa-solid fa-shield-halved text-amber-600"></i>
+                            </span>
+                            <div className="min-w-0 text-xs text-amber-900 space-y-2">
+                                <p className="font-bold">
+                                    La clé secrète ne se saisit plus ici, et c&apos;est voulu.
+                                </p>
+                                <p>
+                                    Une clé <code className="font-mono bg-white/60 px-1 rounded">sk_live_</code> saisie
+                                    dans cette page serait stockée dans votre navigateur, où n&apos;importe qui
+                                    pourrait la lire et encaisser à votre place. Elle vit désormais côté serveur,
+                                    où le navigateur ne peut pas l&apos;atteindre.
+                                </p>
+                                <p>
+                                    <strong>Où la poser :</strong> tableau de bord Supabase du projet →
+                                    <em> Edge Functions › Secrets</em> → nouveau secret nommé
+                                    <code className="font-mono bg-white/60 px-1 rounded mx-1">SASPAY_API_KEY</code>.
+                                    Elle est lue par la fonction <code className="font-mono bg-white/60 px-1 rounded">saspay-proxy</code>,
+                                    qui seule peut activer un abonnement.
+                                </p>
+                                <p className="text-amber-800">
+                                    Tant que ce secret est absent, toute souscription est refusée avec un message
+                                    explicite. C&apos;est un garde-fou : une passerelle non configurée est une panne,
+                                    jamais un succès.
                                 </p>
                             </div>
-
-                            <div>
-                                <label htmlFor="platform_saspay_env" className="app-label">Environnement</label>
-                                <select
-                                    id="platform_saspay_env"
-                                    value={environment}
-                                    onChange={(e) => setEnvironment(e.target.value)}
-                                    className="app-input text-xs font-semibold"
-                                >
-                                    <option value="live">Production (sk_live)</option>
-                                    <option value="test">Test / Sandbox (sk_test)</option>
-                                </select>
-                            </div>
                         </div>
-
-                        {testResult && (
-                            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 ${
-                                testResult.ok
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                    : 'bg-red-50 border-red-200 text-red-800'
-                            }`}>
-                                <i className={`fa-solid ${testResult.ok ? 'fa-circle-check text-emerald-600' : 'fa-triangle-exclamation text-red-600'}`}></i>
-                                <span>{testResult.message}</span>
-                            </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={handleTestPlatformKey}
-                                disabled={isTesting || !apiKey}
-                                className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+                        <div className="pt-1">
+                            <a
+                                href="https://docs.saspay.me"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] font-bold text-amber-800 underline"
                             >
-                                <i className={`fa-solid ${isTesting ? 'fa-circle-notch fa-spin' : 'fa-plug-circle-bolt'}`}></i>
-                                <span>{isTesting ? 'Vérification en cours…' : 'Tester la connexion SasPay'}</span>
-                            </button>
-
-                            <button
-                                type="submit"
-                                className="btn-primary text-xs py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs"
-                            >
-                                <i className="fa-solid fa-floppy-disk"></i>
-                                <span>Enregistrer la clé plateforme</span>
-                            </button>
+                                Obtenir une clé sur docs.saspay.me
+                            </a>
                         </div>
-                    </form>
+                    </div>
                 </div>
 
                 {/* 3. Historique des paiements d'abonnement */}
                 <div className="bg-white border border-neutral-200 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-3">
                     <h3 className="text-base font-bold text-neutral-900">Historique des transactions d'abonnements</h3>
-                    {subscription.paymentHistory && subscription.paymentHistory.length > 0 ? (
+                    {historiqueReglements.length > 0 ? (
                         <div className="border border-neutral-200 rounded-xl overflow-hidden">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-neutral-50 text-neutral-600 font-bold border-b border-neutral-200">
@@ -10146,23 +10313,42 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100">
-                                    {subscription.paymentHistory.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-neutral-50/50">
-                                            <td className="p-3 text-neutral-600">
-                                                {new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                            </td>
-                                            <td className="p-3 font-bold text-neutral-900">{item.planName}</td>
-                                            <td className="p-3 font-mono text-[11px] text-neutral-500">{item.reference}</td>
-                                            <td className="p-3 text-right font-mono font-bold text-emerald-700">
-                                                {Number(item?.amount || 0).toLocaleString('fr-FR')} FCFA
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                                                    Réglé
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {historiqueReglements.map((item) => {
+                                        // Le statut vient de la base, il n'est plus supposé.
+                                        const libelles = {
+                                            paid: ['Réglé', 'bg-emerald-100 text-emerald-800'],
+                                            pending: ['En attente', 'bg-amber-100 text-amber-800'],
+                                            failed: ['Échoué', 'bg-rose-100 text-rose-800'],
+                                            cancelled: ['Annulé', 'bg-neutral-100 text-neutral-700'],
+                                            expired: ['Expiré', 'bg-neutral-100 text-neutral-700']
+                                        };
+                                        const [libelle, couleur] = libelles[item.status] || [item.status, 'bg-neutral-100 text-neutral-700'];
+                                        const horodatage = item.paid_at || item.created_at;
+                                        const nomFormule = (subscriptionService && subscriptionService.PLANS[item.plan_id])
+                                            ? subscriptionService.PLANS[item.plan_id].name
+                                            : item.plan_id;
+                                        return (
+                                            <tr key={item.id} className="hover:bg-neutral-50/50">
+                                                <td className="p-3 text-neutral-600">
+                                                    {new Date(horodatage).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="p-3 font-bold text-neutral-900">
+                                                    {nomFormule}
+                                                    <span className="block text-[10px] font-normal text-neutral-400">
+                                                        {item.billing_cycle === 'yearly' ? 'Annuel' : 'Mensuel'}
+                                                        {item.network ? ` · ${item.network}` : ''}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 font-mono text-[11px] text-neutral-500">{String(item.id).slice(0, 8).toUpperCase()}</td>
+                                                <td className={`p-3 text-right font-mono font-bold ${item.status === 'paid' ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                                    {Number(item?.amount || 0).toLocaleString('fr-FR')} {item.currency || 'FCFA'}
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <Badge colorClass={couleur}>{libelle}</Badge>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -10636,7 +10822,7 @@ function GlobalSearch({
         { id: 'depenses', label: 'Dépenses', icon: 'fa-receipt' },
         { id: 'clients', label: 'Clients', icon: 'fa-users' },
         { id: 'projects', label: 'Chantiers', icon: 'fa-folder-tree' },
-        { id: 'recipes', label: 'Catalogue technique', icon: 'fa-layer-group' },
+        { id: 'recipes', label: 'Ouvrages et ressources', icon: 'fa-layer-group' },
         { id: 'settings', label: 'Paramètres', icon: 'fa-gear' }
     ];
 
@@ -11100,7 +11286,7 @@ function GlobalTopBar({
                     aria-label={`État de synchronisation : ${connectionState?.label || 'Synchronisé'}`}
                 >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${connectionState?.dot || 'bg-emerald-500'} ${connectionState?.key === 'synced' ? 'animate-pulse' : ''}`}></span>
-                    <span className="hidden md:inline font-bold">{connectionState?.label || 'Synchronisé'}</span>
+                    <span className={`${connectionState?.key === 'local' ? 'inline' : 'hidden md:inline'} font-bold`}>{connectionState?.label || 'Synchronisé'}</span>
                 </button>
 
                 {/* ACCÈS AUX PARAMÈTRES ⚙ */}
@@ -13201,6 +13387,7 @@ const getPdfHeaderLayout = (alignment) => {
 // affichant une chose et la base une autre. Un seul composant, deux endroits
 // où on l'appelle : le panneau de détail, et l'aperçu de l'éditeur.
 const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, modeDemo, configuration }) => {
+    const [paperView, setPaperView] = useState(false);
     // Étape 2 (2026-09-03) : le document lit le modèle. Jusqu'ici l'éditeur ne
     // pouvait proposer que les réglages déjà câblés en dur ; les autres étaient
     // annoncés comme « à venir » plutôt qu'affichés comme des interrupteurs
@@ -13310,7 +13497,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         : (societe.echeancier || []);
     return (
         <div
-            className={`saved-quote-document document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
+            className={`saved-quote-document ${paperView ? 'document-paper' : 'document-mobile-read'} document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
@@ -13326,6 +13513,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                      '--encre-doc': encre || undefined, '--etiquettes-doc': etiquettes || undefined,
                      backgroundColor: fondDocument || undefined, ...(styleImageFond || {}) }}
         >
+            <div data-hors-pdf="1" className="md:hidden print:hidden pl-12"><button type="button" className="btn-secondary text-xs" onClick={() => setPaperView(v => !v)}>{paperView ? 'Revenir à la lecture mobile' : 'Voir la mise en page imprimable'}</button>{paperView && <p className="text-xs text-neutral-500 mt-2">Faites défiler horizontalement. Le bouton PDF télécharge le document complet.</p>}</div>
             {/* Audit UX (2026-08-31) — en Mode Démo, les Paramètres sont
                 préremplis d'une identité d'entreprise complète et crédible
                 (NIF 2600123A, RCCM CI-ABJ-2026-B-12345, +225 07 00 00 00) qui
@@ -13353,7 +13541,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                     Document de démonstration — à ne pas envoyer à un client
                 </p>
             )}
-            <div className={`${disposition.wrapper} border-b border-neutral-200 pb-6`}>
+            <div className={`commercial-document-header ${disposition.wrapper} border-b border-neutral-200 pb-6`}>
                 <div className={disposition.company}>
                     {/* 2026-08-20 — affichait systématiquement le logo ikadevis (l'éditeur
                         du logiciel) sur le devis de CHAQUE client de CHAQUE utilisateur,
@@ -13443,7 +13631,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                      style={cfg.document.encadrerBlocClient !== false ? { borderRadius: rayon } : undefined}>
                     <div>
                         <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">CLIENT</p>
-                        <p className="font-semibold text-neutral-900 text-base">{devis.clientName}</p>
+                        <p className="font-semibold text-neutral-900 text-base">{devis.clientName || 'Client à renseigner'}</p>
                     </div>
                     <div>
                         {cfg.document.afficherChantier && (<>
@@ -13497,6 +13685,43 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                 <tbody className={classeCorps}>
                                     {detLots.map((lot, li) => {
                                         const ld = lot.quoteData || {};
+                                        const workSnapshots = devis.hybridQuoteSnapshot?.lots?.find(l => l.id === lot.id)?.items;
+                                        // Les nouveaux devis gardent une décomposition par ouvrage.
+                                        // Les lignes libres conservent leur propre prix, sans le répartir
+                                        // artificiellement sur les fournitures d'un autre ouvrage.
+                                        if (workSnapshots?.length && workSnapshots.every(work => work.quoteData && Number.isFinite(work.totalHT))) {
+                                            return <React.Fragment key={lot.id || li}>
+                                                <tr className="bg-neutral-100"><td colSpan={nbColonnes} className={`${padBandeDet} font-semibold text-neutral-700`}>{formatLotHeading(lot.lotName, li)}</td></tr>
+                                                {workSnapshots.map(work => {
+                                                    const commercial = (devis.quoteData?.commercialItems || []).find(it => it.id === work.id);
+                                                    const workTotal = commercial?.sellingTotalHT ?? work.totalHT;
+                                                    const workQty = commercial?.billedQty ?? work.qty ?? 1;
+                                                    const workUnit = commercial?.unit || work.unit || 'u';
+                                                    const lines = distributeLotSalePrice(work.quoteData.details, work.quoteData.totalDebourseConsomme, workTotal);
+                                                    return <React.Fragment key={work.id}>
+                                                        <tr className={lines ? 'bg-neutral-50' : 'commercial-line'} style={fondLigne(rangLigne++)}>
+                                                            <td colSpan={lines ? nbColonnes : 1} className={padCelDet}>
+                                                                <p className="font-bold text-neutral-900">{work.name}</p>
+                                                                {work.description && <p className="whitespace-pre-line break-words mt-1 text-neutral-700 leading-relaxed">{work.description}</p>}
+                                                                {lines && <p className="text-[11px] text-neutral-500 mt-1">{formatQuantite(workQty)} {workUnit} · Total de l’ouvrage : {formatMoney(workTotal, printCurrency)} HT</p>}
+                                                            </td>
+                                                            {!lines && <>
+                                                                {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center`}>{formatQuantite(workQty)} {workUnit}</td>}
+                                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right`}>{formatPrixLigne(workQty, workTotal, printCurrency)}</td>}
+                                                                <td data-label="Total HT" className={`${padCelDet} text-right font-bold`}>{formatMoney(workTotal, printCurrency)}</td>
+                                                            </>}
+                                                        </tr>
+                                                        {(lines || []).map((d, di) => <tr key={d.id || di} className="commercial-line" style={fondLigne(rangLigne++)}>
+                                                            <td className={padCelDet}><p className="font-semibold">{d.label || d.name}</p>{d.name && d.name !== d.label && <p className="text-[11px] text-neutral-500">{d.name}</p>}</td>
+                                                            {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center`}>{formatQuantite(d.billedQty)} {d.unit}</td>}
+                                                            {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right`}>{formatPrixLigne(d.billedQty, d.saleTotal, printCurrency)}</td>}
+                                                            <td data-label="Total HT" className={`${padCelDet} text-right font-bold`}>{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                        </tr>)}
+                                                    </React.Fragment>;
+                                                })}
+                                                <tr className="bg-neutral-50"><td colSpan={nbColonnes - 1} className={`${padBandeDet} text-right font-semibold`}>Sous-total Lot {li + 1} HT</td><td className={`${padBandeDet} text-right font-bold`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td></tr>
+                                            </React.Fragment>;
+                                        }
                                         const reparties = distributeLotSalePrice(ld.details, ld.totalDebourseConsomme, ld.netHTConsomme);
                                         const groupes = new Map();
                                         (reparties || []).forEach(d => {
@@ -13512,10 +13737,16 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                         {formatLotHeading(lot.lotName, li)}
                                                     </td>
                                                 </tr>
+                                                {(devis.quoteData?.commercialItems || []).filter(it => String(it.lotCode || '01').padStart(2, '0') === String(lot.lotCode || devis.hybridQuoteSnapshot?.lots?.[li]?.code || lot.lotNumber || li + 1).padStart(2, '0')).map(it => (
+                                                    <tr key={'description-' + it.id}><td colSpan={nbColonnes} className={padCelDet}>
+                                                        <p className="font-bold text-neutral-900">{it.label}</p>
+                                                        {it.description && <p className="whitespace-pre-line break-words text-neutral-700 mt-1 leading-relaxed">{it.description}</p>}
+                                                    </td></tr>
+                                                ))}
                                                 {!reparties ? (
                                                     <tr>
                                                         <td className={`${padCelDet} font-bold text-neutral-900`} colSpan={nbColonnes - 1}>{lot.lotName}</td>
-                                                        <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td>
+                                                        <td data-label="Total HT" className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(ld.netHTConsomme, printCurrency)}</td>
                                                     </tr>
                                                 ) : [...groupes.entries()].map(([cat, lignes]) => (
                                                     <React.Fragment key={cat}>
@@ -13525,16 +13756,16 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                             </td>
                                                         </tr>
                                                         {lignes.map((d, di) => (
-                                                            <tr key={cat + di} style={fondLigne(rangLigne++)}>
+                                                            <tr className="commercial-line" key={cat + di} style={fondLigne(rangLigne++)}>
                                                                 <td className={`${padCelDet} pl-6`}>
                                                                     <p className="font-bold text-neutral-900">{d.label}</p>
                                                                     {d.name && d.name !== d.label && (
                                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{d.name}</p>
                                                                     )}
                                                                 </td>
-                                                                {montrerQuantite && <td className={`${padCelDet} text-center font-medium`}>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>}
-                                                                {montrerPrixUnitaire && <td className={`${padCelDet} text-right font-medium`}>{formatMoney(d.saleUnit, printCurrency)}</td>}
-                                                                <td className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(d.saleTotal, printCurrency)}</td>
+                                                                {montrerQuantite && <td data-label="Quantité" className={`${padCelDet} text-center font-medium`}>{formatQuantite(d.billedQty)} {d.unit}</td>}
+                                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCelDet} text-right font-medium`}>{formatPrixLigne(d.billedQty, d.saleTotal, printCurrency)}</td>}
+                                                                <td data-label="Total HT" className={`${padCelDet} text-right font-bold text-neutral-900`}>{formatMoney(d.saleTotal, printCurrency)}</td>
                                                             </tr>
                                                         ))}
                                                     </React.Fragment>
@@ -13592,7 +13823,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                                 {lot.items.length} ouvrage{lot.items.length > 1 ? 's' : ''}
                                             </p>
                                         </td>
-                                        <td className={`${padCel} text-right font-bold text-neutral-900`}>
+                                        <td data-label="Total HT" className={`${padCel} text-right font-bold text-neutral-900`}>
                                             {formatMoney(lot.items.reduce((somme, it) => somme + (it.sellingTotalHT || 0), 0), printCurrency)}
                                         </td>
                                     </tr>
@@ -13625,16 +13856,17 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
                                             </tr>
                                         )}
                                         {lot.items.map(item => (
-                                            <tr key={item.id} style={fondLigne(rangLigne++)}>
+                                            <tr className="commercial-line" key={item.id} style={fondLigne(rangLigne++)}>
                                                 <td className={padCel}>
                                                     <p className="font-bold text-neutral-900">{item.label}</p>
+                                                    {item.description && <p className="whitespace-pre-line break-words text-neutral-700 mt-1 leading-relaxed">{item.description}</p>}
                                                     {item.dimensionSummary && (
                                                         <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">{item.dimensionSummary}</p>
                                                     )}
                                                 </td>
-                                                {montrerQuantite && <td className={`${padCel} text-center font-medium`}>{item.billedQty.toFixed(2)} {item.unit}</td>}
-                                                {montrerPrixUnitaire && <td className={`${padCel} text-right font-medium`}>{formatMoney(item.sellingUnitHT, printCurrency)}</td>}
-                                                <td className={`${padCel} text-right font-bold text-neutral-900`}>{formatMoney(item.sellingTotalHT, printCurrency)}</td>
+                                                {montrerQuantite && <td data-label="Quantité" className={`${padCel} text-center font-medium`}>{formatQuantite(item.billedQty)} {item.unit}</td>}
+                                                {montrerPrixUnitaire && <td data-label="Prix unitaire HT" className={`${padCel} text-right font-medium`}>{formatPrixLigne(item.billedQty, item.sellingTotalHT, printCurrency)}</td>}
+                                                <td data-label="Total HT" className={`${padCel} text-right font-bold text-neutral-900`}>{formatMoney(item.sellingTotalHT, printCurrency)}</td>
                                             </tr>
                                         ))}
                                         {showLotHeaders && cfg.tableau.afficherSousTotalLot && (
@@ -14221,7 +14453,10 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                     apiKey: activeSaspay.apiKey,
                     environment: activeSaspay.environment
                 });
-                if (res.status === 'PAID' || res.status === 'SUCCESS') {
+                // `paid` est le verdict normalisé du service (2026-09-24) :
+                // il ne vaut vrai que sur PAID / SUCCESS / COMPLETED, et
+                // jamais sur un simple HTTP 200 comme l'ancien `success`.
+                if (res.paid) {
                     clearInterval(pollingIntervalRef.current);
                     setPollingStatus('success');
                     setPollingMessage("Paiement validé avec succès par SasPay !");
@@ -14240,6 +14475,16 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                     setPollingMessage("La transaction a été rejetée ou annulée.");
                 }
             } catch (err) {
+                // Depuis le 2026-09-24, verifyPayment lève au lieu de
+                // simuler un succès quand aucune clé n'est configurée.
+                // Boucler en silence laisserait l'utilisateur devant un
+                // sablier éternel : on le dit et on s'arrête.
+                if (err && err.code === 'SASPAY_NOT_CONFIGURED') {
+                    clearInterval(pollingIntervalRef.current);
+                    setPollingStatus('failed');
+                    setPollingMessage("Passerelle SasPay non configurée : impossible de vérifier ce règlement. Renseignez votre clé API dans Paramètres › Passerelle SasPay.");
+                    return;
+                }
                 console.warn("Polling SasPay error:", err);
             }
         }, 3000);
@@ -14321,22 +14566,17 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
         }
     };
 
-    // Simulation instantanée de paiement (mode démo ou test)
-    const handleSimulateSuccess = () => {
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        setPollingStatus('success');
-        setPollingMessage("Paiement simulé validé avec succès !");
-        const id = sessionData?.id || sessionData?.data?.id || softpayData?.payment_id || softpayData?.id || `DEMO-${Date.now().toString(36)}`;
-        setTimeout(async () => {
-            await onSubmit(facture, {
-                montant: Number(montant),
-                date: new Date().toISOString().slice(0, 10),
-                mode: selectedNetwork === 'card' ? 'carte' : 'saspay',
-                reference: `SASPAY-${String(id).slice(0, 8).toUpperCase()}`,
-                note: `Règlement test SasPay (${saspaySubMode === 'checkout' ? 'Checkout' : selectedNetwork.toUpperCase()})`
-            });
-        }, 1000);
-    };
+    // handleSimulateSuccess : SUPPRIMÉ le 2026-09-24.
+    //
+    // Deux boutons « Simuler succès (Démo) » l'appelaient, sans aucune
+    // condition d'environnement : en production, un clic enregistrait un
+    // règlement sur une facture réelle, référence SASPAY à l'appui, sans
+    // qu'un franc ait circulé. Un encaissement fictif dans une comptabilité
+    // réelle n'est pas une commodité de test, c'est une écriture fausse.
+    //
+    // Pour éprouver la chaîne sans mouvement d'argent, utiliser une clé
+    // sk_test_ SasPay avec le mode Test des Paramètres : la passerelle
+    // répond alors pour de bon, sans débit.
 
     // Copie du lien Checkout
     const handleCopyUrl = () => {
@@ -14718,15 +14958,6 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                                     )}
                                                 </div>
 
-                                                {/* Bouton de simulation démo */}
-                                                <button
-                                                    type="button"
-                                                    onClick={handleSimulateSuccess}
-                                                    className="text-[11px] text-brand-600 hover:text-brand-800 font-semibold underline"
-                                                    title="Simuler un paiement réussi sans attendre pour les tests"
-                                                >
-                                                    Simuler succès (Démo)
-                                                </button>
                                             </div>
                                         </div>
                                     )}
@@ -14857,13 +15088,6 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                                     )}
                                                 </div>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={handleSimulateSuccess}
-                                                    className="text-[11px] text-brand-600 hover:text-brand-800 font-semibold underline"
-                                                >
-                                                    Simuler validation client (Démo)
-                                                </button>
                                             </div>
                                         </div>
                                     )}
@@ -15104,562 +15328,21 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
 }
 
 // ══ MODALE DES FORFAITS D'ABONNEMENT ET PAIEMENT SASPAY (2026-09-19) ═════════
-function SubscriptionPlansModal({ isOpen, onClose, onPlanActivated, currentSubscription, savedQuotesCount = 0, user = {} }) {
-    if (!isOpen) return null;
-
-    const subscriptionService = (typeof window !== 'undefined' && window.SubscriptionService) ? window.SubscriptionService : null;
-    const plans = subscriptionService ? subscriptionService.PLANS : {
-        starter: { id: 'starter', name: 'Starter', price: 0, period: '14 jours', maxDevis: 3 },
-        standard: { id: 'standard', name: 'Standard', price: 9900, period: '/ mois' },
-        pro: { id: 'pro', name: 'Pro', price: 14500, period: '/ mois', isPopular: true },
-        business: { id: 'business', name: 'Business', price: 29500, period: '/ mois', hasAiBadge: true }
-    };
-
-    const sub = currentSubscription || (subscriptionService ? subscriptionService.getSubscription() : { planId: 'starter', status: 'trial' });
-    const initialPlanId = (sub.planId && sub.planId !== 'starter') ? sub.planId : 'pro';
-
-    const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
-    const [subMode, setSubMode] = useState('checkout'); // 'checkout' | 'softpay'
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [checkoutUrl, setCheckoutUrl] = useState('');
-    const [checkoutRef, setCheckoutRef] = useState('');
-    const [softpayData, setSoftpayData] = useState(null);
-    const [selectedCountry, setSelectedCountry] = useState('ML');
-    const [selectedNetwork, setSelectedNetwork] = useState('wave');
-    const [customerPhone, setCustomerPhone] = useState(() => {
-        const raw = user.phone || '';
-        return raw.replace(/^\+223/, '').replace(/^\+/, '');
-    });
-    const [copySuccess, setCopySuccess] = useState(false);
-    const [pollingStatus, setPollingStatus] = useState(null); // 'polling' | 'success' | 'failed'
-    const [pollingMessage, setPollingMessage] = useState('');
-    const pollingIntervalRef = useRef(null);
-
-    const countries = (typeof window !== 'undefined' && window.SASPAY_COUNTRIES) ? window.SASPAY_COUNTRIES : [
-        { code: 'ML', name: 'Mali', dialCode: '+223', flag: '🇲🇱', networks: ['Wave', 'Orange Money', 'Moov'] },
-        { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', networks: ['Wave', 'Orange Money', 'MTN', 'Moov'] },
-        { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', networks: ['Wave', 'Orange Money', 'Free Money'] },
-        { code: 'BJ', name: 'Bénin', dialCode: '+229', flag: '🇧🇯', networks: ['MTN', 'Moov', 'Celtiis'] },
-        { code: 'BF', name: 'Burkina Faso', dialCode: '+226', flag: '🇧🇫', networks: ['Orange Money', 'Moov'] },
-        { code: 'TG', name: 'Togo', dialCode: '+228', flag: '🇹🇬', networks: ['T-Money', 'Moov'] },
-        { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', networks: ['Orange Money', 'MTN'] },
-        { code: 'GN', name: 'Guinée', dialCode: '+224', flag: '🇬🇳', networks: ['Orange Money', 'MTN'] }
-    ];
-
-    const currentCountry = countries.find(c => c.code === selectedCountry) || countries[0];
-    const selectedPlan = plans[selectedPlanId] || plans.pro;
-    const daysRemaining = subscriptionService ? subscriptionService.getDaysRemaining() : 14;
-
-    useEffect(() => {
-        return () => {
-            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        };
-    }, []);
-
-    // Réinitialisation de session quand on change de formule
-    const handleSelectPlan = (planId) => {
-        setSelectedPlanId(planId);
-        setCheckoutUrl('');
-        setCheckoutRef('');
-        setSoftpayData(null);
-        setPollingStatus(null);
-        setPollingMessage('');
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-    };
-
-    const startPolling = (refId) => {
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        setPollingStatus('polling');
-        let attempts = 0;
-        pollingIntervalRef.current = setInterval(async () => {
-            attempts++;
-            if (attempts > 60) {
-                clearInterval(pollingIntervalRef.current);
-                setPollingStatus('failed');
-                setPollingMessage('Délai d’attente dépassé. Vous pouvez réessayer ou contacter l\'assistance.');
-                return;
-            }
-            try {
-                const platformConfig = window.SASPAY_PLATFORM_CONFIG || {};
-                const verifyRes = await window.SasPayService.verifyPayment(refId, {
-                    apiKey: platformConfig.getApiKey ? platformConfig.getApiKey() : (platformConfig.apiKey || ''),
-                    environment: platformConfig.environment || 'live'
-                });
-                if (verifyRes.success && (verifyRes.status === 'SUCCESS' || verifyRes.status === 'PAID')) {
-                    clearInterval(pollingIntervalRef.current);
-                    setPollingStatus('success');
-                    setPollingMessage('🎉 Paiement confirmé avec succès ! Activation de votre formule...');
-                    const updated = subscriptionService.activatePlan(selectedPlanId, {
-                        id: refId,
-                        reference: `SASPAY-${refId}`,
-                        mode: 'saspay'
-                    });
-                    if (onPlanActivated) onPlanActivated(updated);
-                    setTimeout(() => {
-                        onClose();
-                    }, 2200);
-                }
-            } catch (e) {
-                console.warn('[SasPay Sub Polling]', e);
-            }
-        }, 3500);
-    };
-
-    const handleGenerateCheckout = async () => {
-        if (!subscriptionService) return;
-        setIsGenerating(true);
-        setPollingMessage('Génération de la session de paiement SasPay…');
-        try {
-            const res = await subscriptionService.initiateSubscriptionCheckout(selectedPlanId, {
-                name: user.name || 'Utilisateur ikadevis',
-                email: user.email || 'contact@ikadevis.com',
-                phone: customerPhone
-            });
-            if (res.success && res.data) {
-                const url = res.data.checkout_url || res.data.url;
-                setCheckoutUrl(url);
-                setCheckoutRef(res.data.id || res.data.slug);
-                setPollingMessage('Lien de paiement actif. En attente du règlement…');
-                startPolling(res.data.id || res.data.slug);
-            } else {
-                setPollingMessage(res.error || 'Erreur lors de la création de session SasPay.');
-            }
-        } catch (err) {
-            setPollingMessage(err.message || 'Erreur de connexion.');
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const handleInitiateSoftPay = async () => {
-        if (!subscriptionService || !customerPhone) return;
-        setIsGenerating(true);
-        setPollingMessage('Envoi de la demande de débit Mobile Money…');
-        try {
-            const fullPhone = customerPhone.startsWith('+') ? customerPhone : `${currentCountry.dialCode}${customerPhone}`;
-            const res = await subscriptionService.initiateSubscriptionSoftPay(selectedPlanId, fullPhone, selectedNetwork, {
-                name: user.name || 'Utilisateur ikadevis',
-                email: user.email || ''
-            });
-            if (res.success && res.data) {
-                setSoftpayData(res.data);
-                setPollingMessage(res.data.instructions || 'Validez l’invite de débit sur votre téléphone.');
-                startPolling(res.data.id || res.data.payment_id);
-            } else {
-                setPollingMessage(res.error || 'Échec de la demande SoftPay.');
-            }
-        } catch (err) {
-            setPollingMessage(err.message || 'Erreur lors de l’envoi SoftPay.');
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const handleSimulateDemoSuccess = () => {
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        setPollingStatus('success');
-        setPollingMessage('🎉 Paiement simulé avec succès ! Activation de la formule ' + selectedPlan.name);
-        if (subscriptionService) {
-            const updated = subscriptionService.activatePlan(selectedPlanId, {
-                id: `demo_${Date.now()}`,
-                reference: `SIM-SASPAY-${Date.now()}`,
-                mode: 'saspay_demo'
-            });
-            if (onPlanActivated) onPlanActivated(updated);
-        }
-        setTimeout(() => {
-            onClose();
-        }, 1800);
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in" role="dialog" aria-modal="true">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden border border-neutral-200 my-auto animate-scale-up">
-
-                {/* Header */}
-                <div className="bg-gradient-to-r from-neutral-900 via-brand-900 to-indigo-950 text-white p-5 sm:p-6 relative">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="absolute top-5 right-5 text-neutral-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-                        aria-label="Fermer"
-                    >
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                    <div className="max-w-xl">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[11px] font-extrabold uppercase tracking-wider mb-2">
-                            <i className="fa-solid fa-crown text-[10px]"></i> Forfaits & Abonnements ikadevis
-                        </div>
-                        <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                            Développez votre activité BTP sans limites
-                        </h2>
-                        <p className="text-xs text-neutral-300 mt-1">
-                            Paiement instantané et sécurisé par Mobile Money (Wave, Orange Money, Moov, MTN) et Carte bancaire.
-                        </p>
-                    </div>
-
-                    {/* Statut actuel */}
-                    <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2">
-                            <span className="text-neutral-400">Offre actuelle :</span>
-                            <span className="font-bold text-white px-2 py-0.5 rounded-md bg-white/10">
-                                {sub.planId ? sub.planId.toUpperCase() : 'STARTER'}
-                            </span>
-                            {sub.status === 'trial' && (
-                                <span className="text-amber-300 text-[11px]">({daysRemaining} jours restants • {savedQuotesCount}/3 devis)</span>
-                            )}
-                        </div>
-                        <span className="text-neutral-400 text-[11px]">
-                            Sans engagement • Facturation transparente
-                        </span>
-                    </div>
-                </div>
-
-                {/* Corps de la modale */}
-                <div className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scroll">
-
-                    {/* Grille des 3 offres payantes */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                        {/* STANDARD */}
-                        <div
-                            onClick={() => handleSelectPlan('standard')}
-                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                                selectedPlanId === 'standard'
-                                    ? 'border-brand-600 bg-brand-50/20 shadow-md ring-2 ring-brand-500/20'
-                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                            }`}
-                        >
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Standard</span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">Artisans</span>
-                                </div>
-                                <div className="mt-2 mb-3">
-                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">9 900 F</span>
-                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
-                                </div>
-                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
-                                    Pour artisans et indépendants.
-                                </p>
-                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Devis & factures illimités</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Jusqu’à 10 projets chantiers</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Catalogue complet & marges</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-brand-600 text-[10px]"></i> Jusqu’à 2 utilisateurs</li>
-                                </ul>
-                            </div>
-                            <div className="pt-4">
-                                <button
-                                    type="button"
-                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                                        selectedPlanId === 'standard'
-                                            ? 'bg-brand-600 text-white shadow-xs'
-                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                                    }`}
-                                >
-                                    {selectedPlanId === 'standard' ? '✓ Formule sélectionnée' : 'Choisir Standard'}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* PRO */}
-                        <div
-                            onClick={() => handleSelectPlan('pro')}
-                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between relative ${
-                                selectedPlanId === 'pro'
-                                    ? 'border-indigo-600 bg-indigo-50/20 shadow-md ring-2 ring-indigo-500/20'
-                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                            }`}
-                        >
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow-xs tracking-wider">
-                                Le plus populaire
-                            </div>
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Pro</span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">Équipes BTP</span>
-                                </div>
-                                <div className="mt-2 mb-3">
-                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">14 500 F</span>
-                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
-                                </div>
-                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
-                                    Pour les professionnels et PME.
-                                </p>
-                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
-                                    <li className="flex items-center gap-2 font-semibold text-neutral-900"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Tout Standard</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Projets & chantiers illimités</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Jusqu’à 5 collaborateurs</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Logo & entêtes personnalisés</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Calculs avancés & calepinage</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-indigo-600 text-[10px]"></i> Support prioritaire dédié</li>
-                                </ul>
-                            </div>
-                            <div className="pt-4">
-                                <button
-                                    type="button"
-                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                                        selectedPlanId === 'pro'
-                                            ? 'bg-indigo-600 text-white shadow-xs'
-                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                                    }`}
-                                >
-                                    {selectedPlanId === 'pro' ? '✓ Formule sélectionnée' : 'Choisir Pro'}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* BUSINESS */}
-                        <div
-                            onClick={() => handleSelectPlan('business')}
-                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                                selectedPlanId === 'business'
-                                    ? 'border-purple-600 bg-purple-50/20 shadow-md ring-2 ring-purple-500/20'
-                                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
-                            }`}
-                        >
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Business</span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 flex items-center gap-1">
-                                        <i className="fa-solid fa-wand-magic-sparkles text-[8px]"></i> Option IA
-                                    </span>
-                                </div>
-                                <div className="mt-2 mb-3">
-                                    <span className="text-2xl sm:text-3xl font-black text-neutral-900 font-mono">29 500 F</span>
-                                    <span className="text-xs text-neutral-500 font-medium"> / mois</span>
-                                </div>
-                                <p className="text-xs text-neutral-500 pb-3 border-b border-neutral-100">
-                                    Pour les entreprises exigeantes.
-                                </p>
-                                <ul className="mt-3 space-y-2 text-xs text-neutral-700">
-                                    <li className="flex items-center gap-2 font-semibold text-neutral-900"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Tout Pro en illimité</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Collaborateurs illimités</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Gestion d'affaires & chantier</li>
-                                    <li className="flex items-center gap-2 text-purple-700 font-semibold"><i className="fa-solid fa-wand-magic-sparkles text-purple-600 text-[10px]"></i> Option IA BTP intégrée</li>
-                                    <li className="flex items-center gap-2"><i className="fa-solid fa-check text-purple-600 text-[10px]"></i> Onboarding dédié 7j/7</li>
-                                </ul>
-                            </div>
-                            <div className="pt-4">
-                                <button
-                                    type="button"
-                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                                        selectedPlanId === 'business'
-                                            ? 'bg-purple-600 text-white shadow-xs'
-                                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                                    }`}
-                                >
-                                    {selectedPlanId === 'business' ? '✓ Formule sélectionnée' : 'Choisir Business'}
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* Tiroir de paiement SasPay */}
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200">
-                            <div>
-                                <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-                                    <i className="fa-solid fa-bolt text-amber-500"></i>
-                                    <span>Régler votre abonnement <strong>{selectedPlan?.name || 'Abonnement'}</strong> ({Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA)</span>
-                                </h3>
-                                <p className="text-xs text-neutral-500">Sélectionnez votre moyen de règlement via la passerelle SasPay.</p>
-                            </div>
-
-                            {/* Onglets sous-mode */}
-                            <div className="flex bg-neutral-200 p-0.5 rounded-xl text-xs font-semibold shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setSubMode('checkout')}
-                                    className={`py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5 ${
-                                        subMode === 'checkout' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
-                                    }`}
-                                >
-                                    <i className="fa-solid fa-link"></i> Lien sécurisé (Checkout)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSubMode('softpay')}
-                                    className={`py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5 ${
-                                        subMode === 'softpay' ? 'bg-white text-neutral-900 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
-                                    }`}
-                                >
-                                    <i className="fa-solid fa-mobile-screen"></i> Push Mobile (SoftPay)
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Sous-mode Checkout */}
-                        {subMode === 'checkout' && (
-                            <div className="space-y-3">
-                                {!checkoutUrl ? (
-                                    <button
-                                        type="button"
-                                        disabled={isGenerating}
-                                        onClick={handleGenerateCheckout}
-                                        className="w-full btn-primary py-3 text-xs sm:text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center gap-2 shadow-sm"
-                                    >
-                                        <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-lock'}`}></i>
-                                        <span>{isGenerating ? 'Connexion à SasPay...' : `Payer ${Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA via Wave, Orange, Moov ou Carte`}</span>
-                                    </button>
-                                ) : (
-                                    <div className="p-4 rounded-xl bg-white border border-brand-200 space-y-3">
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="font-bold text-brand-900 flex items-center gap-1.5">
-                                                <i className="fa-solid fa-circle-check text-emerald-600"></i>
-                                                Page de paiement prête
-                                            </span>
-                                            <span className="font-mono text-[11px] text-neutral-400">Réf : {checkoutRef}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                readOnly
-                                                value={checkoutUrl}
-                                                className="app-input text-xs font-mono bg-neutral-50 flex-1 truncate"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(checkoutUrl);
-                                                    setCopySuccess(true);
-                                                    setTimeout(() => setCopySuccess(false), 2000);
-                                                }}
-                                                className="btn-secondary text-xs py-2 px-3 font-semibold shrink-0"
-                                            >
-                                                <i className={`fa-solid ${copySuccess ? 'fa-check text-emerald-600' : 'fa-copy'}`}></i>
-                                                <span>{copySuccess ? 'Copié !' : 'Copier'}</span>
-                                            </button>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2 pt-1">
-                                            <a
-                                                href={checkoutUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="btn-primary text-xs py-2 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold flex items-center gap-1.5 shadow-xs"
-                                            >
-                                                <i className="fa-solid fa-arrow-up-right-from-square"></i>
-                                                <span>Ouvrir la page de règlement</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Sous-mode SoftPay */}
-                        {subMode === 'softpay' && (
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="app-label">Pays</label>
-                                        <select
-                                            value={selectedCountry}
-                                            onChange={(e) => setSelectedCountry(e.target.value)}
-                                            className="app-input text-xs font-semibold"
-                                        >
-                                            {countries.map(c => (
-                                                <option key={c.code} value={c.code}>
-                                                    {c.flag} {c.name} ({c.dialCode})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="app-label">Opérateur Mobile Money</label>
-                                        <select
-                                            value={selectedNetwork}
-                                            onChange={(e) => setSelectedNetwork(e.target.value)}
-                                            className="app-input text-xs font-semibold"
-                                        >
-                                            {currentCountry.networks.map(net => (
-                                                <option key={net.toLowerCase()} value={net.toLowerCase()}>
-                                                    {net}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="app-label">Votre numéro mobile *</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
-                                            {currentCountry.dialCode}
-                                        </span>
-                                        <input
-                                            type="tel"
-                                            value={customerPhone}
-                                            onChange={(e) => setCustomerPhone(e.target.value)}
-                                            placeholder="XX XX XX XX"
-                                            style={{ paddingLeft: `${(currentCountry.dialCode.length * 9) + 20}px` }}
-                                            className="app-input text-xs font-bold tabular-nums"
-                                        />
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    disabled={isGenerating || !customerPhone}
-                                    onClick={handleInitiateSoftPay}
-                                    className="w-full btn-primary py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs"
-                                >
-                                    <i className={`fa-solid ${isGenerating ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'}`}></i>
-                                    <span>{isGenerating ? 'Envoi en cours...' : `Recevoir la demande de débit (${Number(selectedPlan?.price || 0).toLocaleString('fr-FR')} FCFA)`}</span>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Barre de statut & Simulation Démo */}
-                        {(pollingMessage || pollingStatus) && (
-                            <div className={`p-3 rounded-xl border text-xs flex flex-wrap items-center justify-between gap-2 ${
-                                pollingStatus === 'success'
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                    : 'bg-blue-50 border-blue-200 text-blue-800'
-                            }`}>
-                                <div className="flex items-center gap-2 font-medium">
-                                    {pollingStatus === 'polling' && <i className="fa-solid fa-circle-notch fa-spin text-brand-600"></i>}
-                                    {pollingStatus === 'success' && <i className="fa-solid fa-circle-check text-emerald-600"></i>}
-                                    <span>{pollingMessage}</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleSimulateDemoSuccess}
-                                    className="text-[11px] font-bold text-brand-700 hover:text-brand-900 underline"
-                                >
-                                    Simuler succès (Démo)
-                                </button>
-                            </div>
-                        )}
-
-                    </div>
-
-                </div>
-
-                {/* Footer */}
-                <div className="p-4 bg-neutral-100 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-500">
-                    <span className="flex items-center gap-1.5 font-medium">
-                        <i className="fa-solid fa-shield-halved text-emerald-600"></i>
-                        Passerelle de paiement officielle SasPay
-                    </span>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="btn-secondary text-xs py-1.5 px-4"
-                    >
-                        Fermer
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    );
-}
+// ── SubscriptionPlansModal : SUPPRIMÉ le 2026-09-24 ──────────────────────────
+//
+// Composant de 557 lignes défini mais jamais monté : aucune balise
+// <SubscriptionPlansModal /> n'existait dans le fichier. La modale
+// réellement affichée est SubscriptionModal, plus bas, qui s'appuie sur
+// SubscriptionPlansView.
+//
+// Il est retiré plutôt que corrigé pour deux raisons. D'abord il portait un
+// bouton `handleSimulateDemoSuccess` qui accordait la formule d'un clic,
+// sans paiement — exactement la classe de faille qui a causé l'incident du
+// jour. Ensuite il appelait `activatePlan()` et `initiateSubscriptionCheckout()`,
+// supprimées de js/subscription-service.js : le laisser en place aurait
+// signifié du code mort qui plante si quelqu'un le remonte un jour.
+//
+// Récupérable dans l'historique git avant ce commit, au besoin.
 
 // ══ MODALE DE CRÉATION D'AVOIR RECTIFICATIF (2026-09-10) ══════════════════════
 function InvoiceCreditNoteModal({ facture, devise = 'FCFA', onClose, onSubmit }) {
@@ -15913,17 +15596,100 @@ function InvoiceCreditNoteModal({ facture, devise = 'FCFA', onClose, onSubmit })
 }
 
 // ══ GESTION DES ABONNEMENTS SAAS & PAIEMENT SASPAY (2026-09-19) ════════════
+const PAYMENT_BRANDS = {
+    orange: { src: '/assets/payments/orange-money.png', name: 'Orange Money' },
+    wave: { src: '/assets/payments/wave-icon.png', name: 'Wave' },
+    moov: { src: '/assets/payments/moov-money.png', name: 'Moov Money' },
+    // Malitel renamed Mobi Cash to Moov Money in 2021; keep the provider code, use the current brand.
+    mobi_cash: { src: '/assets/payments/moov-money.png', name: 'Moov Money (Mobi Cash)' },
+    mtn: { src: '/assets/payments/mtn-momo.png', name: 'MTN MoMo' },
+    freemoney: { src: '/assets/payments/free-money.png', name: 'Free Money' },
+    djamo: { src: '/assets/payments/djamo.jpg', name: 'Djamo' },
+    wizall: { src: '/assets/payments/wizall.svg', name: 'Wizall' },
+    celtiis: { src: '/assets/payments/celtiis.svg', name: 'Celtiis' },
+    expresso: { src: '/assets/payments/expresso.png', name: 'Expresso' },
+    mixx: { src: '/assets/payments/mixx.png', name: 'Mixx by Yas' },
+    togocel: { src: '/assets/payments/tmoney.svg', name: 'TMoney' }
+};
+function PaymentBrand({ code, name = '' }) {
+    const [failed, setFailed] = React.useState(false);
+    const brand = Object.entries(PAYMENT_BRANDS).find(([prefix]) => code === prefix || code.startsWith(prefix + '_'))?.[1];
+    if (code !== 'card' && (!brand || failed)) return null;
+    if (code === 'card') return <span className="ik-payment-brand ik-payment-card" aria-hidden="true"><img src="/assets/payments/visa.png" alt="" /><img src="/assets/payments/mastercard.png" alt="" /></span>;
+    return <span className="ik-payment-brand" aria-hidden="true"><img src={brand.src} alt="" onError={() => setFailed(true)} /></span>;
+}
+
+function SubscriptionPaymentHistory({ subscription }) {
+    const [payments, setPayments] = useState([]);
+    const [checking, setChecking] = useState(null);
+    const [message, setMessage] = useState('');
+    const service = window.SubscriptionService;
+    const mounted = React.useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        service?.getPaymentHistory().then(rows => { if (mounted.current) setPayments(rows || []); });
+        return () => { mounted.current = false; };
+    }, [subscription?.fetchedAt]);
+    if (!payments.length) return null;
+    return <details className="ik-sub-history">
+        <summary className="font-semibold text-sm cursor-pointer min-h-[32px]">Historique des paiements · {payments.length}</summary>
+        <p className="text-xs text-neutral-600 mt-2">Après un débit en attente, vérifiez son état avant de payer à nouveau.</p>
+        {message && <p role="status" className="text-sm mt-3 p-3 rounded-lg bg-white">{message}</p>}
+        <div className="divide-y divide-neutral-200 mt-2">{payments.map(p => <div key={p.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
+            <div className="flex-1 min-w-[150px]"><strong>{service.PLANS[p.plan_id]?.name || p.plan_id} · {formatMoney(p.amount, p.currency)}</strong><p className="text-xs text-neutral-500">{new Date(p.created_at).toLocaleDateString('fr-FR')} · {{paid:'Réglé',pending:'En attente',failed:'Échoué',expired:'Expiré',cancelled:'Annulé'}[p.status] || p.status}</p></div>
+            {p.status !== 'paid' && <button type="button" className="btn-secondary text-xs min-h-[44px]" disabled={!!checking} onClick={async () => {
+                setChecking(p.id); setMessage('Vérification auprès du prestataire…');
+                try {
+                    const result = await service.verifySubscriptionPayment(p.id);
+                    if (!mounted.current) return;
+                    setMessage(result.status === 'paid' ? 'Paiement confirmé. Votre abonnement est à jour.' : result.reason || 'Paiement toujours en attente. Aucune nouvelle demande de débit effectuée.');
+                    const rows = await service.getPaymentHistory(); if (mounted.current) setPayments(rows || []);
+                } catch (e) { if (mounted.current) setMessage(e.message || 'Vérification indisponible. Réessayez plus tard.'); }
+                finally { if (mounted.current) setChecking(null); }
+            }}>{checking === p.id ? 'Vérification…' : 'Vérifier ce paiement'}</button>}
+        </div>)}</div>
+    </details>;
+}
+
 function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUpgradeSuccess, onClose, isModal = false, companyInfo }) {
     const [billingCycle, setBillingCycle] = React.useState('monthly'); // 'monthly' | 'yearly'
     const [selectedPlan, setSelectedPlan] = React.useState(null); // 'standard' | 'entreprise'
     const [paymentMethod, setPaymentMethod] = React.useState('orange'); // 'wave' | 'orange' | 'moov' | 'card'
     const [customerCountry, setCustomerCountry] = React.useState(companyInfo?.saspaySettings?.defaultCountry || 'ML');
     const [customerPhone, setCustomerPhone] = React.useState('');
-    const [customerEmail, setCustomerEmail] = React.useState(companyInfo?.email || '');
     const [isProcessing, setIsProcessing] = React.useState(false);
     const [paymentStatusMessage, setPaymentStatusMessage] = React.useState('');
     const [checkoutUrl, setCheckoutUrl] = React.useState(null);
     const [upgradeSuccessPlan, setUpgradeSuccessPlan] = React.useState(null);
+    const [paiementEchoue, setPaiementEchoue] = React.useState(null);
+    const sondageRef = React.useRef(null);
+
+    // Le sondage doit mourir avec l'écran : sans cela, un composant démonté
+    // continue d'interroger le serveur toutes les 3 secondes.
+    React.useEffect(() => {
+        return () => { if (sondageRef.current) clearInterval(sondageRef.current); };
+    }, []);
+
+    // Opérateurs réellement disponibles dans le pays choisi. L'ancienne
+    // liste était figée (Wave / Orange / Moov / Carte) et envoyait à SasPay
+    // des codes qui n'existent pas : « orange » au lieu d'« orange_ml ».
+    // Les codes de réseau sont spécifiques à chaque pays.
+    const paysSasPay = React.useMemo(() => {
+        const liste = (typeof window !== 'undefined' && window.SasPayService && window.SasPayService.SASPAY_COUNTRIES) || [];
+        return liste.find(c => c.code === customerCountry) || liste[0] || null;
+    }, [customerCountry]);
+
+    const operateurs = React.useMemo(() => {
+        const reseaux = (paysSasPay && paysSasPay.networks) ? paysSasPay.networks.slice() : [];
+        return reseaux.concat([{ code: 'card', name: 'Carte bancaire', color: '#4f46e5', icon: 'fa-credit-card' }]);
+    }, [paysSasPay]);
+
+    // Changer de pays invalide l'opérateur retenu.
+    React.useEffect(() => {
+        if (!operateurs.some(o => o.code === paymentMethod)) {
+            setPaymentMethod(operateurs.length ? operateurs[0].code : 'card');
+        }
+    }, [operateurs]);
 
     const basePlans = {
         starter: { id: 'starter', name: 'Starter', priceMonthly: 0, priceYearly: 0, price: 0, maxQuotes: 3, maxUsers: 1 },
@@ -15954,473 +15720,245 @@ function SubscriptionPlansView({ currentSubscription, savedQuotesCount = 0, onUp
     const daysRemaining = typeof window !== 'undefined' && window.SubscriptionService ? window.SubscriptionService.getDaysRemaining() : 14;
 
     const handleSelectPlan = (planId) => {
-        if (planId === currentPlanId && !isTrial) return;
+
         setSelectedPlan(planId);
         setCheckoutUrl(null);
         setPaymentStatusMessage('');
+        setPaiementEchoue(null);
     };
 
+    // ═══════════════════════════════════════════════════════════════════
+    // RÈGLEMENT D'ABONNEMENT — réécrit le 2026-09-24
+    // ═══════════════════════════════════════════════════════════════════
+    //
+    // La version précédente activait la formule dans DEUX cas où aucun
+    // paiement n'était acquis :
+    //
+    //   • `|| verify.success` — or verifyPayment renvoyait success:true sur
+    //     tout HTTP 200, y compris pour un paiement encore PENDING. La
+    //     formule tombait donc au premier sondage, 2,5 s après le clic.
+    //   • `else if (checks >= maxChecks)` — au bout de 20 s sans réponse,
+    //     l'abonnement était accordé « au cas où l'utilisateur teste ».
+    //
+    // S'y ajoutait une simulation silencieuse : faute de clé API, rien
+    // n'était jamais envoyé à SasPay. D'où un abonnement STANDARD actif en
+    // production sans le moindre débit sur le numéro Mobile Money.
+    //
+    // Règle désormais tenue : l'écran n'active rien. Il demande un débit,
+    // puis interroge le serveur — seul détenteur de la clé et seul autorisé
+    // à écrire dans `subscriptions`. Un délai dépassé reste un délai
+    // dépassé, jamais un succès.
     const handlePayWithSasPay = async () => {
         if (!selectedPlan) return;
+
+        const service = window.SubscriptionService;
+        if (!service || !service.startSubscriptionPayment) {
+            setPaymentStatusMessage('Le service d\'abonnement n\'est pas disponible. Rechargez la page.');
+            return;
+        }
+
+        const parCarte = paymentMethod === 'card';
+        const telephone = parCarte ? '' : String(customerPhone || '').trim();
+
+        if (!parCarte && !telephone) {
+            setPaymentStatusMessage('Veuillez saisir le numéro Mobile Money à débiter.');
+            return;
+        }
+
+        if (sondageRef.current) clearInterval(sondageRef.current);
+        setPaiementEchoue(null);
+        setCheckoutUrl(null);
         setIsProcessing(true);
-        setPaymentStatusMessage('Initialisation du paiement SasPay sécurisé...');
+        setPaymentStatusMessage('Transmission de votre demande de paiement…');
 
+        const telephoneComplet = (!parCarte && window.SasPayService)
+            ? window.SasPayService.normalizePhoneNumber(telephone, (paysSasPay && paysSasPay.dialCode) || '+223')
+            : telephone;
+
+        let demande;
         try {
-            const amount = getPlanPrice(selectedPlan, billingCycle);
-
-            const res = await window.SubscriptionService.createSubscriptionCheckoutSession({
+            demande = await service.startSubscriptionPayment({
                 planId: selectedPlan,
                 billingCycle,
-                customerPhone: customerPhone || '70000000',
-                customerEmail: customerEmail || 'client@ikadevis.com',
-                customerName: companyInfo?.name || 'Entreprise BTP',
-                country: customerCountry,
+                mode: parCarte ? 'checkout' : 'softpay',
                 network: paymentMethod,
-                saspaySettings: companyInfo?.saspaySettings
+                phone: parCarte ? null : telephoneComplet,
+                country: customerCountry,
+                customerName: companyInfo?.name || '',
+                returnUrl: `${window.location.origin}${window.location.pathname}?subscription=retour`
             });
-
-            if (!res.success) {
-                throw new Error(res.message || 'Impossible d\'initier le paiement SasPay.');
-            }
-
-            if (res.checkoutUrl) {
-                setCheckoutUrl(res.checkoutUrl);
-            }
-
-            setPaymentStatusMessage('Attente de validation du paiement Mobile Money / SasPay...');
-
-            // Polling de vérification (ou simulation locale)
-            const paymentId = res.paymentId;
-            let checks = 0;
-            const maxChecks = 8;
-            const interval = setInterval(async () => {
-                checks++;
-                try {
-                    const verify = await window.SasPayService.verifyPayment(paymentId, companyInfo?.saspaySettings);
-                    if (verify.status === 'PAID' || verify.status === 'SUCCESS' || verify.success) {
-                        clearInterval(interval);
-                        setIsProcessing(false);
-                        const updatedSub = window.SubscriptionService.applyPlanUpgrade(selectedPlan, billingCycle);
-                        setUpgradeSuccessPlan(selectedPlan);
-                        if (onUpgradeSuccess) onUpgradeSuccess(updatedSub);
-                    } else if (checks >= maxChecks) {
-                        clearInterval(interval);
-                        // En mode démo / test, on finalise automatiquement si l'utilisateur teste
-                        setIsProcessing(false);
-                        const updatedSub = window.SubscriptionService.applyPlanUpgrade(selectedPlan, billingCycle);
-                        setUpgradeSuccessPlan(selectedPlan);
-                        if (onUpgradeSuccess) onUpgradeSuccess(updatedSub);
-                    }
-                } catch (err) {
-                    if (checks >= maxChecks) {
-                        clearInterval(interval);
-                        setIsProcessing(false);
-                    }
-                }
-            }, 2500);
-
         } catch (err) {
             setIsProcessing(false);
-            setPaymentStatusMessage(`Erreur: ${err.message || 'Paiement non abouti'}`);
+            if (err.code === 'GATEWAY_NOT_CONFIGURED') {
+                setPaiementEchoue('La passerelle de paiement n\'est pas encore configurée sur cette plateforme. Aucun abonnement ne peut être souscrit pour le moment — contactez l\'assistance ikadevis.');
+            } else if (err.code === 'NO_SESSION') {
+                setPaiementEchoue('Vous devez être connecté à votre compte pour souscrire un abonnement.');
+            } else {
+                setPaiementEchoue(err.message || 'La demande de débit n\'a pas abouti.');
+            }
+            setPaymentStatusMessage('');
+            return;
         }
+
+        if (demande.checkoutUrl) setCheckoutUrl(demande.checkoutUrl);
+        setPaymentStatusMessage(parCarte
+            ? 'Ouvrez la page de paiement pour régler par carte. La confirmation apparaîtra ici.'
+            : 'Validez la demande de débit sur votre téléphone (saisie de votre code secret Mobile Money)…');
+
+        // 40 tentatives × 3 s = 2 minutes, le temps qu'un utilisateur
+        // trouve son téléphone et saisisse son code.
+        const MAX_TENTATIVES = 40;
+        let tentatives = 0;
+
+        sondageRef.current = setInterval(async () => {
+            tentatives++;
+            let verdict;
+            try {
+                verdict = await service.verifySubscriptionPayment(demande.paymentRef);
+            } catch (e) {
+                verdict = { status: 'pending' };
+            }
+
+            if (verdict.status === 'paid') {
+                clearInterval(sondageRef.current);
+                sondageRef.current = null;
+                setIsProcessing(false);
+                setPaymentStatusMessage('');
+                setUpgradeSuccessPlan(selectedPlan);
+                if (onUpgradeSuccess) onUpgradeSuccess(verdict.subscription);
+                return;
+            }
+
+            if (verdict.status === 'failed') {
+                clearInterval(sondageRef.current);
+                sondageRef.current = null;
+                setIsProcessing(false);
+                setPaymentStatusMessage('');
+                setPaiementEchoue(verdict.reason || 'Le paiement a été refusé ou annulé. Vérifiez son état dans l’historique avant de réessayer.');
+                return;
+            }
+
+            if (tentatives >= MAX_TENTATIVES) {
+                clearInterval(sondageRef.current);
+                sondageRef.current = null;
+                setIsProcessing(false);
+                setPaymentStatusMessage('');
+                // Ce cas rendait autrefois l'abonnement actif. Il ne le fait
+                // plus : un paiement non confirmé n'est pas un paiement.
+                setPaiementEchoue('Paiement non confirmé dans le délai imparti. Rouvrez cet écran et utilisez « Historique des paiements » pour vérifier le règlement, sans payer à nouveau. Votre formule reste inchangée jusque-là.');
+                return;
+            }
+
+            if (tentatives % 5 === 0) {
+                setPaymentStatusMessage(`En attente de la confirmation du paiement… (${tentatives * 3} s)`);
+            }
+        }, 3000);
+    };
+
+    const paymentPanelRef = React.useRef(null);
+    const planButtonsRef = React.useRef({});
+    React.useEffect(() => {
+        if (selectedPlan) {
+            paymentPanelRef.current?.focus({ preventScroll: true });
+            const scroller = paymentPanelRef.current?.closest('.ik-sub-body');
+            if (scroller) scroller.scrollTo({ top: 0, behavior: 'instant' });
+            else paymentPanelRef.current?.closest('.ik-sub-checkout')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        }
+    }, [selectedPlan]);
+
+    const returnToPlans = () => {
+        const previous = selectedPlan;
+        setSelectedPlan(null);
+        requestAnimationFrame(() => planButtonsRef.current[previous]?.focus());
+    };
+    const planDetails = {
+        starter: { description: 'Pour essayer sur vos premiers devis.', features: ['3 devis pour découvrir', '1 utilisateur', '1 chantier actif', 'Bibliothèque d’ouvrages BTP'], note: 'Essai gratuit de 14 jours' },
+        standard: { description: 'Pour chiffrer au quotidien, seul ou en équipe.', features: ['Devis et factures illimités', 'Jusqu’à 5 utilisateurs', 'Chantiers illimités', 'PDF sans filigrane', 'Suivi des coûts et de la rentabilité', 'Paiements Mobile Money et carte'], note: 'Pour les entreprises BTP' },
+        entreprise: { description: 'Pour travailler avec une équipe plus nombreuse.', features: ['Tout ce qui est inclus dans Standard', 'Utilisateurs illimités', 'Gestion des rôles de l’équipe', 'Situations de travaux et acomptes', 'Accompagnement dédié'], note: 'Pour les équipes étendues' }
     };
 
     if (upgradeSuccessPlan) {
-        return (
-            <div className="p-8 text-center bg-white rounded-3xl border border-emerald-100 shadow-sm animate-scale-up space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-inner">
-                    <i className="fa-solid fa-circle-check"></i>
-                </div>
-                <h3 className="text-xl font-black text-neutral-900">Félicitations !</h3>
-                <p className="text-sm text-neutral-600 max-w-md mx-auto">
-                    Votre abonnement <strong className="text-emerald-700 uppercase font-black">{upgradeSuccessPlan}</strong> a été activé avec succès via SasPay. Vos quotas sont désormais débloqués !
-                </p>
-                <div className="pt-4 flex justify-center gap-3">
-                    {onClose && (
-                        <button onClick={onClose} className="btn-primary px-6 py-2.5 rounded-xl font-bold">
-                            Continuer sur ikadevis
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
+        return <div className="ik-sub ik-sub-success" role="status">
+            <span className="ik-sub-success-mark" aria-hidden="true">✓</span>
+            <h2>Votre formule est active.</h2>
+            <p>Le paiement est confirmé. Vous pouvez maintenant utiliser votre abonnement {plans[upgradeSuccessPlan]?.name || upgradeSuccessPlan}.</p>
+            {onClose && <button type="button" className="ik-sub-button ik-sub-button-primary" onClick={onClose}>Revenir à mon activité</button>}
+        </div>;
     }
 
-    return (
-        <div className="space-y-6">
-            {/* Bannière statut actuel */}
-            <div className="p-4 rounded-2xl bg-white border border-neutral-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg shrink-0 border border-brand-100/60">
-                        <i className="fa-solid fa-crown"></i>
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-neutral-500">Votre Formule :</span>
-                            <span className="text-sm font-black text-neutral-900 uppercase tracking-wide">
-                                {plans[currentPlanId]?.name || currentPlanId}
-                            </span>
-                            {isTrial ? (
-                                <Badge colorClass="bg-amber-100 text-amber-800">
-                                    Essai gratuit ({daysRemaining} jours restants)
-                                </Badge>
-                            ) : (
-                                <Badge colorClass="bg-emerald-100 text-emerald-800">
-                                    Abonnement Actif
-                                </Badge>
-                            )}
-                        </div>
-                        <p className="text-xs text-neutral-600 mt-1">
-                            {currentPlanId === 'starter'
-                                ? `Utilisation : ${savedQuotesCount}/3 devis créés. Passez à la formule supérieure pour chiffrer en illimité.`
-                                : 'Accès illimité actif : devis, factures et suivi de chantiers sans restriction.'}
-                        </p>
-                    </div>
-                </div>
-                {/* Sélecteur Fréquence */}
-                <div className="bg-neutral-100 p-1 rounded-xl border border-neutral-200/80 flex items-center shrink-0 self-stretch sm:self-auto justify-center">
-                    <button
-                        type="button"
-                        onClick={() => setBillingCycle('monthly')}
-                        className={`text-xs px-3.5 py-1.5 rounded-lg transition-all ${billingCycle === 'monthly' ? 'bg-white text-neutral-900 shadow-2xs font-bold' : 'text-neutral-500 hover:text-neutral-900 font-semibold'}`}
-                    >
-                        Mensuel
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setBillingCycle('yearly')}
-                        className={`text-xs px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'bg-white text-neutral-900 shadow-2xs font-bold' : 'text-neutral-500 hover:text-neutral-900 font-semibold'}`}
-                    >
-                        <span>Annuel</span>
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">-20%</span>
-                    </button>
+    return <div className="ik-sub">
+        {!selectedPlan ? <>
+            <div className="ik-sub-intro">
+                <div><p className="ik-sub-eyebrow">DEVIS · CHANTIERS · ÉQUIPE</p><h2>À chaque entreprise, sa formule.</h2><p>Choisissez l’espace dont vous avez besoin pour vos chantiers.</p></div>
+                <div className="ik-sub-cycle" role="group" aria-label="Période de facturation">
+                    <button type="button" aria-pressed={billingCycle === 'monthly'} onClick={() => setBillingCycle('monthly')}>Mensuel</button>
+                    <button type="button" aria-pressed={billingCycle === 'yearly'} onClick={() => setBillingCycle('yearly')}>Annuel <span>−20 %</span></button>
                 </div>
             </div>
-
-            {/* Grille des Formules */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* 1. STARTER */}
-                <div className={`rounded-2xl p-6 border flex flex-col justify-between transition-all bg-white ${currentPlanId === 'starter' && !selectedPlan ? 'border-neutral-300 ring-2 ring-neutral-200/50 shadow-2xs' : 'border-neutral-200 shadow-2xs'}`}>
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">Starter</span>
-                            {currentPlanId === 'starter' && (
-                                <Badge colorClass="bg-neutral-100 text-neutral-700">Actuel</Badge>
-                            )}
-                        </div>
-                        <div className="mt-3">
-                            <span className="text-3xl font-black text-neutral-900 font-mono">0</span>
-                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">Pour artisans BTP et découverte du chiffrage.</p>
-
-                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>1 utilisateur</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 3 devis créés</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Bibliothèque ouvrages de base</span></div>
-                            <div className="flex items-center gap-2.5 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Sans filigrane</span></div>
-                            <div className="flex items-center gap-2.5 text-neutral-400"><i className="fa-solid fa-xmark text-neutral-300"></i><span>Module SasPay Mobile Money</span></div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 pt-2">
-                        <button
-                            type="button"
-                            disabled
-                            className="btn-secondary w-full py-2.5 text-xs font-bold opacity-60 cursor-default"
-                        >
-                            {currentPlanId === 'starter' ? 'Votre formule' : 'Plan Découverte'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* 2. STANDARD (Plus Populaire) */}
-                <div className={`relative rounded-2xl p-6 border-2 flex flex-col justify-between transition-all bg-white ${selectedPlan === 'standard' ? 'border-brand-600 shadow-md ring-4 ring-brand-500/10' : 'border-brand-500 shadow-sm'}`}>
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[11px] font-bold tracking-wide uppercase px-3 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
-                        <i className="fa-solid fa-star text-[10px] text-amber-300"></i>
-                        <span>Plus Populaire</span>
-                    </div>
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-brand-600">Standard</span>
-                            {currentPlanId === 'standard' && (
-                                <Badge colorClass="bg-brand-100 text-brand-700">Actuel</Badge>
-                            )}
-                        </div>
-                        <div className="mt-3">
-                            <span className="text-3xl font-black text-neutral-900 font-mono">
-                                {billingCycle === 'yearly' ? '15 900' : '19 900'}
-                            </span>
-                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
-                            {billingCycle === 'yearly' && (
-                                <p className="text-[11px] text-emerald-700 font-semibold mt-1">191 000 FCFA facturés par an</p>
-                            )}
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">Idéal pour les PME et entreprises BTP en croissance.</p>
-
-                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Devis & Factures illimités</strong></span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Jusqu'à 5 utilisateurs</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Export PDF Pro sans filigrane</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Suivi chantiers & marges réelles</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Module SasPay Mobile Money & Carte</strong></span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Support prioritaire WhatsApp</span></div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => handleSelectPlan('standard')}
-                            className="btn-primary w-full py-2.5 text-xs font-bold shadow-xs"
-                        >
-                            {selectedPlan === 'standard' ? '✓ Formule sélectionnée' : (currentPlanId === 'standard' && !isTrial ? 'Formule active' : 'Choisir Standard')}
-                        </button>
-                    </div>
-                </div>
-
-                {/* 3. ENTREPRISE */}
-                <div className={`rounded-2xl p-6 border flex flex-col justify-between transition-all bg-white ${selectedPlan === 'entreprise' ? 'border-indigo-600 shadow-md ring-4 ring-indigo-500/10' : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'}`}>
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">Entreprise</span>
-                            {currentPlanId === 'entreprise' && (
-                                <Badge colorClass="bg-indigo-100 text-indigo-700">Actuel</Badge>
-                            )}
-                        </div>
-                        <div className="mt-3">
-                            <span className="text-3xl font-black text-neutral-900 font-mono">
-                                {billingCycle === 'yearly' ? '39 000' : '49 000'}
-                            </span>
-                            <span className="text-xs text-neutral-500 font-medium ml-1.5">FCFA / mois</span>
-                            {billingCycle === 'yearly' && (
-                                <p className="text-[11px] text-emerald-700 font-semibold mt-1">470 000 FCFA facturés par an</p>
-                            )}
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">Multi-chantiers, équipes multiples & gros volumes.</p>
-
-                        <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span><strong>Utilisateurs illimités</strong></span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Multi-équipes & permissions avancées</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Analytique & rentabilité BTP complète</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Situations de travaux & acomptes</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Passerelle SasPay gros volume</span></div>
-                            <div className="flex items-center gap-2.5"><i className="fa-solid fa-check text-emerald-500"></i><span>Onboarding & accompagnement dédié</span></div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => handleSelectPlan('entreprise')}
-                            className="btn-primary w-full py-2.5 text-xs font-bold bg-neutral-900 hover:bg-neutral-800 shadow-xs"
-                        >
-                            {selectedPlan === 'entreprise' ? '✓ Formule sélectionnée' : (currentPlanId === 'entreprise' && !isTrial ? 'Formule active' : 'Choisir Entreprise')}
-                        </button>
-                    </div>
+            <div className="ik-sub-current">
+                <div><span className="ik-sub-status-dot" aria-hidden="true" /> <strong>{plans[currentPlanId]?.name || currentPlanId}</strong><span>{currentSubscription?.isAdminAccess ? 'Accès Administrateur Plateforme · Formule Entreprise illimitée' : isTrial ? `Essai · ${daysRemaining} jours restants` : currentSubscription?.status === 'active' ? 'Abonnement actif' : 'Abonnement expiré ou annulé'}</span></div>
+                <span>{currentSubscription?.isAdminAccess ? 'Accès total débloqué pour la gestion et le contrôle du SaaS' : currentPlanId === 'starter' ? `${savedQuotesCount} / 3 devis créés` : currentSubscription?.status === 'active' ? 'Votre formule actuelle' : 'Renouvelez pour créer de nouveaux devis'}</span>
+            </div>
+            <div className="ik-sub-plans">
+                {['starter', 'standard', 'entreprise'].map(id => <article key={id} className={`ik-sub-plan ${id === 'standard' ? 'ik-sub-plan-featured' : ''}`}>
+                    <div className="ik-sub-plan-heading"><h3>{plans[id].name}</h3>{id === currentPlanId ? <span className="ik-sub-tag">Actuelle</span> : id === 'standard' ? <span className="ik-sub-tag ik-sub-tag-blue">Jusqu’à 5 personnes</span> : null}</div>
+                    <p className="ik-sub-plan-description">{planDetails[id].description}</p>
+                    <div className="ik-sub-price"><strong>{id === 'starter' ? '0' : billingCycle === 'yearly' ? Math.round(getPlanPrice(id, 'yearly') / 12).toLocaleString('fr-FR') : formatPlanPrice(id, 'monthly')}</strong><span>FCFA / mois</span></div>
+                    <p className="ik-sub-billing-note">{id === 'starter' ? planDetails[id].note : billingCycle === 'yearly' ? `${formatPlanPrice(id, 'yearly')} FCFA réglés pour 12 mois` : 'Paiement pour 1 mois'}</p>
+                    <button type="button" ref={el => { planButtonsRef.current[id] = el; }} disabled={id === 'starter' || (currentSubscription?.isAdminAccess && id === 'entreprise')} onClick={() => handleSelectPlan(id)} className={`ik-sub-button ${id === 'standard' ? 'ik-sub-button-primary' : 'ik-sub-button-outline'}`}>
+                        {id === 'starter' ? currentPlanId === 'starter' ? 'Votre formule actuelle' : 'Formule découverte' : currentSubscription?.isAdminAccess && id === 'entreprise' ? 'Formule active (Super-Admin)' : currentPlanId === id && !isTrial ? `Renouveler ${plans[id].name}` : `Choisir ${plans[id].name}`}
+                    </button>
+                    <ul className="ik-sub-features">{planDetails[id].features.map(feature => <li key={feature}><span aria-hidden="true">✓</span>{feature}</li>)}</ul>
+                </article>)}
+            </div>
+            <div className="ik-sub-payment-note"><span>Paiement par Mobile Money ou carte bancaire</span><div aria-hidden="true"><PaymentBrand code="orange_ml" /><PaymentBrand code="wave_ml" /><PaymentBrand code="moov_ml" /></div></div>
+            <SubscriptionPaymentHistory subscription={currentSubscription} />
+        </> : <section className="ik-sub-checkout" aria-labelledby="subscription_payment_title">
+            <button type="button" className="ik-sub-back" onClick={returnToPlans} disabled={isProcessing}><span aria-hidden="true">←</span> Changer de formule</button>
+            <div className="ik-sub-checkout-grid">
+                <aside className="ik-sub-order" aria-label="Récapitulatif de l’abonnement">
+                    <p className="ik-sub-eyebrow">VOTRE ABONNEMENT</p><h3>{plans[selectedPlan]?.name || 'Standard'}</h3>
+                    <p>{billingCycle === 'yearly' ? '12 mois' : '1 mois'} · {selectedPlan === 'standard' ? 'Jusqu’à 5 utilisateurs' : 'Utilisateurs illimités'}</p>
+                    <div className="ik-sub-order-total"><span>À régler aujourd’hui</span><strong>{formatPlanPrice(selectedPlan, billingCycle)} <small>FCFA</small></strong></div>
+                    <ul className="ik-sub-features"><li><span aria-hidden="true">✓</span>Devis et chantiers illimités</li><li><span aria-hidden="true">✓</span>Export PDF sans filigrane</li></ul>
+                    <p className="ik-sub-order-help">Votre formule sera activée après confirmation du paiement.</p>
+                </aside>
+                <div className="ik-sub-payment">
+                    <h2 id="subscription_payment_title" tabIndex="-1" ref={paymentPanelRef}>Régler mon abonnement</h2>
+                    <p className="ik-sub-payment-lead">Choisissez votre opérateur ou utilisez votre carte bancaire.</p>
+                    <div className="ik-sub-field ik-sub-country"><label htmlFor="subscription-country">Pays</label><select id="subscription-country" value={customerCountry} disabled={isProcessing} onChange={e => setCustomerCountry(e.target.value)}>
+                        {(window.SasPayService?.SASPAY_COUNTRIES || [{code:'ML', name:'Mali', dialCode:'+223'}]).map(c => <option key={c.code} value={c.code}>{c.name} ({c.dialCode})</option>)}
+                    </select></div>
+                    <fieldset className="ik-sub-methods" disabled={isProcessing}><legend>Moyen de paiement</legend><div className="ik-sub-method-grid">
+                        {operateurs.map(m => <button key={m.code} type="button" aria-pressed={paymentMethod === m.code} onClick={() => setPaymentMethod(m.code)} className="ik-sub-method">
+                            <PaymentBrand code={m.code} name={m.name} /><span className="ik-sub-method-name">{m.name.replace(/ Mali(?: \(Malitel\))?$| CI$| Sénégal$| Bénin$| Burkina Faso$| Togo$| Cameroun$| Guinée$/g, '')}</span><span className="ik-sub-radio" aria-hidden="true" />
+                        </button>)}
+                    </div></fieldset>
+                    {paymentMethod !== 'card' ? <div className="ik-sub-field"><label htmlFor="subscription-phone">Numéro Mobile Money</label><input id="subscription-phone" type="tel" inputMode="tel" autoComplete="tel" value={customerPhone} disabled={isProcessing} onChange={e => setCustomerPhone(e.target.value)} placeholder={`${paysSasPay?.dialCode || '+223'} …`} aria-describedby="subscription-phone-help" /><p id="subscription-phone-help">Utilisez le numéro associé à votre compte {operateurs.find(m => m.code === paymentMethod)?.name || 'Mobile Money'}. Vous confirmerez sur votre téléphone.</p></div> : <p className="ik-sub-card-help">Les informations de votre carte seront saisies sur la page de paiement sécurisée.</p>}
+                    {paiementEchoue && <div className="ik-sub-message ik-sub-message-error" role="alert"><strong>Abonnement non activé</strong><p>{paiementEchoue}</p></div>}
+                    {paymentStatusMessage && <div className="ik-sub-message" role="status" aria-live="polite"><p>{isProcessing && <i className="fa-solid fa-circle-notch fa-spin" aria-hidden="true" />} {paymentStatusMessage}</p>{checkoutUrl && <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">Ouvrir la page de paiement <span aria-hidden="true">↗</span></a>}</div>}
+                    <div className="ik-sub-pay-action"><button type="button" onClick={handlePayWithSasPay} disabled={isProcessing} className="ik-sub-button ik-sub-button-primary">{isProcessing ? 'Paiement en cours…' : paymentMethod === 'card' ? 'Payer par carte bancaire' : 'Payer par Mobile Money'}</button><p>{formatPlanPrice(selectedPlan, billingCycle)} FCFA · {billingCycle === 'yearly' ? '12 mois' : '1 mois'}</p></div>
                 </div>
             </div>
-
-            {/* TIROIR DE RÈGLEMENT SASPAY */}
-            {selectedPlan && (
-                <div className="p-5 sm:p-6 rounded-2xl bg-white border-2 border-brand-500/80 shadow-sm animate-scale-up space-y-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg border border-brand-100/60">
-                                <i className="fa-solid fa-shield-halved"></i>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-bold text-neutral-900">
-                                    Souscription à la formule {plans[selectedPlan]?.name || selectedPlan || 'Standard'} ({billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'})
-                                </h4>
-                                <p className="text-xs text-neutral-500">Paiement Mobile Money ou Carte Bancaire sécurisé via SasPay</p>
-                            </div>
-                        </div>
-                        <div className="sm:text-right">
-                            <span className="text-2xl font-bold font-mono text-brand-600">
-                                {formatPlanPrice(selectedPlan, billingCycle)} FCFA
-                            </span>
-                            <span className="text-[11px] text-neutral-500 block">{billingCycle === 'yearly' ? 'pour 12 mois' : 'pour 1 mois'}</span>
-                        </div>
-                    </div>
-
-                    {/* Méthodes de paiement SasPay */}
-                    <div>
-                        <label className="app-label">Moyen de règlement</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {[
-                                { id: 'wave', label: 'Wave', icon: 'fa-water', color: 'text-sky-500' },
-                                { id: 'orange', label: 'Orange Money', icon: 'fa-mobile-screen', color: 'text-amber-500' },
-                                { id: 'moov', label: 'Moov Money', icon: 'fa-tower-cell', color: 'text-blue-500' },
-                                { id: 'card', label: 'Carte Bancaire', icon: 'fa-credit-card', color: 'text-indigo-600' }
-                            ].map(m => (
-                                <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => setPaymentMethod(m.id)}
-                                    className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2.5 transition-all ${
-                                        paymentMethod === m.id
-                                            ? 'border-brand-500 bg-brand-50 text-brand-900 shadow-2xs ring-2 ring-brand-500/20'
-                                            : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50/50'
-                                    }`}
-                                >
-                                    <i className={`fa-solid ${m.icon} ${m.color} text-sm`}></i>
-                                    <span>{m.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Coordonnées & Téléphone Mobile Money */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="app-label">Pays</label>
-                            <select
-                                value={customerCountry}
-                                onChange={e => setCustomerCountry(e.target.value)}
-                                className="app-select"
-                            >
-                                {window.SasPayService && window.SasPayService.SASPAY_COUNTRIES ? (
-                                    window.SasPayService.SASPAY_COUNTRIES.map(c => (
-                                        <option key={c.code} value={c.code}>{c.name} ({c.dial})</option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="ML">Mali (+223)</option>
-                                        <option value="CI">Côte d'Ivoire (+225)</option>
-                                        <option value="SN">Sénégal (+221)</option>
-                                        <option value="BJ">Bénin (+229)</option>
-                                        <option value="BF">Burkina Faso (+226)</option>
-                                    </>
-                                )}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="app-label">
-                                {paymentMethod === 'card' ? 'Email de confirmation' : 'Numéro Mobile Money'}
-                            </label>
-                            {paymentMethod === 'card' ? (
-                                <input
-                                    type="email"
-                                    value={customerEmail}
-                                    onChange={e => setCustomerEmail(e.target.value)}
-                                    placeholder="contact@entreprise.com"
-                                    className="app-input"
-                                />
-                            ) : (
-                                <input
-                                    type="tel"
-                                    value={customerPhone}
-                                    onChange={e => setCustomerPhone(e.target.value)}
-                                    placeholder="Ex: 70123456"
-                                    className="app-input font-mono font-semibold"
-                                />
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Statut ou message d'attente */}
-                    {paymentStatusMessage && (
-                        <div className="p-3.5 rounded-xl bg-brand-50/60 border border-brand-200/80 text-xs flex items-center justify-between">
-                            <span className="flex items-center gap-2.5 font-medium text-neutral-800">
-                                {isProcessing && <i className="fa-solid fa-circle-notch fa-spin text-brand-600"></i>}
-                                {paymentStatusMessage}
-                            </span>
-                            {checkoutUrl && (
-                                <a
-                                    href={checkoutUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-600 font-bold hover:underline flex items-center gap-1.5 shrink-0"
-                                >
-                                    <span>Ouvrir SasPay</span>
-                                    <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                                </a>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Bouton de confirmation */}
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => setSelectedPlan(null)}
-                            disabled={isProcessing}
-                            className="btn-secondary text-xs py-2.5 px-4 font-semibold"
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handlePayWithSasPay}
-                            disabled={isProcessing}
-                            className="btn-primary text-xs py-2.5 px-6 font-bold flex items-center gap-2 shadow-xs"
-                        >
-                            {isProcessing ? (
-                                <>
-                                    <i className="fa-solid fa-circle-notch fa-spin"></i>
-                                    <span>Paiement en cours…</span>
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fa-solid fa-lock"></i>
-                                    <span>Payer {formatPlanPrice(selectedPlan, billingCycle)} FCFA avec SasPay</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+        </section>}
+    </div>;
 }
 
 function SubscriptionModal({ isOpen, onClose, currentSubscription, savedQuotesCount, onUpgradeSuccess, companyInfo }) {
     if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-3 sm:p-5 animate-fade-in overflow-y-auto"
-             role="dialog" aria-modal="true" aria-labelledby="subscription_modal_title">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-auto overflow-hidden animate-scale-up border border-neutral-100 flex flex-col max-h-[92vh]">
-                {/* Header dégradé brand ikadevis */}
-                <div className="px-6 py-4 bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-800 text-white flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs text-white text-lg">
-                            <i className="fa-solid fa-crown"></i>
-                        </div>
-                        <div>
-                            <h3 id="subscription_modal_title" className="font-bold text-lg leading-tight text-white">
-                                Formules &amp; Abonnements ikadevis SaaS
-                            </h3>
-                            <p className="text-xs text-brand-100 opacity-90">
-                                Débloquez vos devis illimités, vos chantiers et les fonctionnalités pro BTP
-                            </p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Fermer la boîte de dialogue">
-                        <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-                {/* Body */}
-                <div className="p-4 sm:p-6 overflow-y-auto custom-scroll flex-1 bg-neutral-50/50">
-                    <SubscriptionPlansView
-                        currentSubscription={currentSubscription}
-                        savedQuotesCount={savedQuotesCount}
-                        onUpgradeSuccess={(newSub) => {
-                            if (onUpgradeSuccess) onUpgradeSuccess(newSub);
-                        }}
-                        onClose={onClose}
-                        isModal={true}
-                        companyInfo={companyInfo}
-                    />
-                </div>
-            </div>
+    return <div className="ik-sub-overlay fixed inset-0" role="dialog" aria-modal="true" aria-labelledby="subscription_modal_title" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } }}>
+        <div className="ik-sub-modal">
+            <header className="ik-sub-header"><div><span className="ik-sub-wordmark">ikadevis</span><span className="ik-sub-header-divider" aria-hidden="true" /><h2 id="subscription_modal_title">Votre abonnement</h2></div><button type="button" onClick={onClose} aria-label="Fermer la boîte de dialogue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
+            <div className="ik-sub-body custom-scroll"><SubscriptionPlansView currentSubscription={currentSubscription} savedQuotesCount={savedQuotesCount} onUpgradeSuccess={onUpgradeSuccess} onClose={onClose} isModal={true} companyInfo={companyInfo} /></div>
         </div>
-    );
+    </div>;
 }
 
 function App({ supabaseSession, supabaseClient, onSignOut }) {
     const sbUser = supabaseSession ? supabaseSession.user : null;
     const currentUserId = sbUser ? sbUser.id : 'guest';
+    const [demoTransfer] = useState(() => LS.get('demoTransfer', 'guest'));
+    const [transferDismissed, setTransferDismissed] = useState(false);
 
     // BLOC 1/10 : MULTI-TENANT STATE & ROLES (No user.id as org_id)
     const [userOrganizations, setUserOrganizations] = useState(() => {
@@ -16441,14 +15979,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // vrai formulaire de création, cohérent avec le reste de l'app (Nouvel
     // Ouvrage, Nouveau composant...).
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
-    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '', status: 'active', notes: '' });
+    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '', siteAddress: '', city: '', budgetEstimated: '', status: 'prospect', notes: '' });
     const [editingProjectId, setEditingProjectId] = useState(null);
     const [newProjectOriginModal, setNewProjectOriginModal] = useState(null);
     const [projectStatusFilter, setProjectStatusFilter] = useState('all');
     const [projectActiveTab, setProjectActiveTab] = useState('quotes');
     const [clientActiveTab, setClientActiveTab] = useState('chantiers');
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
-    const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+    const [newClientForm, setNewClientForm] = useState({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
     // P0.16 (2026-08-17) — Le même formulaire sert à créer ET à modifier une
     // fiche client (demandé par l'utilisateur : "avoir la possibilité de
     // modifier les infos du client"). null = mode création.
@@ -16513,7 +16051,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 {
                     id: 'lot_1',
                     code: '01',
-                    name: 'Lot 01 — Installation & Gros Œuvre',
+                    name: 'Lot 01 — Travaux',
                     items: []
                 }
             ]
@@ -16632,7 +16170,6 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setIsRecipeModalOpen(false);
                 setIsSolutionModalOpen(false);
                 setIsAllowedModesModalOpen(false);
-                setViewingSavedQuote(null);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -16759,7 +16296,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     //     sinon on perd aussi l'indicateur « vous êtes ici ».
     const sidebarNavRef = useRef(null);
     // Audit UX (2026-09-01) — le tiroir mobile porte la MÊME navigation et
-    // rencontrait le même défaut : à 375×812, déplier « Catalogue technique »
+    // rencontrait le même défaut : à 375×812, déplier « Ouvrages et ressources »
     // fait naître « Ressources » sous la ligne de flottaison, coupé par le bloc
     // de pied. Le correctif ne visait que la barre latérale desktop.
     const drawerNavRef = useRef(null);
@@ -17361,6 +16898,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [isSaveQuoteModalOpen, setIsSaveQuoteModalOpen] = useState(false);
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
+    const closeQuotePreview = useCallback(() => {
+        if (viewingSavedQuote?.previewOrigin === 'calculator') setActiveView('calculator');
+        setViewingSavedQuote(null);
+    }, [viewingSavedQuote?.previewOrigin]);
+    useEffect(() => {
+        if (!viewingSavedQuote) return;
+        const closeOnEscape = (event) => {
+            if (event.key === 'Escape') closeQuotePreview();
+        };
+        window.addEventListener('keydown', closeOnEscape);
+        return () => window.removeEventListener('keydown', closeOnEscape);
+    }, [Boolean(viewingSavedQuote), closeQuotePreview]);
     const [viewingInvoice, setViewingInvoice] = useState(null);
     const [paymentModalData, setPaymentModalData] = useState(null); // Facture sur laquelle saisir un paiement
     useEffect(() => {
@@ -17376,11 +16925,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
         window.addEventListener('ikadevis:subscription_updated', handler);
         window.__openSubscriptionModal = () => setIsSubscriptionModalOpen(true);
+
+        // Le serveur a le dernier mot (2026-09-24).
+        //
+        // L'état affiché au premier rendu vient de localStorage, donc d'une
+        // source que l'utilisateur peut éditer. Cette synchronisation le
+        // remplace par la ligne `subscriptions` de la base dès que possible,
+        // y compris à la baisse : un cache forgé en « entreprise / active »
+        // redevient ce qu'il est réellement. Hors ligne, l'appel échoue en
+        // silence et le cache est conservé — jamais amélioré.
+        if (window.SubscriptionService && window.SubscriptionService.setSupabaseClient) {
+            window.SubscriptionService.setSupabaseClient(sb);
+            window.SubscriptionService.setContext(supabaseSession?.user?.id, activeOrganizationId, supabaseSession?.user?.email);
+            setCurrentSubscription(window.SubscriptionService.getSubscription());
+            // `supabaseSession` est vrai AUSSI en Mode Démo / Invité, où
+            // l'application fabrique une session dont l'utilisateur a pour
+            // identifiant la chaîne 'guest'. Interroger le serveur dans ce
+            // cas ne rapporte rien et jette une erreur CORS dans la console.
+            // Même contrôle qu'à la déconnexion, plus bas dans ce fichier.
+            if (supabaseSession && supabaseSession.user && supabaseSession.user.id !== 'guest') {
+                window.SubscriptionService.refreshFromServer();
+            }
+        }
+
         return () => {
             window.removeEventListener('ikadevis:subscription_updated', handler);
             delete window.__openSubscriptionModal;
         };
-    }, []);
+    }, [supabaseSession, activeOrganizationId]);
     const [receiptModalData, setReceiptModalData] = useState(null); // { facture, payment } pour afficher / imprimer la quittance
     const [creditNoteModalData, setCreditNoteModalData] = useState(null); // Facture sur laquelle émettre un avoir rectificatif
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(new Set()); // Opérations groupées sur factures
@@ -18141,7 +17713,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (sbUser?.id && normalized !== loaded) LS.set('solutions', normalized, sbUser.id);
         return normalized;
     });
-    const [selectedSolutionForEdit, setSelectedSolutionForEdit] = useState(() => solutions[0] || initialSolutions[0]);
+    const [selectedSolutionForEdit, setSelectedSolutionForEdit] = useState(null);
 
     // Schéma V5.7 — Migration en chaîne user-scoped
     const [recipes, setRecipes] = useState(() => {
@@ -18505,7 +18077,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 project = {
                     id: `prj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
                     code: newCode, name: projectRef, clientId: client.id, clientName: client.name,
-                    siteAddress: '', city: client.city || 'Dakar', status: 'active',
+                    siteAddress: '', city: client.city || '', status: 'prospect',
                     budgetEstimated: quoteTotal || 0, createdAt: new Date().toISOString().split('T')[0]
                 };
                 projectsArr = [project, ...projectsArr];
@@ -19878,59 +19450,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [bandeauExempleReplie, setBandeauExempleReplie] = useState(false);
     const atterrissageExamineRef = useRef(false);
 
-    useEffect(() => {
-        if (atterrissageExamineRef.current) return;
-        if (!estModeDemo) return;
-        // Le brouillon prime : s'il y en a un, la bannière de reprise s'affiche
-        // et on ne touche à rien.
-        if (brouillonPropose) { atterrissageExamineRef.current = true; return; }
-        // Attendre que le catalogue et les devis soient chargés.
-        if (!savedQuotes.length || !solutions.length) return;
-        if (LS.get(CLE_DEMO_VUE, currentUserId)) { atterrissageExamineRef.current = true; return; }
-
-        const exemple = savedQuotes[savedQuotes.length - 1];
-        if (!exemple) { atterrissageExamineRef.current = true; return; }
-        atterrissageExamineRef.current = true;
-        try {
-            const hq = adaptSavedQuoteToHybrid(exemple, solutions, materials, labor, recipes);
-
-            // ⚠️ Garde de fidélité. adaptSavedQuoteToHybrid ne sait reconstruire
-            // un devis QUE s'il porte un `hybridQuoteSnapshot` (les devis
-            // enregistrés par l'application actuelle) ou s'il est `isMultiLot`.
-            // Un devis hérité sans instantané — c'est le cas du devis de
-            // démonstration semé en base — retombe sur la branche « ouvrage
-            // unique » : un seul poste générique « Ouvrage Principal » au
-            // calcForm vide. Mesuré ici : 14 750 000 FCFA TTC enregistrés
-            // deviennent 40 268 FCFA à la réouverture, soit un facteur 366.
-            //
-            // Faire atterrir l'utilisateur sur cette version dégradée serait
-            // pire que sur un devis vide : elle a l'air d'un vrai devis, elle
-            // porte le même numéro, et un « Mettre à jour » écraserait
-            // l'original par cette ruine. On vérifie donc que la reconstruction
-            // tient avant de la montrer ; sinon on ouvre le devis d'exemple en
-            // LECTURE, dans sa vue document, qui lit la fiche enregistrée
-            // telle quelle et reste donc exacte.
-            const attendu = exemple.quoteData?.totalTTCConsomme || 0;
-            const obtenu = hq?.totalTTC || 0;
-            const fidele = attendu <= 0 || (Math.abs(obtenu - attendu) / attendu) < 0.02;
-
-            if (fidele) {
-                setHybridQuote(hq);
-                setUseHybridEditor(true);
-                setActiveView('calculator');
-                setDevisExempleCharge(true);
-            } else {
-                console.warn(`[ikadevis] reconstruction infidèle du devis ${exemple.number} (${attendu} → ${obtenu} FCFA TTC) — ouverture en lecture seule.`);
-                setViewingSavedQuote(exemple);
-                setActiveView('savedQuotes');
-            }
-            LS.set(CLE_DEMO_VUE, true, currentUserId);
-        } catch (err) {
-            // Un échec d'adaptation ne doit jamais empêcher d'entrer dans
-            // l'application : on retombe sur le devis vide d'origine.
-            console.warn('[ikadevis] devis de démonstration non chargé :', err && err.message);
-        }
-    }, [estModeDemo, brouillonPropose, savedQuotes, solutions, materials, labor, recipes, currentUserId]);
+    // La démonstration commence sur l'accueil : le devis d'exemple reste
+    // accessible dans les devis récents, sans remplacer le premier brouillon.
 
     const isIosDevice = typeof navigator !== 'undefined'
         && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
@@ -20021,7 +19542,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const connectionState = (() => {
         if (!sbUser || sbUser.id === 'guest') return {
-            key: 'local', label: 'Démo locale', detail: 'Données sur cet appareil',
+            key: 'local', label: 'Démonstration', detail: 'Données sur cet appareil',
             icon: 'fa-laptop', dot: 'bg-amber-500',
             chip: 'bg-amber-50 text-amber-900 border-amber-300'
         };
@@ -21407,7 +20928,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 status: 'draft',
                                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
                                 discountRate: 0, notes: '',
-                                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation & Gros Œuvre', items: [] }]
+                                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Travaux', items: [] }]
                             });
                             setDevisNonEnregistre(false);
                             showToast('Nouveau devis vierge — l’exemple reste disponible dans « Devis ».');
@@ -21459,7 +20980,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     onRequestClientCreate={(initialName = '') => {
                         setEditingClientId(null);
                         setNewClientOriginModal('quote');
-                        setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                        setNewClientForm({ name: initialName, contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
                         setIsNewClientModalOpen(true);
                     }}
                     onRequestProjectCreate={(initialName = '', clientId = null, clientName = '') => {
@@ -21469,7 +20990,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             name: initialName,
                             clientId: matchedClient?.id || '',
                             siteAddress: '',
-                            city: matchedClient?.city || 'Dakar',
+                            city: matchedClient?.city || '',
                             budgetEstimated: ''
                         });
                         setIsNewProjectModalOpen(true);
@@ -21732,7 +21253,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         // panneau de la vue 'savedQuotes' (la modale est mobile-only).
                         // Tous les autres appelants font déjà les deux appels — celui-ci
                         // les avait perdus.
-                        setViewingSavedQuote(savedQ);
+                        setViewingSavedQuote({ ...savedQ, previewOrigin: 'calculator' });
                         setActiveView('savedQuotes');
                     }}
                     useHybridEditor={useHybridEditor}
@@ -22292,7 +21813,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                                 </span>
                                                             </td>
                                                             <td className="app-td text-right font-medium text-neutral-600">
-                                                                <div>{Number(d.billedQty || 0).toFixed(2)} {d.unit}</div>
+                                                                <div>{formatQuantite(d.billedQty)} {d.unit}</div>
                                                                 <div className="mt-1 text-[10px] font-normal text-neutral-500">
                                                                     Net {Number(d.netQty ?? d.baseQty ?? 0).toFixed(2)} · Perte {Number(d.wasteQty || 0).toFixed(2)} ({Number(d.wastePct ?? d.waste ?? 0).toFixed(1)}%)
                                                                 </div>
@@ -22441,6 +21962,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // lisible pour une valeur totalement inconnue plutôt que d'afficher le
     // code technique tel quel.
     const PROJECT_STATUS_LABELS = {
+        prospect: { label: 'En devis', className: 'bg-blue-50 text-blue-700 border border-blue-200' },
         active: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
         in_progress: { label: 'En cours', className: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/60' },
         on_hold: { label: 'En pause', className: 'bg-amber-50/80 text-amber-800 border border-amber-200/60' },
@@ -22462,7 +21984,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (!isOpen) return null;
 
         const [tempConfig, setTempConfig] = useState(() => ({
-            monthlyGoal: config?.monthlyGoal || 15000000,
+            monthlyGoal: config?.monthlyGoal ?? 0,
             defaultPeriod: config?.defaultPeriod || 'all',
             widgets: {
                 monthlyGoal: config?.widgets?.monthlyGoal !== false,
@@ -22705,6 +22227,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // VUE 0 : TABLEAU DE BORD MODERNE & PERSONNALISABLE
     // ═══════════════════════════════════════════════════════════════
     const renderDashboard = () => {
+        const latestDraft = savedQuotes.find(q => q.status === 'draft' && q.hybridQuoteSnapshot);
         // Filtrage temporel helper
         const isDateInPeriod = (dateStr, period) => {
             if (!dateStr || period === 'all') return true;
@@ -22752,12 +22275,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         // Objectif Mensuel (calculé sur le mois en cours)
         const now = new Date();
         const monthName = now.toLocaleDateString('fr-FR', { month: 'long' });
-        const monthlyGoal = Number(dashboardConfig.monthlyGoal) || 15000000;
+        const monthlyGoal = Number(dashboardConfig.monthlyGoal) || 0;
         const currentMonthInvoices = invoices.filter(f => isDateInPeriod(f.date || f.createdAt, 'month') && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
         const currentMonthInvoicedTotal = currentMonthInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
         const currentMonthAcceptedQuotes = savedQuotes.filter(q => isDateInPeriod(q.date || q.createdAt, 'month') && ['approved', 'accepted'].includes(q.status));
         const currentMonthAcceptedTotal = currentMonthAcceptedQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
-        const monthAchieved = currentMonthInvoicedTotal > 0 ? currentMonthInvoicedTotal : (currentMonthAcceptedTotal > 0 ? currentMonthAcceptedTotal : totalChiffre);
+        const monthAchieved = currentMonthInvoicedTotal;
         const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthAchieved / monthlyGoal) * 100)) : 0;
         const goalRemaining = Math.max(0, monthlyGoal - monthAchieved);
 
@@ -22843,14 +22366,85 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </div>
                 </header>
 
+                <section className="rounded-2xl bg-brand-50 border border-brand-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div><h2 className="font-bold text-lg text-neutral-900">Votre prochain chantier commence par un devis.</h2><p className="text-sm text-neutral-600 mt-1">Choisissez les travaux, renseignez les quantités et vérifiez vos prix.</p>{estModeDemo && <p className="text-xs text-brand-700 mt-2">Démonstration : votre travail est conservé sur cet appareil uniquement.</p>}</div>
+                    <div className="shrink-0"><button type="button" className="btn-primary" onClick={() => { if (brouillonPropose) reprendreBrouillon(); else { if (!devisVautLaPeine(hybridQuote) && latestDraft) { setHybridQuote(adaptSavedQuoteToHybrid(latestDraft, solutions, materials, labor, recipes)); setUseHybridEditor(true); } setActiveView('calculator'); } }}>{brouillonPropose || devisVautLaPeine(hybridQuote) || latestDraft ? 'Reprendre mon devis' : savedQuotes.length > (estModeDemo ? 1 : 0) ? 'Créer un devis' : 'Créer mon premier devis'}</button></div>
+                </section>
+                {/* 3. ACTIONS RAPIDES (Raccourcis 1 Clic Épurés & Fluides) */}
+                {enabledWidgets.quickActions !== false && (
+                    <section aria-label="Raccourcis rapides" className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {chiffrageOuvert && (
+                            <button type="button" onClick={ouvrirChiffrage} className="btn-primary min-h-[64px] text-left justify-start" aria-label="Reprendre mon devis">
+                                <i className="fa-solid fa-pen-ruler" aria-hidden="true"></i>
+                                <span>Reprendre mon devis<span className="block text-xs font-normal opacity-90">{hybridQuote.number || 'Chiffrage en cours'}</span></span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={demarrerNouveauDevis}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-calculator text-sm"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-brand-700 transition-colors">Nouveau devis</p>
+                                <p className="text-[11px] text-neutral-500">Chiffrer un projet</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: '', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-folder-plus text-sm"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-amber-800 transition-colors">Nouveau chantier</p>
+                                <p className="text-[11px] text-neutral-500">Ouvrir un dossier</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-user-plus text-sm"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-violet-800 transition-colors">Ajouter un client</p>
+                                <p className="text-[11px] text-neutral-500">Répertoire & NIF</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('invoices')}
+                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
+                                <p className="text-[11px] text-neutral-500">Facturer un acompte</p>
+                            </div>
+                        </button>
+                    </section>
+                )}
+
                 {/* 2. OBJECTIF MENSUEL (Jauge Épurée Haute Lisibilité) */}
-                {enabledWidgets.monthlyGoal !== false && (
+                {enabledWidgets.monthlyGoal !== false && monthlyGoal > 0 && (
                     <section className="shrink-0 bg-white p-5 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-2xs relative overflow-hidden">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                             <div className="space-y-2 flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[10px] uppercase font-bold tracking-[0.14em] text-neutral-500">Objectif Mensuel de Chiffre d'Affaires</span>
+                                    <span className="text-[10px] uppercase font-bold tracking-[0.14em] text-neutral-500">Objectif mensuel de facturation TTC</span>
                                     <span className="text-[10px] font-bold px-2.5 py-0.5 bg-brand-50 text-brand-700 rounded-full capitalize">{monthName}</span>
                                 </div>
                                 <div className="space-y-1">
@@ -22858,7 +22452,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         {formatMoney(monthAchieved, companyInfo.currency)}
                                     </div>
                                     <p className="text-xs sm:text-sm text-neutral-500 font-medium">
-                                        réalisés sur <strong className="text-neutral-800 font-bold">{formatMoney(monthlyGoal, companyInfo.currency)}</strong> visés ce mois-ci
+                                        facturés sur <strong className="text-neutral-800 font-bold">{formatMoney(monthlyGoal, companyInfo.currency)}</strong> visés ce mois-ci
                                     </p>
                                 </div>
                                 <p className="text-xs text-neutral-500">
@@ -22902,72 +22496,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </section>
                 )}
 
-                {/* 3. ACTIONS RAPIDES (Raccourcis 1 Clic Épurés & Fluides) */}
-                {enabledWidgets.quickActions !== false && (
-                    <section aria-label="Raccourcis rapides" className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <button
-                            type="button"
-                            onClick={demarrerNouveauDevis}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-brand-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
-                        >
-                            <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-calculator text-sm"></i>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-bold text-xs text-neutral-900 group-hover:text-brand-700 transition-colors">Nouveau devis</p>
-                                <p className="text-[11px] text-neutral-500">Chiffrer un projet</p>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => { setNewProjectForm({ name: '', clientId: '', siteAddress: '', city: 'Dakar', budgetEstimated: '' }); setIsNewProjectModalOpen(true); }}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-amber-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
-                        >
-                            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-folder-plus text-sm"></i>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-bold text-xs text-neutral-900 group-hover:text-amber-800 transition-colors">Nouveau chantier</p>
-                                <p className="text-[11px] text-neutral-500">Ouvrir un dossier</p>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => { setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setEditingClientId(null); setIsNewClientModalOpen(true); }}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-violet-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
-                        >
-                            <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-user-plus text-sm"></i>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-bold text-xs text-neutral-900 group-hover:text-violet-800 transition-colors">Ajouter un client</p>
-                                <p className="text-[11px] text-neutral-500">Répertoire & NIF</p>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('invoices')}
-                            className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
-                        >
-                            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
-                                <p className="text-[11px] text-neutral-500">Facturer un acompte</p>
-                            </div>
-                        </button>
-                    </section>
-                )}
-
                 {/* 4. CARTES KPIS ESSENTIELLES (Sans Rupture de Ligne sur la Devise) */}
                 {enabledWidgets.kpis !== false && (
                     <section aria-label="Indicateurs clés" className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                         <DashboardMetric
-                            label="Chiffre d'Affaires Chiffré"
+                            label="Total des devis TTC"
                             value={formatMoney(totalChiffre, companyInfo.currency)}
                             detail={`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`}
                             icon="fa-coins"
@@ -23216,7 +22749,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <h1 className="text-lg font-bold text-neutral-800">Chantiers</h1>
                         <button
                             onClick={() => {
-                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
                                 setIsNewProjectModalOpen(true);
                             }}
                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
@@ -23267,7 +22800,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     {clients.length > 0 && (
                                         <button
                                             onClick={() => {
-                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: 'Dakar', budgetEstimated: '' });
+                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
                                                 setIsNewProjectModalOpen(true);
                                             }}
                                             className="btn-primary mt-4 text-xs py-2 px-3.5"
@@ -23315,7 +22848,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="flex items-start gap-3 shrink-0">
                                     <div className="text-left sm:text-right">
-                                        <span className="text-[10px] uppercase font-bold text-neutral-500 block">CA Cumulé Chantier</span>
+                                        <span className="text-[10px] uppercase font-bold text-neutral-500 block">Total des devis rattachés TTC</span>
                                         <span className="text-lg font-bold text-brand-600 font-mono">{formatMoney(selectedProjectCA, companyInfo.currency)}</span>
                                     </div>
                                     {/* Même manque que pour les clients, trouvé le 2026-09-03 :
@@ -23569,7 +23102,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <h1 className="text-lg font-bold text-neutral-800">Clients</h1>
                         <button
                             onClick={() => {
-                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
                                 setIsNewClientModalOpen(true);
                             }}
                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
@@ -23622,7 +23155,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </p>
                                     <button
                                         onClick={() => {
-                                            setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                            setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
                                             setIsNewClientModalOpen(true);
                                         }}
                                         className="btn-primary mt-4 text-xs py-2 px-3.5"
@@ -23816,6 +23349,56 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // — cohérent avec le fait qu'il n'a pas encore de numéro légal.
     // Ouvre la fenêtre de partage avec un message déjà rédigé. Le message
     // reste modifiable : c'est l'utilisateur qui parle à son client, pas nous.
+    const creerCompteAvecDevis = () => {
+        try {
+            const source = viewingSavedQuote?.hybridQuoteSnapshot || hybridQuote;
+            if (devisVautLaPeine(source)) {
+                const quote = preparerRepriseDemo(source, solutions, materials, labor, recipes);
+                const transfer = { version: 1, id: `essai-${source.id}`, at: Date.now(), quote };
+                // Une écriture refusée ne doit jamais faire quitter le devis.
+                localStorage.setItem(LS.getKey('demoTransfer', 'guest'), JSON.stringify(transfer));
+                localStorage.setItem(LS.getKey(CLE_BROUILLON, 'guest'), JSON.stringify({ quote, at: Date.now() }));
+            }
+            onSignOut(true);
+        } catch (error) { showToast(error.message || 'Impossible de conserver le devis sur cet appareil. Restez dans cet écran et téléchargez une sauvegarde.', 'error'); }
+    };
+    const recupererDevisEssai = () => {
+        if (!demoTransfer?.quote || !hasPermission(activeOrganizationRole, 'canEditQuotes')) return;
+        const restore = () => {
+            try {
+                // Identité stable par compte ET organisation : une seconde reprise
+                // retrouve le même brouillon ou sa version déjà enregistrée.
+                const receiptKey = `demoReceipt:${activeOrganizationId}:${demoTransfer.id}`;
+                const receipt = LS.get(receiptKey, currentUserId);
+                const existing = receipt && savedQuotes.find(q => (String(q.id) === String(receipt.quoteId) || q.hybridQuoteSnapshot?.demoTransferId === demoTransfer.id));
+                const draft = LS.get(CLE_BROUILLON, currentUserId);
+                let quote;
+                if (existing) quote = adaptSavedQuoteToHybrid(existing, solutions, materials, labor, recipes);
+                else if (receipt && String(draft?.quote?.id) === String(receipt.quoteId)) quote = draft.quote;
+                else {
+                    quote = JSON.parse(JSON.stringify(demoTransfer.quote));
+                    quote.id = receipt?.quoteId || Date.now();
+                    quote.number = receipt?.number || generateNextQuoteNumber(savedQuotes);
+                    quote.serverId = null;
+                    quote.clientId = null;
+                    quote.projectId = null;
+                    quote.status = 'draft';
+                    quote.demoTransferId = demoTransfer.id;
+                    delete quote.companyInfoSnapshot;
+                    delete quote.signedAt; delete quote.signedByName; delete quote.signatureData;
+                }
+                localStorage.setItem(LS.getKey(CLE_BROUILLON, currentUserId), JSON.stringify({ quote, at: Date.now() }));
+                localStorage.setItem(LS.getKey(receiptKey, currentUserId), JSON.stringify({ quoteId: quote.id, number: quote.number }));
+                setHybridQuote(quote); setDevisNonEnregistre(!existing); setSeqRestauration(n => n + 1);
+                setBrouillonPropose(null); setTransferDismissed(true); setActiveView('calculator');
+                showToast('Devis d’essai récupéré sur cet appareil. Vérifiez votre entreprise, puis enregistrez-le pour le synchroniser.', 'success');
+            } catch (error) { showToast('Reprise impossible. Le devis d’essai est toujours conservé dans la démonstration.', 'error'); }
+        };
+        if (devisVautLaPeine(hybridQuote) && String(hybridQuote.id) !== String(LS.get(`demoReceipt:${activeOrganizationId}:${demoTransfer.id}`, currentUserId)?.quoteId)) {
+            setConfirmDialog({ isOpen: true, title: 'Récupérer le devis d’essai ?', message: 'Cela remplacera le brouillon actuellement ouvert. Enregistrez-le avant si vous souhaitez le garder.', confirmLabel: 'Récupérer le devis d’essai', onConfirm: () => { closeConfirm(); restore(); } });
+        } else restore();
+    };
+
     const ouvrirPartage = ({ canal, genre, numero, clientNom, chantier, montant, validite, nomFichier, cle, destinataire }) => {
         const societe = companyInfo.name || 'notre équipe';
         // Le message est assemblé morceau par morceau parce que numéro et
@@ -23835,7 +23418,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (genre !== 'facture' && validite) {
             lignes.push(`Validité : ${String(validite).trim().replace(/[.\s]+$/, '')}.`);
         }
-        lignes.push('', 'Le document détaillé est en pièce jointe.', '', `Cordialement,`, societe);
+        lignes.push('', `Cordialement,`, societe);
         setPartage({
             canal, genre, numero, clientNom, nomFichier, cle,
             destinataire: destinataire || '',
@@ -23875,6 +23458,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // en contient déjà un — on aurait téléchargé le mauvais document.
     const telechargerElementPdf = async (cible, nomFichier, cle) => {
         if (!cible) { showToast("Ce document n'est pas encore imprimable.", "error"); return false; }
+        if (!estModeDemo && !companyInfo.name?.trim()) {
+            showToast('Renseignez le nom de votre entreprise avant de créer votre premier document client.', 'info');
+            setViewingSavedQuote(null); setPartage(null); setAccountSettingsTab('entreprise'); setActiveView('settings');
+            return false;
+        }
+        if (!estModeDemo && viewingSavedQuote && !viewingSavedQuote.clientName?.trim()) {
+            showToast('Ajoutez le nom de votre client avant de télécharger ce devis. Le brouillon est conservé.', 'info');
+            return false;
+        }
         setPdfEnCours(cle);
         try {
             await telechargerElementEnPdf(cible, nomFichier, optionsPdfDe(cible));
@@ -25141,7 +24733,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         return (
             <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-4 h-full min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll">
                 {/* 2026-09-10 — Synthèse financière de facturation et recouvrement (palette harmonieuse et épurée) */}
-                <div data-testid="invoices-kpi-strip" className={`${hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-2.5 shrink-0`}>
+                <div data-testid="invoices-kpi-strip" className={`${invoices.length === 0 ? 'hidden' : hasActiveInvoice ? 'hidden lg:grid' : 'grid'} grid-cols-2 lg:grid-cols-4 gap-2.5 shrink-0`}>
                     {/* KPI 1 : Total Facturé Émis */}
                     <div className="app-card p-3 bg-white border border-neutral-200/80 shadow-xs flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/60">
@@ -26703,12 +26295,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             {/* Bande 1 — identité du document, puis actions. */}
                             <div className="saved-quote-detail-header-primary px-4 sm:px-6 pt-4 pb-3 bg-white">
                                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                    {opts?.asModal && (
+                                    {(opts?.asModal || viewingSavedQuote.previewOrigin === 'calculator') && (
                                         <button
                                             type="button"
-                                            onClick={() => setViewingSavedQuote(null)}
+                                            onClick={closeQuotePreview}
                                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800 text-xs font-bold transition-all shadow-2xs shrink-0"
-                                            aria-label="Retour au chiffrage"
+                                            aria-label={viewingSavedQuote.previewOrigin === 'calculator' ? 'Retour au chiffrage' : 'Retour aux devis'}
                                         >
                                             <i className="fa-solid fa-arrow-left text-brand-600 text-xs"></i>
                                             <span>Retour</span>
@@ -26728,12 +26320,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             || savedQuotes.some(q => q.id === viewingSavedQuote.id);
                                         return (
                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${estEnregistre ? 'text-neutral-500' : 'text-amber-700'}`}>
-                                                {estEnregistre ? 'Devis enregistré' : 'Brouillon non enregistré'}
+                                                {viewingSavedQuote.isWorkingPreview ? 'Aperçu · modifications non enregistrées' : (estEnregistre ? 'Devis enregistré' : 'Brouillon non enregistré')}
                                             </span>
                                         );
                                     })()}
                                     <button
-                                        onClick={() => setViewingSavedQuote(null)}
+                                        onClick={closeQuotePreview}
                                         className="btn-icon w-8 h-8 ml-auto text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
                                         aria-label="Fermer la boîte de dialogue"
                                         title="Fermer le devis"
@@ -26754,10 +26346,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     onClick={() => setIsEditingClientProject(prev => !prev)}
                                                     className="btn-secondary text-[11px] py-1 px-2.5 font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 shrink-0 rounded-lg"
                                                     title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
-                                                    aria-label="Modifier le client et le projet"
+                                                    aria-label="Modifier le client et le chantier"
                                                 >
                                                     <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-user-pen'} text-[11px]`}></i>
-                                                    <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / projet'}</span>
+                                                    <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / chantier'}</span>
                                                 </button>
                                             </div>
                                             <p className="text-xs text-neutral-500 mt-1 break-words">
@@ -26778,10 +26370,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <div className="shrink-0 w-36">
                                             <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">Statut</span>
                                             <CustomSelect
-                                                value={viewingSavedQuote.status || 'draft'}
+                                                value={normaliserStatutDevis(viewingSavedQuote.status)}
                                                 onChange={(e) => {
                                                     const maj = { ...viewingSavedQuote, status: e.target.value };
                                                     setViewingSavedQuote(maj);
+                                                    setHybridQuote(prev => prev.id === maj.id ? { ...prev, status: maj.status } : prev);
                                                     updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                                 }}
                                                 size="sm"
@@ -26836,7 +26429,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     onRequestCreate={(name) => {
                                                         setEditingClientId(null);
                                                         setNewClientOriginModal('quote');
-                                                        setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' });
+                                                        setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
                                                         setIsNewClientModalOpen(true);
                                                     }}
                                                 />
@@ -26883,7 +26476,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             name: name || '',
                                                             clientId: matchedClient?.id || '',
                                                             siteAddress: '',
-                                                            city: matchedClient?.city || 'Dakar',
+                                                            city: matchedClient?.city || '',
                                                             budgetEstimated: ''
                                                         });
                                                         setIsNewProjectModalOpen(true);
@@ -26945,7 +26538,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 destinataire: fiche?.phone || ''
                                             });
                                         }}
-                                        className="saved-quote-top-secondary-action btn-secondary text-xs py-1.5 px-3 font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                        className="saved-quote-send-action saved-quote-top-secondary-action btn-secondary text-xs py-1.5 px-3 font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                                         title="Envoyer ce devis par WhatsApp ou par e-mail"
                                         aria-label={`Envoyer le devis ${viewingSavedQuote.number} par WhatsApp ou e-mail`}
                                     >
@@ -27013,7 +26606,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 détail. Chacun porte son intitulé : les confondre
                                 exposerait la marge au client. */}
                             {(canViewInternalDocs || isCommercialMode) && (
-                                <div className="saved-quote-detail-display-options px-6 pb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                                <details className="saved-quote-detail-display-options px-6 pb-3"><summary className="cursor-pointer py-2 text-xs font-semibold text-neutral-600">Réglages du document · {isCommercialMode ? (clientTemplate === 'detaille' ? 'Devis détaillé' : 'Devis synthèse') : 'Étude interne'}</summary><div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
                                     {canViewInternalDocs && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 shrink-0">Destinataire</span>
@@ -27050,7 +26643,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             </div>
                                         </div>
                                     )}
-                                </div>
+                                </div></details>
                             )}
                         </div>
 
@@ -27080,7 +26673,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         type="button"
                                         onClick={convertirEnFacture}
                                         disabled={isReadOnlyDueToDowngrade}
-                                        className={`saved-quote-action-primary text-xs py-1.5 px-3 font-bold ${voirExistante ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-primary'}`}
+                                        className={`saved-quote-action-secondary text-xs py-1.5 px-3 font-bold ${voirExistante ? 'btn-secondary text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'btn-secondary'}`}
                                         aria-label={voirExistante ? `Ouvrir la facture du devis ${viewingSavedQuote.number}` : `Facturer le devis ${viewingSavedQuote.number}`}
                                     >
                                         <i className={`fa-solid ${voirExistante ? 'fa-file-invoice' : 'fa-arrow-right-arrow-left'} mr-1.5`}></i>
@@ -27095,6 +26688,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     setHybridQuote(hq);
                                     setUseHybridEditor(true);
                                     setActiveView('calculator');
+                                    setViewingSavedQuote(null);
                                     showToast(`Devis ${viewingSavedQuote.number} ouvert dans l'Éditeur Hybride !`);
                                 }}
                                 className="saved-quote-action-secondary btn-secondary text-xs py-1.5 px-3 font-bold"
@@ -27268,6 +26862,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             espacements (index.html, media query max-width: 767px), pas
                             le défilement vertical. */}
                         <div className="saved-quote-document-scroll min-w-0 flex-1 p-4 sm:p-6 bg-neutral-50/50 space-y-6">
+                            {estModeDemo && <section data-hors-pdf="1" className="rounded-xl bg-brand-50 border border-brand-200 p-4 space-y-2">
+                                <p className="text-sm font-semibold">Votre devis d’essai reste sur cet appareil.</p>
+                                <p className="text-xs text-neutral-600">Créez votre compte, puis récupérez ce devis et personnalisez votre entreprise avant de l’envoyer.</p>
+                                <button type="button" className="btn-primary text-xs" onClick={creerCompteAvecDevis}>Créer mon compte et conserver ce devis</button>
+                            </section>}
+
                             {/* Défense en profondeur : même si isCommercialMode restait à
                                 false (état hérité d'une session où l'utilisateur avait le
                                 droit), un rôle non autorisé ne voit jamais l'étude de prix. */}
@@ -27389,7 +26989,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                                             <span className="block text-[10px] text-neutral-500">{d.name}</span>
                                                                                         )}
                                                                                     </td>
-                                                                                    <td className="px-2 py-1.5 text-right font-mono">{Number(d.billedQty || 0).toFixed(2)} {d.unit}</td>
+                                                                                    <td className="px-2 py-1.5 text-right font-mono">{formatQuantite(d.billedQty)} {d.unit}</td>
                                                                                     <td className="px-2 py-1.5 text-right font-mono text-neutral-500">{d.type === 'material' ? `${d.wastePct || 0}%` : '—'}</td>
                                                                                     <td className="px-2 py-1.5 text-neutral-500">{packLabel}</td>
                                                                                     <td className="px-2 py-1.5 text-right font-mono">{formatMoney(d.unitCost, cur)}</td>
@@ -27479,7 +27079,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             contenu. */}
                         {opts?.asModal && (
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setViewingSavedQuote(null)} className="btn-secondary">Fermer</button>
+                            <button onClick={closeQuotePreview} className="btn-secondary">Fermer</button>
                         </div>
                         )}
                     </div>
@@ -27519,7 +27119,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 status: 'draft',
                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
                 discountRate: 0, notes: '',
-                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Installation de Chantier', items: [] }]
+                lots: [{ id: 'lot_1', code: '01', name: 'Lot 01 — Travaux', items: [] }]
             });
             setDevisNonEnregistre(false);
             setSeqRestauration(n => n + 1);
@@ -27559,7 +27159,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     const factures = invoices.filter(f => String(f.devisId) === String(q.id) || String(f.devisId) === String(q.serverId));
                     return q.status === 'invoiced' || factures.some(f => f.statut === 'issued' || f.statut === 'paid');
                 }
-                return q.status === savedQuoteStatusFilter;
+                return normaliserStatutDevis(q.status) === normaliserStatutDevis(savedQuoteStatusFilter);
             })
             .filter(q => !quoteQuery || [q.number, q.clientName, q.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(quoteQuery)))
             .slice()
@@ -28357,13 +27957,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 </div>
 
                 <div className="flex flex-col gap-2 overflow-y-auto custom-scroll flex-1 min-h-0 lg:pr-1">
-                    {solutions.filter(s => s.name.toLowerCase().includes(solutionSearchQuery.toLowerCase())).map(s => (
+                    {trierOuvrages(solutions).filter(s => normalizeSearchText(s.name).includes(normalizeSearchText(solutionSearchQuery))).map(s => (
                         <div key={s.id} className={`flex items-center justify-between p-2.5 rounded-xl border-2 transition-all duration-200 bg-white ${selectedSolutionForEdit?.id === s.id ? 'border-brand-500 shadow-sm' : 'border-transparent hover:border-neutral-200 shadow-sm'}`}>
                             <button onClick={() => selectRecipeSolution(s)} className="flex items-center text-left gap-3 flex-1 min-w-0 outline-none" aria-label={`Sélectionner l'ouvrage ${s.name}`}>
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selectedSolutionForEdit?.id === s.id ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                     <i className={`fa-solid ${s.icon}`}></i>
                                 </div>
-                                <span className={`font-bold text-xs leading-tight truncate ${selectedSolutionForEdit?.id === s.id ? 'text-neutral-900' : 'text-neutral-600'}`}>{s.name}</span>
+                                <span className={`font-bold text-sm leading-snug line-clamp-2 ${selectedSolutionForEdit?.id === s.id ? 'text-neutral-900' : 'text-neutral-600'}`}>{s.name}</span>
                             </button>
                             <div className="flex items-center gap-1 shrink-0 ml-2">
                                 <button disabled={isReadOnlyDueToDowngrade} onClick={() => { setSolutionModalForm({ id: s.id, name: s.name, icon: s.icon || 'fa-cube', allowedModes: s.allowedModes || ['rectangle'] }); setIsSolutionModalOpen(true); }} className={`btn-icon text-xs w-7 h-7 ${isReadOnlyDueToDowngrade ? 'opacity-40 cursor-not-allowed' : 'text-neutral-500 hover:text-brand-600'}`} title="Éditer le nom" aria-label={`Modifier ${s.name}`}><i className="fa-solid fa-pen"></i></button>
@@ -28586,7 +28186,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <span className="flex items-center gap-2">
                                                     <span className="font-semibold text-sm text-neutral-900 truncate">{r.label}</span>
                                                     <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-white text-neutral-700 border-neutral-300">
-                                                        {r.costCategory || r.type}
+                                                        {{ material: 'Matériaux', labor: 'Main-d’œuvre', installation: 'Pose', equipment: 'Matériel', subcontract: 'Sous-traitance' }[r.costCategory || r.type] || 'Autres frais'}
                                                     </span>
                                                 </span>
                                                 <span className="block text-xs text-neutral-500 mt-0.5 truncate">
@@ -28635,7 +28235,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         r.costCategory === 'labor' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                                         'bg-orange-50 text-orange-700 border-orange-200'
                                                     }`}>
-                                                        {r.costCategory || r.type}
+                                                        {{ material: 'Matériaux', labor: 'Main-d’œuvre', installation: 'Pose', equipment: 'Matériel', subcontract: 'Sous-traitance' }[r.costCategory || r.type] || 'Autres frais'}
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-sm font-medium">
@@ -29564,7 +29164,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     onClick={() => setIsTechnicalCatalogOpen((open) => !open)}
                 >
                     <img src={SIDEBAR_ICONS.recipes} alt="" aria-hidden="true" className="sidebar-item-icon sidebar-item-icon-img" />
-                    <span className="sidebar-item-label">Catalogue technique</span>
+                    <span className="sidebar-item-label">Ouvrages et ressources</span>
                     <i className={`fa-solid fa-chevron-down sidebar-catalog-chevron transition-transform duration-200 ${isTechnicalCatalogOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`} aria-hidden="true"></i>
                 </button>
                 {isTechnicalCatalogOpen && (
@@ -29586,7 +29186,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         // section n'est modifiée.
         { id: 'finances', label: 'Finances', description: 'Comptes, devises, taxes', icon: 'fa-coins' },
         // 2026-09-19 — Abonnements SaaS ikadevis, quotas et passerelle SasPay
-        { id: 'abonnement', label: 'Abonnement & Licence', description: 'Formules, quotas et SasPay', icon: 'fa-crown' },
+        { id: 'abonnement', label: 'Abonnement & Licence', description: 'Formules, équipe et paiements', icon: 'fa-crown' },
         // 2026-09-06 — Visible pour owner/admin uniquement : ce sont
         // exactement les rôles autorisés par la policy RLS "Organization
         // members insert" et par la vérification faite dans l'Edge Function
@@ -29855,9 +29455,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                     {/* MAIN CONTENT AREA */}
                     <main id="main-content" className="flex-1 min-h-0 overflow-hidden w-full flex flex-col">
+                        {!estModeDemo && cloudState === 'loaded' && demoTransfer?.quote && !transferDismissed && hasPermission(activeOrganizationRole, 'canEditQuotes') && <section className="shrink-0 bg-brand-50 border-b border-brand-200 px-4 py-3 space-y-2" aria-label="Récupération du devis d’essai">
+                            <p className="text-sm font-semibold">Votre devis d’essai est disponible sur cet appareil.</p>
+                            <p className="text-xs text-neutral-600">Récupérez les travaux, les quantités et vos prix sans remplacer le catalogue de votre compte.</p>
+                            <div className="flex flex-wrap gap-2"><button type="button" className="btn-primary text-xs" onClick={recupererDevisEssai}>Récupérer mon devis d’essai</button><button type="button" className="btn-secondary text-xs" onClick={() => setTransferDismissed(true)}>Plus tard</button></div>
+                        </section>}
+
                         {/* ── BARRE D'ONGLETS RAPIDES MÉTIERS (Chiffrage · Devis · Factures · Catalogue · Ressources) & LATENCE MS ── */}
                         {vueAffichee !== 'settings' && vueAffichee !== 'platformAdmin' && (
-                            <div className="workspace-quick-nav md:hidden w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
+                            <div className="workspace-quick-nav hidden w-full bg-white border-b border-neutral-200/70 px-3 sm:px-4 lg:px-6 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto custom-scroll z-10">
                                 <div className="flex items-center gap-1 sm:gap-1.5 shrink-0" role="tablist" aria-label="Navigation rapide métiers">
                                     {/* 1. Chiffrage */}
                                     <button
@@ -30042,6 +29648,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         sbUser={sbUser}
                                         companyInfo={companyInfo}
                                         projects={projects}
+                                        savedQuotes={savedQuotes}
                                         canEdit={['owner', 'admin', 'estimator', 'commercial'].includes(activeOrganizationRole)}
                                         isReadOnly={isReadOnlyDueToDowngrade}
                                         showToast={showToast}
@@ -30067,32 +29674,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         aria-label="Barre de navigation rapide"
                     >
                         <NavItem id="dashboard"   icon="fa-chart-pie"          label="Accueil" />
-                        {/* Une seule case, deux rôles selon qu'un chiffrage est
-                            ouvert ou non : reprendre le travail en cours, ou en
-                            démarrer un. Sur cinq cases, en consacrer une à une
-                            page où l'on n'a rien à faire serait du gâchis. */}
-                        {chiffrageOuvert ? (
-                            <NavItem id="calculator" icon="fa-calculator" label="Chiffrage" />
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={demarrerNouveauDevis}
-                                disabled={isReadOnlyDueToDowngrade}
-                                className="flex flex-col lg:flex-row items-center lg:justify-start justify-center w-full lg:px-4 py-2 lg:py-3.5 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
-                                aria-label="Démarrer un nouveau devis"
-                            >
-                                <img src={SIDEBAR_ICONS.calculator} alt="" aria-hidden="true" className="sidebar-item-icon-img w-5 h-5 mb-1 opacity-70" />
-                                <span className="text-[11px] lg:text-sm font-bold tracking-wide lg:tracking-normal text-neutral-700">Nouveau</span>
-                            </button>
-                        )}
                         <NavItem id="savedQuotes" icon="fa-folder-open"         label="Devis" />
+                        <NavItem id="projects" icon="fa-helmet-safety" label="Chantiers" />
                         <NavItem id="invoices"    icon="fa-file-invoice-dollar" label="Factures" />
-                        {/* Menu burger / Recommandations de menu burger */}
+                        {/* Menu burger / Menu */}
                         <button
                             onClick={() => setIsMobilePlusMenuOpen(true)}
                             className={`flex flex-col items-center justify-center gap-1 min-w-[3rem] min-h-[2.75rem] px-2 rounded-xl transition-all active:scale-90 ${isMobilePlusMenuOpen ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'}`}
                             aria-label="Ouvrir le menu de navigation"
-                            title="Recommandations de menu burger"
+                            title="Menu"
                             aria-expanded={isMobilePlusMenuOpen}
                         >
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isMobilePlusMenuOpen ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-500'}`}>
@@ -30110,7 +29700,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     className="fixed inset-0 z-[200] flex flex-col justify-end md:hidden"
                     role="dialog"
                     aria-modal="true"
-                    aria-label="Recommandations de menu burger"
+                    aria-label="Menu"
                     onMouseDown={(e) => { if (e.target === e.currentTarget) setIsMobilePlusMenuOpen(false); }}
                     onClick={(e) => { if (e.target === e.currentTarget) setIsMobilePlusMenuOpen(false); }}
                 >
@@ -30129,7 +29719,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div>
                                 <h2 className="text-base font-bold text-neutral-800 flex items-center gap-2">
                                     <i className="fa-solid fa-bars text-brand-600 text-sm"></i>
-                                    <span>Recommandations de menu burger</span>
+                                    <span>Menu</span>
                                 </h2>
                                 <p className="text-[11px] text-neutral-500 mt-0.5">Tous vos réglages et modules en un clic</p>
                             </div>
@@ -30181,7 +29771,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         { id: 'projects',  label: 'Chantiers & Projets' },
                                         { id: 'clients',   label: 'Clients & CRM' },
                                         { id: 'depenses',  label: 'Dépenses & fournisseurs' },
-                                        { id: 'recipes',   label: 'Ouvrages & Recettes' },
+                                        { id: 'recipes',   label: 'Ouvrages' },
                                         { id: 'materials', label: 'Prix des Matériaux' },
                                     ].map(({ id, label }) => (
                                         <button
@@ -30208,7 +29798,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                             {/* Section 2 : Look & Paramètres */}
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Personnalisation & Look</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Personnalisation</p>
                                 <div className="grid grid-cols-2 gap-2.5">
                                     <button
                                         onClick={() => {
@@ -30221,7 +29811,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             <i className="fa-solid fa-pen-ruler text-brand-600 text-xs" />
                                         </div>
                                         <div className="min-w-0">
-                                            <span className="block text-xs font-bold leading-tight">Modèles & Look</span>
+                                            <span className="block text-xs font-bold leading-tight">Modèles de documents</span>
                                             <span className="block text-[10px] text-neutral-400">PDF & en-tête</span>
                                         </div>
                                     </button>
@@ -30336,6 +29926,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 const selectedClient = clients.find(c => c.id === newProjectForm.clientId);
                                 if (!selectedClient) { showToast("Sélectionnez un client pour ce chantier.", "error"); return; }
                                 
+                                const previousProject = projects.find(p => p.id === editingProjectId);
+                                const becomesActive = !['completed', 'cancelled'].includes(newProjectForm.status || 'prospect');
+                                if (becomesActive && (!editingProjectId || ['completed', 'cancelled'].includes(previousProject?.status))) {
+                                    const quota = window.SubscriptionService?.canCreateProject(projects.filter(p => p.id !== editingProjectId && !['completed', 'cancelled'].includes(p.status)).length);
+                                    if (quota && !quota.allowed) { showToast(quota.message, 'error'); setIsSubscriptionModalOpen(true); return; }
+                                }
                                 if (editingProjectId) {
                                     const existing = projects.find(p => p.id === editingProjectId);
                                     const updated = {
@@ -30344,7 +29940,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         clientId: selectedClient.id,
                                         clientName: selectedClient.name,
                                         siteAddress: newProjectForm.siteAddress.trim(),
-                                        city: newProjectForm.city.trim() || 'Dakar',
+                                        city: newProjectForm.city.trim(),
                                         status: newProjectForm.status || existing?.status || 'active',
                                         budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
                                         notes: newProjectForm.notes ? newProjectForm.notes.trim() : ''
@@ -30363,8 +29959,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         clientId: selectedClient.id,
                                         clientName: selectedClient.name,
                                         siteAddress: newProjectForm.siteAddress.trim(),
-                                        city: newProjectForm.city.trim() || 'Dakar',
-                                        status: newProjectForm.status || 'active',
+                                        city: newProjectForm.city.trim(),
+                                        status: newProjectForm.status || 'prospect',
                                         budgetEstimated: parseFloat(newProjectForm.budgetEstimated) || 0,
                                         notes: newProjectForm.notes ? newProjectForm.notes.trim() : '',
                                         createdAt: new Date().toISOString().split('T')[0]
@@ -30387,8 +29983,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 setNewProjectOriginModal(null);
                             }} className="space-y-4">
                                 <div>
-                                    <label className="app-label">Nom du chantier</label>
-                                    <input required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
+                                    <label htmlFor="newProjectForm-name" className="app-label">Nom du chantier</label>
+                                    <input id="newProjectForm-name" required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="app-label">Client / Donneur d'ordres</label>
@@ -30396,14 +29992,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <div className="flex items-center gap-2">
                                             <div className="flex-1 min-w-0">
                                                 <CustomSelect
-                                                    value={newProjectForm.clientId}
+                                                    aria-label="Client du chantier" value={newProjectForm.clientId}
                                                     onChange={e => setNewProjectForm({ ...newProjectForm, clientId: e.target.value })}
-                                                    options={clients.map(c => ({ value: c.id, label: c.name }))}
+                                                    options={[{ value: '', label: 'Choisir un client' }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
                                                 />
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
+                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setIsNewClientModalOpen(true); }}
                                                 className="btn-icon w-10 h-10 shrink-0 border border-neutral-200 text-brand-600 hover:bg-brand-50"
                                                 title="Créer un nouveau client"
                                                 aria-label="Créer un nouveau client"
@@ -30416,7 +30012,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             <p className="text-xs text-amber-800 italic">Aucun client enregistré.</p>
                                             <button
                                                 type="button"
-                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: 'Dakar' }); setIsNewClientModalOpen(true); }}
+                                                onClick={() => { setNewClientOriginModal('project'); setNewClientForm({ name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' }); setIsNewClientModalOpen(true); }}
                                                 className="btn-primary py-1.5 px-3 text-xs whitespace-nowrap"
                                                 aria-label="Créer un nouveau client"
                                             >
@@ -30425,29 +30021,30 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         </div>
                                     )}
                                 </div>
+                                <details open={Boolean(editingProjectId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="app-label">Adresse chantier</label>
-                                        <input type="text" className="app-input" placeholder="Ex: Plateau, Rue Carnot" value={newProjectForm.siteAddress} onChange={e => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value })} />
+                                        <label htmlFor="newProjectForm-siteAddress" className="app-label">Adresse chantier</label>
+                                    <input id="newProjectForm-siteAddress" type="text" className="app-input" placeholder="Ex: Plateau, Rue Carnot" value={newProjectForm.siteAddress} onChange={e => setNewProjectForm({ ...newProjectForm, siteAddress: e.target.value })} />
                                     </div>
                                     <div>
-                                        <label className="app-label">Ville</label>
-                                        <input type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
+                                        <label htmlFor="newProjectForm-city" className="app-label">Ville</label>
+                                    <input id="newProjectForm-city" type="text" className="app-input" value={newProjectForm.city} onChange={e => setNewProjectForm({ ...newProjectForm, city: e.target.value })} />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
-                                        <input type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
+                                        <label htmlFor="newProjectForm-budgetEstimated" className="app-label">Budget estimé ({companyInfo.currency || 'FCFA'})</label>
+                                    <input id="newProjectForm-budgetEstimated" type="number" min="0" className="app-input font-bold" placeholder="0" value={newProjectForm.budgetEstimated} onChange={e => setNewProjectForm({ ...newProjectForm, budgetEstimated: e.target.value })} />
                                     </div>
                                     <div>
-                                        <label className="app-label">Statut du chantier</label>
-                                        <select
+                                        <label htmlFor="newProject-status" className="app-label">Statut du chantier</label>
+                                        <select id="newProject-status"
                                             className="app-input font-medium bg-white"
-                                            value={newProjectForm.status || 'active'}
+                                            value={newProjectForm.status || 'prospect'}
                                             onChange={e => setNewProjectForm({ ...newProjectForm, status: e.target.value })}
                                         >
-                                            <option value="active">En cours</option>
+                                            <option value="prospect">En devis</option><option value="active">En cours</option>
                                             <option value="on_hold">En pause</option>
                                             <option value="completed">Terminé</option>
                                             <option value="cancelled">Annulé</option>
@@ -30455,8 +30052,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="app-label">Notes &amp; Observations de chantier</label>
-                                    <textarea
+                                    <label htmlFor="newProject-notes" className="app-label">Notes &amp; Observations de chantier</label>
+                                    <textarea id="newProject-notes"
                                         rows="3"
                                         className="app-input text-xs font-normal"
                                         placeholder="Spécificités techniques, consignes d'accès, jalons importants..."
@@ -30464,6 +30061,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         onChange={e => setNewProjectForm({ ...newProjectForm, notes: e.target.value })}
                                     ></textarea>
                                 </div>
+                            </details>
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
@@ -30513,7 +30111,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     showToast("Fiche client mise à jour !", "success");
                                 } else {
                                     const newClientId = `cli-${Date.now()}`;
-                                    updateClients([{ id: newClientId, ...payload, city: payload.city || 'Dakar', notes: '' }, ...clients]);
+                                    updateClients([{ id: newClientId, ...payload, city: payload.city || '', notes: '' }, ...clients]);
                                     showToast("Fiche client créée !", "success");
                                     if (newClientOriginModal === 'project') {
                                         setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
@@ -30527,37 +30125,39 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 setNewClientOriginModal(null);
                             }} className="space-y-4">
                                 <div>
-                                    <label className="app-label">Nom du client / raison sociale</label>
-                                    <input required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                                    <label htmlFor="newClientForm-name" className="app-label">Nom du client / raison sociale</label>
+                                    <input id="newClientForm-name" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
                                 </div>
+                                <details open={Boolean(editingClientId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
                                 <div>
-                                    <label className="app-label">Contact principal</label>
-                                    <input type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                                    <label htmlFor="newClientForm-contactPerson" className="app-label">Contact principal</label>
+                                    <input id="newClientForm-contactPerson" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="app-label">NIF / RCCM</label>
-                                        <input type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
+                                        <label htmlFor="newClientForm-taxId" className="app-label">NIF / RCCM</label>
+                                    <input id="newClientForm-taxId" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
                                     </div>
                                     <div>
-                                        <label className="app-label">Téléphone</label>
-                                        <input type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                                        <label htmlFor="newClientForm-phone" className="app-label">Téléphone</label>
+                                    <input id="newClientForm-phone" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="app-label">Email</label>
-                                    <input type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                                    <label htmlFor="newClientForm-email" className="app-label">Email</label>
+                                    <input id="newClientForm-email" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="app-label">Adresse</label>
-                                        <input type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
+                                        <label htmlFor="newClientForm-address" className="app-label">Adresse</label>
+                                    <input id="newClientForm-address" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
                                     </div>
                                     <div>
-                                        <label className="app-label">Ville</label>
-                                        <input type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
+                                        <label htmlFor="newClientForm-city" className="app-label">Ville</label>
+                                    <input id="newClientForm-city" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
                                     </div>
                                 </div>
+                            </details>
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3 shrink-0">
@@ -30686,7 +30286,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="flex-1 min-h-0 overflow-y-auto custom-scroll p-4 sm:p-6 bg-neutral-50/50">
                                 <div className="max-w-4xl w-full mx-auto space-y-6">
                                     <div className="bg-white rounded-2xl p-5 border border-neutral-200/80 shadow-xs">
-                                        <SubscriptionPlansView
+                                        <SubscriptionPlansView key={`${sbUser?.id}:${activeOrganizationId}`}
                                             currentSubscription={currentSubscription}
                                             savedQuotesCount={savedQuotes.length}
                                             onUpgradeSuccess={(newSub) => {
@@ -31540,6 +31140,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 return (
                                     <label key={mode.id} className="flex items-center p-3.5 bg-white border border-neutral-200 rounded-xl cursor-pointer hover:bg-neutral-50 transition-colors">
                                         <input disabled={isReadOnlyDueToDowngrade} type="checkbox" className="w-5 h-5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 accent-brand-600"
+                                            aria-label={`Sélectionner ${sol.name}`}
                                             checked={isChecked}
                                             onChange={e => {
                                                 if (isReadOnlyDueToDowngrade) return;
@@ -32002,7 +31603,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             )}
 
             {/* 2026-09-19 — Modale d'abonnement & formules SaaS avec SasPay */}
-            <SubscriptionModal
+            <SubscriptionModal key={`${sbUser?.id}:${activeOrganizationId}`}
                 isOpen={isSubscriptionModalOpen}
                 onClose={() => setIsSubscriptionModalOpen(false)}
                 currentSubscription={currentSubscription}
@@ -33530,7 +33131,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             })()}
 
             {partage && (
-                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none animate-fade-in" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
+                <div ref={refFenetrePartage} tabIndex={-1} data-focus-gere="1" className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 outline-none animate-fade-in" role="dialog" aria-modal="true" aria-label={`Envoyer ${partage.genre === 'facture' ? 'la facture' : 'le devis'} ${partage.numero || ''}`}>
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-lg overflow-hidden flex flex-col max-h-[92dvh] animate-scale-up">
                         <div className="px-6 pt-6 pb-4 border-b border-neutral-100 shrink-0">
                             <h3 className="font-semibold text-neutral-900 text-lg">
@@ -33555,6 +33156,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </div>
                         </div>
 
+                        {estModeDemo ? <div className="px-6 py-5 space-y-3 overflow-y-auto">
+                            <p className="font-semibold text-neutral-900">Ce devis est un essai.</p><p className="text-sm text-neutral-600">Il est enregistré sur cet appareil et porte un filigrane de démonstration. Créez votre compte pour récupérer votre travail et préparer un devis au nom de votre entreprise.</p>
+                            <button type="button" className="btn-primary" onClick={creerCompteAvecDevis}>Créer mon compte et conserver ce devis</button>
+                            <button type="button" className="btn-secondary" onClick={() => setPartage(null)}>Fermer</button>
+                        </div> : <>
                         <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scroll">
                             <div>
                                 <label htmlFor="partage-destinataire" className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
@@ -33590,9 +33196,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                                 <p className="text-[11px] text-amber-900 leading-relaxed">
                                     <i className="fa-solid fa-paperclip mr-1.5"></i>
-                                    <strong>Le document ne peut pas être joint automatiquement.</strong> Aucune page web
-                                    n'a le droit d'attacher un fichier à un message WhatsApp ou à un e-mail. Téléchargez
-                                    le PDF ci-dessous, puis joignez-le dans la conversation qui s'ouvrira.
+                                    <strong>Téléchargez le PDF, puis joignez-le à votre message.</strong> La pièce jointe doit être ajoutée par vous dans WhatsApp ou votre messagerie.
                                 </p>
                             </div>
                         </div>
@@ -33633,6 +33237,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 Fermer
                             </button>
                         </div>
+                        </>}
                     </div>
                 </div>
             )}
@@ -33756,6 +33361,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 function AppShell() {
     const [session, setSession] = useState(null);
+    const [initialAuthMode, setInitialAuthMode] = useState('login');
     const [authLoading, setAuthLoading] = useState(true);
 
     const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
@@ -33778,7 +33384,7 @@ function AppShell() {
 
         sb.auth.getSession().then(({ data: { session: s } }) => {
             if (isMounted) {
-                setSession(s);
+                setSession(current => current?.user?.id === 'guest' && !s ? current : s);
                 setAuthLoading(false);
                 clearTimeout(timer);
             }
@@ -33792,7 +33398,7 @@ function AppShell() {
 
         const { data: { subscription } } = sb.auth.onAuthStateChange((event, s) => {
             if (isMounted) {
-                setSession(s);
+                setSession(current => event === 'INITIAL_SESSION' && current?.user?.id === 'guest' && !s ? current : s);
                 if (event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);
                 }
@@ -33869,10 +33475,11 @@ function AppShell() {
     }
 
     if (!session) {
-        return <AuthScreen onAuthSuccess={(s) => setSession(s)} />;
+        return <AuthScreen initialMode={initialAuthMode} onAuthSuccess={(s) => setSession(s)} />;
     }
 
-    return <UserSchemaGate supabaseSession={session} supabaseClient={sb} onSignOut={() => {
+    return <UserSchemaGate supabaseSession={session} supabaseClient={sb} onSignOut={(signup) => {
+        setInitialAuthMode(signup === true ? 'signup' : 'login');
         if (sb && session?.user?.id !== 'guest') sb.auth.signOut();
         setSession(null);
     }} />;

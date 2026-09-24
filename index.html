@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=3fd951dd2c">
+    <link rel="stylesheet" href="tailwind.css?v=1fb71a1385">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -1126,19 +1126,90 @@
             }
             @page { size: A4; margin: 1cm; }
         }
-    </style>
+        /* Audit UI/UX septembre 2026 : priorité au travail en cours. */
+        [data-testid="quote-items-desktop"] input[data-col="price"] { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+        input[readonly] { cursor: pointer; background-color: #f3f7fc; }
+        .work-item-inspector input, .work-item-inspector textarea { font-size: 14px; }
+        .work-item-inspector input:focus-visible, .work-item-inspector textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+        @media (max-width: 1023px) {
+            .animate-page-enter:has(.work-item-sheet:not(.hidden)) { animation: none !important; transform: none !important; }
+            .work-item-sheet:not(.hidden) { position: fixed; inset: 0; z-index: 100; height: 100dvh; background: white; }
+            .work-item-inspector .clear-totals-bar { padding-bottom: 1.25rem; }
+            .work-item-inspector input, .work-item-inspector select { min-height: 44px; font-size: 16px; }
+            .work-item-inspector textarea { font-size: 16px; }
+            .work-item-inspector > div:first-child { padding: 12px 16px; }
+            .work-item-inspector > div:first-child h3 { white-space: normal; line-height: 1.4; }
+            .work-item-inspector > div:first-child [aria-label="Navigation entre les lots"] { display: none; }
+            .work-item-inspector [aria-label="Retour aux ouvrages du lot"] { width: 44px; height: 44px; }
+            .inspector-done { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+            .inspector-done button { width: 100%; min-height: 44px; font-size: 15px; }
+            .work-item-inspector .grid.grid-cols-2.xl\:grid-cols-4 { display: flex; overflow-x: auto; }
+            .work-item-inspector .grid.grid-cols-2.xl\:grid-cols-4 > button { flex: 0 0 110px; min-height: 48px; }
+        }
+        @media (max-width: 639px) {
+            .saved-quote-detail-display-options { overflow: visible; flex-wrap: wrap !important; }
+            .saved-quote-detail-display-options > div { flex: 1 1 100%; justify-content: space-between; }
+            .saved-quote-detail-display-options button { min-height: 40px; padding-left: 8px; padding-right: 8px; font-size: 12px !important; }
+            .saved-quote-action-strip { display: flex !important; flex-wrap: wrap !important; padding: .5rem 1rem !important; }
+            .saved-quote-action-label { display: flex; min-height: 44px; font-size: 11px; }
+            .saved-quote-actions-list.hidden { display: none !important; }
+            .saved-quote-actions-list.flex { display: flex !important; width: 100%; }
+            .saved-quote-actions-list > button { min-height: 44px; }
+            .saved-quote-action-primary { flex: 1 1 auto; grid-column: auto; font-size: 12px; }
+            .saved-quote-action-secondary { flex: 0 0 auto; }
+            .saved-quote-send-action { display: inline-flex !important; width: auto; min-height: 44px; padding: 0 12px; }
+            .saved-quote-send-action .quote-action-libelle { display: inline !important; }
+            .saved-quote-top-actions { gap: 8px; }
+            .saved-quote-detail-header-primary h3 { font-size: 16px; }
+            .quote-totals-replie { padding: 8px 12px !important; }
+            .quote-totals-replie > .max-w-\[1700px\] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
+            .quote-totals-replie .quote-mobile-metrics { display: block; }
+            .quote-totals-replie .quote-mobile-metrics .text-base { font-size: 13px; line-height: 1.25; display: block; }
+            .quote-totals-replie .quote-totals-bascule { width: 26px; height: 36px; border: none; }
+            .quote-totals-replie .quote-mobile-metrics .rounded-full { display: none; }
+            .quote-totals-replie .quote-mobile-actions { gap: 6px; }
+            .quote-totals-replie .quote-mobile-actions button { min-height: 44px; padding: 8px 4px !important; font-size: 11px; }
+            .quote-totals-replie .quote-mobile-actions i { display: none; }
+            .mobile-bottom-nav button { min-height: 48px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .work-item-inspector, .work-item-sheet, .saved-quote-detail-modal { animation: none !important; transition: none !important; }
+        }
+
+        /* Découverte : lecture par ouvrage sur téléphone, même source que le PDF. */
+        @media screen and (max-width: 767px) {
+            .document-mobile-read .commercial-document-header { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 1rem; }
+            .document-mobile-read .commercial-document-header > div { width: 100%; min-width: 0; text-align: left; }
+            .document-mobile-read .commercial-document-header h2 { font-size: 1.2rem; line-height: 1.35; }
+            .saved-quote-document.document-mobile-read table,
+            .saved-quote-document.document-mobile-read tbody { display: block; width: 100% !important; }
+            .saved-quote-document.document-mobile-read thead { display: none; }
+            .saved-quote-document.document-mobile-read tr { display: block; }
+            .saved-quote-document.document-mobile-read td { display: block; width: 100%; padding: .5rem 0 !important; font-size: .82rem; }
+            .saved-quote-document.document-mobile-read .commercial-line { margin: .75rem 0; padding: .75rem; border: 1px solid #e5e7eb; border-radius: .75rem; }
+            .saved-quote-document.document-mobile-read td[data-label] { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+            .saved-quote-document.document-mobile-read td[data-label]::before { content: attr(data-label); font-size: .75rem; font-weight: 400; color: #525252; white-space: normal; text-align: left; }
+            .saved-quote-document-scroll:has(.document-paper) { overflow-x: auto; }
+            .saved-quote-document.document-paper { width: 740px !important; min-width: 740px !important; padding: 2rem !important; }
+            .saved-quote-document.document-paper .grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+            .saved-quote-document.document-paper td { overflow-wrap: normal; word-break: normal; }
+            .saved-quote-document [data-label] { font-variant-numeric: tabular-nums; }
+        }
+</style>
 </head>
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/finance-core.js?v=6a32dfa0a1"></script>
-    <script src="js/calc-engine.js?v=6a32dfa0a1"></script>
-    <script src="js/utils.js?v=6a32dfa0a1"></script>
-    <script src="js/quote-templates.js?v=6a32dfa0a1"></script>
-    <script src="js/saspay-platform-config.js?v=6a32dfa0a1"></script>
-    <script src="js/saspay-service.js?v=6a32dfa0a1"></script>
-    <script src="js/subscription-service.js?v=6a32dfa0a1"></script>
-    <script src="app.compiled.js?v=6a32dfa0a1"></script>
+    <script src="js/finance-core.js?v=3b92c78113"></script>
+    <script src="js/quote-import.js?v=3b92c78113"></script>
+    <script src="js/project-profitability.js?v=3b92c78113"></script>
+    <script src="js/calc-engine.js?v=3b92c78113"></script>
+    <script src="js/utils.js?v=3b92c78113"></script>
+    <script src="js/quote-templates.js?v=3b92c78113"></script>
+    <script src="js/saspay-platform-config.js?v=3b92c78113"></script>
+    <script src="js/saspay-service.js?v=3b92c78113"></script>
+    <script src="js/subscription-service.js?v=3b92c78113"></script>
+    <script src="app.compiled.js?v=3b92c78113"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
