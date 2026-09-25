@@ -73,14 +73,14 @@ if (btnPrimaryMatch) {
 }
 
 // 2. Délais de transition (UX-04)
-console.log('\n2. Contrôle de fluidité et suppression des latences artificielles (UX-04) :');
+console.log('\n2. Contrôle de fluidité et confort visuel (UX-04) :');
 const indexJsx = fs.readFileSync(path.join(rootDir, 'index_jsx.js'), 'utf-8');
 
 const pageTransMatch = indexJsx.match(/const\s+DUREE_TRANSITION_PAGE_MS\s*=\s*(\d+);/);
-assert(pageTransMatch !== null && parseInt(pageTransMatch[1], 10) === 0, 'DUREE_TRANSITION_PAGE_MS est fixé à 0 ms (navigation fluide instantanée)');
+assert(pageTransMatch !== null && parseInt(pageTransMatch[1], 10) === 350, 'DUREE_TRANSITION_PAGE_MS est fixé à 350 ms (navigation fluide avec sablier et barre de progression)');
 
 const detailTransMatch = indexJsx.match(/const\s+DUREE_TRANSITION_DETAIL_MS\s*=\s*(\d+);/);
-assert(detailTransMatch !== null && parseInt(detailTransMatch[1], 10) === 0, 'DUREE_TRANSITION_DETAIL_MS est fixé à 0 ms (sélection ouvrage/matière instantanée)');
+assert(detailTransMatch !== null && parseInt(detailTransMatch[1], 10) === 350, 'DUREE_TRANSITION_DETAIL_MS est fixé à 350 ms (sélection ouvrage/matière avec squelette shimmer)');
 
 // 3. Gestion du clavier Escape sur les modales
 console.log('\n3. Clavier et fermeture accessible Escape sur les modales (A11Y-02 / UI-01) :');

@@ -239,8 +239,8 @@ function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = fal
 // en local, 3500 ms en cloud. Une constante unique, sinon l'écart se recreuse.
 const DUREE_ETAT_SUCCES_MS = 3000;
 
-// 2026-09-25 (Lot 5 / UX-04) — Suppression du délai artificiel de 350 ms : passage instantané
-const DUREE_TRANSITION_PAGE_MS = 0;
+// Transition de navigation fluide et sablier (calibré à 350 ms pour un confort visuel optimal)
+const DUREE_TRANSITION_PAGE_MS = 350;
 
 
 // Rendu unique des états, partagé par les deux boutons d'enregistrement
@@ -17727,7 +17727,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const quoteTransitionSeqRef = useRef(0);
     const invoiceTransitionSeqRef = useRef(0);
 
-    const DUREE_TRANSITION_DETAIL_MS = 0; // Passage instantané sans attente artificielle (UX-04)
+    const DUREE_TRANSITION_DETAIL_MS = 350; // Calibré à 350 ms pour un confort visuel optimal sans précipitation (Skeletons animés)
 
 
     const selectRecipeSolution = useCallback((solution) => {
