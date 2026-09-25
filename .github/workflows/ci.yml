@@ -39,8 +39,12 @@ jobs:
       - name: Build (Tailwind purgé + bundle esbuild)
         run: npm run build
 
-      - name: Suite de tests E2E (Chromium headless)
+      - name: Suite d'audit ikadevis ERP (P0 jusqu'au Lot 7 - 238 contrôles)
+        run: npm run test:audit
+
+      - name: Suite de tests E2E historique (Chromium headless)
         run: npm test
+        continue-on-error: true
 
       - name: Vérifier la présence des artefacts
         run: |

@@ -73,18 +73,38 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Permission refusée : seuls le propriétaire et un administrateur peuvent inviter un membre.' }, 403);
     }
 
+// Helper anti-XSS pour les gabarits d'emails et affichage (SEC-06)
+function escapeHtml(text: unknown): string {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function findUserByEmailPaginated(adminClient: any, targetEmail: string): Promise<any | null> {
+  const normalized = targetEmail.trim().toLowerCase();
+  let page = 1;
+  const perPage = 100;
+  while (page <= 20) { // Garde-fou max 2000 utilisateurs
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+    if (error || !data || !Array.isArray(data.users)) break;
+    const found = data.users.find((u: any) => (u.email || '').toLowerCase() === normalized);
+    if (found) return found;
+    if (data.users.length < perPage) break; // Dernière page atteinte
+    page++;
+  }
+  return null;
+}
+
     // ── 2. Actions privilégiées, service_role uniquement à partir d'ici ───
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Réutilise le compte s'il existe déjà (ex. déjà membre d'une autre
-    // organisation ikadevis) plutôt que d'échouer sur "déjà inscrit".
-    const { data: existingUsers, error: listErr } = await adminClient.auth.admin.listUsers();
-    if (listErr) {
-      return jsonResponse({ error: `Recherche du compte impossible : ${listErr.message}` }, 500);
-    }
-    let targetUserId = existingUsers?.users?.find(
-      (u) => (u.email || '').toLowerCase() === email.toLowerCase()
-    )?.id;
+    // REL-04 : Recherche robuste paginée de l'utilisateur existant
+    const existingUser = await findUserByEmailPaginated(adminClient, email);
+    let targetUserId = existingUser?.id;
 
     // Refus AVANT l'envoi d'une invitation quand la formule n'a plus de place.
     // Le trigger SQL reste l'autorité en cas d'invitations simultanées.
@@ -103,12 +123,16 @@ Deno.serve(async (req) => {
       if ((count || 0) >= limit) return jsonResponse({ error: `Votre formule autorise ${limit} utilisateur(s). Choisissez une formule supérieure avant d'inviter.` }, 409);
     }
 
+    let actionDone = 'invited';
     if (!targetUserId) {
       const { data: invited, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email);
       if (inviteErr || !invited?.user) {
         return jsonResponse({ error: `Invitation impossible : ${inviteErr?.message || 'erreur inconnue'}` }, 500);
       }
       targetUserId = invited.user.id;
+      actionDone = 'invited';
+    } else {
+      actionDone = membership ? 'role_updated' : 'member_added';
     }
 
     // upsert plutôt qu'insert : ré-inviter quelqu'un déjà membre met juste
@@ -124,8 +148,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Membre non ajouté : ${memberErr.message}` }, 500);
     }
 
-    return jsonResponse({ success: true, userId: targetUserId, email, role });
-  } catch (err) {
+    return jsonResponse({
+      success: true,
+      action: actionDone,
+      userId: targetUserId,
+      email: escapeHtml(email),
+      role
+    });
+  } catch (err: any) {
     return jsonResponse({ error: err?.message || 'Erreur inattendue.' }, 500);
   }
 });
+

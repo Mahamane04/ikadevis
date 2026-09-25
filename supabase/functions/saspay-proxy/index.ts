@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { action, apiKey, payload } = body;
+    const { action, payload } = body;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
           }, 503);
         }
 
-        const { planId, billingCycle, network, phone, country, mode } = payload || {};
+        const { planId, billingCycle, network, phone, country, mode, idempotencyKey } = payload || {};
 
         const formule = CATALOGUE_FORMULES[String(planId || '')];
         if (!formule) {
@@ -284,31 +284,79 @@ Deno.serve(async (req) => {
           }
         }
 
-        // La ligne `pending` est créée AVANT l'appel : c'est elle qui lie
-        // l'identifiant SasPay à cette organisation et à ce montant. Sans
-        // elle, un identifiant de paiement quelconque suffirait à
-        // débloquer une formule.
-        const { data: ligneReglement, error: errInsert } = await clientService
-          .from('subscription_payments')
-          .insert({
-            organization_id: orgId,
-            plan_id: planId,
-            billing_cycle: cycle,
-            amount: montant,
-            currency: 'XOF',
-            provider: 'saspay',
-            provider_kind: canal,
-            status: 'pending',
-            customer_phone: phone || null,
-            network: network || null,
-            country: country || 'ML',
-            initiated_by: utilisateur.id
-          })
-          .select()
-          .single();
+        // REL-02 : Recherche d'une intention de paiement existante (double clic ou répétition réseau)
+        let ligneReglement: any = null;
+        if (idempotencyKey) {
+          const { data: existingByKey } = await clientService
+            .from('subscription_payments')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('idempotency_key', idempotencyKey)
+            .eq('status', 'pending')
+            .gt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+            .maybeSingle();
+          if (existingByKey) {
+            ligneReglement = existingByKey;
+          }
+        }
 
-        if (errInsert || !ligneReglement) {
-          return jsonResponse({ error: `Impossible d'enregistrer le règlement : ${errInsert?.message}` }, 500);
+        if (!ligneReglement) {
+          const { data: existingEquivalent } = await clientService
+            .from('subscription_payments')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('plan_id', planId)
+            .eq('billing_cycle', cycle)
+            .eq('status', 'pending')
+            .gt('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (existingEquivalent) {
+            ligneReglement = existingEquivalent;
+          }
+        }
+
+        // Si une intention identique existe déjà avec réponse confirmée du prestataire, on la renvoie
+        if (ligneReglement && ligneReglement.provider_ref) {
+          const payloadData = typeof ligneReglement.provider_payload === 'string'
+            ? JSON.parse(ligneReglement.provider_payload)
+            : (ligneReglement.provider_payload || {});
+          return jsonResponse({
+            ok: true,
+            paymentRef: ligneReglement.id,
+            mode: canal,
+            checkoutUrl: payloadData?.checkout_url || null,
+            reusedExistingIntent: true
+          });
+        }
+
+        // Création d'une nouvelle ligne si aucune intention pending valide n'a été réutilisée
+        if (!ligneReglement) {
+          const { data: nouvelleLigne, error: errInsert } = await clientService
+            .from('subscription_payments')
+            .insert({
+              organization_id: orgId,
+              plan_id: planId,
+              billing_cycle: cycle,
+              amount: montant,
+              currency: 'XOF',
+              provider: 'saspay',
+              provider_kind: canal,
+              status: 'pending',
+              customer_phone: phone || null,
+              network: network || null,
+              country: country || 'ML',
+              idempotency_key: idempotencyKey || null,
+              initiated_by: utilisateur.id
+            })
+            .select()
+            .single();
+
+          if (errInsert || !nouvelleLigne) {
+            return jsonResponse({ error: `Impossible d'enregistrer le règlement : ${errInsert?.message}` }, 500);
+          }
+          ligneReglement = nouvelleLigne;
         }
 
         // metadata renvoyée telle quelle par SasPay lors de la
@@ -502,95 +550,237 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Action d'abonnement inconnue : ${action}` }, 400);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // B. ENCAISSEMENTS DE FACTURES (clé SasPay PROPRE à l'organisation)
-    // ═══════════════════════════════════════════════════════════════════
-    //
-    // Ici l'argent va sur le compte SasPay du client d'ikadevis, pas sur
-    // celui de la plateforme. La clé plateforme n'est donc JAMAIS un repli
-    // possible — l'ancienne version faisait `apiKey || SASPAY_API_KEY`, ce
-    // qui aurait détourné les règlements des factures de nos clients vers
-    // le compte d'ikadevis.
+    // ═══════════════════════════════════════════════════════════════════════
+    // B — ENCAISSEMENT DES FACTURES ENTREPRISE (SEC-01)
+    // ═══════════════════════════════════════════════════════════════════════
+    // Le montant n'est JAMAIS fourni par le client : il est calculé par la
+    // procédure stockée `create_invoice_payment_intent` sur la base du reste dû.
+    // L'activation est scellée par la RPC atomique `confirm_invoice_payment`.
 
-    const cleOrganisation = String(apiKey || '').trim();
-
-    if (!cleOrganisation && action !== 'ping') {
-      return jsonResponse({
-        error: 'Clé API SasPay non configurée pour cette organisation (Paramètres › Passerelle SasPay).',
-        code: 'ORG_GATEWAY_NOT_CONFIGURED'
-      }, 400);
-    }
-
-    if (action === 'ping') {
-      return jsonResponse({ ok: true });
-    }
-
-    if (action === 'test-connection') {
-      const res = await fetch(`${SASPAY_BASE_URL}/networks/`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${cleOrganisation}`, 'Accept': 'application/json' }
-      });
-      const data = await res.json().catch(() => ({}));
-      return jsonResponse({ ok: res.ok, status: res.status, data }, res.ok ? 200 : res.status);
-    }
-
-    if (action === 'create-checkout') {
-      const res = await fetch(`${SASPAY_BASE_URL}/checkout-sessions/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cleOrganisation}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json().catch(() => ({}));
-      return jsonResponse(data, res.status);
-    }
-
-    if (action === 'initiate-softpay') {
-      const idempotencyKey = req.headers.get('idempotency-key') || crypto.randomUUID();
-      const res = await fetch(`${SASPAY_BASE_URL}/payments/softpay/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cleOrganisation}`,
-          'Idempotency-Key': idempotencyKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json().catch(() => ({}));
-      return jsonResponse(data, res.status);
-    }
-
-    if (action === 'verify-payment') {
-      const { paymentId, type } = payload || {};
-      if (!paymentId) {
-        return jsonResponse({ error: 'paymentId requis.' }, 400);
+    if (action === 'invoice-payment-initiate') {
+      const { invoiceId, idempotencyKey, network, phone, country, mode, customerName } = payload || {};
+      if (!invoiceId) {
+        return jsonResponse({ error: 'Identifiant de facture (invoiceId) requis.' }, 400);
       }
-      const endpoint = type === 'checkout'
-        ? `${SASPAY_BASE_URL}/checkout-sessions/${paymentId}/`
-        : `${SASPAY_BASE_URL}/payments/${paymentId}/verify/`;
+
+      if (!['owner', 'admin', 'commercial'].includes(membre.role)) {
+        return jsonResponse({ error: 'Permission refusée pour encaisser une facture.' }, 403);
+      }
+
+      if (!clePlateforme) {
+        return jsonResponse({
+          error: 'La passerelle de paiement n\'est pas configurée pour votre organisation.',
+          code: 'GATEWAY_NOT_CONFIGURED'
+        }, 503);
+      }
+
+      // 1. Dérivation serveur du montant via la RPC sécurisée
+      const { data: intent, error: intentError } = await clientService.rpc('create_invoice_payment_intent', {
+        p_org_id: orgId,
+        p_invoice_id: invoiceId,
+        p_idempotency_key: idempotencyKey || null
+      });
+
+      if (intentError || !intent) {
+        return jsonResponse({
+          error: intentError?.message || 'Impossible d\'initialiser le paiement pour cette facture.',
+          code: 'PAYMENT_INTENT_ERROR'
+        }, 400);
+      }
+
+      if (intent.reused_existing) {
+        return jsonResponse({
+          ok: true,
+          paymentRef: intent.payment_id,
+          amount: intent.amount,
+          status: intent.status,
+          reusedExistingIntent: true
+        });
+      }
+
+      const paymentId = intent.payment_id;
+      const montant = Number(intent.amount);
+      const canal = mode === 'checkout' ? 'checkout' : 'softpay';
+
+      if (canal === 'softpay') {
+        if (!phone) {
+          return jsonResponse({ error: 'Le numéro de téléphone Mobile Money est requis.' }, 400);
+        }
+        const acceptes = await reseauxAcceptes(clePlateforme);
+        if (!acceptes.has(String(network))) {
+          return jsonResponse({ error: `Opérateur non pris en charge : ${network}` }, 400);
+        }
+      }
+
+      const metadata = {
+        type: 'invoice_payment',
+        payment_id: paymentId,
+        invoice_id: invoiceId,
+        organization_id: orgId
+      };
+
+      let reponseSasPay: any = {};
+      let statutHttp = 0;
+
+      try {
+        if (canal === 'softpay') {
+          const res = await fetch(`${SASPAY_BASE_URL}/payments/softpay/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${clePlateforme}`,
+              'Idempotency-Key': paymentId,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              amount: montant.toFixed(2),
+              currency: 'XOF',
+              country: String(country || 'ML').toUpperCase(),
+              network,
+              description: `Règlement facture ${invoiceId}`,
+              customer: {
+                email: utilisateur.email || 'client@ikadevis.com',
+                first_name: (customerName || 'Client').split(' ')[0],
+                last_name: (customerName || 'Client').split(' ').slice(1).join(' ') || 'Client',
+                phone
+              },
+              metadata
+            })
+          });
+          statutHttp = res.status;
+          reponseSasPay = await res.json().catch(() => ({}));
+        } else {
+          const res = await fetch(`${SASPAY_BASE_URL}/checkout-sessions/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${clePlateforme}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              amount: montant.toFixed(2),
+              currency: 'XOF',
+              country: String(country || 'ML').toUpperCase(),
+              description: `Règlement facture ${invoiceId}`,
+              customer_name: customerName || 'Client ikadevis',
+              customer_email: utilisateur.email || 'client@ikadevis.com',
+              customer_phone: phone || undefined,
+              metadata
+            })
+          });
+          statutHttp = res.status;
+          reponseSasPay = await res.json().catch(() => ({}));
+        }
+      } catch (err: any) {
+        await clientService.from('invoice_payments')
+          .update({ status: 'failed', provider_payload: { network_error: String(err?.message) } })
+          .eq('id', paymentId);
+        return jsonResponse({ error: `Passerelle SasPay injoignable : ${err?.message}` }, 502);
+      }
+
+      if (statutHttp < 200 || statutHttp >= 300) {
+        const msg = reponseSasPay?.error?.message || reponseSasPay?.message || `Erreur SasPay (${statutHttp})`;
+        await clientService.from('invoice_payments')
+          .update({ status: 'failed', provider_payload: reponseSasPay })
+          .eq('id', paymentId);
+        return jsonResponse({ error: msg, code: 'GATEWAY_REFUSED' }, 502);
+      }
+
+      const idSasPay = extraireIdPaiement(reponseSasPay);
+      await clientService.from('invoice_payments')
+        .update({ provider_ref: String(idSasPay || paymentId), provider_payload: reponseSasPay })
+        .eq('id', paymentId);
+
+      return jsonResponse({
+        ok: true,
+        paymentRef: paymentId,
+        checkoutUrl: extraireUrlCheckout(reponseSasPay),
+        instructions: reponseSasPay?.data?.instructions || null,
+        amount: montant,
+        currency: 'XOF'
+      });
+    }
+
+    if (action === 'invoice-payment-verify') {
+      const { paymentRef } = payload || {};
+      if (!paymentRef) {
+        return jsonResponse({ error: 'Référence de règlement manquante.' }, 400);
+      }
+
+      const { data: ligne } = await clientService
+        .from('invoice_payments')
+        .select('*')
+        .eq('id', paymentRef)
+        .eq('organization_id', orgId)
+        .maybeSingle();
+
+      if (!ligne) {
+        return jsonResponse({ error: 'Règlement de facture introuvable.' }, 404);
+      }
+
+      if (ligne.status === 'paid') {
+        return jsonResponse({ ok: true, status: 'paid', alreadyConfirmed: true });
+      }
+
+      if (!clePlateforme) {
+        return jsonResponse({ error: 'Passerelle non configurée.', code: 'GATEWAY_NOT_CONFIGURED' }, 503);
+      }
+
+      const idCible = ligne.provider_ref || ligne.id;
+      const endpoint = `${SASPAY_BASE_URL}/payments/${idCible}/verify/`;
 
       const res = await fetch(endpoint, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${cleOrganisation}`, 'Accept': 'application/json' }
+        headers: { 'Authorization': `Bearer ${clePlateforme}`, 'Accept': 'application/json' }
       });
-      const data = await res.json().catch(() => ({}));
+      const donnees = await res.json().catch(() => ({}));
 
-      // Verdict normalisé, pour que le navigateur n'ait plus à
-      // interpréter lui-même un statut (source du bug du 2026-09-24).
-      const charge = data?.data || data || {};
+      if (!res.ok) {
+        return jsonResponse({ ok: true, status: 'pending', reason: `SasPay a répondu ${res.status}.` });
+      }
+
+      const charge = donnees?.data || donnees || {};
+      const verdict = verdictPaiement(charge.status);
+
+      if (verdict === 'failed') {
+        await clientService.from('invoice_payments')
+          .update({ status: 'failed', provider_payload: donnees })
+          .eq('id', ligne.id);
+        return jsonResponse({ ok: true, status: 'failed', reason: 'Le paiement a été refusé.' });
+      }
+
+      if (verdict === 'pending') {
+        return jsonResponse({ ok: true, status: 'pending' });
+      }
+
+      const montantEncaisse = Number(charge.amount_paid ?? charge.amount ?? NaN);
+      if (!Number.isFinite(montantEncaisse) || montantEncaisse < Number(ligne.amount)) {
+        return jsonResponse({ ok: true, status: 'pending', reason: 'Montant encaissé insuffisant ou non vérifiable.' });
+      }
+
+      // Appel de la procédure atomique de confirmation comptable
+      const { data: confirmation, error: errConfirm } = await clientService.rpc('confirm_invoice_payment', {
+        p_payment_id: ligne.id,
+        p_provider_ref: String(idCible),
+        p_payload: donnees
+      });
+
+      if (errConfirm || !confirmation) {
+        return jsonResponse({ ok: true, status: 'pending', reason: 'Rapprochement comptable en cours.' });
+      }
+
       return jsonResponse({
-        ok: res.ok,
-        verdict: res.ok ? verdictPaiement(charge.status) : 'pending',
-        data
-      }, res.ok ? 200 : res.status);
+        ok: true,
+        status: 'paid',
+        invoiceStatus: confirmation.new_invoice_status,
+        totalPaid: confirmation.total_paid
+      });
     }
 
-    return jsonResponse({ error: `Action inconnue : ${action}` }, 400);
-  } catch (err: any) {
-    return jsonResponse({ error: err?.message || 'Erreur interne du proxy SasPay' }, 500);
+    if (action === 'ping') return jsonResponse({ ok: true });
+    return jsonResponse({ error: `Action inconnue : ${action}`, code: 'UNKNOWN_ACTION' }, 400);
+  } catch (_err) {
+    return jsonResponse({ error: 'La passerelle est indisponible. Réessayez ultérieurement.' }, 500);
   }
 });
+

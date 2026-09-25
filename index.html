@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=ce02cb6ebb">
+    <link rel="stylesheet" href="tailwind.css?v=a52ce8aee5">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -123,13 +123,14 @@
 
         .btn-primary {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-            background-color: #0082fb; color: white;
+            background-color: #0064e0; color: white;
             padding: 0.75rem 1.25rem; border-radius: 0.75rem;
             font-size: 0.875rem; font-weight: 600;
             transition: all 0.15s ease;
-            box-shadow: 0 1px 2px 0 rgba(0, 130, 251, 0.2);
+            box-shadow: 0 1px 2px 0 rgba(0, 100, 224, 0.2);
         }
-        .btn-primary:hover { background-color: #0064e0; transform: translateY(-1px); }
+        .btn-primary:hover { background-color: #004fb8; transform: translateY(-1px); }
+
 
         /* Icônes de marque en SVG (audit du 2026-09-02, poste « performance »).
            La police « Font Awesome Brands » pesait 108 Ko — pour DEUX glyphes,
@@ -1200,16 +1201,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/finance-core.js?v=27087d645a"></script>
-    <script src="js/quote-import.js?v=27087d645a"></script>
-    <script src="js/project-profitability.js?v=27087d645a"></script>
-    <script src="js/calc-engine.js?v=27087d645a"></script>
-    <script src="js/utils.js?v=27087d645a"></script>
-    <script src="js/quote-templates.js?v=27087d645a"></script>
-    <script src="js/saspay-platform-config.js?v=27087d645a"></script>
-    <script src="js/saspay-service.js?v=27087d645a"></script>
-    <script src="js/subscription-service.js?v=27087d645a"></script>
-    <script src="app.compiled.js?v=27087d645a"></script>
+    <script src="js/payment-data-safety.js?v=865a9d8dd9"></script>
+    <script src="js/catalog-persistence.js?v=865a9d8dd9"></script>
+    <script src="js/tenant-persistence.js?v=000ddd755e"></script>
+    <script src="js/finance-core.js?v=865a9d8dd9"></script>
+    <script src="js/quote-import.js?v=865a9d8dd9"></script>
+    <script src="js/project-profitability.js?v=865a9d8dd9"></script>
+    <script src="js/calc-engine.js?v=865a9d8dd9"></script>
+    <script src="js/utils.js?v=865a9d8dd9"></script>
+    <script src="js/quote-templates.js?v=865a9d8dd9"></script>
+    <script src="js/saspay-service.js?v=865a9d8dd9"></script>
+    <script src="js/subscription-service.js?v=865a9d8dd9"></script>
+    <script src="app.compiled.js?v=865a9d8dd9"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

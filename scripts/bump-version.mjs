@@ -34,7 +34,8 @@ const FICHIERS_JS = [
     'js/calc-engine.js',
     'js/utils.js',
     'js/quote-templates.js',
-    'js/saspay-platform-config.js',
+    'js/payment-data-safety.js',
+    'js/catalog-persistence.js',
     'js/saspay-service.js',
     'js/subscription-service.js',
     'app.compiled.js'

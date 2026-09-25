@@ -25,17 +25,13 @@ export async function launchApp() {
 // des bancs veut partir d'un devis VIERGE et prédictible, et un exemple préchargé
 // leur ferait mesurer autre chose que ce qu'ils annoncent. L'atterrissage lui-même
 // est couvert par son propre banc (test_demo_landing.mjs).
-export async function enterGuestMode(page, { demo = false } = {}) {
+export async function enterGuestMode(page, { demo = false, createQuote = true } = {}) {
     if (!demo) {
         await page.evaluate(() => {
             try { localStorage.setItem('costcalc:guest:demoQuoteOpened', 'true'); } catch (e) {}
         });
     }
     const clicked = await page.evaluate(() => {
-        // Le bouton s'appelait « Continuer en Mode Démo / Hors-ligne (Invité) » —
-        // trois noms pour une seule chose. Renommé « Essayer sans compte » le
-        // 2026-09-01 ; l'ancien libellé reste accepté pour ne pas rendre ce
-        // harnais dépendant d'un mot.
         const btn = [...document.querySelectorAll('button')]
             .find((b) => /Essayer sans compte/.test(b.textContent || '')
                 || (b.textContent.includes('Mode Démo') && b.textContent.includes('Invité')));
@@ -45,45 +41,27 @@ export async function enterGuestMode(page, { demo = false } = {}) {
     });
     if (!clicked) throw new Error('Bouton "Mode Démo / Invité" introuvable sur l\'écran de connexion.');
 
-    // 2026-09-16 — L'application atterrit désormais sur le TABLEAU DE BORD, et
-    // non plus dans le chiffrage : on n'entre dans un devis que par un acte de
-    // création ou de modification. Le contrat de ce harnais ne change pas pour
-    // autant — « après enterGuestMode, on est sur un chiffrage vierge » — car
-    // une trentaine de bancs attaquent le devis dès la ligne suivante, sans
-    // naviguer. On pose donc ici le geste que l'utilisateur ferait lui-même.
-    //
-    // Conditionnel, et c'est essentiel : en mode démo (`demo: true`) le devis
-    // d'exemple s'ouvre tout seul, et cliquer « Nouveau devis » l'effacerait —
-    // ce que test_demo_landing.mjs mesure précisément.
-    // 2026-09-16 (2) — On branche sur le drapeau `demo` plutôt que sur ce qui
-    // est à l'écran. La version précédente sondait le DOM (« vois-je LOTS DU
-    // DEVIS ? sinon je clique Nouveau devis ») et cette heuristique est devenue
-    // FAUSSE avec la transition de page : la barre latérale affiche « Nouveau
-    // devis » dès le premier rendu — le menu reste instantané, c'est voulu —
-    // pendant que la zone de contenu montre encore le loader. Le harnais
-    // concluait donc qu'il fallait créer un devis et ÉCRASAIT le devis
-    // d'exemple de la démo (constaté : client vide, montants à zéro, alors que
-    // l'exemple se chargeait parfaitement 400 ms plus tard).
-    //
-    // Le drapeau, lui, ne ment pas :
-    //   demo: true  → l'application ouvre elle-même le devis d'exemple ; on
-    //                 attend, on ne clique JAMAIS.
-    //   demo: false → on atterrit sur le tableau de bord ; on ouvre un devis
-    //                 vierge, une fois la transition retombée.
     if (demo) {
         await page.waitForFunction(
-            () => document.body.innerText.includes('LOTS DU DEVIS'),
-            { timeout: 10000 }
+            () => !document.querySelector('.animate-page-spin') && (
+                document.body.innerText.includes('LOTS DU DEVIS') ||
+                document.body.innerText.includes('Tableau de bord') ||
+                document.body.innerText.includes('Nouveau devis')
+            ),
+            { timeout: 25000 }
         );
         return;
     }
-    // Attendre la fin de la transition avant de décider : cliquer pendant le
-    // loader viserait un écran qui n'est pas encore celui qu'on croit.
+
+    // Attendre la fin de la transition avant de décider
     await page.waitForFunction(
         () => !document.querySelector('.animate-page-spin')
-            && /Nouveau devis/.test(document.body.innerText),
-        { timeout: 10000 }
+            && (/Nouveau devis/.test(document.body.innerText) || /Tableau de bord/.test(document.body.innerText)),
+        { timeout: 25000 }
     );
+
+    if (!createQuote) return;
+
     const dejaSurLeChiffrage = await page.evaluate(
         () => document.body.innerText.includes('LOTS DU DEVIS'));
     if (!dejaSurLeChiffrage) {
@@ -97,11 +75,12 @@ export async function enterGuestMode(page, { demo = false } = {}) {
         if (!ouvert) throw new Error('Bouton « Nouveau devis » introuvable dans la barre latérale.');
     }
     await page.waitForFunction(
-        () => document.body.innerText.includes('LOTS DU DEVIS')
+        () => (document.body.innerText.includes('LOTS DU DEVIS') || document.body.innerText.includes('Formule'))
             && !document.querySelector('.animate-page-spin'),
         { timeout: 10000 }
     );
 }
+
 
 // Parse un montant affiché "1 234 567 FCFA" ou "+4 604 FCFA (30%)" en nombre.
 function parseFcfa(text) {

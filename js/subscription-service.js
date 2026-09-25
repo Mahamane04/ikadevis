@@ -51,7 +51,7 @@
                 'Jusqu’à 5 utilisateurs',
                 'Export PDF Pro sans filigrane',
                 'Suivi chantiers & marges réelles',
-                'Module SasPay Mobile Money & Carte',
+                'Encaissements SasPay temporairement indisponibles',
                 'Support prioritaire WhatsApp'
             ]
         },
@@ -73,7 +73,7 @@
                 'Multi-équipes & permissions avancées',
                 'Analytique & rentabilité BTP complète',
                 'Situations de travaux & acomptes',
-                'Passerelle SasPay gros volume',
+                'Encaissements SasPay temporairement indisponibles',
                 'Onboarding & accompagnement dédié'
             ]
         },

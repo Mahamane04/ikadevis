@@ -1,4 +1,7 @@
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const withoutPaymentSecrets = window.PaymentDataSafety.withoutPaymentSecrets;
+try { window.PaymentDataSafety.cleanLegacyPaymentCaches(window.localStorage); }
+catch (_) { console.warn('Le nettoyage des anciennes clés locales n’a pas abouti.'); }
 
 // ═══════════════════════════════════════════════════════════════
 // V6.2 — SUPABASE CLIENT INIT (config runtime par environnement)
@@ -236,9 +239,9 @@ function Badge({ colorClass = 'bg-neutral-100 text-neutral-600', uppercase = fal
 // en local, 3500 ms en cloud. Une constante unique, sinon l'écart se recreuse.
 const DUREE_ETAT_SUCCES_MS = 3000;
 
-// 2026-09-17 — Temps de transition inter-pages calibré à 350 ms : transition douce,
-// permettant une perception fluide et naturelle du chargement.
-const DUREE_TRANSITION_PAGE_MS = 350;
+// 2026-09-25 (Lot 5 / UX-04) — Suppression du délai artificiel de 350 ms : passage instantané
+const DUREE_TRANSITION_PAGE_MS = 0;
+
 
 // Rendu unique des états, partagé par les deux boutons d'enregistrement
 // (en-tête desktop et barre de totaux mobile). Deux rendus séparés auraient
@@ -445,44 +448,78 @@ const modesProposables = (solution, modeCourant) => {
 // ═══════════════════════════════════════════════════════════════
 // V5.3 — localStorage HELPER (cache offline + migration legacy)
 // ═══════════════════════════════════════════════════════════════
-// P0.1 V5.7 — Cache local isolé par user_id + Outbox persistant & détection guest V5.1
+// P0.1 V5.7 & LOT 2 — Cache local isolé par user_id ET organization_id
+// Conforme SEC-05 et complément REL-01
+// ═══════════════════════════════════════════════════════════════
 const CC_PREFIX = 'costcalc_';
+const globalTenantPersistence = typeof window !== 'undefined' && window.TenantPersistence
+    ? new window.TenantPersistence(window.localStorage)
+    : (typeof TenantPersistence !== 'undefined' ? new TenantPersistence(typeof localStorage !== 'undefined' ? localStorage : null) : null);
+
 const LS = {
-    getKey: (key, userId) => userId ? ('costcalc:' + userId + ':' + key) : ('costcalc:guest:' + key),
-    get: (key, userId) => {
+    setContext: (userId, orgId) => {
+        if (globalTenantPersistence) {
+            globalTenantPersistence.setContext(userId, orgId);
+        }
+    },
+    getKey: (key, userId, orgId) => {
+        if (globalTenantPersistence) {
+            return globalTenantPersistence.getKey(key, userId, orgId);
+        }
+        const uid = userId || 'guest';
+        if (orgId && orgId !== 'guest') return `costcalc:${uid}:${orgId}:${key}`;
+        return uid !== 'guest' ? `costcalc:${uid}:${key}` : `costcalc:guest:${key}`;
+    },
+    get: (key, userId, orgId) => {
         try {
-            const k = LS.getKey(key, userId);
+            if (globalTenantPersistence) {
+                return globalTenantPersistence.get(key, userId, orgId);
+            }
+            const k = LS.getKey(key, userId, orgId);
             const v = localStorage.getItem(k);
-            if (v !== null) return JSON.parse(v);
+            if (v !== null) return withoutPaymentSecrets(JSON.parse(v));
             return null;
         } catch(e) { return null; }
     },
-    set: (key, val, userId) => {
+    set: (key, val, userId, orgId) => {
         try {
-            const k = LS.getKey(key, userId);
-            localStorage.setItem(k, JSON.stringify(val));
+            if (globalTenantPersistence) {
+                return globalTenantPersistence.set(key, val, userId, orgId);
+            }
+            const k = LS.getKey(key, userId, orgId);
+            localStorage.setItem(k, JSON.stringify(withoutPaymentSecrets(val)));
         } catch(e) {}
     },
-    getOutbox: (userId) => {
+    getOutbox: (userId, orgId) => {
+        if (globalTenantPersistence && orgId) {
+            return globalTenantPersistence.getOutbox(userId, orgId);
+        }
         if (!userId) return {};
         try {
             const v = localStorage.getItem('costcalc:' + userId + ':outbox');
             return v ? JSON.parse(v) : {};
         } catch(e) { return {}; }
     },
-    setOutboxKey: (key, val, userId) => {
+    setOutboxKey: (key, val, userId, orgId) => {
         if (!userId) return;
+        if (globalTenantPersistence && orgId) {
+            return globalTenantPersistence.stageOutbox(key, val, null, userId, orgId);
+        }
         try {
-            const outbox = LS.getOutbox(userId);
+            const outbox = LS.getOutbox(userId, orgId);
             const lastRev = parseInt(localStorage.getItem('costcalc:' + userId + ':lastRev') || '100', 10);
             const revision = lastRev + 1;
             localStorage.setItem('costcalc:' + userId + ':lastRev', String(revision));
-            outbox[key] = { revision, value: val };
+            outbox[key] = { revision, value: withoutPaymentSecrets(val), organizationId: orgId || null };
             localStorage.setItem('costcalc:' + userId + ':outbox', JSON.stringify(outbox));
         } catch(e) {}
     },
-    clearOutboxKeyIfRevisionMatches: (key, confirmedRevision, userId) => {
+    clearOutboxKeyIfRevisionMatches: (key, confirmedRevision, userId, orgId) => {
         if (!userId) return;
+        if (globalTenantPersistence && orgId) {
+            globalTenantPersistence.acknowledgeOutbox(key, null, userId, orgId);
+            return;
+        }
         try {
             const outbox = LS.getOutbox(userId);
             const entry = outbox[key];
@@ -499,8 +536,12 @@ const LS = {
             }
         } catch(e) {}
     },
-    clearOutboxKey: (key, userId) => {
+    clearOutboxKey: (key, userId, orgId) => {
         if (!userId) return;
+        if (globalTenantPersistence && orgId) {
+            globalTenantPersistence.acknowledgeOutbox(key, null, userId, orgId);
+            return;
+        }
         try {
             const outbox = LS.getOutbox(userId);
             delete outbox[key];
@@ -511,8 +552,12 @@ const LS = {
             }
         } catch(e) {}
     },
-    clearOutbox: (userId) => {
+    clearOutbox: (userId, orgId) => {
         if (!userId) return;
+        if (globalTenantPersistence && orgId) {
+            const storageKey = globalTenantPersistence.getOutboxKey(userId, orgId);
+            if (storageKey) localStorage.removeItem(storageKey);
+        }
         localStorage.removeItem('costcalc:' + userId + ':outbox');
     },
     hasLegacyUnnamespacedData: () => {
@@ -8826,282 +8871,12 @@ const pourBase = (obj, champsNombre = []) => {
 };
 
 // ══ PASSERELLE DE PAIEMENT EN LIGNE SASPAY (Mobile Money & Carte) ═══════════
-function SaspaySettingsCard({ companyInfo, updateCompanyInfo, isReadOnly = false, showToast }) {
-    const rawSaspay = companyInfo?.saspaySettings || companyInfo?.commercialSettings?.saspay || {};
-    const saspay = {
-        enabled: !!rawSaspay.enabled,
-        apiKey: rawSaspay.apiKey || '',
-        environment: rawSaspay.environment || 'test',
-        defaultCountry: rawSaspay.defaultCountry || 'ML',
-        feeChargeMode: rawSaspay.feeChargeMode || 'DEDUCTED'
-    };
-
-    const [showKey, setShowKey] = React.useState(false);
-    const [testState, setTestState] = React.useState({ loading: false, result: null });
-
-    const handleUpdate = (patch) => {
-        if (isReadOnly || !updateCompanyInfo) return;
-        const nextSaspay = { ...saspay, ...patch };
-        const nextCommercial = {
-            ...(companyInfo?.commercialSettings || {}),
-            saspay: nextSaspay
-        };
-        updateCompanyInfo({
-            ...companyInfo,
-            saspaySettings: nextSaspay,
-            commercialSettings: nextCommercial
-        });
-    };
-
-    const handleTestConnection = async () => {
-        setTestState({ loading: true, result: null });
-        try {
-            const svc = (typeof window !== 'undefined' && window.SasPayService) ? window.SasPayService : null;
-            if (!svc) {
-                setTestState({
-                    loading: false,
-                    result: { success: false, message: "Le service SasPay n'est pas encore chargé." }
-                });
-                return;
-            }
-            const res = await svc.testConnection({
-                apiKey: saspay.apiKey,
-                environment: saspay.environment
-            });
-            setTestState({
-                loading: false,
-                result: {
-                    success: res.success,
-                    simulated: !!res.simulated,
-                    message: res.message,
-                    mode: res.environment
-                }
-            });
-            if (showToast) {
-                showToast(res.message, res.success ? 'success' : 'warning');
-            }
-        } catch (err) {
-            setTestState({
-                loading: false,
-                result: { success: false, message: err?.message || String(err) }
-            });
-            if (showToast) showToast(err?.message || "Erreur de test SasPay", 'error');
-        }
-    };
-
-    const countries = (typeof window !== 'undefined' && window.SASPAY_COUNTRIES) ? window.SASPAY_COUNTRIES : [
-        { code: 'ML', name: 'Mali', dialCode: '+223', flag: '🇲🇱', networks: ['Wave', 'Orange Money', 'Moov'] },
-        { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', networks: ['Wave', 'Orange Money', 'MTN', 'Moov'] },
-        { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', networks: ['Wave', 'Orange Money', 'Free Money'] },
-        { code: 'BJ', name: 'Bénin', dialCode: '+229', flag: '🇧🇯', networks: ['MTN', 'Moov', 'Celtiis'] },
-        { code: 'BF', name: 'Burkina Faso', dialCode: '+226', flag: '🇧🇫', networks: ['Orange Money', 'Moov'] },
-        { code: 'TG', name: 'Togo', dialCode: '+228', flag: '🇹🇬', networks: ['T-Money', 'Moov'] },
-        { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', networks: ['Orange Money', 'MTN'] },
-        { code: 'GN', name: 'Guinée', dialCode: '+224', flag: '🇬🇳', networks: ['Orange Money', 'MTN'] }
-    ];
-
-    return (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4" aria-label="Passerelle de paiement SasPay">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-100">
-                <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <i className="fa-solid fa-bolt-lightning text-lg"></i>
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-neutral-900">Passerelle de paiement en ligne SasPay</h3>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${saspay.enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'}`}>
-                                {saspay.enabled ? '● Passerelle Activée' : '○ Inactive'}
-                            </span>
-                            {saspay.enabled && (
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${saspay.environment === 'live' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                    {saspay.environment === 'live' ? 'Mode Production (Live)' : 'Mode Test (Sandbox)'}
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-[11px] text-neutral-500 mt-0.5">
-                            Encaissez vos acomptes et factures par <strong>Wave</strong>, <strong>Orange Money</strong>, <strong>Moov</strong>, <strong>MTN</strong>, <strong>Free</strong>, <strong>Celtiis</strong> et <strong>Cartes Bancaires (Visa / Mastercard)</strong>.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={saspay.enabled}
-                            disabled={isReadOnly}
-                            onChange={(e) => handleUpdate({ enabled: e.target.checked })}
-                        />
-                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                        <span className="ml-2 text-xs font-semibold text-neutral-700">
-                            {saspay.enabled ? 'Activé' : 'Désactivé'}
-                        </span>
-                    </label>
-                </div>
-            </div>
-
-            {/* Badges de canaux supportés */}
-            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-neutral-600 bg-neutral-50/80 p-2.5 rounded-xl border border-neutral-150">
-                <span className="font-bold text-neutral-700 mr-1 text-[10px] uppercase tracking-wider">Réseaux inclus :</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200/60 font-semibold"><i className="fa-solid fa-water text-[10px]"></i> Wave</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200/60 font-semibold"><i className="fa-solid fa-mobile-screen text-[10px]"></i> Orange Money</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold"><i className="fa-solid fa-signal text-[10px]"></i> Moov Money</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200/60 font-semibold"><i className="fa-solid fa-tower-broadcast text-[10px]"></i> MTN MoMo</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/60 font-semibold"><i className="fa-solid fa-phone text-[10px]"></i> Free / Celtiis</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 border border-neutral-200 font-semibold"><i className="fa-solid fa-credit-card text-[10px]"></i> Visa / Mastercard</span>
-            </div>
-
-            {saspay.enabled && (
-                <div className="space-y-4 pt-1">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Environnement */}
-                        <div>
-                            <label className="app-label">Environnement SasPay *</label>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    disabled={isReadOnly}
-                                    onClick={() => handleUpdate({ environment: 'test' })}
-                                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${saspay.environment === 'test' ? 'bg-amber-50 text-amber-900 border-amber-300 ring-2 ring-amber-400/20' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
-                                >
-                                    <i className="fa-solid fa-flask text-amber-600"></i>
-                                    Test (Sandbox)
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={isReadOnly}
-                                    onClick={() => handleUpdate({ environment: 'live' })}
-                                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${saspay.environment === 'live' ? 'bg-emerald-50 text-emerald-900 border-emerald-400 ring-2 ring-emerald-400/20' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}
-                                >
-                                    <i className="fa-solid fa-shield-halved text-emerald-600"></i>
-                                    Production (Live)
-                                </button>
-                            </div>
-                            <p className="text-[11px] text-neutral-500 mt-1">
-                                {saspay.environment === 'test' ? 'Permet de tester les encaissements sans mouvement d\'argent réel.' : 'Tous les règlements encaisseront de l\'argent réel sur votre compte SasPay.'}
-                            </p>
-                        </div>
-
-                        {/* Clé secrète API */}
-                        <div>
-                            <div className="flex justify-between items-center mb-1">
-                                <label htmlFor="saspay_api_key" className="app-label !mb-0">
-                                    Clé secrète d'API (Secret Key) *
-                                </label>
-                                <a
-                                    href="https://saspay.me"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[11px] font-semibold text-brand-600 hover:underline inline-flex items-center gap-1"
-                                >
-                                    Ouvrir SasPay <i className="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-                                </a>
-                            </div>
-                            <div className="relative">
-                                <input
-                                    id="saspay_api_key"
-                                    disabled={isReadOnly}
-                                    type={showKey ? 'text' : 'password'}
-                                    className="app-input font-mono text-xs pr-20"
-                                    value={saspay.apiKey}
-                                    onChange={(e) => handleUpdate({ apiKey: e.target.value.trim() })}
-                                    placeholder={saspay.environment === 'live' ? 'sk_live_...' : 'sk_test_...'}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowKey(!showKey)}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs px-1.5 py-1"
-                                    title={showKey ? 'Masquer' : 'Afficher'}
-                                >
-                                    <i className={`fa-solid ${showKey ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                </button>
-                            </div>
-                            <p className="text-[11px] text-neutral-400 mt-1">
-                                En l'absence de clé, un simulateur interactif local permet de tester le flux complet.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Pays d'encaissement par défaut */}
-                        <div>
-                            <label htmlFor="saspay_country" className="app-label">Pays principal des clients *</label>
-                            <select
-                                id="saspay_country"
-                                disabled={isReadOnly}
-                                value={saspay.defaultCountry}
-                                onChange={(e) => handleUpdate({ defaultCountry: e.target.value })}
-                                className="app-input text-xs font-semibold"
-                            >
-                                {countries.map(c => (
-                                    <option key={c.code} value={c.code}>
-                                        {c.flag} {c.name} ({c.dialCode}) — {c.networks.join(', ')}
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="text-[11px] text-neutral-500 mt-1">
-                                Préselectionne l'indicatif téléphonique et les opérateurs Mobile Money lors de l'encaissement.
-                            </p>
-                        </div>
-
-                        {/* Gestion des frais */}
-                        <div>
-                            <label htmlFor="saspay_fee_mode" className="app-label">Prise en charge des frais de passerelle *</label>
-                            <select
-                                id="saspay_fee_mode"
-                                disabled={isReadOnly}
-                                value={saspay.feeChargeMode}
-                                onChange={(e) => handleUpdate({ feeChargeMode: e.target.value })}
-                                className="app-input text-xs font-semibold"
-                            >
-                                <option value="DEDUCTED">Déduits du montant reçu (Recommandé - Transparent pour le client)</option>
-                                <option value="ADD_ON">Répercutés en supplément à la charge du client (Add-on)</option>
-                            </select>
-                            <p className="text-[11px] text-neutral-500 mt-1">
-                                Selon les règles de votre entreprise et de votre grille tarifaire BTP.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Test de connexion et état */}
-                    <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                        <div className="text-xs">
-                            <span className="font-bold text-neutral-800 block">Vérification de la configuration</span>
-                            {testState.result ? (
-                                <p className={`text-[11px] mt-0.5 flex items-center gap-1.5 ${testState.result.success ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-medium'}`}>
-                                    <i className={`fa-solid ${testState.result.success ? 'fa-circle-check text-emerald-600' : 'fa-triangle-exclamation text-amber-600'}`}></i>
-                                    {testState.result.message}
-                                </p>
-                            ) : (
-                                <p className="text-[11px] text-neutral-500 mt-0.5">
-                                    Testez instantanément l'accessibilité de l'API SasPay avec votre clé.
-                                </p>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            disabled={testState.loading || isReadOnly}
-                            onClick={handleTestConnection}
-                            className="btn-secondary text-xs py-2 px-3 font-semibold shrink-0"
-                        >
-                            {testState.loading ? (
-                                <>
-                                    <i className="fa-solid fa-spinner fa-spin mr-1.5"></i> Test en cours…
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fa-solid fa-plug-circle-check text-emerald-600 mr-1.5"></i> Tester la connexion
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </section>
-    );
+function SaspaySettingsCard() {
+    return <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3" aria-label="Passerelle de paiement SasPay">
+        <h3 className="font-bold text-neutral-900">Encaissements SasPay temporairement indisponibles</h3>
+        <p className="text-sm text-neutral-700">La connexion sécurisée de votre entreprise est en cours de préparation. Aucune clé secrète ne doit être saisie dans le navigateur.</p>
+        <p className="text-sm text-neutral-700">Vous pouvez toujours enregistrer les règlements reçus manuellement. Votre abonnement ikadevis reste géré séparément.</p>
+    </section>;
 }
 
 function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyInfo, updateCompanyInfo, canEdit, isReadOnly, showToast, askConfirm }) {
@@ -12466,7 +12241,7 @@ const InvoiceService = {
                 deducted_ttc: facture.deduitTTC || 0,
                 net_to_pay_ttc: facture.netAPayerTTC,
                 amount_paid: facture.montantRegle || 0,
-                company_snapshot: facture.companyInfoSnapshot || {},
+                company_snapshot: withoutPaymentSecrets(facture.companyInfoSnapshot || {}),
                 created_by: sbUser.id
             })
             .select('id')
@@ -12816,7 +12591,7 @@ const InvoiceService = {
                 deducted_ttc: 0,
                 net_to_pay_ttc: -totalTTC,
                 amount_paid: 0,
-                company_snapshot: avoirObj.companyInfoSnapshot,
+                company_snapshot: withoutPaymentSecrets(avoirObj.companyInfoSnapshot),
                 created_by: sbUser.id,
                 notes: avoirObj.notes
             })
@@ -12887,7 +12662,7 @@ const QuoteService = {
             p_project_ref: quote.projectRef || 'Chantier BTP',
             // Voir le commentaire de gel plus bas : le modèle voyage avec
             // l'identité de l'entreprise, dans le même instantané.
-            p_company_snapshot: companyInfo || {},
+            p_company_snapshot: withoutPaymentSecrets(companyInfo || {}),
             p_calc_form_snapshot: calcForm || {},
             p_lines: linesForV6,
             p_hybrid_snapshot: quote.hybridQuoteSnapshot || {},
@@ -14419,7 +14194,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
     const resteAPayer = Math.max(0, totalTTC - dejaRegle);
 
     // Paramètres SasPay résolus
-    const activeSaspay = saspaySettings || companyInfo?.saspaySettings || companyInfo?.commercialSettings?.saspay || {
+    const activeSaspay = {
         enabled: false,
         apiKey: '',
         environment: 'test',
@@ -14437,6 +14212,19 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
     const [reference, setReference] = useState('');
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
 
     // SasPay Online states
     const [saspaySubMode, setSaspaySubMode] = useState('checkout'); // 'checkout' | 'softpay'
@@ -14718,7 +14506,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                         <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
                             activeSaspay.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                            {activeSaspay.enabled ? (activeSaspay.environment === 'live' ? 'Live' : 'Sandbox') : 'Démo'}
+                            {activeSaspay.enabled ? (activeSaspay.environment === 'live' ? 'Live' : 'Sandbox') : 'Indisponible'}
                         </span>
                     </button>
                 </div>
@@ -14884,7 +14672,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                 </button>
                             </div>
                         </form>
-                    ) : (
+                    ) : !activeSaspay.enabled ? <SaspaySettingsCard /> : (
                         /* SasPay Online Settlement Panel */
                         <div className="space-y-4">
                             {/* Sous-mode SasPay */}
@@ -15203,6 +14991,19 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
     const cfg = fusionnerConfiguration(configuration);
     const brandColor = theme?.brandColor || '#059669';
 
+    React.useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
     const handlePrint = () => {
         window.print();
     };
@@ -15427,6 +15228,19 @@ function InvoiceCreditNoteModal({ facture, devise = 'FCFA', onClose, onSubmit })
     const [precision, setPrecision] = React.useState('');
     const [envoiEnCours, setEnvoiEnCours] = React.useState(false);
     const [erreur, setErreur] = React.useState('');
+
+    React.useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
 
     const motifsPredefinis = [
         "Erreur de facturation / Chiffrage",
@@ -16043,6 +15857,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [activeOrganizationRole, setActiveOrganizationRole] = useState(() => (sbUser && sbUser.id !== 'guest') ? null : 'owner');
     const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
 
+    useEffect(() => {
+        LS.setContext(currentUserId, activeOrganizationId);
+    }, [currentUserId, activeOrganizationId]);
+
     // P0.13 (2026-08-17) — "+ Nouveau Chantier"/"+ Nouveau Client" inséraient
     // directement des données factices (nom générique, NIF-000000, client au
     // hasard) sans jamais demander les vraies informations. Remplacé par un
@@ -16493,30 +16311,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
     }, []);
 
-    // Les paramètres disposent désormais de leurs propres liens directs.
-    // Le hash ne pilote que cette page et ne change pas les autres parcours.
-    useEffect(() => {
-        const syncSettingsFromHash = () => {
-            const hash = window.location.hash;
-            const settingsMatch = hash.match(/^#settings\/(entreprise|documents|facturation|finances|audit|diagnostic|donnees)$/);
-            if (settingsMatch) {
-                setAccountSettingsTab(settingsMatch[1]);
-                setActiveView('settings');
-                return;
-            }
-            const shortcutViews = {
-                '#dashboard': 'dashboard',
-                '#new-quote': 'calculator',
-                '#clients': 'clients',
-                '#invoices': 'invoices',
-                '#depenses': 'depenses'
-            };
-            if (shortcutViews[hash]) setActiveView(shortcutViews[hash]);
-        };
-        syncSettingsFromHash();
-        window.addEventListener('hashchange', syncSettingsFromHash);
-        return () => window.removeEventListener('hashchange', syncSettingsFromHash);
-    }, []);
+    // Le routage universel d'URL (Lot 6 / UX-03) est initialisé plus bas avec toutes les entités métier (savedQuotes, invoices, clients, etc.)
 
     // ── SUPER-ADMIN PLATEFORME (éditeur du SaaS) ──────────────────────────
     // isPlatformAdmin n'est JAMAIS une source d'autorité : il ne sert qu'à
@@ -17910,7 +17705,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const quoteTransitionSeqRef = useRef(0);
     const invoiceTransitionSeqRef = useRef(0);
 
-    const DUREE_TRANSITION_DETAIL_MS = 350; // Calibré à 350 ms pour un confort visuel optimal sans précipitation
+    const DUREE_TRANSITION_DETAIL_MS = 0; // Passage instantané sans attente artificielle (UX-04)
+
 
     const selectRecipeSolution = useCallback((solution) => {
         if (!solution) {
@@ -17977,10 +17773,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }, DUREE_TRANSITION_DETAIL_MS);
     }, [selectedLaborId, detailLoadingResource]);
 
+    const isNavigatingFromRouteRef = useRef(false);
+
     const selectClient = useCallback((cId) => {
         if (!cId) {
             setSelectedClientId(null);
             setDetailLoadingClient(false);
+            if (!isNavigatingFromRouteRef.current && window.location.hash.startsWith('#clients/')) {
+                window.history.pushState(null, '', '#clients');
+            }
             return;
         }
         if (selectedClientId === cId && !detailLoadingClient) return;
@@ -17994,12 +17795,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setDetailLoadingClient(false);
             }
         }, DUREE_TRANSITION_DETAIL_MS);
+
+        if (!isNavigatingFromRouteRef.current) {
+            const nextHash = `#clients/${encodeURIComponent(cId)}`;
+            if (window.location.hash !== nextHash) {
+                window.history.pushState({ type: 'client', id: cId }, '', nextHash);
+            }
+        }
     }, [selectedClientId, detailLoadingClient]);
 
     const selectProject = useCallback((pId) => {
         if (!pId) {
             setSelectedProjectId(null);
             setDetailLoadingProject(false);
+            if (!isNavigatingFromRouteRef.current && (window.location.hash.startsWith('#chantiers/') || window.location.hash.startsWith('#projets/'))) {
+                window.history.pushState(null, '', '#chantiers');
+            }
             return;
         }
         if (selectedProjectId === pId && !detailLoadingProject) return;
@@ -18013,12 +17824,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setDetailLoadingProject(false);
             }
         }, DUREE_TRANSITION_DETAIL_MS);
+
+        if (!isNavigatingFromRouteRef.current) {
+            const nextHash = `#chantiers/${encodeURIComponent(pId)}`;
+            if (window.location.hash !== nextHash) {
+                window.history.pushState({ type: 'project', id: pId }, '', nextHash);
+            }
+        }
     }, [selectedProjectId, detailLoadingProject]);
 
     const selectSavedQuote = useCallback((sq) => {
         if (!sq) {
             setViewingSavedQuote(null);
             setDetailLoadingQuote(false);
+            if (!isNavigatingFromRouteRef.current && (window.location.hash.startsWith('#devis/') || window.location.hash.startsWith('#quotes/'))) {
+                window.history.pushState(null, '', '#devis');
+            }
             return;
         }
         if (viewingSavedQuote?.id === sq.id && !detailLoadingQuote) return;
@@ -18033,12 +17854,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setDetailLoadingQuote(false);
             }
         }, DUREE_TRANSITION_DETAIL_MS);
+
+        if (!isNavigatingFromRouteRef.current) {
+            const nextHash = `#devis/${encodeURIComponent(sq.id || sq.number)}`;
+            if (window.location.hash !== nextHash) {
+                window.history.pushState({ type: 'quote', id: sq.id }, '', nextHash);
+            }
+        }
     }, [viewingSavedQuote, detailLoadingQuote]);
 
     const selectInvoiceItem = useCallback((inv) => {
         if (!inv) {
             setViewingInvoice(null);
             setDetailLoadingInvoice(false);
+            if (!isNavigatingFromRouteRef.current && (window.location.hash.startsWith('#factures/') || window.location.hash.startsWith('#invoices/'))) {
+                window.history.pushState(null, '', '#factures');
+            }
             return;
         }
         if (viewingInvoice?.id === inv.id && !detailLoadingInvoice) return;
@@ -18052,6 +17883,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 setDetailLoadingInvoice(false);
             }
         }, DUREE_TRANSITION_DETAIL_MS);
+
+        if (!isNavigatingFromRouteRef.current) {
+            const nextHash = `#factures/${encodeURIComponent(inv.id || inv.numero)}`;
+            if (window.location.hash !== nextHash) {
+                window.history.pushState({ type: 'invoice', id: inv.id }, '', nextHash);
+            }
+        }
     }, [viewingInvoice, detailLoadingInvoice]);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
@@ -18432,7 +18270,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // company_settings.payment_schedule (jsonb) a été ajoutée par la migration
     // add_payment_schedule_to_company_settings ; sans ces deux lignes, un
     // compte cloud perdait son échéancier personnalisé au rechargement.
-    const mapCompanyToDb = (c, orgId) => ({
+    const mapCompanyToDb = (company, orgId) => {
+        const c = withoutPaymentSecrets(company);
+        return withoutPaymentSecrets({
         organization_id: orgId, name: c.name, tagline: c.tagline, phone: c.phone, email: c.email,
         address: c.address, nif: c.nif, rccm: c.rccm, currency: c.currency,
         quote_validity: c.quoteValidity, payment_terms: c.paymentTerms,
@@ -18456,7 +18296,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             saspay: c.saspaySettings || c.commercialSettings?.saspay || defaultSaspaySettings
         }
     });
-    const mapCompanyFromDb = (r) => ({
+    };
+    const mapCompanyFromDb = (row) => {
+        const r = withoutPaymentSecrets(row);
+        return ({
         name: r.name, tagline: r.tagline, phone: r.phone, email: r.email, address: r.address,
         nif: r.nif, rccm: r.rccm, currency: r.currency, quoteValidity: r.quote_validity, paymentTerms: r.payment_terms,
         // NULL en base (ligne antérieure à la migration, ou jamais personnalisée)
@@ -18482,27 +18325,51 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         saspaySettings: (r.commercial_settings && r.commercial_settings.saspay) ? r.commercial_settings.saspay : { ...defaultSaspaySettings }
     });
 
-    // Resynchronisation complète d'une table catalogue org-scopée (delete + insert).
-    // Cohérent avec la sémantique historique de updateMaterials/etc. (newVal = liste
-    // complète à faire autorité) ; la fenêtre delete→insert n'est pas atomique, mais
-    // un échec réseau y laisse au pire le catalogue cloud vide jusqu'au prochain
-    // enregistrement réussi — le local (state + LS.setOutboxKey) reste la source de
-    // vérité affichée à l'utilisateur entre-temps.
-    const syncCatalogTable = async (table, orgId, rows, mapToDb) => {
-        if (!supabaseClient || !orgId) return;
-        const { error: delErr } = await supabaseClient.from(table).delete().eq('organization_id', orgId);
-        if (delErr) { console.warn(`[Cloud Sync] ${table} delete error:`, delErr); return; }
-        if (rows.length > 0) {
-            const { error: insErr } = await supabaseClient.from(table).insert(rows.map(r => mapToDb(r, orgId)));
-            if (insErr) console.warn(`[Cloud Sync] ${table} insert error:`, insErr);
-        }
     };
 
+    const catalogPersistence = useMemo(() => supabaseClient && currentUserId !== 'guest'
+        ? new window.CatalogPersistence(supabaseClient, window.localStorage, currentUserId) : null,
+        [supabaseClient, currentUserId]);
     const catalogSaveTimers = useRef({});
+    const catalogSaveErrors = useRef(new Set());
+    const refreshCatalogSaveStatus = () => {
+        if (catalogSaveErrors.current.size || Object.keys(LS.getOutbox(currentUserId)).length || catalogPersistence?.otherPending(activeOrganizationId).length) {
+            setSbSyncStatus('error');
+        } else if (['materials','labor','solutions','recipes'].some(table => catalogPersistence?.pending(activeOrganizationId, table))) {
+            setSbSyncStatus('syncing');
+        } else setSbSyncStatus('saved');
+    };
+    const catalogSaveFailure = (error) => {
+        setSbSyncStatus('error');
+        showToast(error?.code === '40001'
+            ? 'Catalogue modifié ailleurs. La version locale est conservée ; une comparaison avec la version serveur est nécessaire avant de reprendre.'
+            : error?.localStorageFailure
+                ? 'Vos changements restent visibles mais leur sauvegarde locale a échoué. Ne fermez pas cette page.'
+                : 'La synchronisation a échoué. Les modifications en attente sont conservées sur cet appareil.', 'error');
+    };
     const scheduleCatalogSave = useCallback((key, fn) => {
         if (catalogSaveTimers.current[key]) clearTimeout(catalogSaveTimers.current[key]);
-        catalogSaveTimers.current[key] = setTimeout(fn, 1500);
+        catalogSaveTimers.current[key] = setTimeout(async () => {
+            try { await fn(); } catch (error) { catalogSaveErrors.current.add(key); catalogSaveFailure(error); }
+        }, 1500);
     }, []);
+    useEffect(() => () => Object.values(catalogSaveTimers.current).forEach(clearTimeout), []);
+    const stageCatalogChange = (table, rows, mapper) => {
+        if (!catalogPersistence) return;
+        try {
+            try { catalogPersistence.stage(activeOrganizationId, table, rows.map(row => mapper(row, activeOrganizationId))); }
+            catch (error) { error.localStorageFailure = true; throw error; }
+            catalogSaveErrors.current.delete(activeOrganizationId + ':' + table);
+            setSbSyncStatus('syncing');
+            if (sbDataLoaded && cloudState === 'loaded' && navigator.onLine) {
+                scheduleCatalogSave(activeOrganizationId + ':' + table, async () => {
+                    await catalogPersistence.flush(activeOrganizationId, table);
+                    catalogSaveErrors.current.delete(activeOrganizationId + ':' + table);
+                    refreshCatalogSaveStatus();
+                });
+            }
+        } catch (error) { catalogSaveErrors.current.add(activeOrganizationId + ':' + table); catalogSaveFailure(error); }
+    };
 
     // BLOC 1/10 : ONBOARDING AUTOMATIQUE & CHARGEMENT MULTI-TENANT STRICT
     useEffect(() => {
@@ -18516,7 +18383,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setCloudState('loading');
         (async () => {
             try {
-                let resolvedOrgId = null;
+                let resolvedOrgId = activeOrganizationId === 'org_default' ? null : activeOrganizationId;
 
                 // 1. Onboarding Automatique & Idempotent via bootstrap_user_organization
                 try {
@@ -18524,7 +18391,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         p_org_name: sbUser.user_metadata?.org_name || 'Entreprise BTP'
                     });
                     if (!bootErr && bootData && bootData.organization_id) {
-                        resolvedOrgId = bootData.organization_id;
+                        resolvedOrgId = resolvedOrgId || bootData.organization_id;
                         const orgObj = {
                             id: bootData.organization_id,
                             name: bootData.organization_name || bootData.name || 'Entreprise BTP',
@@ -18532,10 +18399,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             role: bootData.role || 'owner'
                         };
                         setUserOrganizations([orgObj]);
-                        setActiveOrganizationId(orgObj.id);
-                        setActiveOrganizationRole(orgObj.role);
+
                         localStorage.setItem(`ikadevis_orgs_${sbUser.id}`, JSON.stringify([orgObj]));
-                        localStorage.setItem(`ikadevis_active_org_${sbUser.id}`, orgObj.id);
+
                     }
                 } catch (bErr) {
                     console.warn('[Bloc 1] Bootstrap RPC fallback:', bErr);
@@ -18563,9 +18429,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             setActiveOrganizationRole(parsedOrgs[0].role);
                             localStorage.setItem(`ikadevis_active_org_${sbUser.id}`, parsedOrgs[0].id);
                         }
+                        const selected = parsedOrgs.find(org => org.id === resolvedOrgId);
+                        setActiveOrganizationId(selected.id);
+                        setActiveOrganizationRole(selected.role);
+                    } else {
+                        throw new Error('Impossible de vérifier les accès à cette entreprise.');
                     }
                 } catch (mErr) {
-                    console.warn('[Bloc 1] Members query fallback:', mErr);
+                    throw mErr;
                 }
 
                 if (!resolvedOrgId) {
@@ -18581,10 +18452,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // PROJECT_MASTER_TRACKER.md § 16.
                 const [companyRes, materialsRes, laborRes, solutionsRes, recipesRes, quotesRes, modelesRes, invoicesRes, invoiceLinesRes] = await Promise.all([
                     supabaseClient.from('company_settings').select('*').eq('organization_id', resolvedOrgId).maybeSingle(),
-                    supabaseClient.from('materials').select('*').eq('organization_id', resolvedOrgId),
-                    supabaseClient.from('labor').select('*').eq('organization_id', resolvedOrgId),
-                    supabaseClient.from('solutions').select('*').eq('organization_id', resolvedOrgId),
-                    supabaseClient.from('recipes').select('*').eq('organization_id', resolvedOrgId),
+                    catalogPersistence.read(resolvedOrgId, 'materials'),
+                    catalogPersistence.read(resolvedOrgId, 'labor'),
+                    catalogPersistence.read(resolvedOrgId, 'solutions'),
+                    catalogPersistence.read(resolvedOrgId, 'recipes'),
                     supabaseClient.from('quotes').select('*').eq('organization_id', resolvedOrgId).order('date_created', { ascending: false }),
                     supabaseClient.from('document_templates').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: true }),
                     supabaseClient.from('invoices').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }),
@@ -18604,7 +18475,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     return;
                 }
 
-                const isFirstLoginOnOrg = !companyRes.data && materialsRes.data.length === 0 && solutionsRes.data.length === 0;
+                const isFirstLoginOnOrg = !companyRes.data && materialsRes.data.length === 0 && solutionsRes.data.length === 0
+                    && !['materials','labor','solutions','recipes'].some(table => catalogPersistence.pending(resolvedOrgId, table));
 
                 if (isFirstLoginOnOrg) {
                     // Première connexion sur cette organisation : amorcer le catalogue de
@@ -18614,13 +18486,13 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                     const seedResults = await Promise.all([
                         supabaseClient.from('company_settings').insert(mapCompanyToDb(defaultCompany, resolvedOrgId)),
-                        initialMaterials.length ? supabaseClient.from('materials').insert(initialMaterials.map(m => mapMaterialToDb(m, resolvedOrgId))) : Promise.resolve({ error: null }),
-                        initialLabor.length ? supabaseClient.from('labor').insert(initialLabor.map(l => mapLaborToDb(l, resolvedOrgId))) : Promise.resolve({ error: null }),
-                        initialSolutions.length ? supabaseClient.from('solutions').insert(initialSolutions.map(s => mapSolutionToDb(s, resolvedOrgId))) : Promise.resolve({ error: null }),
-                        initialRecipes.length ? supabaseClient.from('recipes').insert(initialRecipes.map(r => mapRecipeToDb(r, resolvedOrgId))) : Promise.resolve({ error: null })
+                        (async () => { catalogPersistence.stage(resolvedOrgId, 'materials', initialMaterials.map(row => mapMaterialToDb(row, resolvedOrgId))); await catalogPersistence.flush(resolvedOrgId, 'materials'); return { error: null }; })(),
+                        (async () => { catalogPersistence.stage(resolvedOrgId, 'labor', initialLabor.map(row => mapLaborToDb(row, resolvedOrgId))); await catalogPersistence.flush(resolvedOrgId, 'labor'); return { error: null }; })(),
+                        (async () => { catalogPersistence.stage(resolvedOrgId, 'solutions', initialSolutions.map(row => mapSolutionToDb(row, resolvedOrgId))); await catalogPersistence.flush(resolvedOrgId, 'solutions'); return { error: null }; })(),
+                        (async () => { catalogPersistence.stage(resolvedOrgId, 'recipes', initialRecipes.map(row => mapRecipeToDb(row, resolvedOrgId))); await catalogPersistence.flush(resolvedOrgId, 'recipes'); return { error: null }; })(),
                     ]);
                     const seedError = seedResults.map(r => r.error).find(Boolean);
-                    if (seedError) console.warn('[Bloc 1] Erreur lors de l\'amorçage du catalogue cloud:', seedError);
+                    if (seedError) throw seedError;
 
                     setCompanyInfo(defaultCompany);
                     setMaterials(initialMaterials);
@@ -18629,10 +18501,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     setRecipes(initialRecipes);
                 } else {
                     setCompanyInfo(companyRes.data ? mapCompanyFromDb(companyRes.data) : defaultCompany);
-                    setMaterials((materialsRes.data || []).map(mapMaterialFromDb));
-                    setLabor((laborRes.data || []).map(mapLaborFromDb));
-                    setSolutions(normalizeCatalogSolutionModes((solutionsRes.data || []).map(mapSolutionFromDb)));
-                    setRecipes((recipesRes.data || []).map(mapRecipeFromDb));
+                    setMaterials((catalogPersistence.pending(resolvedOrgId, 'materials')?.rows || materialsRes.data || []).map(mapMaterialFromDb));
+                    setLabor((catalogPersistence.pending(resolvedOrgId, 'labor')?.rows || laborRes.data || []).map(mapLaborFromDb));
+                    setSolutions(normalizeCatalogSolutionModes((catalogPersistence.pending(resolvedOrgId, 'solutions')?.rows || solutionsRes.data || []).map(mapSolutionFromDb)));
+                    setRecipes((catalogPersistence.pending(resolvedOrgId, 'recipes')?.rows || recipesRes.data || []).map(mapRecipeFromDb));
                 }
 
                 // P1-03 (2026-08-19) — Devis Enregistrés reconstruits depuis la vraie
@@ -18705,69 +18577,51 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         })();
     }, [supabaseClient, sbUser, sbDataLoaded, cloudRetryCount]);
 
-    // P0.1 V5.7.3-FINAL — Drainage Automatique de l'Outbox post-authentification
-    // P0.8 (2026-08-17) — materials/labor/solutions/recipes/company_info sont
-    // désormais rejoués vers leurs vraies tables V6 (pas le blob user_data mort).
-    // Les anciennes clés saved_quotes/next_quote_seq sont purgées sans être
-    // envoyées vers user_data : les devis cloud sont désormais la source de
-    // vérité, et le serveur attribue la séquence via create_quote_v7.
-    const RELATIONAL_OUTBOX_KEYS = { materials: mapMaterialToDb, labor: mapLaborToDb, solutions: mapSolutionToDb, recipes: mapRecipeToDb };
+    // Reprise uniquement des nouvelles opérations explicitement liées à cette entreprise.
+    // L'ancienne outbox n'a pas de destination fiable : elle est conservée, jamais rejouée automatiquement.
     useEffect(() => {
-        if (sbUser && sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
-            const outbox = LS.getOutbox(sbUser.id);
-            if (outbox && Object.keys(outbox).length > 0) {
-                Object.keys(outbox).forEach(key => {
-                    if (!(outbox[key] && typeof outbox[key] === 'object' && 'value' in outbox[key])) return;
-                    const value = outbox[key].value;
-                    if (key in RELATIONAL_OUTBOX_KEYS) {
-                        syncCatalogTable(key, activeOrganizationId, value, RELATIONAL_OUTBOX_KEYS[key])
-                            .then(() => LS.clearOutboxKey(key, sbUser.id))
-                            .catch(e => console.warn(`[Cloud Sync] Échec du drainage outbox pour ${key}:`, e));
-                    } else if (key === 'company_info') {
-                        supabaseClient.from('company_settings').upsert(mapCompanyToDb(value, activeOrganizationId), { onConflict: 'organization_id' })
-                            .then(({ error }) => { if (!error) LS.clearOutboxKey('company_info', sbUser.id); else console.warn('[Cloud Sync] Échec du drainage outbox company_info:', error); });
-                    } else if (key === 'saved_quotes' || key === 'next_quote_seq') {
-                        LS.clearOutboxKey(key, sbUser.id);
-                    } else {
-                        // Les clés V5 restantes ne correspondent plus à une
-                        // table de production. On les retire sans appeler
-                        // l'ancien blob user_data supprimé.
-                        console.warn(`[Cloud Sync] Clé locale obsolète ignorée : ${key}`);
-                        LS.clearOutboxKey(key, sbUser.id);
-                    }
-                });
+        if (!catalogPersistence || !sbDataLoaded || cloudState !== 'loaded') return;
+        let stopped = false;
+        const resume = async () => {
+            const legacy = LS.getOutbox(currentUserId);
+            if (Object.keys(legacy).length || catalogPersistence.otherPending(activeOrganizationId).length) {
+                setSbSyncStatus('error');
+                showToast('Des modifications anciennes ou présentes dans un autre onglet nécessitent une vérification. Elles sont conservées sur cet appareil.', 'warning');
             }
-        }
-    }, [sbUser, sbDataLoaded, cloudState, activeOrganizationId, supabaseClient]);
+            try {
+                for (const table of ['materials','labor','solutions','recipes']) {
+                    if (stopped) return;
+                    if (catalogPersistence.pending(activeOrganizationId, table)) {
+                        setSbSyncStatus('syncing');
+                        try {
+                            await catalogPersistence.flush(activeOrganizationId, table);
+                            catalogSaveErrors.current.delete(activeOrganizationId + ':' + table);
+                        } catch (error) {
+                            catalogSaveErrors.current.add(activeOrganizationId + ':' + table);
+                            throw error;
+                        }
+                    }
+                }
+                if (!stopped) refreshCatalogSaveStatus();
+            } catch (error) { if (!stopped) catalogSaveFailure(error); }
+        };
+        resume();
+        window.addEventListener('online', resume);
+        return () => { stopped = true; window.removeEventListener('online', resume); };
+    }, [catalogPersistence, currentUserId, sbDataLoaded, cloudState, activeOrganizationId]);
 
-    // P0.1 V5.7.3-FINAL — Mutateurs Explicites Déterministes
-    // P0.8 (2026-08-17) — Persistance cloud réelle vers les tables V6 org-scopées
-    // (materials/labor/solutions/recipes/company_settings), à la place de l'ancien
-    // blob `user_data` (V5, supprimé de la production). LS.setOutboxKey conserve la
-    // résilience hors-ligne existante (rejoué au reconnect ci-dessous) ; seule la
-    // destination réseau change. Voir PROJECT_MASTER_TRACKER.md § 16.
-    const updateMaterials = useCallback((newVal) => {
+    const updateMaterials = (newVal) => {
         if (isReadOnlyDueToDowngrade || !hasPermission(activeOrganizationRole, 'canEditPrices')) {
-            showToast('Action bloquée : votre rôle ne permet pas de modifier les matières et les prix.', 'error');
+            showToast('Votre rôle ne permet pas de modifier ce catalogue.', 'error');
             return;
         }
         setMaterials(newVal);
-        if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('materials', newVal, sbUser.id);
-            if (!isBootstrapping) LS.setOutboxKey('materials', newVal, sbUser.id);
-            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
-                setSbSyncStatus('syncing');
-                scheduleCatalogSave('materials', async () => {
-                    await syncCatalogTable('materials', activeOrganizationId, newVal, mapMaterialToDb);
-                    LS.clearOutboxKey('materials', sbUser.id);
-                    setSbSyncStatus('saved');
-                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
-                });
-            }
-        }
-    }, [activeOrganizationRole, isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
+        if (sbUser) LS.set('materials', newVal, sbUser.id);
+        if (!isBootstrapping) stageCatalogChange('materials', newVal, mapMaterialToDb);
+    };
 
-    const updateCompanyInfo = useCallback((newVal) => {
+    const updateCompanyInfo = useCallback((input) => {
+        const newVal = withoutPaymentSecrets(input);
         if (!hasPermission(activeOrganizationRole, 'canEditSettings')) {
             showToast('Action bloquée : votre rôle ne permet pas de modifier les paramètres.', 'error');
             return;
@@ -18778,79 +18632,47 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             if (!isBootstrapping) LS.setOutboxKey('company_info', newVal, sbUser.id);
             if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
                 setSbSyncStatus('syncing');
-                scheduleCatalogSave('company_info', async () => {
+                const pendingRevision = LS.getOutbox(sbUser.id).company_info?.revision;
+                scheduleCatalogSave(activeOrganizationId + ':company_info', async () => {
                     const { error } = await supabaseClient.from('company_settings').upsert(mapCompanyToDb(newVal, activeOrganizationId), { onConflict: 'organization_id' });
-                    if (error) { console.warn('[Cloud Sync] company_settings upsert error:', error); return; }
-                    LS.clearOutboxKey('company_info', sbUser.id);
-                    setSbSyncStatus('saved');
-                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
+                    if (error) throw error;
+                    LS.clearOutboxKeyIfRevisionMatches('company_info', pendingRevision, sbUser.id);
+                    catalogSaveErrors.current.delete(activeOrganizationId + ':company_info');
+                    refreshCatalogSaveStatus();
                 });
             }
         }
     }, [activeOrganizationRole, isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave, supabaseClient]);
 
-    const updateLabor = useCallback((newVal) => {
+    const updateLabor = (newVal) => {
         if (isReadOnlyDueToDowngrade || !hasPermission(activeOrganizationRole, 'canEditPrices')) {
-            showToast('Action bloquée : votre rôle ne permet pas de modifier les matières et les prix.', 'error');
+            showToast('Votre rôle ne permet pas de modifier ce catalogue.', 'error');
             return;
         }
         setLabor(newVal);
-        if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('labor', newVal, sbUser.id);
-            if (!isBootstrapping) LS.setOutboxKey('labor', newVal, sbUser.id);
-            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
-                setSbSyncStatus('syncing');
-                scheduleCatalogSave('labor', async () => {
-                    await syncCatalogTable('labor', activeOrganizationId, newVal, mapLaborToDb);
-                    LS.clearOutboxKey('labor', sbUser.id);
-                    setSbSyncStatus('saved');
-                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
-                });
-            }
-        }
-    }, [activeOrganizationRole, isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
+        if (sbUser) LS.set('labor', newVal, sbUser.id);
+        if (!isBootstrapping) stageCatalogChange('labor', newVal, mapLaborToDb);
+    };
 
-    const updateSolutions = useCallback((newVal) => {
+    const updateSolutions = (newVal) => {
         if (isReadOnlyDueToDowngrade || !hasPermission(activeOrganizationRole, 'canEditCatalog')) {
-            showToast('Action bloquée : votre rôle ne permet pas de modifier le catalogue.', 'error');
+            showToast('Votre rôle ne permet pas de modifier ce catalogue.', 'error');
             return;
         }
         setSolutions(newVal);
-        if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('solutions', newVal, sbUser.id);
-            if (!isBootstrapping) LS.setOutboxKey('solutions', newVal, sbUser.id);
-            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
-                setSbSyncStatus('syncing');
-                scheduleCatalogSave('solutions', async () => {
-                    await syncCatalogTable('solutions', activeOrganizationId, newVal, mapSolutionToDb);
-                    LS.clearOutboxKey('solutions', sbUser.id);
-                    setSbSyncStatus('saved');
-                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
-                });
-            }
-        }
-    }, [activeOrganizationRole, isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
+        if (sbUser) LS.set('solutions', newVal, sbUser.id);
+        if (!isBootstrapping) stageCatalogChange('solutions', newVal, mapSolutionToDb);
+    };
 
-    const updateRecipes = useCallback((newVal) => {
+    const updateRecipes = (newVal) => {
         if (isReadOnlyDueToDowngrade || !hasPermission(activeOrganizationRole, 'canEditCatalog')) {
-            showToast('Action bloquée : votre rôle ne permet pas de modifier le catalogue.', 'error');
+            showToast('Votre rôle ne permet pas de modifier ce catalogue.', 'error');
             return;
         }
         setRecipes(newVal);
-        if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('recipes', newVal, sbUser.id);
-            if (!isBootstrapping) LS.setOutboxKey('recipes', newVal, sbUser.id);
-            if (sbUser.id !== 'guest' && sbDataLoaded && cloudState === 'loaded' && activeOrganizationId) {
-                setSbSyncStatus('syncing');
-                scheduleCatalogSave('recipes', async () => {
-                    await syncCatalogTable('recipes', activeOrganizationId, newVal, mapRecipeToDb);
-                    LS.clearOutboxKey('recipes', sbUser.id);
-                    setSbSyncStatus('saved');
-                    setTimeout(() => setSbSyncStatus(prev => prev === 'saved' ? 'idle' : prev), 3000);
-                });
-            }
-        }
-    }, [activeOrganizationRole, isReadOnlyDueToDowngrade, sbUser, isBootstrapping, sbDataLoaded, cloudState, activeOrganizationId, scheduleCatalogSave]);
+        if (sbUser) LS.set('recipes', newVal, sbUser.id);
+        if (!isBootstrapping) stageCatalogChange('recipes', newVal, mapRecipeToDb);
+    };
 
     const updateSavedQuotes = useCallback((newVal) => {
         setSavedQuotes(newVal);
@@ -19013,6 +18835,193 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setTimeout(() => setToast(null), 3500);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
+
+    // Accès administrateur entreprise ou plateforme
+    const isCompteAdmin = ['owner', 'admin'].includes(activeOrganizationRole) || isPlatformAdmin || currentSubscription?.isAdminAccess;
+
+    const savedQuotesRef = useRef(savedQuotes);
+    savedQuotesRef.current = savedQuotes;
+    const invoicesRef = useRef(invoices);
+    invoicesRef.current = invoices;
+    const clientsRef = useRef(clients);
+    clientsRef.current = clients;
+    const projectsRef = useRef(projects);
+    projectsRef.current = projects;
+    const isCompteAdminRef = useRef(isCompteAdmin);
+    isCompteAdminRef.current = isCompteAdmin;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // LOT 6 (UX-03) : ROUTAGE UNIVERSEL D'URL & SYNCHRONISATION NAVIGATEUR
+    // URL identifiables : #devis/:id, #factures/:id, #clients/:id,
+    // #chantiers/:id, #settings/:section, #dashboard, #chiffrage...
+    // Gestion native de Retour/Suivant (popstate) et rafraîchissement.
+    // ═══════════════════════════════════════════════════════════════════
+    useEffect(() => {
+        let isSyncing = false;
+
+        const syncFromUrl = () => {
+            if (isSyncing) return;
+            isSyncing = true;
+            isNavigatingFromRouteRef.current = true;
+            try {
+                const rawHash = window.location.hash || '';
+                const hash = rawHash.replace(/^\/?#\/?/, '#');
+
+                if (!hash || hash === '#') {
+                    return;
+                }
+
+                if (hash === '#dashboard') {
+                    setActiveView('dashboard');
+                    return;
+                }
+
+                // 1. Réglages & Paramètres (#settings/section ou #parametres/section)
+                const settingsMatch = hash.match(/^#(?:settings|parametres)(?:\/([a-zA-Z0-9_-]+))?$/);
+                if (settingsMatch) {
+                    const section = settingsMatch[1] || 'entreprise';
+                    const adminSections = ['equipe', 'audit', 'diagnostic', 'donnees'];
+                    if (adminSections.includes(section) && !isCompteAdmin) {
+                        showToast("Accès réservé aux administrateurs.", "info");
+                        setAccountSettingsTab('entreprise');
+                        setActiveView('settings');
+                        if (window.location.hash !== '#settings/entreprise') {
+                            window.history.replaceState(null, '', '#settings/entreprise');
+                        }
+                    } else {
+                        setAccountSettingsTab(section);
+                        setActiveView('settings');
+                    }
+                    return;
+                }
+
+                if (hash === '#abonnement') {
+                    setAccountSettingsTab('abonnement');
+                    setActiveView('settings');
+                    return;
+                }
+
+                // 2. Devis (#devis ou #devis/:id ou #quotes/:id)
+                const quoteMatch = hash.match(/^#(?:devis|quotes)(?:\/([a-zA-Z0-9_\-\.%]+))?$/);
+                if (quoteMatch) {
+                    const qId = quoteMatch[1];
+                    setActiveView('savedQuotes');
+                    if (qId) {
+                        const decodedId = decodeURIComponent(qId);
+                        const list = savedQuotesRef.current || [];
+                        const found = list.find(q => String(q.id) === decodedId || String(q.number) === decodedId || String(q.serverId) === decodedId);
+                        if (found) {
+                            setViewingSavedQuote(found);
+                            setIsCommercialMode(true);
+                        } else {
+                            showToast("Devis introuvable ou non autorisé.", "info");
+                            setViewingSavedQuote(null);
+                            window.history.replaceState(null, '', '#devis');
+                        }
+                    } else {
+                        setViewingSavedQuote(null);
+                    }
+                    return;
+                }
+
+                // 3. Factures (#factures ou #factures/:id ou #invoices/:id)
+                const invoiceMatch = hash.match(/^#(?:factures|invoices)(?:\/([a-zA-Z0-9_\-\.%]+))?$/);
+                if (invoiceMatch) {
+                    const invId = invoiceMatch[1];
+                    setActiveView('invoices');
+                    if (invId) {
+                        const decodedId = decodeURIComponent(invId);
+                        const list = invoicesRef.current || [];
+                        const found = list.find(f => String(f.id) === decodedId || String(f.numero) === decodedId);
+                        if (found) {
+                            setViewingInvoice(found);
+                        } else {
+                            showToast("Facture introuvable ou non autorisée.", "info");
+                            setViewingInvoice(null);
+                            window.history.replaceState(null, '', '#factures');
+                        }
+                    } else {
+                        setViewingInvoice(null);
+                    }
+                    return;
+                }
+
+                // 4. Clients (#clients ou #clients/:id)
+                const clientMatch = hash.match(/^#clients(?:\/([a-zA-Z0-9_\-\.%]+))?$/);
+                if (clientMatch) {
+                    const cId = clientMatch[1];
+                    setActiveView('clients');
+                    if (cId) {
+                        const decodedId = decodeURIComponent(cId);
+                        const list = clientsRef.current || [];
+                        const found = list.find(c => String(c.id) === decodedId || String(c.serverId) === decodedId);
+                        if (found) {
+                            setSelectedClientId(found.id);
+                        } else {
+                            showToast("Fiche client introuvable.", "info");
+                            setSelectedClientId(null);
+                            window.history.replaceState(null, '', '#clients');
+                        }
+                    } else {
+                        setSelectedClientId(null);
+                    }
+                    return;
+                }
+
+                // 5. Chantiers / Projets (#chantiers ou #chantiers/:id ou #projets/:id)
+                const projectMatch = hash.match(/^#(?:chantiers|projets|projects)(?:\/([a-zA-Z0-9_\-\.%]+))?$/);
+                if (projectMatch) {
+                    const pId = projectMatch[1];
+                    setActiveView('projects');
+                    if (pId) {
+                        const decodedId = decodeURIComponent(pId);
+                        const list = projectsRef.current || [];
+                        const found = list.find(p => String(p.id) === decodedId || String(p.serverId) === decodedId || String(p.code) === decodedId);
+                        if (found) {
+                            setSelectedProjectId(found.id);
+                        } else {
+                            showToast("Chantier introuvable.", "info");
+                            setSelectedProjectId(null);
+                            window.history.replaceState(null, '', '#chantiers');
+                        }
+                    } else {
+                        setSelectedProjectId(null);
+                    }
+                    return;
+                }
+
+                // 6. Raccourcis vers autres vues
+                const simpleRoutes = {
+                    '#new-quote': 'calculator',
+                    '#chiffrage': 'calculator',
+                    '#depenses': 'depenses',
+                    '#catalog/recipes': 'recipes',
+                    '#recettes': 'recipes',
+                    '#ouvrages': 'recipes',
+                    '#catalog/materials': 'materials',
+                    '#materiaux': 'materials',
+                    '#platform-admin': 'platformAdmin'
+                };
+                if (simpleRoutes[hash]) {
+                    setActiveView(simpleRoutes[hash]);
+                    return;
+                }
+            } finally {
+                isSyncing = false;
+                setTimeout(() => {
+                    isNavigatingFromRouteRef.current = false;
+                }, 50);
+            }
+        };
+
+        syncFromUrl();
+        window.addEventListener('hashchange', syncFromUrl);
+        window.addEventListener('popstate', syncFromUrl);
+        return () => {
+            window.removeEventListener('hashchange', syncFromUrl);
+            window.removeEventListener('popstate', syncFromUrl);
+        };
+    }, []);
 
     // ── Éditeur de modèles : ouvrir, enregistrer ─────────────────────────
     // La galerie s'ouvre d'abord : dès qu'on peut tenir plusieurs modèles,
@@ -19627,7 +19636,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             chip: 'bg-blue-50 text-blue-800 border-blue-200'
         };
         if (sbSyncStatus === 'error') return {
-            key: 'error', label: 'Erreur de synchronisation', detail: 'Vos données restent sur cet appareil',
+            key: 'error', label: 'Erreur de synchronisation', detail: 'Sauvegarde non confirmée — vérifiez les modifications' ,
             icon: 'fa-triangle-exclamation', dot: 'bg-red-500',
             chip: 'bg-red-50 text-red-800 border-red-200'
         };
@@ -21153,7 +21162,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     // de l'entreprise. Sans ce gel, éditer un modèle
                                     // réécrirait l'apparence de tous les devis passés,
                                     // y compris ceux déjà acceptés par un client.
-                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
+                                    p_company_snapshot: withoutPaymentSecrets({ ...companyInfo, templateConfiguration: configurationActive }),
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -21194,7 +21203,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     // de l'entreprise. Sans ce gel, éditer un modèle
                                     // réécrirait l'apparence de tous les devis passés,
                                     // y compris ceux déjà acceptés par un client.
-                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
+                                    p_company_snapshot: withoutPaymentSecrets({ ...companyInfo, templateConfiguration: configurationActive }),
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -21242,7 +21251,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     // de l'entreprise. Sans ce gel, éditer un modèle
                                     // réécrirait l'apparence de tous les devis passés,
                                     // y compris ceux déjà acceptés par un client.
-                                    p_company_snapshot: { ...companyInfo, templateConfiguration: configurationActive },
+                                    p_company_snapshot: withoutPaymentSecrets({ ...companyInfo, templateConfiguration: configurationActive }),
                                     p_calc_form_snapshot: calcForm,
                                     p_lines: linesForV6,
                                     p_hybrid_snapshot: savedQ.hybridQuoteSnapshot || {},
@@ -24048,6 +24057,19 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo, con
     const [downloading, setDownloading] = React.useState(false);
     const previewContainerRef = React.useRef(null);
 
+    React.useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
     const cfg = configuration || configurationActiveFacture;
     const th = theme || themeDepuisConfiguration(cfg);
     const disposition = getPdfHeaderLayout(cfg?.entete?.alignement || 'left');
@@ -24198,6 +24220,19 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
     const [sujet, setSujet] = React.useState('');
     const [corps, setCorps] = React.useState('');
     const [copie, setCopie] = React.useState(false);
+
+    React.useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
 
     // Initialisation des templates prédéfinis
     React.useEffect(() => {
@@ -29247,8 +29282,6 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         );
     };
 
-    const isCompteAdmin = ['owner', 'admin'].includes(activeOrganizationRole) || isPlatformAdmin || currentSubscription?.isAdminAccess;
-
     const settingsNavigation = [
         { id: 'entreprise', label: 'Entreprise', description: 'Identité et coordonnées', icon: 'fa-building' },
         { id: 'documents', label: 'Documents & PDF', description: 'Logo, TVA et modèles', icon: 'fa-file-lines' },
@@ -29374,11 +29407,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 activeOrganizationId={activeOrganizationId}
                 activeOrganizationRole={activeOrganizationRole}
                 onSelectOrg={(orgId) => {
-                    setActiveOrganizationId(orgId);
+                    if (orgId === activeOrganizationId) return;
+                    if (devisNonEnregistre || sbSyncStatus === 'syncing' || sbSyncStatus === 'error') {
+                        showToast('Enregistrez votre travail et terminez la synchronisation avant de changer d’entreprise.', 'warning');
+                        return;
+                    }
                     const found = userOrganizations.find(o => o.id === orgId);
-                    if (found) setActiveOrganizationRole(found.role);
+                    if (!found) return;
                     localStorage.setItem(`ikadevis_active_org_${currentUserId}`, orgId);
-                    showToast(`Organisation active : ${found?.name || orgId}`, "info");
+                    window.location.reload();
                 }}
                 onOpenCreateOrg={() => setIsCreateOrgModalOpen(true)}
                 isGuest={!sbUser || sbUser.id === 'guest'}
@@ -29394,6 +29431,24 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 installPwa={installPwa}
                 isIosDevice={isIosDevice}
             />
+
+            {sbSyncStatus === 'error' && currentUserId !== 'guest' && (
+                <div role="alert" className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 flex flex-wrap items-center gap-3">
+                    <p className="flex-1 min-w-0">Sauvegarde non confirmée. Conservez une copie locale avant de fermer cette page. En cas de conflit, comparez-la avec le catalogue serveur avant toute reprise.</p>
+                    <button type="button" className="min-h-[44px] rounded-lg border border-red-300 px-3 font-semibold focus-visible:outline focus-visible:outline-2" onClick={() => {
+                        try {
+                            const data = withoutPaymentSecrets({ organizationId: activeOrganizationId, exportedAt: new Date().toISOString(),
+                                materials, labor, solutions, recipes, companyInfo,
+                                otherPending: catalogPersistence?.otherPending(activeOrganizationId),
+                                pending: Object.fromEntries(['materials','labor','solutions','recipes'].map(table => [table, catalogPersistence?.pending(activeOrganizationId, table)])) });
+                            const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+                            const link = document.createElement('a'); link.href = url; link.download = 'ikadevis-copie-locale.json'; link.click();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        } catch (_) { showToast('Export impossible. Gardez cette page ouverte et contactez le support.', 'error'); }
+                    }}>Exporter la copie locale</button>
+                    <button type="button" className="min-h-[44px] rounded-lg border border-red-300 px-3 font-semibold focus-visible:outline focus-visible:outline-2" onClick={() => window.dispatchEvent(new Event('online'))}>Réessayer le catalogue</button>
+                </div>
+            )}
 
             {/* CONTENEUR CORPS (SIDEBAR + MAIN) SOUS LA TOP BAR */}
             <div className="flex-1 min-h-0 flex w-full overflow-hidden relative">
@@ -33373,11 +33428,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 // en "polite", un lecteur d'écran l'annonçait après tout le reste.
                 const estErreur = toast.type === 'error';
                 const estAlerte = toast.type === 'warning';
+                const estInfo = toast.type === 'info';
                 const pastille = estErreur ? 'bg-red-500/20 text-red-400'
                     : estAlerte ? 'bg-amber-500/20 text-amber-300'
+                    : estInfo ? 'bg-sky-500/20 text-sky-400'
                     : 'bg-emerald-500/20 text-emerald-400';
                 const icone = estErreur ? 'fa-circle-exclamation'
                     : estAlerte ? 'fa-triangle-exclamation'
+                    : estInfo ? 'fa-circle-info'
                     : 'fa-check';
                 return (
                 /* Audit UX P2-13 (2026-09-01) — la notification s'affichait sur

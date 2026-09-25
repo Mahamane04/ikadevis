@@ -50,20 +50,31 @@ export async function run() {
 
         // Porter la liste à 23 devis, comme le compte qui a révélé le défaut.
         await page.evaluate((n) => {
-            const l = JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]');
-            if (!l.length) return;
-            const base = l[0];
+            const raw = localStorage.getItem('costcalc:guest:savedQuotes') || localStorage.getItem('costcalc:guest:guest:savedQuotes') || '[]';
+            const l = JSON.parse(raw);
+            const base = (l && l.length) ? l[0] : {
+                id: 'base_demo',
+                number: 'DEV-2026-001',
+                clientName: 'Client Volume',
+                projectRef: 'Chantier Volume',
+                status: 'draft',
+                date: '25/09/2026',
+                quoteData: { totalTTCConsomme: 1500000, lots: [] }
+            };
             const out = [];
             for (let i = n; i >= 1; i--) {
                 out.push({ ...JSON.parse(JSON.stringify(base)), id: 'q' + i, number: 'DEV-2026-' + String(i).padStart(3, '0') });
             }
             localStorage.setItem('costcalc:guest:savedQuotes', JSON.stringify(out));
+            localStorage.setItem('costcalc:guest:guest:savedQuotes', JSON.stringify(out));
         }, NB);
+
         await page.reload({ waitUntil: 'networkidle0' });
         await wait(1500);
-        await enterGuestMode(page, { demo: false });
+        await enterGuestMode(page, { demo: false, createQuote: false });
         await wait(2000);
         await allerAuxDevis(page);
+
 
         const mesure = await page.evaluate(() => {
             const zone = document.querySelector('[data-testid="saved-quotes-list"] .overflow-y-auto');
@@ -115,9 +126,10 @@ export async function run() {
 
         await page.reload({ waitUntil: 'networkidle0' });
         await wait(1500);
-        await enterGuestMode(page, { demo: false });
+        await enterGuestMode(page, { demo: false, createQuote: false });
         await wait(2000);
         await allerAuxDevis(page);
+
         const apresRechargement = await page.evaluate((n) => ({
             lignes: document.querySelectorAll('tbody tr').length,
             revenu: [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(n))

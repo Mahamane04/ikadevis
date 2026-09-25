@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 8099",
+    "start": "node scripts/dev-server.mjs",
     "test": "node scratch/test_master_saas_100.mjs",
     "build": "npm run build:css && npm run build:js && node scripts/bump-version.mjs && node scripts/generer-sw.mjs",
     "build:css": "tailwindcss -i ./tailwind.input.css -o ./tailwind.css --minify",
@@ -11,7 +11,18 @@
     "config": "node scripts/generate-config.mjs",
     "set-saspay-key": "node scripts/set-saspay-key.mjs",
     "build:landing": "node scripts/build-landing.mjs",
-    "test:priorities": "node scratch/test_subscription_entitlements.mjs && node scratch/test_priority_features.mjs"
+    "test:p0": "node scratch/test_p0_client.mjs && node scratch/test_p0_database.mjs && node scratch/test_saspay_server_guards.mjs",
+    "test:lot1": "node scratch/test_lot1_database.mjs && node scratch/test_sec07_server.mjs",
+    "test:lot2": "node scratch/test_lot2_persistence.mjs",
+    "test:lot3": "node scratch/test_lot3_payments_invites.mjs",
+    "test:lot4": "node scratch/test_liste_devis_volume.mjs && node scratch/test_lot4_volumes_1500_lines.mjs",
+    "test:lot5": "node scratch/test_lot5_a11y_ui.mjs",
+    "test:lot6": "node scratch/test_lot6_routing_navigation.mjs",
+    "test:lot7": "node scratch/test_lot7_ops_resilience.mjs",
+    "test:priorities": "node scratch/test_subscription_entitlements.mjs && node scratch/test_priority_features.mjs",
+    "test:audit": "npm run test:p0 && npm run test:lot1 && npm run test:lot2 && npm run test:lot3 && npm run test:lot4 && npm run test:lot5 && npm run test:lot6 && npm run test:lot7"
+
+
   },
   "dependencies": {
     "puppeteer": "^25.7.0"

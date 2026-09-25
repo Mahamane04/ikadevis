@@ -1,8 +1,4 @@
-// IKADEVIS — js/saspay-service.js
-// Intégration officielle de la passerelle de paiement SasPay (https://docs.saspay.me/)
-// Supporte les paiements Mobile Money (Orange Money, Wave, Moov, MTN, Free, Celtiis...)
-// et Carte bancaire en Afrique de l'Ouest et du Centre via SoftPay et Checkout hébergé.
-
+// SasPay : référentiel partagé avec les abonnements ; encaissements entreprise suspendus.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         define([], factory);
@@ -13,7 +9,6 @@
     }
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
     'use strict';
-
     const BASE_URL = 'https://api.saspay.me/api/v1';
 
     // Référentiel des pays supportés avec opérateurs Mobile Money.
@@ -174,260 +169,12 @@
         return cleaned;
     }
 
-    /**
-     * Résout la clé API SasPay (passée en paramètre, ou issue de la config plateforme globale / localStorage)
-     */
-    function resolveApiKey(providedKey) {
-        if (providedKey && typeof providedKey === 'string' && providedKey.trim()) {
-            return providedKey.trim();
-        }
-        if (typeof window !== 'undefined') {
-            if (window.SASPAY_PLATFORM_CONFIG && window.SASPAY_PLATFORM_CONFIG.apiKey) {
-                return String(window.SASPAY_PLATFORM_CONFIG.apiKey).trim();
-            }
-            try {
-                const stored = window.localStorage.getItem('ikadevis_platform_saspay_key');
-                if (stored && stored.trim()) return stored.trim();
-            } catch (e) {}
-        }
-        return '';
-    }
-
-    /**
-     * Teste la validité d'une clé API SasPay
-     */
-    async function testConnection(paramsOrKey) {
-        const rawKey = typeof paramsOrKey === 'string' ? paramsOrKey : (paramsOrKey?.apiKey || '');
-        const key = resolveApiKey(rawKey);
-        if (!key) {
-            return { ok: false, error: 'Veuillez saisir votre clé API SasPay (sk_live_... ou sk_test_...).' };
-        }
-        // Aucun raccourci de simulation ici. Une clé dont le libellé
-        // contient « demo » reste une clé : elle est présentée à SasPay
-        // comme les autres. L'ancien test `key.includes('demo')` acceptait
-        // n'importe quelle chaîne contenant ces quatre lettres et faisait
-        // passer pour valide une connexion qui n'avait jamais eu lieu.
-
-        try {
-            // Interroger le catalogue des réseaux pour valider la clé
-            const res = await fetch(`${BASE_URL}/networks/`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${key}`,
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (res.ok) {
-                const data = await res.json().catch(() => ({}));
-                return {
-                    ok: true,
-                    mode: key.startsWith('sk_live_') ? 'live' : 'test',
-                    message: `Connexion SasPay réussie (${key.startsWith('sk_live_') ? 'Production' : 'Test'}).`
-                };
-            }
-
-            if (res.status === 401) {
-                return { ok: false, error: 'Clé API invalide ou refusée par SasPay (Code 401).' };
-            }
-            if (res.status === 403) {
-                return { ok: false, error: 'Compte SasPay suspendu ou accès non autorisé (Code 403).' };
-            }
-            return { ok: false, error: `Erreur SasPay HTTP ${res.status}. Vérifiez votre clé.` };
-        } catch (err) {
-            return { ok: false, error: `Impossible de joindre le serveur SasPay : ${err.message}` };
-        }
-    }
-
-    /**
-     * Refuse net l'opération quand aucune clé n'est configurée.
-     *
-     * C'est le garde-fou central ajouté le 2026-09-24. Auparavant, chacune
-     * des fonctions ci-dessous fabriquait une réponse fictive « success:
-     * true » quand la clé manquait — l'application croyait alors à un
-     * paiement qui n'avait jamais été demandé à personne. Un abonnement
-     * STANDARD s'est ainsi activé en production sans le moindre débit.
-     *
-     * Une passerelle non configurée est une panne, pas un succès.
-     */
-    function exigerCle(key, operation) {
-        if (!key) {
-            const err = new Error(
-                'La passerelle de paiement SasPay n\'est pas configurée : ' + operation +
-                ' est impossible. Renseignez la clé API dans les Paramètres.'
-            );
-            err.code = 'SASPAY_NOT_CONFIGURED';
-            throw err;
-        }
-    }
-
-    /**
-     * Crée une session de Checkout hébergé (lien de paiement à partager ou ouvrir)
-     * Documentation : https://docs.saspay.me/api-reference/payments/checkout-create
-     */
-    async function createCheckoutSession({
-        apiKey,
-        amount,
-        currency = 'XOF',
-        description,
-        country = 'ML',
-        customerName,
-        customerEmail,
-        customerPhone,
-        returnUrl,
-        feeChargeMode = null,
-        metadata = {}
-    }) {
-        const key = resolveApiKey(apiKey);
-        const amtStr = Number(amount).toFixed(2);
-
-        exigerCle(key, 'la création d\'un lien de paiement');
-
-        const payload = {
-            amount: amtStr,
-            currency: currency === 'FCFA' ? 'XOF' : currency,
-            description: description || 'Paiement facture',
-            customer_name: customerName || 'Client',
-            customer_email: customerEmail || 'contact@client.com'
-        };
-
-        if (country) payload.country = country.toUpperCase();
-        if (customerPhone) payload.customer_phone = customerPhone;
-        if (returnUrl) payload.return_url = returnUrl;
-        if (feeChargeMode) payload.fee_charge_mode = feeChargeMode;
-        if (metadata && Object.keys(metadata).length > 0) payload.metadata = metadata;
-
-        const res = await fetch(`${BASE_URL}/checkout-sessions/`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            const msg = json?.error?.message || json?.message || `Erreur SasPay (${res.status})`;
-            throw new Error(msg);
-        }
-
-        return json;
-    }
-
-    /**
-     * Déclenche un paiement SoftPay (Push USSD direct ou redirection selon l'opérateur)
-     * Documentation : https://docs.saspay.me/api-reference/payments/softpay
-     */
-    async function initiateSoftPay({
-        apiKey,
-        amount,
-        currency = 'XOF',
-        country = 'ML',
-        description,
-        network,
-        customer,
-        returnUrl,
-        feeChargeMode = null,
-        metadata = {}
-    }) {
-        const key = resolveApiKey(apiKey);
-        const amtStr = Number(amount).toFixed(2);
-
-        exigerCle(key, 'la demande de débit Mobile Money');
-
-        const payload = {
-            amount: amtStr,
-            currency: currency === 'FCFA' ? 'XOF' : currency,
-            country: country.toUpperCase(),
-            network,
-            description: description || 'Règlement de facture BTP',
-            customer: {
-                email: customer.email || 'client@example.com',
-                first_name: customer.firstName || (customer.name ? customer.name.split(' ')[0] : 'Client'),
-                last_name: customer.lastName || (customer.name ? customer.name.split(' ').slice(1).join(' ') : 'BTP'),
-                phone: customer.phone
-            }
-        };
-
-        if (returnUrl) payload.return_url = returnUrl;
-        if (feeChargeMode) payload.fee_charge_mode = feeChargeMode;
-        if (metadata && Object.keys(metadata).length > 0) payload.metadata = metadata;
-
-        const idempotencyKey = generateIdempotencyKey();
-
-        const res = await fetch(`${BASE_URL}/payments/softpay/`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${key}`,
-                'Idempotency-Key': idempotencyKey,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            const msg = json?.error?.message || json?.message || (typeof json?.error === 'object' ? JSON.stringify(json.error) : `Erreur SoftPay (${res.status})`);
-            throw new Error(msg);
-        }
-
-        return json;
-    }
-
-    /**
-     * Vérifie le statut d'un paiement ou d'une session de checkout
-     */
-    async function verifyPayment(idOrOptions, maybeOptions = {}) {
-        let id, apiKey, type;
-        if (typeof idOrOptions === 'object' && idOrOptions !== null) {
-            id = idOrOptions.id;
-            apiKey = idOrOptions.apiKey;
-            type = idOrOptions.type || 'payment';
-        } else {
-            id = idOrOptions;
-            apiKey = maybeOptions?.apiKey;
-            type = maybeOptions?.type || 'payment';
-        }
-        const key = resolveApiKey(apiKey);
-
-        exigerCle(key, 'la vérification d\'un paiement');
-
-        const endpoint = type === 'checkout'
-            ? `${BASE_URL}/checkout-sessions/${id}/`
-            : `${BASE_URL}/payments/${id}/verify/`;
-
-        const res = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${key}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            const msg = json?.error?.message || json?.message || `Erreur de vérification (${res.status})`;
-            throw new Error(msg);
-        }
-
-        const data = json.data || json;
-
-        // `paid` est le SEUL champ sur lequel un appelant doit se fonder
-        // pour considérer un règlement acquis. L'ancien contrat renvoyait
-        // `success: true` dès que la requête HTTP avait abouti, y compris
-        // pour un paiement PENDING — et index_jsx.js testait `|| verify.
-        // success`, activant donc l'abonnement au premier sondage.
-        return {
-            paid: verdictPaiement(data.status) === 'paid',
-            verdict: verdictPaiement(data.status),
-            status: (data.status || '').toUpperCase(),
-            data
-        };
-    }
-
+    const disabledMessage = 'Les encaissements SasPay sont temporairement indisponibles. Aucun paiement n’a été déclenché.';
+    async function testConnection() { return { ok: false, success: false, message: disabledMessage, error: disabledMessage }; }
+    async function paymentUnavailable() { throw new Error(disabledMessage); }
+    const createCheckoutSession = paymentUnavailable;
+    const initiateSoftPay = paymentUnavailable;
+    const verifyPayment = paymentUnavailable;
     return {
         BASE_URL,
         SASPAY_COUNTRIES,
@@ -435,7 +182,7 @@
         normalizePhoneNumber,
         generateIdempotencyKey,
         verdictPaiement,
-        estConfiguree: function (cle) { return !!resolveApiKey(cle); },
+        estConfiguree: function () { return false; },
         testConnection,
         createCheckoutSession,
         initiateSoftPay,
