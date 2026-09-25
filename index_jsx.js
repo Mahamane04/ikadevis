@@ -476,7 +476,29 @@ const LS = {
                 return globalTenantPersistence.get(key, userId, orgId);
             }
             const k = LS.getKey(key, userId, orgId);
-            const v = localStorage.getItem(k);
+            let v = localStorage.getItem(k);
+            if (v === null || v === '[]' || v === '{}') {
+                const uid = userId || 'guest';
+                const oid = orgId;
+                const candidates = [
+                    uid && uid !== 'guest' ? `costcalc:${uid}:${key}` : null,
+                    oid && oid !== 'guest' ? `costcalc:${oid}:${key}` : null,
+                    `costcalc:org_default:${key}`,
+                    `costcalc:guest:${key}`,
+                    `costcalc:guest:guest:${key}`,
+                    `costcalc:${key}`
+                ].filter(Boolean);
+                for (const c of candidates) {
+                    if (c !== k) {
+                        const cv = localStorage.getItem(c);
+                        if (cv !== null && cv !== '[]' && cv !== '{}') {
+                            v = cv;
+                            try { localStorage.setItem(k, cv); } catch (_) {}
+                            break;
+                        }
+                    }
+                }
+            }
             if (v !== null) return withoutPaymentSecrets(JSON.parse(v));
             return null;
         } catch(e) { return null; }

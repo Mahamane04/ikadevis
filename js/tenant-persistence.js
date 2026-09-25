@@ -42,7 +42,41 @@
             if (!this.storage) return null;
             try {
                 const k = this.getKey(resourceKey, userId, orgId);
-                const raw = this.storage.getItem(k);
+                let raw = this.storage.getItem(k);
+
+                // Rétrocompatibilité : si la nouvelle clé est vide, rechercher dans les clés historiques
+                if (raw === null || raw === '[]' || raw === '{}') {
+                    const uid = userId || this.userId;
+                    const oid = orgId || this.activeOrgId;
+
+                    const candidateKeys = [];
+                    if (!uid || uid === 'guest') {
+                        candidateKeys.push(`costcalc:guest:${resourceKey}`);
+                        candidateKeys.push(`costcalc:guest:guest:${resourceKey}`);
+                        candidateKeys.push(`costcalc:org_default:${resourceKey}`);
+                        candidateKeys.push(`costcalc:${resourceKey}`);
+                    } else {
+                        candidateKeys.push(`costcalc:${uid}:${resourceKey}`);
+                        if (oid && oid !== 'guest') {
+                            candidateKeys.push(`costcalc:${oid}:${resourceKey}`);
+                        }
+                        candidateKeys.push(`costcalc:org_default:${resourceKey}`);
+                    }
+
+                    for (const candidateKey of candidateKeys) {
+                        if (candidateKey !== k) {
+                            const val = this.storage.getItem(candidateKey);
+                            if (val !== null && val !== '[]' && val !== '{}') {
+                                raw = val;
+                                try {
+                                    this.storage.setItem(k, val);
+                                } catch (_) {}
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (raw === null) return null;
                 const parsed = JSON.parse(raw);
                 const cleaner = (typeof root.PaymentDataSafety !== 'undefined' && root.PaymentDataSafety)
