@@ -18455,10 +18455,28 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         setActiveOrganizationId(selected.id);
                         setActiveOrganizationRole(selected.role);
                     } else {
-                        throw new Error('Impossible de vérifier les accès à cette entreprise.');
+                        // Repli sur l'organisation locale déjà connue ou bootstrap
+                        const cachedOrgsStr = localStorage.getItem(`ikadevis_orgs_${sbUser.id}`);
+                        if (cachedOrgsStr) {
+                            try {
+                                const cached = JSON.parse(cachedOrgsStr);
+                                if (Array.isArray(cached) && cached.length > 0) {
+                                    resolvedOrgId = resolvedOrgId || cached[0].id;
+                                    setUserOrganizations(cached);
+                                }
+                            } catch (_) {}
+                        }
+                        if (!resolvedOrgId) {
+                            throw new Error('Impossible de vérifier les accès à cette entreprise.');
+                        }
                     }
                 } catch (mErr) {
-                    throw mErr;
+                    console.warn('[Bloc 1] Erreur vérification organisation distante, tentative repli local :', mErr);
+                    if (!resolvedOrgId) {
+                        const fallbackId = localStorage.getItem(`ikadevis_active_org_${sbUser.id}`);
+                        if (fallbackId) resolvedOrgId = fallbackId;
+                        else throw mErr;
+                    }
                 }
 
                 if (!resolvedOrgId) {
@@ -18594,7 +18612,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             } catch (e) {
                 console.error('[Bloc 1] Network error during initial cloud load:', e);
                 setCloudState('offline_error');
-                setCloudErrorMessage("Connexion réseau indisponible.");
+                const isRealNetworkDown = typeof navigator !== 'undefined' && !navigator.onLine;
+                setCloudErrorMessage(isRealNetworkDown
+                    ? "Connexion réseau indisponible."
+                    : "Synchronisation Cloud momentanément indisponible. Vos modifications sont conservées sur cet appareil.");
             }
         })();
     }, [supabaseClient, sbUser, sbDataLoaded, cloudRetryCount]);

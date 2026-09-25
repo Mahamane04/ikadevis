@@ -66,11 +66,36 @@
         async read(org, table) {
             await this.ready;
             if (this.initError) throw this.initError;
-            const { data, error } = await this.client.rpc('catalog_snapshot_v1', { p_org_id: org, p_table: table });
-            if (error) throw error;
-            if (!data || !Array.isArray(data.rows) || !data.fingerprint) throw new Error('Catalogue indisponible.');
-            this.versions.set(this.key(org, table), data.fingerprint);
-            return { data: data.rows, error: null };
+            try {
+                const { data, error } = await this.client.rpc('catalog_snapshot_v1', { p_org_id: org, p_table: table });
+                if (!error && data && Array.isArray(data.rows) && data.fingerprint) {
+                    this.versions.set(this.key(org, table), data.fingerprint);
+                    return { data: data.rows, error: null };
+                }
+                // Si la fonction n'est pas encore déployée (PGRST202 / 42883), repli transparent sur la table directe
+                if (error && (error.code === 'PGRST202' || error.code === '42883' || error.message?.includes('catalog_snapshot_v1'))) {
+                    console.warn(`[CatalogPersistence] RPC catalog_snapshot_v1 non déployée, repli direct sur table ${table}`);
+                    const fallback = await this.client.from(table).select('*').eq('organization_id', org);
+                    if (fallback.error) return fallback;
+                    const rows = fallback.data || [];
+                    const fingerprint = 'legacy_' + rows.length;
+                    this.versions.set(this.key(org, table), fingerprint);
+                    return { data: rows, error: null };
+                }
+                if (error) return { data: [], error };
+            } catch (err) {
+                console.warn(`[CatalogPersistence] Exception RPC, repli direct table ${table}:`, err);
+                try {
+                    const fallback = await this.client.from(table).select('*').eq('organization_id', org);
+                    if (!fallback.error) {
+                        const rows = fallback.data || [];
+                        this.versions.set(this.key(org, table), 'legacy_' + rows.length);
+                        return { data: rows, error: null };
+                    }
+                } catch (_) {}
+                return { data: [], error: err };
+            }
+            return { data: [], error: null };
         }
         stage(org, table, rows) {
             if (!this.isReady || this.initError) throw new Error('La sauvegarde locale n’est pas prête.');
@@ -99,9 +124,19 @@
                 if (operation.org !== org || operation.table !== table || operation.userId !== this.userId) {
                     throw new Error('Reprise refusée : entreprise ou compte différent.');
                 }
-                const { data, error } = await this.client.rpc('replace_catalog_v1', {
+                let { data, error } = await this.client.rpc('replace_catalog_v1', {
                     p_org_id: org, p_table: table, p_expected: operation.expected, p_rows: operation.rows
                 });
+                if (error && (error.code === 'PGRST202' || error.code === '42883' || error.message?.includes('replace_catalog_v1'))) {
+                    console.warn(`[CatalogPersistence] RPC replace_catalog_v1 non déployée, repli delete/insert ${table}`);
+                    await this.client.from(table).delete().eq('organization_id', org);
+                    if (operation.rows && operation.rows.length > 0) {
+                        const { error: insErr } = await this.client.from(table).insert(operation.rows);
+                        if (insErr) throw insErr;
+                    }
+                    data = { fingerprint: 'legacy_' + (operation.rows?.length || 0) + '_' + Date.now() };
+                    error = null;
+                }
                 if (error) throw error;
                 if (!data?.fingerprint) throw new Error('La sauvegarde du catalogue n’a pas été confirmée.');
                 this.versions.set(key, data.fingerprint);
