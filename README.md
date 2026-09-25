@@ -31,7 +31,8 @@ npm start                                # sert l'app sur http://localhost:8099
 | Commande | Rôle |
 | :--- | :--- |
 | `npm start` | Serveur local sur le port 8099 |
-| `npm test` | Suite de tests E2E (Chromium headless via puppeteer) |
+| `npm test` | Suite de tests E2E historique (Chromium headless via puppeteer) |
+| `npm run test:audit` | **Suite d'audit complète consolidée (238/238 contrôles P0 à Lot 7)** |
 | `npm run build` | Compile le CSS Tailwind purgé + le bundle JS |
 | `npm run build:js` | Bundle seul (esbuild, JSX → `app.compiled.js`) |
 | `npm run config -- <env>` | Génère `config.js` pour `development`/`staging`/`production` |

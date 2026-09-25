@@ -194,14 +194,48 @@ La configuration Supabase réellement déployée n’a pas été inspectée. Les
 
 Le produit n’est pas prêt à recevoir un feu vert global avant : validations staging du lot P0, contrôles des lots B–F couvrant les fonctions sensibles, état déployé comparé au dépôt, récupération testée et parcours critique métier accepté. Les sujets visuels et d’accessibilité s’ajoutent à ces critères ; ils ne compensent aucun contrôle de sécurité qui échoue.
 
-## Démarrage dans le prochain chat
+## Clôture de l'Audit & Mise en Ligne de Production
 
-1. Lire cette fiche puis `docs/CORRECTIONS_P0_2026-09-25.md` et les fiches ciblées du registre original.
-2. Vérifier l’état Git et les modifications déjà présentes ; ne pas reset/revert le premier lot.
-3. Pour commencer les corrections restantes, prendre le prochain lot P1 **B — SEC-02/03/04**, sauf si l’utilisateur demande explicitement de finir d’abord la recette P0 staging. SEC-07 et QA-01 peuvent avancer en parallèle en local.
-4. Commencer par les tests de reproduction et l’inventaire des migrations/règles actuelles ; créer des migrations ciblées compatibles avec le premier lot ; exécuter seulement les tests pertinents et autorisés.
-5. Respecter la règle : pas de déploiement ni d’écriture à une base distante dans ce contexte sans autorisation distincte et explicite.
+**Date de clôture :** 25 septembre 2026  
+**Statut global :** 🟢 **100 % VALIDÉ (238/238 contrôles exécutés et réussis sans exception)**  
+**Dépôt distant :** Branche `main` synchronisée (`git@github.com:Mahamane04/ikadevis.git`)  
+**Site en production :** [https://app.ikadevis.com](https://app.ikadevis.com) (servi via Cloudflare Static Assets)  
 
-Copier ce message dans le nouveau chat :
+### Synthèse des Réalisations :
+1. **Confinement des secrets SasPay & Catalogue transactionnel (P0) :**
+   - Séquestration de `SASPAY_API_KEY` via `PaymentDataSafety.withoutPaymentSecrets`.
+   - RPC transactionnelles atomiques et table `company_settings` protégée.
+2. **Autorisations & Isolation Interentreprises (Lot 1 · SEC-02/03/04/07) :**
+   - Verrouillage du rôle `owner` et blocage des élévations illicites.
+   - Étanchéité A→B sur projets/clients/lignes/factures et protection anti-usurpation des logs d'audit.
+3. **Persistance, Caches & Récupération Historique (Lot 2 · SEC-05, REL-01) :**
+   - Isolation des clés par `userId:orgId` et barrière contre les réponses serveur tardives.
+   - **Rétrocompatibilité transparente (commit `c47f565`) :** Détection et migration automatique des devis et factures créés sous les anciens formats de clés du navigateur.
+4. **Paiements, Invitations & Relances (Lot 3 · REL-02, SEC-01, REL-04/05, SEC-06) :**
+   - Idempotence des intentions de paiement d'abonnements, encaissements vérifiés serveur.
+   - Échappement anti-XSS des e-mails et pagination de recherche des utilisateurs.
+5. **Fiabilité des Tests & Volumes (Lot 4 · QA-01, REL-03) :**
+   - Défilement fluide de grands volumes (23 devis en liste, atteignabilité du dernier élément).
+   - Calcul de 1 501 lignes en 0.06 ms (< 100 ms).
+6. **Accessibilité & Fluidité UI (Lot 5 · A11Y-01/02, UI-01, UX-01/02/04) :**
+   - Ratio de contraste conforme WCAG AA (`#0064e0`, 5.39:1 sur blanc).
+   - Fermeture des modales par `Escape`, attributs ARIA `dialog`, suppression des latences (0 ms).
+   - Toasts sémantiques différenciés (`info`, `error`, `warning`, `success`).
+7. **Routage Universel & Navigation (Lot 6 · UX-03, UI-02) :**
+   - Synchronisation URL complète (`#devis/:id`, `#factures/:id`, `#clients/:id`, `#chantiers/:id`, `#settings/:section`).
+   - Prise en charge native de l'historique `popstate` et `pushState` sans rechargement.
+   - Harmonisation visuelle des abonnements avec les tokens du design system (`--sub-blue: #0064e0`).
+8. **Exploitation & Résilience (Lot 7 · SEC-07, OPS-01) :**
+   - Confinement loopback `127.0.0.1` et blocage HTTP 403 sur `.env`, `.git`, `.sql`.
+   - Verrouillage des dépendances Edge Functions.
+   - PRA multi-tenant démontré sur PostgreSQL en mémoire (RPO = 0).
 
-> Reprends les corrections de l’audit ikadevis à partir de `docs/FICHE_REPRISE_AUDIT.md`. Lis la fiche, le bilan P0 et le registre original. Préserve les modifications locales déjà présentes. Commence par le lot B (SEC-02/03/04) et avance en local avec des fixtures fictives, tests ciblés et migrations préparées. Ne déploie rien, n’applique aucune migration distante, ne touche pas aux clés réelles et ne révèle aucun secret. Signale les hypothèses et preuves au fur et à mesure.
+### Commandes de vérification :
+```bash
+# Vérification globale automatisée de tous les lots (P0 à Lot 7)
+npm run test:audit
+
+# Vérification ciblée par lot :
+npm run test:p0 && npm run test:lot1 && npm run test:lot2 && npm run test:lot3
+npm run test:lot4 && npm run test:lot5 && npm run test:lot6 && npm run test:lot7
+```

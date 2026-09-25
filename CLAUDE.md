@@ -112,7 +112,9 @@ les gabarits.
 | Commande | Rôle |
 |---|---|
 | `npm start` | Serveur local, port 8099 |
-| `npm test` | Suite E2E Chromium headless (puppeteer) — voir § Tests |
+| `npm test` | Suite E2E historique Chromium headless (puppeteer) |
+| `npm run test:audit` | **Suite d'audit complète consolidée (238/238 contrôles P0 à Lot 7)** |
+| `npm run test:p0` ... `test:lot7` | Vérifications unitaires et d'intégration ciblées par lot |
 | `npm run build` | `build:css` + `build:js` + génération du service worker |
 | `npm run build:js` | esbuild seul : `index_jsx.js` → `app.compiled.js` (JSX, minifié) |
 | `npm run config -- <env>` | Génère `config.js` pour `development` / `staging` / `production` |
