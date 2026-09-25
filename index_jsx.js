@@ -10528,8 +10528,8 @@ function TopBarOrganizationSwitcher({
     };
 
     const roleBadge = (role) => {
-        const libelle = role === 'owner' ? '👑 Owner' : ROLE_LABELS_EQUIPE[role];
-        return <Badge colorClass={ROLE_BADGE_COLORS[role] || 'bg-brand-100 text-brand-800'}>{libelle || 'Membre'}</Badge>;
+        const libelle = role === 'owner' ? 'Propriétaire' : (ROLE_LABELS_EQUIPE[role] || 'Membre');
+        return <Badge colorClass={role === 'owner' ? 'bg-brand-50 text-brand-700 border border-brand-200/60 font-semibold' : (ROLE_BADGE_COLORS[role] || 'bg-neutral-100 text-neutral-700')}>{libelle}</Badge>;
     };
 
     useEffect(() => {
@@ -10555,12 +10555,14 @@ function TopBarOrganizationSwitcher({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group max-w-[170px] sm:max-w-[220px]"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group max-w-[170px] sm:max-w-[220px] ${isOpen ? 'ring-2 ring-brand-500/20 border-brand-300' : ''}`}
                 aria-label="Changer d'organisation"
                 aria-expanded={isOpen}
                 title={`Organisation active : ${activeOrg.name}`}
             >
-                <span className="w-6 h-6 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-brand-100 transition-colors">
+                <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors ${
+                    isOpen ? 'bg-brand-50 text-brand-600' : 'bg-neutral-100 text-neutral-600 group-hover:bg-brand-50 group-hover:text-brand-600'
+                }`}>
                     <i className="fa-solid fa-building text-[11px]"></i>
                 </span>
                 <span className="truncate font-semibold text-neutral-900 text-left flex-1 min-w-0">{activeOrg.name}</span>
@@ -10584,13 +10586,18 @@ function TopBarOrganizationSwitcher({
                                         onSelectOrg(org.id);
                                         setIsOpen(false);
                                     }}
-                                    className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between text-xs transition-colors ${
-                                        isSelected ? 'bg-brand-50 text-brand-900 font-bold border border-brand-200/60' : 'hover:bg-neutral-50 text-neutral-700 font-medium'
+                                    className={`w-full text-left p-2 rounded-xl flex items-center gap-2.5 text-xs transition-colors group ${
+                                        isSelected ? 'bg-brand-50/80 text-brand-900 font-bold border border-brand-200/70 shadow-2xs' : 'hover:bg-neutral-50 text-neutral-700 font-medium'
                                     }`}
                                 >
-                                    <div className="min-w-0 flex-1 truncate pr-2">
+                                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                                        isSelected ? 'bg-brand-100 text-brand-700' : 'bg-neutral-100 text-neutral-600 group-hover:bg-brand-50 group-hover:text-brand-600'
+                                    }`}>
+                                        <i className="fa-solid fa-building text-[11px]"></i>
+                                    </span>
+                                    <div className="min-w-0 flex-1 truncate">
                                         <div className="flex items-center gap-2">
-                                            <span className="truncate block font-semibold">{org.name}</span>
+                                            <span className="truncate block font-semibold text-neutral-900">{org.name}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             {roleBadge(org.role || 'owner')}
@@ -10609,10 +10616,12 @@ function TopBarOrganizationSwitcher({
                                 setIsOpen(false);
                                 onOpenCreateOrg();
                             }}
-                            className="w-full text-left p-2 rounded-xl text-xs font-bold text-brand-600 hover:bg-brand-50 flex items-center gap-2 transition-colors"
+                            className="w-full text-left p-2 rounded-xl text-xs font-semibold text-brand-600 hover:bg-brand-50 flex items-center gap-2.5 transition-colors group"
                         >
-                            <i className="fa-solid fa-plus text-xs"></i>
-                            <span>+ Nouvelle Entreprise</span>
+                            <span className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0 group-hover:bg-brand-100 transition-colors">
+                                <i className="fa-solid fa-plus text-xs"></i>
+                            </span>
+                            <span className="font-bold">Nouvelle entreprise</span>
                         </button>
                     </div>
                 </div>
@@ -11289,7 +11298,7 @@ function GlobalTopBar({
     return (
         <header
             data-nav-principale="1"
-            className="global-top-bar mobile-app-header w-full h-16 shrink-0 bg-white border-b border-neutral-200/80 z-40 flex items-center justify-between pl-0 pr-3 sm:pr-4 lg:pr-6 sticky top-0"
+            className="global-top-bar mobile-app-header w-full h-16 shrink-0 bg-white border-b border-neutral-200/80 z-[100] flex items-center justify-between pl-0 pr-3 sm:pr-4 lg:pr-6 sticky top-0"
             role="banner"
         >
             {/* GAUCHE : MARQUE & LOGO UNIQUE IKADEVIS ALIGNÉ AVEC LA SIDEBAR */}
