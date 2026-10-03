@@ -74,10 +74,14 @@ assert(indexJsx.includes("window.history.replaceState(null, '', '#settings/entre
 
 // 6. Mise à jour de l'URL lors des clics utilisateurs (pushState)
 console.log('\n6. Synchronisation de l’historique sur les sélections interactives :');
-assert(indexJsx.includes("const nextHash = `#devis/${encodeURIComponent(sq.id || sq.number)}`;") && indexJsx.includes("window.history.pushState({ type: 'quote', id: sq.id }, '', nextHash);"), "Clic sur un devis met à jour l'URL avec son ID sans recharger la page");
-assert(indexJsx.includes("const nextHash = `#factures/${encodeURIComponent(inv.id || inv.numero)}`;") && indexJsx.includes("window.history.pushState({ type: 'invoice', id: inv.id }, '', nextHash);"), "Clic sur une facture met à jour l'URL avec son ID sans recharger la page");
-assert(indexJsx.includes("const nextHash = `#clients/${encodeURIComponent(cId)}`;") && indexJsx.includes("window.history.pushState({ type: 'client', id: cId }, '', nextHash);"), "Clic sur un client met à jour l'URL avec son ID");
-assert(indexJsx.includes("const nextHash = `#chantiers/${encodeURIComponent(pId)}`;") && indexJsx.includes("window.history.pushState({ type: 'project', id: pId }, '', nextHash);"), "Clic sur un chantier met à jour l'URL avec son ID");
+// Audit UX 220 (lot 8) — l'inscription de l'adresse est regroupée dans
+// `inscrireAdresseFiche` (appelée aussi quand la fiche est déjà sélectionnée).
+// Le comportement réel est vérifié en navigateur par
+// tests/ux/test_defauts_restants.mjs (C017, C090).
+assert(indexJsx.includes("inscrireAdresseFiche('quote', '#devis', sq.id, sq.id || sq.number)") && indexJsx.includes("window.history.pushState({ type, id, depuisListe: window.location.hash === base }, '', nextHash);"), "Clic sur un devis met à jour l'URL avec son ID sans recharger la page");
+assert(indexJsx.includes("inscrireAdresseFiche('invoice', '#factures', inv.id, inv.id || inv.numero)") && indexJsx.includes("const nextHash = `${base}/${encodeURIComponent(cle)}`;"), "Clic sur une facture met à jour l'URL avec son ID sans recharger la page");
+assert(indexJsx.includes("inscrireAdresseFiche('client', '#clients', cId, cId)"), "Clic sur un client met à jour l'URL avec son ID");
+assert(indexJsx.includes("inscrireAdresseFiche('project', '#chantiers', pId, pId)"), "Clic sur un chantier met à jour l'URL avec son ID");
 
 // 7. Préservation des états racines et filtres
 console.log('\n7. Préservation des filtres et formulaires lors du changement de vue :');

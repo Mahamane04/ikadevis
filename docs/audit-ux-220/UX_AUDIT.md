@@ -195,7 +195,7 @@ et 6. **Aucun déploiement** ; mode connecté **non testé** (compte réel requi
 |---|---|---|
 | Sondes G1–G9 avant correction | 926 | 571 ✓ / 355 ✗ |
 | Sondes G1–G9 après correction (build `27dc426429`) | 827 | 622 ✓ / 205 ✗ — 99 cas de moins : sections de sondes **interrompues** par des libellés que les corrections ont renommés |
-| Bancs `tests/ux` (build final) | 81 | **81 ✓** (6, 20, 27, 11, 7, 6, 4) |
+| Bancs `tests/ux` (dernier build) | 97 | **97 ✓** (6, 20, 27, 11, 16, 7, 6, 4) |
 | `npm run test:audit` (build final) | lots P0–7 | vert |
 | Suite complète `npm test` (build final) | 627 | 539 ✓ — 26/58 suites, 7/7 étalons : **identique à `main`**, 0 échec nouveau (les 88 échecs sont la dette déjà présente sur `main`) |
 
@@ -204,8 +204,8 @@ PASSÉ que si tous ses cas joués passent et qu'aucun n'est resté non joué :
 
 | Statut | Contrôles |
 |---|---|
-| PASSÉ | **119** (dont 59 en échec avant correction, rejoués verts) |
-| ÉCHEC | **41** (dont 20 partiellement corrigés ; écarts restants ci-dessous) |
+| PASSÉ | **123** (dont 63 en échec avant correction, rejoués verts) |
+| ÉCHEC | **37** (dont 20 partiellement corrigés ; écarts restants ci-dessous) |
 | BLOQUÉ | **32** — non rejoués : échecs imputés à la sonde (sélecteur ou lecture périmés), comportement relu dans le code, pas démontré |
 | NON APPLICABLE | 25 |
 | NON TESTÉ | 3 (C153, C179 : mode connecté ; C213 : autres moteurs) |
@@ -218,10 +218,10 @@ Aucun contrôle supplémentaire n'a été ajouté aux 220.
 |---|---|---|
 | 1. Découverte sans explication | **non validé** — hypothèses UX-HYP-01/02 | étude utilisateur requise |
 | 2. Clavier seul | **partiel** — fenêtres, Échap, onglets, raccourcis validés ; focus perdu après ajout d'ouvrage et « Confirmer mes quantités » (C124) | test technique |
-| 3. Petit écran | **partiel** — premier ouvrage corrigé à 390 et 360 px ; signature au doigt validée à 390 px et en paysage (lot 7) ; restent : confirmations « Supprimer » / « Dupliquer » sous la fiche devis, 320 px | test technique (émulation) |
+| 3. Petit écran | **partiel** — premier ouvrage à 390 et 360 px, signature au doigt, confirmations et fenêtres au-dessus de la fiche devis, menu ⋮ : validés (lots 6 à 8) ; reste 320 px | test technique (émulation) |
 | 4. Réseau interrompu | **partiel** — stockage plein : plus de faux succès, le devis reste « non enregistré » (lot 7, retesté) ; hors ligne : conservation relue, non rejouée | test technique |
 | 5. Double activation | **validé** — devis, brouillon de facture, émission : une seule création | test technique |
-| 6. Retour arrière | **partiel** — validé à 1440 px (Retour sur chiffrage non enregistré, Facturer → Précédent → Suivant) ; à 390 px Retour depuis une fiche devis mène au tableau de bord (C017) | test technique |
+| 6. Retour arrière | **validé** — 1440 px : Retour sur chiffrage non enregistré, Facturer → Précédent → Suivant ; téléphone : fiche devis ouverte depuis la liste puis Retour, fiche refermée par son bouton (lot 8) | test technique |
 | 7. Formulaire erroné | **validé** — erreurs désignées, saisie conservée (C061, C063, C065) | test technique |
 | 8. Changement de rôle ou d'organisation | **non validé** — démo seulement ; pas de changement d'entreprise sur téléphone (C018) ; rôles réels non testés | test technique + compte réel |
 | 9. Données nombreuses | **partiel** — liste de 60 devis défilée ; volumes supérieurs non mesurés (scénario bloqué par le quota de stockage) | test technique |
@@ -236,11 +236,12 @@ Aucun contrôle supplémentaire n'a été ajouté aux 220.
   un compte réel, factures recopiées vers la démo, page blanche à
   l'impression d'un devis) + 2 reproduits au rejeu (bouton « Ajouter mon
   premier ouvrage » recouvert sur téléphone, fiche devis restée ouverte en
-  coulisse). Classement de découverte : **1er** (au moins 20). Les 49
+  coulisse). Classement de découverte : **1er** (au moins 20). Les 40
   constats « restants » ci-dessous sont **relevés**, pas tous confirmés :
-  45 par un seul relecteur (2 contre-vérifiés), 4 contre-vérifiés issus de
-  la relecture du lot 7.
-- **Corrections validées par un test rejoué** : 39 défauts distincts
+  39 par un seul relecteur (2 contre-vérifiés), 1 contre-vérifié issu de
+  la relecture du lot 7. Neuf ont été corrigés au lot 8 et retirés du
+  tableau.
+- **Corrections validées par un test rejoué** : 49 défauts distincts
   (59 contrôles repassés au vert ; bancs `tests/ux` 81/81).
   Classement des corrections : **1er** (au moins 20). Les quatre
   régressions sont corrigées et couvertes par un banc.
@@ -274,7 +275,6 @@ correction proposée. À traiter par petits lots, test à l'appui.
 
 | Prio | Contrôle | Constat | Correction proposée | Effort | Contre-vérifié |
 |---|---|---|---|---|---|
-| P2 | C017 | À 390 px, le Retour du navigateur depuis une fiche devis mène au tableau de bord (#dashboard) au lieu de refermer la fiche sur la liste filtrée. | index_jsx.js:28869-28872 : remplacer le corps par `const selectQuote = () => selectSavedQuote(sq);`, comme les trois autres listes (selectSavedQuote fait déjà… | S | non |
 | P2 | C018 | À 390, 360 et 320 px, aucun moyen de « changer d'entreprise » n'est visible : ni sélecteur dans la barre du haut, ni entrée dans le menu du profil ou le tiroir « Menu ». | index_jsx.js:31220 : retirer la condition `userOrganizations.length > 1 &&` (la section montre alors l'entreprise active, cochée) et y ajouter un bouton « Nouvelle… | S | non |
 | P2 | C029 | #chiffrage vide à 320×568 : « Ajouter mon premier ouvrage » reste recouvert (corrigé à 390 et 360 px) — l'en-tête occupe 345 px, la zone défilante n'a que 18 px visibles. | Application : rendre l'appel à l'intérieur de la zone dégagée, par exemple une prop `pied` de LotNavigator rendue à la fin du `<nav className="… clear-totals-bar">`… | S | non |
 | P2 | C034 | « Personnaliser mon Tableau de Bord » : fermer par la croix (1440 et 390 px) ou par Échap (1440 px) après avoir basculé un interrupteur est noté « FERMÉE SANS AVERTISSEMENT, modification perdue », avec un relevé « bascule… | Application (environ 8 lignes, index_jsx.js:23190-23303) : mémoriser la configuration d'ouverture, et si `tempConfig` en diffère, faire passer la croix (donc Échap) par… | S | non |
@@ -282,8 +282,6 @@ correction proposée. À traiter par petits lots, test à l'appui.
 | P2 | C071 | Défaut masqué par l'interruption de la section « factures » (ligne non rejouée) : chercher un montant tel qu'affiché, « 20 589 256 », ne trouve aucune facture. | Dans le filtre : `const chiffres = invoiceQuery.replace(/[\s ]/g, '');` puis ajouter `// (/^\d+$/.test(chiffres) && [netTTC, f.totalTTC, f.totalHT, regle].some(n =>… | S | non |
 | P2 | C115 | « ERREUR DE SONDE — Input.synthesizeScrollGesture : Position out of bounds » : à 320×568 le geste part de y = haut du bouton − 120 = 570 px, hors écran, parce que « Ajouter mon premier ouvrage » est posé à 690 px, sous les… | Application : rendre le bouton DANS le <nav> du LotNavigator, avant son dégagement — prop `children` ajoutée à LotNavigator (l.3763) et rendue juste avant `</nav>`… | S | non |
 | P2 | C116 | Aucune ligne propre au journal : les assertions « zones sûres » S1/S2 ont été calculées puis perdues quand la sonde s'est arrêtée en S3 ; les mesures enregistrées montrent des commandes sous l'encoche. | Application, index.html, bloc @media (max-width: 767px) : `padding-top: env(safe-area-inset-top, 0px)` sur .saved-quote-detail-modal, .work-item-sheet:not(.hidden), le… | M | non |
-| P2 | C118 | Menu ⋮ ouvert puis Échap : toute la fiche devis se ferme (retour à la liste) au lieu du seul menu. | Application : traiter Échap dans l’effet propre au menu proposé ci-dessus (keydown en capture sur document, preventDefault, quel que soit le focus) — ou retirer la… | S | non |
-| P2 | C123 | « Plus d'actions sur le devis » (en-tête du chiffrage) : après Échap le focus est sur le déclencheur mais aria-expanded reste à true, le menu ne se referme pas. | Dans l'en-tête du chiffrage, remplacer l'effet l.3527-3533 par le modèle de QuoteStatusDropdown : effet conditionné à isMenuOpen, écoute `keydown` Escape →… | S | non |
 | P2 | C124 | Focus entièrement masqué par « HEADER.global-top-bar » : « Créer un nouveau client » sur #clients (et « Rechercher un client » visible à 2/5), « Annuler la modification » et « Statut du devis » sur #chiffrage. | Aligner sur ClientCombobox (commentaire l.1560-1565) : ouvrir au clic, à la frappe et par ⌘K, pas au simple focus (remplacer onFocus par onClick en l.11088), et… | S | non |
 | P2 | C128 | Alt+Flèche bas dans le champ « Prix unitaire » : le focus tombe sur BODY et le lot actif passe de 0 à 1. | Application : laisser la touche native aux `select`, `[role=combobox]`, textarea et contenteditable (remplacer le test de 7427), supprimer le `blur()` et, après… | S | non |
 | P2 | C141 | Sur réseau lent, l'écran d'accès dépasse 4000 ms : 4646 ms (Slow 4G mobile cpu×4), 4570 ms (Slow 4G bureau cpu×1), 16306 ms (Slow 3G mobile) ; première mesure disponible, S7 étant bloqué avant correction de la sonde. | Minimal (M), index.html : 1) l.1256, placer dans #root une coquille statique (logo, titre « Le devis BTP juste, en quelques minutes. », « Chargement… » en… | M | non |
@@ -291,7 +289,6 @@ correction proposée. À traiter par petits lots, test à l'appui.
 | P2 | — | Constat incident, aucune ligne en échec (la sonde dit « titre ok ») : sur les Paramètres, le titre « Paramètres du compte » et le bouton « Retour à l'application » de l'en-tête sont cachés sous la barre du haut, à toutes les… | Application, index.html:278 : « .settings-page-shell { left: 0; top: 4rem; } » et, dans le bloc @media (max-width: 767px), « .settings-page-shell { top: calc(3.5rem +… | S | non |
 | P3 | C007 | À 1440 px, la garde de sortie du chiffrage annonce « elles seront perdues » mais, après « Ne pas enregistrer », le chiffrage est retrouvé intact (ouvrages 1 → 1, toujours « Modifications non enregistrées »). | Reformuler la seule ligne index_jsx.js:20364, sans changer le comportement, par exemple : « Ce chiffrage contient des modifications qui ne sont pas encore enregistrées… | S | non |
 | P3 | C018 | Sept destinations portent deux noms selon la surface : barre latérale (1440 px), barre basse et tiroir « Menu » (390 px) — par ex. « Ressources » / « Prix des Matériaux », « Catalogue » / « Ouvrages », « Clients » / « Clients &… | index_jsx.js:31269-31273 : remplacer les cinq libellés en dur par LIBELLES_NAV.projects / clients / depenses / recipes / materials ; :31160 :… | S | non |
-| P3 | C029 | Fiche devis (#devis/101) : le bouton « Modifier client / chantier » chevauche le sélecteur « Statut du devis » de 14×25 px à 390 px et de 84×5 px à 320 px (2e moitié de la ligne 19 et ligne 21). | Application, 1 ligne au choix : index_jsx.js:27714 retirer `shrink-0` (le libellé passe sur deux lignes au lieu de déborder), ou index_jsx.js:27706 remplacer `min-w-0… | S | non |
 | P3 | C033 | 390 px : les quatre fenêtres suivantes (Nouveau Chantier, Nouvel Ouvrage, Personnaliser, fiche devis) sont notées « fenêtre non ouverte » parce que « Nouveau Client », ouverte au cas précédent, est toujours affichée et couvre… | Application (2 lignes) : index_jsx.js:20606, accepter aussi le focus perdu : `(courante.contains(e.target) // e.target === document.body // e.target ===… | S | non |
 | P3 | C037 | Dépenses, Paramètres › Finances et lots du chiffrage (1440 et 390 px) : aucun onglet n'est relié à un panneau (aria-controls 0/n, role=tabpanel 0). | Application : `id` + `aria-controls` sur chaque onglet et `role="tabpanel"` + `id` + `aria-labelledby` sur le conteneur de contenu — Dépenses : envelopper le bloc 9123…… | S | non |
 | P3 | C037 | Dépenses, Finances et lots à 1440 px : la flèche droite change bien d'onglet, mais chaque onglet reste un arrêt de tabulation (4/4, 5/5, 2/2 au lieu de 1). | Application : tabindex itinérant — `tabIndex={filtre === val ? 0 : -1}` (9116), `tabIndex={onglet === o.id ? 0 : -1}` (9659), `tabIndex={isActive ? 0 : -1}` (3935), et… | S | non |
@@ -300,9 +297,7 @@ correction proposée. À traiter par petits lots, test à l'appui.
 | P3 | C045 | Même ligne que le constat précédent, partie Paramètres (9 anomalies sur 11) : saut h1 → h3 sur Facturation & envoi, h1 → h4 sur Finances, et sur Abonnement un h2 (23–25 px) et des h3 (17 px) plus grands que le h1 (16 px à 390… | Sauts de niveau : dans la coque des Paramètres (index_jsx.js:31778, avant les panneaux) ajouter `<h2 className="sr-only">{settingsNavigation.find(t => t.id ===… | S | non |
 | P3 | C071 | Recherche globale : pour « sahel », l'en-tête annonce un nombre de devis tronqué à 4 alors que 7 correspondent, sans lien « voir tous ». | Garder la liste complète (`const tousDevis = …filter(…)`, `matchedQuotes = tousDevis.slice(0, 4)`), afficher « Devis (4 sur 7) » et, si tronqué, un bouton « Voir les 7… | S | non |
 | P3 | C082 | « Chaque total en argent précise TTC ou HT » échoue encore : les 4 cartes sont désormais conformes (« sans mention : — »), mais le bloc « Pipeline Commercial des Devis » n'affiche aucune mention TTC/HT (« pipeline sans mention… | index_jsx.js:23785 — compléter le sous-titre : « Répartition des propositions et conversion par étape du cycle de vente · montants TTC » (1 ligne ; rien à changer dans… | S | oui |
-| P3 | C090 | Depuis « Devis récents » du tableau de bord, la fiche du bon devis s'ouvre (montant identique) mais l'adresse reste « #devis » au lieu de « #devis/<id> » comme depuis la liste. | index_jsx.js:23867 : `onClick={() => { selectSavedQuote(q); setActiveView('savedQuotes'); }}` ; l.23912 : `selectProject(p.id)` à la place de… | S | non |
 | P3 | C117 | Aucune ligne propre au journal : les relevés partiels du rejeu montrent que les échecs d'avant correctifs sur les petites cibles de la barre des lots subsistent et ressortiront dès que la sonde ira au bout. | Application : `min-h-[32px] min-w-[32px]` sur les deux boutons de la barre des lots (index_jsx.js:3961 et 3974) et `min-h-[24px]` sur la bascule Simple/Avancé (6054,… | S | non |
-| P3 | C118 | Fiche devis à 390 px : le menu ⋮ « Plus d’actions » reste ouvert après un toucher à l’extérieur (texte « Société Immobilière NBB ») et pendant le défilement au doigt. | Ajouter un effet juste après 17716 (≈ 12 lignes) : tant que le menu est ouvert, écouter sur document en capture (1) pointerdown hors « .saved-quote-mobile-more » →… | S | non |
 | P3 | C124 | Ajout d'un ouvrage au clavier (Entrée sur la 1re suggestion) dans un lot vide : le focus retombe sur BODY. | À la fin de handleSelectSolutionForLot, après rendu (deux requestAnimationFrame), si document.activeElement est body : focaliser le premier champ de métré de… | S | non |
 | P3 | C124 | « Confirmer mes quantités » activé au clavier : le focus passe du bouton à BODY (bouton retiré du DOM après usage). | Dans cet onClick, après onUpdateItem, reporter le focus (requestAnimationFrame) sur un point stable de l'inspecteur : son titre en tabindex="-1" ou le premier champ du… | S | non |
 | P3 | C124 | 1440 #factures : le focus s'arrête sur BUTTON « Filtrer les factures par statut », entièrement masqué (« recouvert par SPAN. »). | Sortir ce doublon de l'ordre de tabulation (prop `tabIndex` ajoutée à CustomSelect et passée à -1 ici) ou le révéler quand il reçoit le focus (`sr-only… | S | non |
@@ -323,12 +318,11 @@ correction proposée. À traiter par petits lots, test à l'appui.
 Les deux priorités de ce tableau — **signature impossible sous 1024 px**
 et **faux succès quand le stockage est plein** — ont été corrigées et
 retestées au lot 7 (`UX_FIX_LOG.md`). La relecture de ces deux corrections
-a relevé, dans le même voisinage, quatre défauts antérieurs non traités :
+a relevé, dans le même voisinage, quatre défauts antérieurs ; trois ont été
+corrigés au lot 8 (confirmations et fenêtres sous la fiche devis mobile,
+« Voir la facture »), il reste :
 
 | Prio | Contrôle | Constat | Correction proposée | Effort | Contre-vérifié |
 |---|---|---|---|---|---|
-| P2 | C119 | Téléphone : les confirmations « Supprimer » et « Dupliquer » ouvertes depuis la fiche devis s'affichent SOUS elle (dialogue z-130, fiche z-140) — rien ne se passe à l'écran, le dialogue ressurgit plus tard. | Passer le dialogue de confirmation au-dessus de la fiche et des fenêtres qui l'ouvrent (au moins z-[150]). | S | oui |
-| P2 | C119 | Téléphone : « Nouveau client » et « Nouveau chantier » ouverts depuis « Modifier client / chantier » de la fiche devis restent SOUS la fiche (z-100). | z-[100] → z-[145] sur ces deux fenêtres. | S | oui |
-| P2 | C017 | Téléphone : « Voir la facture » depuis la fiche devis change l'adresse et le titre, mais la fiche reste par-dessus. | Refermer la fiche (`setViewingSavedQuote(null)`) dans les deux branches « brouillon existant » et « entièrement facturé » de `convertirEnFacture`. | S | oui |
 | P2 | C153 | Mode connecté : après un échec serveur de l'enregistrement, l'atelier affiche « Enregistré à … » et la garde de sortie laisse partir (seuls la notification et le bouton « Réessayer » le disent). | Faire renvoyer `false` par `onSaveQuote` sur ses sorties d'erreur et rétablir « non enregistré ». **Non testable sans compte.** | S | oui |
 

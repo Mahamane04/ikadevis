@@ -344,3 +344,57 @@ en mode connecté) sont consignés dans `UX_AUDIT.md` § Défauts restants.
   TESTÉ** (C119 et C152 passent d'ÉCHEC à BLOQUÉ : défaut corrigé, cas de
   la sonde non rejoués).
 
+## Mise en ligne (2026-10-03)
+
+Le commit `c555d60` (PR n° 2) est servi sur `app.ikadevis.com` et
+`ikadevis.officemicro89.workers.dev` : version Cloudflare
+`4da31b5f-8c23-4e55-9e6b-8f212349f066`, jeton JS `d0b6781e24`, fichier servi
+identique octet pour octet au build testé, `config.js` en ligne sur la base de
+production, configuration locale remise en développement. Contrôle de fumée en
+ligne en mode démo (tableau de bord, fiche devis, « Signer », aucune erreur
+console). Retour arrière : `npx wrangler rollback
+cdf73e1f-3a9c-462a-b4bd-6d0d95310048`. **Le mode connecté n'a pas été
+vérifié** (aucune connexion à un compte).
+
+## Lot 8 — Défauts restants, lot A : la fiche devis sur téléphone (2026-10-03)
+
+Branche `fix/ux-defauts-restants-2026-10`, **non déployée**. Banc :
+`tests/ux/test_defauts_restants.mjs`.
+
+| Défaut | Correction | Retest |
+|---|---|---|
+| Confirmations « Supprimer » / « Dupliquer » ouvertes SOUS la fiche devis (C119) | dialogue de confirmation à z-[225] | 390 px : « Annuler » de la confirmation est l'élément touché ; le devis n'est pas supprimé |
+| « Nouveau client » / « Nouveau chantier » ouverts sous la fiche (C119) | fenêtres à z-[145] | champ « Nom » touchable depuis la fiche |
+| « Voir la facture » laissait la fiche par-dessus la facture | la fiche est refermée ; la facture s'ouvre à son adresse `#factures/<id>` | fiche fermée, titre « Factures », adresse de la facture |
+| Liste mobile : fiche ouverte sans son adresse, Retour quittait « Mes devis » (C017) | même ouverture que les autres listes (`selectSavedQuote`) | adresse `#devis/<id>`, Retour → liste |
+| « Devis récents » du tableau de bord sous l'adresse de la liste (C090) | `selectSavedQuote` / `selectProject` / `selectInvoiceItem` | adresse de la fiche, y compris élément déjà sélectionné |
+| Menu ⋮ : restait ouvert au toucher extérieur, Échap fermait toute la fiche (C118) | fermeture au toucher extérieur, au défilement, à la sortie du focus ; Échap ferme le menu seul | menu fermé, fiche ouverte, focus rendu au bouton ⋮ |
+| Menu « Plus d'actions » du chiffrage : Échap sans effet (C123) | Échap referme et rend le focus | `aria-expanded=false`, focus sur le bouton |
+| « Modifier client / chantier » chevauchait « Statut du devis » (C029) | bouton compact réel (`button.btn-compact`), sans `shrink-0` | aucun recouvrement à 390 et 320 px, 24 px de haut |
+
+**Relecture adversariale du lot** (deux relecteurs, 8 constats, tous confirmés
+par réfutation), corrigée et testée avant le commit :
+
+| Constat | Nature | Correction |
+|---|---|---|
+| Client ou chantier créé depuis la fiche d'un devis affecté au devis **du chiffrage en cours**, pas au devis affiché | **P1**, ancien, rendu atteignable sur téléphone par ce lot | origine `savedQuote` : le devis affiché et sa copie enregistrée sont mis à jour (`majDevisAffiche`) ; le chiffrage seulement s'il s'agit du même devis. Même garde pour la sélection d'un client ou d'un chantier existant (la condition « aucun des deux n'a d'identifiant serveur » était toujours vraie en démo) |
+| Fiche refermée par son bouton « Retour » : l'adresse `#devis/<id>` restait, le Retour du navigateur la rouvrait | **régression** (P2) | `closeQuotePreview` suit l'adresse : retour en arrière si la fiche vient de la liste, sinon l'entrée devient `#devis` ; suppression d'un devis : même chose |
+| Tab bloqué sur « Annuler » dans une confirmation ouverte au-dessus d'une fenêtre | P2, ancien, rendu visible | le filet de focus laisse Tab aux fenêtres qui gèrent leur focus |
+| Échap rendait le focus au bouton ⋮ du panneau de bureau masqué | régression (P3) | le menu réellement affiché est visé |
+| Échap avalé quand le focus avait quitté le menu | régression (P3) | la touche n'est prise que si elle revient au menu (`echapAppartientAilleurs`) ; le menu se referme quand le focus le quitte |
+| Élément déjà sélectionné rouvert depuis le tableau de bord : adresse de la liste | P3 | `inscrireAdresseFiche`, appelée aussi quand la fiche est déjà sélectionnée |
+| « Voir la facture » sous `#factures` | P3 | `selectInvoiceItem` |
+| Bouton « Modifier client / chantier » sur trois lignes | P3 | `button.btn-compact` |
+
+### Vérification (build JS `cd3d4c4e14`)
+
+- `tests/ux/test_defauts_restants.mjs` : **16/16**.
+- Bancs `tests/ux` : **97/97** (8 bancs). `npm run test:audit` vert — quatre
+  vérifications du lot 6 lisaient le TEXTE du code d'inscription des
+  adresses ; elles sont adaptées à `inscrireAdresseFiche` (le comportement
+  est vérifié en navigateur par le banc du lot).
+- Suite complète `npm test` : **539/627, 26/58 suites, 7/7 étalons —
+  identique à `main`** (0 échec nouveau, 0 disparu).
+- Matrice : **123 PASSÉ, 37 ÉCHEC, 32 BLOQUÉ, 25 NON APPLICABLE, 3 NON
+  TESTÉ** (C017, C090, C118, C123 passent d'ÉCHEC à PASSÉ).
+

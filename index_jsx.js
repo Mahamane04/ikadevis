@@ -146,6 +146,19 @@ const lienEmail = (adresse, sujet, corps) =>
 const estUuid = (v) => typeof v === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
+// Un menu déroulant est ouvert et l'on appuie sur Échap : la touche revient-elle
+// à AUTRE CHOSE que ce menu ? Oui si le focus est dans un champ de saisie ou
+// une liste hors du menu, ou dans une autre fenêtre. Un titre ou un conteneur
+// simplement focalisé (tabindex=-1 après un changement d'écran) ne compte pas :
+// le menu garde la touche et rend le focus à son bouton.
+const echapAppartientAilleurs = (conteneurMenu) => {
+    const actif = document.activeElement;
+    if (!actif || actif === document.body || (conteneurMenu && conteneurMenu.contains(actif))) return false;
+    if (actif.matches('input, textarea, select, [contenteditable="true"], [role="combobox"], [role="listbox"], [role="option"]')) return true;
+    const fenetre = actif.closest('[role="dialog"]');
+    return !!fenetre && !(conteneurMenu && fenetre.contains(conteneurMenu));
+};
+
 const zoneImpressionVisible = () => {
     const zones = [...document.querySelectorAll('[data-zone-impression]')];
     return zones.find(z => {
@@ -3531,6 +3544,33 @@ function QuoteHeader({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    // Audit UX 220 (C123) — Échap laissait ce menu ouvert (aria-expanded
+    // restait à true). Il se referme, le focus revient sur son bouton, et la
+    // touche ne va pas plus loin (elle ne doit pas déclencher autre chose).
+    useEffect(() => {
+        if (!isMenuOpen) return undefined;
+        const surTouche = (e) => {
+            if (e.key !== 'Escape') return;
+            // Focus dans un champ (client, chantier) ou une autre fenêtre : la
+            // touche lui appartient — on referme sans la prendre ni déplacer
+            // le focus.
+            if (echapAppartientAilleurs(menuRef.current)) { setIsMenuOpen(false); return; }
+            e.preventDefault();
+            e.stopPropagation();
+            setIsMenuOpen(false);
+            menuRef.current?.querySelector('button[aria-haspopup]')?.focus({ preventScroll: true });
+        };
+        // Le focus quitte le menu au clavier : il se referme.
+        const surFocus = (e) => {
+            if (menuRef.current && e.target instanceof Node && !menuRef.current.contains(e.target)) setIsMenuOpen(false);
+        };
+        window.addEventListener('keydown', surTouche, true);
+        window.addEventListener('focusin', surFocus, true);
+        return () => {
+            window.removeEventListener('keydown', surTouche, true);
+            window.removeEventListener('focusin', surFocus, true);
+        };
+    }, [isMenuOpen]);
 
     const statusOptions = [
         { value: 'draft', label: 'Brouillon', bg: 'bg-neutral-100 text-neutral-700 border-neutral-300' },
@@ -17594,9 +17634,38 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [saveQuoteForm, setSaveQuoteForm] = useState({ clientName: '', projectRef: '', notes: '' });
     const [viewingSavedQuote, setViewingSavedQuote] = useState(null);
     const closeQuotePreview = useCallback(() => {
-        if (viewingSavedQuote?.previewOrigin === 'calculator') setActiveView('calculator');
+        if (viewingSavedQuote?.previewOrigin === 'calculator') {
+            setActiveView('calculator');
+            setViewingSavedQuote(null);
+            return;
+        }
+        // La fiche a son adresse (#devis/<id>). La refermer par son bouton
+        // sans toucher à l'adresse laissait cette entrée en place : le Retour
+        // du navigateur ROUVRAIT la fiche qu'on venait de fermer. Ouverte
+        // depuis la liste, on revient simplement en arrière (le routeur
+        // referme) ; sinon l'entrée courante devient celle de la liste.
+        const surFiche = /^#(devis|quotes)\//.test(window.location.hash);
+        const etat = window.history.state;
+        if (surFiche && etat && etat.type === 'quote' && etat.depuisListe) {
+            window.history.back();
+            return;
+        }
         setViewingSavedQuote(null);
+        if (surFiche) window.history.replaceState(null, '', '#devis');
     }, [viewingSavedQuote?.previewOrigin]);
+
+    // Client ou chantier changé depuis la FICHE d'un devis : c'est ce devis-là
+    // qui change (et sa copie enregistrée) ; le chiffrage en cours n'est
+    // touché que s'il s'agit du même devis.
+    const majDevisAffiche = (patch) => {
+        if (!viewingSavedQuote) return;
+        const maj = { ...viewingSavedQuote, ...patch };
+        setViewingSavedQuote(maj);
+        if (savedQuotes.some(q => q.id === maj.id)) {
+            updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
+        }
+        setHybridQuote(prev => (prev && prev.id === maj.id) ? { ...prev, ...patch } : prev);
+    };
     useEffect(() => {
         if (!viewingSavedQuote) return;
         const closeOnEscape = (event) => {
@@ -17752,6 +17821,46 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         setIsShareModalOpen(false);
     }, [viewingSavedQuote?.id]);
     const [isQuoteDetailMoreOpen, setIsQuoteDetailMoreOpen] = useState(false);
+    // Audit UX 220 (C118) — menu ⋮ de la fiche devis (téléphone) : il restait
+    // ouvert après un toucher à l'extérieur et pendant le défilement, et Échap
+    // refermait toute la fiche quand le focus n'était plus dedans. Écoute sur
+    // `window` en capture : avant le filet de focus (document) et avant la
+    // fermeture de la fiche.
+    useEffect(() => {
+        if (!isQuoteDetailMoreOpen) return undefined;
+        const fermer = () => setIsQuoteDetailMoreOpen(false);
+        const surPointeur = (e) => {
+            if (!(e.target instanceof Element) || !e.target.closest('.saved-quote-mobile-more')) fermer();
+        };
+        // Le même balisage existe dans le panneau de bureau (masqué sous
+        // 1024 px) : on vise le menu réellement affiché.
+        const conteneur = () => [...document.querySelectorAll('.saved-quote-mobile-more')].find((c) => c.offsetParent !== null) || null;
+        const surTouche = (e) => {
+            if (e.key !== 'Escape') return;
+            const menu = conteneur();
+            // Le focus est dans un champ ou une autre fenêtre : la touche lui
+            // appartient. On referme seulement, sans la prendre.
+            if (echapAppartientAilleurs(menu)) { fermer(); return; }
+            e.preventDefault();
+            e.stopPropagation();
+            fermer();
+            menu?.querySelector(':scope > button')?.focus({ preventScroll: true });
+        };
+        // Le focus quitte le menu (Tab, ouverture d'une fenêtre) : il se referme.
+        const surFocus = (e) => {
+            if (!(e.target instanceof Element) || !e.target.closest('.saved-quote-mobile-more')) fermer();
+        };
+        window.addEventListener('pointerdown', surPointeur, true);
+        window.addEventListener('scroll', fermer, true);
+        window.addEventListener('keydown', surTouche, true);
+        window.addEventListener('focusin', surFocus, true);
+        return () => {
+            window.removeEventListener('pointerdown', surPointeur, true);
+            window.removeEventListener('scroll', fermer, true);
+            window.removeEventListener('keydown', surTouche, true);
+            window.removeEventListener('focusin', surFocus, true);
+        };
+    }, [isQuoteDetailMoreOpen]);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     // Audit UX 220 (C156/C160) — en démonstration, rien n'est jamais
@@ -18679,6 +18788,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
     const isNavigatingFromRouteRef = useRef(false);
 
+    // Inscrit l'adresse d'une fiche (#devis/<id>, #chantiers/<id>…) quand
+    // c'est l'application qui l'ouvre. Appelée AUSSI quand la fiche est déjà
+    // sélectionnée : un élément resté sélectionné puis rouvert depuis un autre
+    // écran s'affichait sous l'adresse de la liste (relecture du lot A).
+    // `depuisListe` retient que l'entrée précédente est la liste : refermer
+    // la fiche peut alors simplement revenir en arrière.
+    const inscrireAdresseFiche = (type, base, id, cle) => {
+        if (isNavigatingFromRouteRef.current) return;
+        const nextHash = `${base}/${encodeURIComponent(cle)}`;
+        if (window.location.hash === nextHash) return;
+        window.history.pushState({ type, id, depuisListe: window.location.hash === base }, '', nextHash);
+    };
+
     const selectClient = useCallback((cId) => {
         if (!cId) {
             setSelectedClientId(null);
@@ -18688,7 +18810,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
             return;
         }
-        if (selectedClientId === cId && !detailLoadingClient) return;
+        if (selectedClientId === cId && !detailLoadingClient) { inscrireAdresseFiche('client', '#clients', cId, cId); return; }
 
         setSelectedClientId(cId);
         setDetailLoadingClient(true);
@@ -18700,12 +18822,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }, DUREE_TRANSITION_DETAIL_MS);
 
-        if (!isNavigatingFromRouteRef.current) {
-            const nextHash = `#clients/${encodeURIComponent(cId)}`;
-            if (window.location.hash !== nextHash) {
-                window.history.pushState({ type: 'client', id: cId }, '', nextHash);
-            }
-        }
+        inscrireAdresseFiche('client', '#clients', cId, cId);
     }, [selectedClientId, detailLoadingClient]);
 
     const selectProject = useCallback((pId) => {
@@ -18717,7 +18834,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
             return;
         }
-        if (selectedProjectId === pId && !detailLoadingProject) return;
+        if (selectedProjectId === pId && !detailLoadingProject) { inscrireAdresseFiche('project', '#chantiers', pId, pId); return; }
 
         setSelectedProjectId(pId);
         setDetailLoadingProject(true);
@@ -18729,12 +18846,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }, DUREE_TRANSITION_DETAIL_MS);
 
-        if (!isNavigatingFromRouteRef.current) {
-            const nextHash = `#chantiers/${encodeURIComponent(pId)}`;
-            if (window.location.hash !== nextHash) {
-                window.history.pushState({ type: 'project', id: pId }, '', nextHash);
-            }
-        }
+        inscrireAdresseFiche('project', '#chantiers', pId, pId);
     }, [selectedProjectId, detailLoadingProject]);
 
     const selectSavedQuote = useCallback((sq) => {
@@ -18746,7 +18858,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
             return;
         }
-        if (viewingSavedQuote?.id === sq.id && !detailLoadingQuote) return;
+        if (viewingSavedQuote?.id === sq.id && !detailLoadingQuote) { inscrireAdresseFiche('quote', '#devis', sq.id, sq.id || sq.number); return; }
 
         setViewingSavedQuote(sq);
         setIsCommercialMode(true);
@@ -18759,12 +18871,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }, DUREE_TRANSITION_DETAIL_MS);
 
-        if (!isNavigatingFromRouteRef.current) {
-            const nextHash = `#devis/${encodeURIComponent(sq.id || sq.number)}`;
-            if (window.location.hash !== nextHash) {
-                window.history.pushState({ type: 'quote', id: sq.id }, '', nextHash);
-            }
-        }
+        inscrireAdresseFiche('quote', '#devis', sq.id, sq.id || sq.number);
     }, [viewingSavedQuote, detailLoadingQuote]);
 
     const selectInvoiceItem = useCallback((inv) => {
@@ -18776,7 +18883,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
             return;
         }
-        if (viewingInvoice?.id === inv.id && !detailLoadingInvoice) return;
+        if (viewingInvoice?.id === inv.id && !detailLoadingInvoice) { inscrireAdresseFiche('invoice', '#factures', inv.id, inv.id || inv.numero); return; }
 
         setViewingInvoice(inv);
         setDetailLoadingInvoice(true);
@@ -18788,12 +18895,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }, DUREE_TRANSITION_DETAIL_MS);
 
-        if (!isNavigatingFromRouteRef.current) {
-            const nextHash = `#factures/${encodeURIComponent(inv.id || inv.numero)}`;
-            if (window.location.hash !== nextHash) {
-                window.history.pushState({ type: 'invoice', id: inv.id }, '', nextHash);
-            }
-        }
+        inscrireAdresseFiche('invoice', '#factures', inv.id, inv.id || inv.numero);
     }, [viewingInvoice, detailLoadingInvoice]);
 
     const [savedQuotes, setSavedQuotes] = useState(() => {
@@ -19752,7 +19854,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             }
         }
         updateSavedQuotes(savedQuotes.filter(x => x.id !== devis.id));
-        if (viewingSavedQuote && viewingSavedQuote.id === devis.id) setViewingSavedQuote(null);
+        if (viewingSavedQuote && viewingSavedQuote.id === devis.id) {
+            setViewingSavedQuote(null);
+            if (/^#(devis|quotes)\//.test(window.location.hash)) window.history.replaceState(null, '', '#devis');
+        }
         return true;
     }, [supabaseClient, sbUser, activeOrganizationId, savedQuotes, updateSavedQuotes, viewingSavedQuote]);
 
@@ -20672,6 +20777,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 if (fermer && !fermer.disabled) { e.preventDefault(); fermer.click(); }
                 return;
             }
+            // Une confirmation (ou la fenêtre d'envoi) ouverte par-dessus gère
+            // son propre piège à focus. Le filet, qui ne la compte pas comme
+            // « fenêtre du dessus », ramenait Tab dans la fenêtre du dessous :
+            // on restait bloqué sur « Annuler », « Confirmer » inatteignable.
+            if (e.key === 'Tab' && document.querySelector('[data-focus-gere]')) return;
             if (e.key !== 'Tab' || !courante || !document.contains(courante)) return;
             const liste = focalisables(courante);
             if (liste.length === 0) return;
@@ -23934,7 +24044,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         const [statusLabel, statusClass] = statutDevis(q.status);
                                         const quoteAmount = q.quoteData?.totalTTCConsomme || q.totalTTC || 0;
                                         return (
-                                            <button key={q.id} onClick={() => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                            <button key={q.id} onClick={() => { selectSavedQuote(q); setActiveView('savedQuotes'); }} className="w-full p-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 {/* Sous sm, le bloc montant + statut + chevron (`shrink-0`,
                                                     ~180px) ne laissait plus que ~120px au nom du client :
                                                     "Société Immobilière NBB" sortait en "Société Immo...".
@@ -23979,7 +24089,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         {activeProjects.length === 0 ? (
                                             <div className="p-8 text-center text-xs text-neutral-500 italic">Aucun chantier actif.</div>
                                         ) : activeProjects.slice(0, 3).map(p => (
-                                            <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                            <button key={p.id} onClick={() => { selectProject(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
                                                     <i className="fa-solid fa-folder-tree text-xs"></i>
                                                 </div>
@@ -24017,7 +24127,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <div className="divide-y divide-neutral-100">
                                         {recentInvoices.map(f => (
-                                            <button key={f.id} onClick={() => { setViewingInvoice(f); setActiveView('invoices'); }} className="w-full p-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
+                                            <button key={f.id} onClick={() => { selectInvoiceItem(f); setActiveView('invoices'); }} className="w-full p-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 <div className="min-w-0 flex-1 basis-full sm:basis-0">
                                                     <p className="font-semibold text-xs text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{f.clientNom || f.clientName || 'Client non renseigné'}</p>
                                                     <p className="text-[11px] text-neutral-500 truncate mt-0.5">{f.numero || 'Brouillon'}</p>
@@ -27658,13 +27768,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 // encore à 100%), on ouvre le tableau par lot plutôt que de
                 // facturer aveuglément 100% du devis en une fois.
                 const convertirEnFacture = () => {
+                    // La fiche devis est refermée dans les trois issues : sous
+                    // 1024 px elle est une fenêtre plein écran et restait
+                    // affichée PAR-DESSUS la facture qu'on venait d'ouvrir.
                     if (linkedInvoice && linkedInvoice.statut === 'draft') {
-                        setViewingInvoice(linkedInvoice);
+                        selectInvoiceItem(linkedInvoice);
+                        setViewingSavedQuote(null);
                         setActiveView('invoices');
                         return;
                     }
                     if (devisEntierementFacture) {
-                        if (linkedInvoice) { setViewingInvoice(linkedInvoice); setActiveView('invoices'); }
+                        if (linkedInvoice) { selectInvoiceItem(linkedInvoice); setViewingSavedQuote(null); setActiveView('invoices'); }
                         return;
                     }
                     if (isReadOnlyDueToDowngrade) {
@@ -27784,7 +27898,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <button
                                                     type="button"
                                                     onClick={() => setIsEditingClientProject(prev => !prev)}
-                                                    className="btn-secondary text-[11px] py-1 px-2.5 font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 shrink-0 rounded-lg"
+                                                    className="btn-secondary btn-compact font-bold text-brand-600 hover:text-brand-800 flex items-center min-w-0 text-left"
                                                     title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
                                                     aria-expanded={isEditingClientProject}
                                                 >
@@ -27855,7 +27969,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         if (savedQuotes.some(q => q.id === maj.id)) {
                                                             updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                                         }
-                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                        setHybridQuote(prev => (prev && prev.id === maj.id) ? { ...prev, ...patch } : prev);
                                                     }}
                                                     onSelectClient={(client) => {
                                                         const patch = { clientName: client.name, clientId: client.id, projectId: null, projectRef: '' };
@@ -27864,11 +27978,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         if (savedQuotes.some(q => q.id === maj.id)) {
                                                             updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                                         }
-                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                        setHybridQuote(prev => (prev && prev.id === maj.id) ? { ...prev, ...patch } : prev);
                                                     }}
                                                     onRequestCreate={(name) => {
                                                         setEditingClientId(null);
-                                                        setNewClientOriginModal('quote');
+                                                        // 'savedQuote' : le client créé ira au devis AFFICHÉ,
+                                                        // pas au devis du chiffrage (origine 'quote').
+                                                        setNewClientOriginModal('savedQuote');
                                                         setNewClientForm({ name: name || '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' });
                                                         setIsNewClientModalOpen(true);
                                                     }}
@@ -27893,7 +28009,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         if (savedQuotes.some(q => q.id === maj.id)) {
                                                             updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                                         }
-                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                        setHybridQuote(prev => (prev && prev.id === maj.id) ? { ...prev, ...patch } : prev);
                                                     }}
                                                     onSelectProject={(project) => {
                                                         const patch = {
@@ -27907,11 +28023,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         if (savedQuotes.some(q => q.id === maj.id)) {
                                                             updateSavedQuotes(savedQuotes.map(q => q.id === maj.id ? maj : q));
                                                         }
-                                                        setHybridQuote(prev => (prev && (prev.id === maj.id || (!maj.serverId && !prev.serverId))) ? { ...prev, ...patch } : prev);
+                                                        setHybridQuote(prev => (prev && prev.id === maj.id) ? { ...prev, ...patch } : prev);
                                                     }}
                                                     onRequestCreate={(name, cId, cName) => {
                                                         const matchedClient = clients.find(c => c.id === cId || (cName && c.name === cName));
-                                                        setNewProjectOriginModal('quote');
+                                                        setNewProjectOriginModal('savedQuote');
                                                         setNewProjectForm({
                                                             name: name || '',
                                                             clientId: matchedClient?.id || '',
@@ -28936,10 +29052,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 même motif déjà utilisé juste au-dessus pour le mode Master-Detail. */}
                             <div className="md:hidden flex flex-col gap-2.5">
                                 {visibleQuotes.map(sq => {
-                                    const selectQuote = () => {
-                                        setViewingSavedQuote(sq);
-                                        setIsCommercialMode(true);
-                                    };
+                                    // C017 — cette liste (cartes, téléphone) ouvrait la
+                                    // fiche sans inscrire son adresse : « Retour »
+                                    // quittait « Mes devis » au lieu de refermer la fiche.
+                                    const selectQuote = () => selectSavedQuote(sq);
                                     const facturesDuDevis = invoices.filter(f =>
                                         String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                     );
@@ -31480,7 +31596,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             {/* P0.13 (2026-08-17) — Formulaire de création d'affaire (remplace
                 l'insertion directe de données factices) */}
             {isNewProjectModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{editingProjectId ? 'Modifier le Chantier' : 'Nouveau Chantier'}</h3>
@@ -31546,6 +31662,9 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             projectRef: newP.name
                                         }));
                                         showToast(`Projet « ${newP.name} » sélectionné dans le devis`, 'success');
+                                    } else if (newProjectOriginModal === 'savedQuote') {
+                                        majDevisAffiche({ clientId: selectedClient.id, clientName: selectedClient.name, projectId: newP.id, projectRef: newP.name });
+                                        showToast(`Chantier « ${newP.name} » sélectionné dans le devis ${viewingSavedQuote?.number || ''}`.trim(), 'success');
                                     }
                                 }
                                 setIsNewProjectModalOpen(false);
@@ -31648,7 +31767,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             {/* P0.13 (2026-08-17) — Formulaire de création de fiche client
                 (remplace l'insertion directe de données factices) */}
             {isNewClientModalOpen && (
-                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg flex flex-col max-h-[90dvh] overflow-hidden animate-scale-up">
                         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                             <h3 className="font-bold text-neutral-800 text-lg">{editingClientId ? 'Modifier le Client' : 'Nouveau Client'}</h3>
@@ -31695,6 +31814,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     } else if (newClientOriginModal === 'quote') {
                                         setHybridQuote(prev => ({ ...prev, clientId: newClientId, clientName: name }));
                                         showToast(`« ${name} » sélectionné dans le devis`, "success");
+                                    } else if (newClientOriginModal === 'savedQuote') {
+                                        // Créé depuis la fiche d'un devis : c'est CE devis qui le reçoit.
+                                        majDevisAffiche({ clientId: newClientId, clientName: name, projectId: null, projectRef: '' });
+                                        showToast(`« ${name} » sélectionné dans le devis ${viewingSavedQuote?.number || ''}`.trim(), "success");
                                     }
                                 }
                                 setIsNewClientModalOpen(false);
@@ -34860,7 +34983,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     role="dialog"
                     aria-modal="true"
                     aria-label={confirmDialog.title || 'Confirmation'}
-                    className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[130] p-4 outline-none animate-fade-in"
+                    /* Audit UX 220 (C119) — z-[225] : une confirmation est
+                       toujours demandée PAR une fenêtre déjà ouverte. À z-[130]
+                       elle s'ouvrait SOUS la fiche devis mobile (z-[140]) :
+                       « Supprimer » et « Dupliquer » ne montraient rien, et le
+                       dialogue ressurgissait plus tard, hors contexte. Seule
+                       la notification (z-[230]) reste au-dessus. */
+                    className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[225] p-4 outline-none animate-fade-in"
                 >
                     <div className="bg-white rounded-3xl shadow-floating w-full max-w-md overflow-hidden p-8 text-center animate-scale-up">
                         <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmDialog.isDanger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-500'}`}>

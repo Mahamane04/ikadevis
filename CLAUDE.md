@@ -269,7 +269,9 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Une notification courte a produit un FAUX VERT** *(2026-10-03)* | `test_pdf_zone_visible` lisait les messages à 6 s ; la notification d'échec disparaissait à 3,5 s → « aucun message » → vert, alors que le montage masquait la seule zone imprimable. Un test qui conclut à l'absence d'erreur doit attendre un **succès** explicite, pas un silence. |
 | **`LS.set` peut échouer (stockage plein)** *(2026-10-03)* | `TenantPersistence.set` renvoie `false` sans lever. `LS.set` émet désormais `ikadevis:ecriture-locale-impossible`, que l'App transforme en message. Ne pas réintroduire d'écriture locale qui ignore ce retour. |
 | **L'impression relit les règles responsives à la largeur de la FEUILLE** *(2026-10-03)* | Chrome imprime à ~794 px (A4) : le panneau de bureau d'un devis (`hidden lg:flex`) y disparaît et c'est sa copie mobile (`lg:hidden`) qui sort. Ne jamais « désigner » à l'impression la zone vue à l'écran (page blanche) : `beforeprint` **écarte** les autres documents (`data-impression-exclue`) et garde les copies jumelles (même `data-document-cle`). Tester l'impression avec `setViewport(794×1123)` + `emulateMediaType('print')`, jamais à 1440 px seulement. |
-| **La fiche devis mobile est une fenêtre plein écran en z-140, montée en fin d'App** *(2026-10-03)* | Sous 1024 px, toute fenêtre ouverte DEPUIS cette fiche doit avoir un niveau supérieur (signature et partage : z-145), sinon elle s'ouvre dessous, invisible. La notification est en z-230, au-dessus de tout. Restent dessous : le dialogue de confirmation (z-130) et « Nouveau client / chantier » (z-100). |
+| **La fiche devis mobile est une fenêtre plein écran en z-140, montée en fin d'App** *(2026-10-03)* | Sous 1024 px, toute fenêtre ouverte DEPUIS cette fiche doit avoir un niveau supérieur, sinon elle s'ouvre dessous, invisible : signature, partage, « Nouveau client / chantier » z-145 ; confirmation z-225 ; notification z-230. Le même balisage existe dans le panneau de bureau masqué : un `querySelector` renvoie d'abord la copie invisible — viser `.saved-quote-detail-modal.fixed …` ou l'élément visible. |
+| **Une fiche a une adresse : la refermer doit la rendre** *(2026-10-03)* | Ouvrir une fiche par `selectSavedQuote` / `selectProject` / `selectInvoiceItem` inscrit `#…/<id>` (`inscrireAdresseFiche`). La refermer par un simple `setViewingSavedQuote(null)` laisse cette entrée : le Retour du navigateur ROUVRE la fiche. Passer par `closeQuotePreview` (retour en arrière si elle vient de la liste, sinon `replaceState`). |
+| **Fiche devis ≠ chiffrage en cours** *(2026-10-03)* | Modifier le client ou le chantier depuis la fiche d'un devis doit toucher CE devis (`majDevisAffiche`), et le chiffrage seulement s'il a le même `id`. L'ancienne garde « ni l'un ni l'autre n'a d'identifiant serveur » était toujours vraie en démo. |
 | **Une écriture locale refusée ne doit jamais être suivie d'un succès** *(2026-10-03)* | `LS.set` renvoie `false` et émet `ikadevis:ecriture-locale-impossible` `{cle}` de façon SYNCHRONE. L'enregistrement d'un devis lit ce résultat (pas de « enregistré », atelier laissé « non enregistré »). En démonstration, `showToast` remplace tout succès annoncé dans le même geste par l'échec. Toute nouvelle écriture qui annonce un succès doit lire le booléen. |
 
 ---
@@ -390,11 +392,16 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   accessibilité clavier et lecteur d'écran, documents de facture,
   impression, Retour du navigateur sur un chiffrage non enregistré.
   Signature au doigt sous 1024 px et faux succès quand le stockage est plein
-  corrigés (lot 7). Matrice : **119 PASSÉ, 41 ÉCHEC, 32 BLOQUÉ, 25 N/A,
-  3 non testés**. **Non déployé.** Reste ouvert (`UX_AUDIT.md` § Défauts
-  restants, 49 lignes avec correction proposée) : confirmations « Supprimer »
-  / « Dupliquer » et fenêtres « Nouveau client / chantier » sous la fiche
-  devis mobile, 320 px, focus perdu après ajout d'ouvrage… **Les sondes G1–G9 sont à
+  corrigés (lot 7) ; fiche devis sur téléphone (lot 8, non déployé).
+  Matrice : **123 PASSÉ, 37 ÉCHEC, 32 BLOQUÉ, 25 N/A, 3 non testés**. **En ligne depuis le 2026-10-03** : commit `c555d60`
+  (PR n° 2), version Cloudflare `4da31b5f-8c23-4e55-9e6b-8f212349f066` ;
+  retour arrière : `npx wrangler rollback cdf73e1f-3a9c-462a-b4bd-6d0d95310048`
+  (build de la PR n° 1). Les défauts restants sont corrigés par petits lots
+  sur la branche `fix/ux-defauts-restants-2026-10` (banc
+  `tests/ux/test_defauts_restants.mjs`), **non déployée**. Reste ouvert (`UX_AUDIT.md` § Défauts
+  restants, 40 lignes avec correction proposée) : focus perdu après ajout
+  d'ouvrage, onglets sans panneau relié, 320 px, écran d'accès lent sur
+  réseau faible… **Les sondes G1–G9 sont à
   réparer avant tout rejeu** : plusieurs sélecteurs sont périmés (libellés
   renommés) et leur capture des annonces guette des nœuds AJOUTÉS alors que
   les régions d'annonce sont permanentes. Décisions : `UX_REDESIGN_PLAN.md`

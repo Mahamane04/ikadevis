@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=85afd81a70">
+    <link rel="stylesheet" href="tailwind.css?v=a1a502da70">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -164,6 +164,18 @@
            version de ce bouton restait donc à 47 px de haut. Ajouter le type
            d'élément fait passer la spécificité à (0,1,1) et rend la règle
            indépendante de l'ordre du fichier. */
+        /* Action secondaire compacte (« Modifier client / chantier » de la fiche
+           devis) : les utilitaires Tailwind posés sur ce bouton étaient
+           écrasés par `.btn-secondary` (redéfini plus bas) — 14 px et
+           12 × 20 px de marge, d'où trois lignes de texte à 320 px. Même
+           parade que `.btn-dialogue` : le type d'élément dans le sélecteur. */
+        button.btn-compact {
+            padding: 0.25rem 0.625rem;
+            border-radius: 0.5rem;
+            font-size: 0.6875rem;
+            line-height: 1.25;
+            gap: 0.375rem;
+        }
         button.btn-dialogue {
             padding: 0.4rem 0.85rem;
             border-radius: 0.5rem;
@@ -1255,18 +1267,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/payment-data-safety.js?v=d0b6781e24"></script>
-    <script src="js/catalog-persistence.js?v=d0b6781e24"></script>
-    <script src="js/tenant-persistence.js?v=d0b6781e24"></script>
-    <script src="js/finance-core.js?v=d0b6781e24"></script>
-    <script src="js/quote-import.js?v=d0b6781e24"></script>
-    <script src="js/project-profitability.js?v=d0b6781e24"></script>
-    <script src="js/calc-engine.js?v=d0b6781e24"></script>
-    <script src="js/utils.js?v=d0b6781e24"></script>
-    <script src="js/quote-templates.js?v=d0b6781e24"></script>
-    <script src="js/saspay-service.js?v=d0b6781e24"></script>
-    <script src="js/subscription-service.js?v=d0b6781e24"></script>
-    <script src="app.compiled.js?v=d0b6781e24"></script>
+    <script src="js/payment-data-safety.js?v=cd3d4c4e14"></script>
+    <script src="js/catalog-persistence.js?v=cd3d4c4e14"></script>
+    <script src="js/tenant-persistence.js?v=cd3d4c4e14"></script>
+    <script src="js/finance-core.js?v=cd3d4c4e14"></script>
+    <script src="js/quote-import.js?v=cd3d4c4e14"></script>
+    <script src="js/project-profitability.js?v=cd3d4c4e14"></script>
+    <script src="js/calc-engine.js?v=cd3d4c4e14"></script>
+    <script src="js/utils.js?v=cd3d4c4e14"></script>
+    <script src="js/quote-templates.js?v=cd3d4c4e14"></script>
+    <script src="js/saspay-service.js?v=cd3d4c4e14"></script>
+    <script src="js/subscription-service.js?v=cd3d4c4e14"></script>
+    <script src="app.compiled.js?v=cd3d4c4e14"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
