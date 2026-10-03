@@ -268,6 +268,7 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Un minuteur de notification efface la suivante** *(2026-10-03)* | `setTimeout(() => setToast(null))` effaçait n'importe quel message affiché à ce moment. Chaque minuteur ne doit retirer que SON message (identifiant). Même piège corrigé pour le lien « Annuler » d'une suppression d'ouvrage. |
 | **Une notification courte a produit un FAUX VERT** *(2026-10-03)* | `test_pdf_zone_visible` lisait les messages à 6 s ; la notification d'échec disparaissait à 3,5 s → « aucun message » → vert, alors que le montage masquait la seule zone imprimable. Un test qui conclut à l'absence d'erreur doit attendre un **succès** explicite, pas un silence. |
 | **`LS.set` peut échouer (stockage plein)** *(2026-10-03)* | `TenantPersistence.set` renvoie `false` sans lever. `LS.set` émet désormais `ikadevis:ecriture-locale-impossible`, que l'App transforme en message. Ne pas réintroduire d'écriture locale qui ignore ce retour. |
+| **L'impression relit les règles responsives à la largeur de la FEUILLE** *(2026-10-03)* | Chrome imprime à ~794 px (A4) : le panneau de bureau d'un devis (`hidden lg:flex`) y disparaît et c'est sa copie mobile (`lg:hidden`) qui sort. Ne jamais « désigner » à l'impression la zone vue à l'écran (page blanche) : `beforeprint` **écarte** les autres documents (`data-impression-exclue`) et garde les copies jumelles (même `data-document-cle`). Tester l'impression avec `setViewport(794×1123)` + `emulateMediaType('print')`, jamais à 1440 px seulement. |
 
 ---
 
@@ -379,7 +380,7 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
 - **Audit UX/UI 220 contrôles (2026-10-03)** — branche `audit/ux-220-2026-10`,
-  livrables dans `docs/audit-ux-220/` (carte produit, inventaire de 797
+  livrables dans `docs/audit-ux-220/` (carte produit, inventaire de 784
   interactions, matrice des 220 contrôles, constats, plan, journal), sondes
   rejouables dans `tests/ux/controles/`, bancs dans `tests/ux/`. Corrigés :
   perte de données au rechargement (P0), deux onglets, « Marquer envoyées »

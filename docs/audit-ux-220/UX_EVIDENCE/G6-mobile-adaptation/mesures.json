@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-03T04:05:59.928Z",
+  "date": "2026-10-03T09:32:49.432Z",
   "captures": [
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_320x568__dashboard.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_320x568__chantiers.png",
@@ -16,8 +16,8 @@
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_767x1024__depenses.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_767x1024__settings_entreprise.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__dashboard.png",
-    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__devis.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__settings_entreprise.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_820x1180__depenses.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1023x768__chiffrage.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1023x768__depenses.png",
@@ -39,10 +39,11 @@
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_dashboard.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_chiffrage.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_fiche_devis.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_inspecteur.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_paysage_dashboard.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_paysage_chiffrage.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C117_lot_avec_ouvrage_390.png",
-    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C117_factures_brouillon_390.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C118_menu_plus_reste_ouvert_390.png",
-    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C119_signature_trace_doigt_390.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C120_devis_enregistre_412.png",
     "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C120_facture_brouillon_412.png"
   ],
@@ -851,7 +852,7 @@
           "navOk": true,
           "navDetail": "barre du bas 5 boutons",
           "largeurContenu": 375,
-          "ellipses": 0,
+          "ellipses": 1,
           "nbCoupes": 1,
           "coupes": [
             "Aller au contenu principal"
@@ -1152,7 +1153,7 @@
           "navOk": true,
           "navDetail": "barre du bas 5 boutons",
           "largeurContenu": 390,
-          "ellipses": 0,
+          "ellipses": 1,
           "nbCoupes": 1,
           "coupes": [
             "Aller au contenu principal"
@@ -1442,7 +1443,7 @@
           "navOk": true,
           "navDetail": "barre du bas 5 boutons",
           "largeurContenu": 414,
-          "ellipses": 0,
+          "ellipses": 1,
           "nbCoupes": 1,
           "coupes": [
             "Aller au contenu principal"
@@ -2171,7 +2172,7 @@
             {
               "a": "Intitulé de l'étape 3",
               "b": "Enregistrer les paramètres de l'ent",
-              "part": 0.31
+              "part": 0.22
             },
             {
               "a": "Pourcentage de l'étape 3",
@@ -2304,13 +2305,8 @@
           "echappes": [],
           "nbCollisions": 0,
           "collisions": [],
-          "nbRognes": 1,
-          "rognes": [
-            {
-              "nom": "Supprimer le devis DEV-2026-001",
-              "visible": "50 %"
-            }
-          ],
+          "nbRognes": 0,
+          "rognes": [],
           "titreOk": true,
           "navOk": true,
           "navDetail": "barre latérale 72 px",
@@ -2467,17 +2463,12 @@
           "debordement": 0,
           "nbEchappes": 0,
           "echappes": [],
-          "nbCollisions": 8,
+          "nbCollisions": 6,
           "collisions": [
             {
               "a": "Intitulé de l'étape 3",
               "b": "Retourner à l'application",
               "part": 0.48
-            },
-            {
-              "a": "Intitulé de l'étape 3",
-              "b": "Enregistrer les paramètres de l'ent",
-              "part": 0.19
             },
             {
               "a": "Pourcentage de l'étape 3",
@@ -2495,9 +2486,14 @@
               "part": 0.4
             },
             {
-              "a": "Intitulé de l'étape 4",
+              "a": "Pourcentage de l'étape 4",
               "b": "Enregistrer les paramètres de l'ent",
-              "part": 0.16
+              "part": 0.55
+            },
+            {
+              "a": "Retirer l'étape 4",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.55
             }
           ],
           "nbRognes": 0,
@@ -3990,7 +3986,7 @@
         }
       ],
       "essai": 1,
-      "dureeS": 206
+      "dureeS": 205
     },
     "C112": {
       "inventaire": {
@@ -4004,7 +4000,15 @@
           "Nouveau devis Chiffrer un projet",
           "Nouveau chantier Ouvrir un dossier",
           "Ajouter un client Répertoire & NIF",
-          "Créer facture Facturer un acompte",
+          "Facturer un devis Choisir le devis à facturer",
+          "TOTAL DES DEVIS TTC 20 589 256 FCFA 1 devis chiffré",
+          "DEVIS À SUIVRE 0 Aucun devis envoyé en attente",
+          "CHANTIERS ACTIFS 2 Tous en cours · toutes périodes",
+          "TOTAL FACTURÉ TTC 0 FCFA Aucune facture émise",
+          "1. BROUILLON 0 0 FCFA",
+          "2. PRÊT / VÉRIFIÉ 0 0 FCFA",
+          "3. ENVOYÉ CLIENT 0 0 FCFA",
+          "4. ACCEPTÉ / GAGNÉ 1 20 589 256 FCFA",
           "Voir tous",
           "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
           "Construction Siège NBB Société Immobilière NBB En cours",
@@ -4050,12 +4054,13 @@
           "Rechercher dans les devis",
           "Filtrer les devis par statut",
           "Trier les devis",
+          "Tableau des devis (défilement horizontal possible)",
           "Afficher le devis DEV-2026-001 de Société Immobilière NBB",
           "Supprimer le devis DEV-2026-001"
         ],
         "1440#factures": [
           "Exporter les factures en CSV",
-          "Nouveau — créer une facture depuis un devis",
+          "Facturer un devis",
           "Rechercher dans les factures",
           "Filtres avancés",
           "Toutes 0",
@@ -4150,8 +4155,8 @@
           "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
         ],
         "1440#materiaux": [
-          "Voir la liste des matières premières",
-          "Voir la liste de la main-d'œuvre",
+          "Matières (32)",
+          "Main-d'œuvre (19)",
           "Importer un fichier CSV",
           "Exporter au format CSV",
           "Ajouter une nouvelle matière",
@@ -4243,7 +4248,15 @@
           "Nouveau devis Chiffrer un projet",
           "Nouveau chantier Ouvrir un dossier",
           "Ajouter un client Répertoire & NIF",
-          "Créer facture Facturer un acompte",
+          "Facturer un devis Choisir le devis à facturer",
+          "TOTAL DES DEVIS TTC 20 589 256 FCFA 1 devis chiffré",
+          "DEVIS À SUIVRE 0 Aucun devis envoyé en attente",
+          "CHANTIERS ACTIFS 2 Tous en cours · toutes périodes",
+          "TOTAL FACTURÉ TTC 0 FCFA Aucune facture émise",
+          "1. BROUILLON 0 0 FCFA",
+          "2. PRÊT / VÉRIFIÉ 0 0 FCFA",
+          "3. ENVOYÉ CLIENT 0 0 FCFA",
+          "4. ACCEPTÉ / GAGNÉ 1 20 589 256 FCFA",
           "Voir tous",
           "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
           "Construction Siège NBB Société Immobilière NBB En cours",
@@ -4282,7 +4295,7 @@
         ],
         "390#factures": [
           "Exporter les factures en CSV",
-          "Nouveau — créer une facture depuis un devis",
+          "Facturer un devis",
           "Rechercher dans les factures",
           "Filtres avancés",
           "Toutes 0",
@@ -4377,8 +4390,8 @@
           "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
         ],
         "390#materiaux": [
-          "Voir la liste des matières premières",
-          "Voir la liste de la main-d'œuvre",
+          "Matières (32)",
+          "Main-d'œuvre (19)",
           "Importer un fichier CSV",
           "Exporter au format CSV",
           "Ajouter une nouvelle matière",
@@ -4481,7 +4494,9 @@
           "COEFF K",
           "Taux de TVA du devis"
         ],
-        "#devis": [],
+        "#devis": [
+          "Tableau des devis (défilement horizontal possible)"
+        ],
         "#factures": [],
         "#depenses": [],
         "#ouvrages": [],
@@ -4489,70 +4504,8 @@
         "#abonnement": [],
         "#settings/entreprise": []
       },
-      "editeur390": {
-        "editeur": {
-          "Client du devis": true,
-          "Chantier du devis": true,
-          "Ajouter un lot": true,
-          "Importer Excel / CSV": true,
-          "Taux de TVA": true,
-          "Aperçu PDF": true,
-          "Enregistrer": true,
-          "Ajouter un ouvrage": true,
-          "Ligne libre": true,
-          "Options du lot": true,
-          "Renommer le lot": true,
-          "Synthèse des lots": true,
-          "Annuler / Rétablir (historique)": false
-        },
-        "annulerRetablir": [
-          {
-            "nom": "Annuler la modification (Cmd+Z",
-            "visible": false,
-            "affichage": "none"
-          },
-          {
-            "nom": "Rétablir la modification (Cmd+",
-            "visible": false,
-            "affichage": "none"
-          }
-        ]
-      },
-      "surfaces390": {
-        "entete": [
-          "Aller au contenu principal",
-          "ikadevis - Tableau de bord",
-          "État de connexion : Démonstration",
-          "Paramètres du compte",
-          "Menu du profil utilisateur"
-        ],
-        "menuProfil": [
-          "Aller au contenu principal",
-          "ikadevis - Tableau de bord",
-          "État de connexion : Démonstration",
-          "Paramètres du compte",
-          "Menu du profil utilisateur",
-          "Formule & Facturation Starter",
-          "Mon Profil & Compte",
-          "Paramètres Entreprise",
-          "Se déconnecter"
-        ],
-        "menuMobile": [
-          "Fermer le menu",
-          "Formule STARTER 14j restants 1/3 devis créés • Pas",
-          "Chantiers & Projets",
-          "Clients & CRM",
-          "Dépenses & fournisseurs",
-          "Ouvrages",
-          "Prix des Matériaux",
-          "Modèles de documents PDF & en-tête",
-          "Paramètres Entreprise & compte",
-          "Installer l'application sur mobile",
-          "Se déconnecter"
-        ]
-      },
-      "essai": 1,
-      "dureeS": 107
+      "erreur": "Error: recouvert, impossible à toucher : Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)",
+      "essai": 1
     },
     "C113": {
       "listeDevis": {
@@ -4583,20 +4536,20 @@
           "horsZone": [
             "ACTIONS"
           ],
-          "defilementH": 0,
+          "defilementH": 58,
           "debordementDoc": 0,
           "supprimer": {
-            "gauche": 738,
-            "droite": 766,
-            "fraction": 0.5,
-            "x": 537.890625,
+            "gauche": 765,
+            "droite": 793,
+            "fraction": 0,
+            "x": 565,
             "y": 362
           },
           "supprimerApresGlisser": {
-            "gauche": 738,
-            "droite": 766,
-            "fraction": 0.5,
-            "x": 537.890625,
+            "gauche": 707,
+            "droite": 735,
+            "fraction": 1,
+            "x": 507,
             "y": 362
           }
         },
@@ -4695,7 +4648,7 @@
         "avant": {
           "overflowX": "auto",
           "clientWidth": 310,
-          "scrollWidth": 564,
+          "scrollWidth": 310,
           "scrollLeft": 0,
           "zone": {
             "gauche": 40,
@@ -4708,33 +4661,33 @@
             },
             {
               "t": "Montant total",
-              "visible": 0.67
+              "visible": null
             },
             {
               "t": "Déjà facturé",
-              "visible": 0
+              "visible": null
             },
             {
               "t": "% cumulé",
-              "visible": 0
+              "visible": 1
             },
             {
               "t": "Cette facture",
-              "visible": 0
+              "visible": 1
             }
           ],
           "champs": [
             {
-              "visible": 0,
-              "gauche": 453
+              "visible": 1,
+              "gauche": 151
             },
             {
-              "visible": 0,
-              "gauche": 453
+              "visible": 1,
+              "gauche": 151
             },
             {
-              "visible": 0,
-              "gauche": 453
+              "visible": 1,
+              "gauche": 151
             }
           ],
           "premiereColonneFigee": false,
@@ -4743,8 +4696,8 @@
         "apres": {
           "overflowX": "auto",
           "clientWidth": 310,
-          "scrollWidth": 564,
-          "scrollLeft": 254,
+          "scrollWidth": 310,
+          "scrollLeft": 0,
           "zone": {
             "gauche": 40,
             "droite": 350
@@ -4752,15 +4705,15 @@
           "ths": [
             {
               "t": "Lot",
-              "visible": 0
+              "visible": 1
             },
             {
               "t": "Montant total",
-              "visible": 0.87
+              "visible": null
             },
             {
               "t": "Déjà facturé",
-              "visible": 1
+              "visible": null
             },
             {
               "t": "% cumulé",
@@ -4774,15 +4727,15 @@
           "champs": [
             {
               "visible": 1,
-              "gauche": 199
+              "gauche": 151
             },
             {
               "visible": 1,
-              "gauche": 199
+              "gauche": 151
             },
             {
               "visible": 1,
-              "gauche": 199
+              "gauche": 151
             }
           ],
           "premiereColonneFigee": false,
@@ -4895,7 +4848,121 @@
         "bas": "34px",
         "gauche": "0px"
       },
-      "erreur": "Error: recouvert, impossible à toucher : 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage",
+      "zonesSuresPortrait": {
+        "#dashboard": [],
+        "#chiffrage": [],
+        "menu mobile": [],
+        "fiche devis": [
+          "Retour aux devis (haut 19<47)",
+          "Retour (haut 26<47)",
+          "DEV-2026-001 (haut 20<47)",
+          "DEVIS ENREGISTRÉ (haut 19<47)",
+          "Fermer la boîte de dialogue (haut 14<47)",
+          "DEVIS COMMERCIAL (bas 834>810)",
+          "N° : DEV-2026-001 (bas 858>810)"
+        ],
+        "bibliothèque d’ouvrages": [
+          "Retour au chiffrage (haut 13<47)",
+          "Retour (haut 20<47)",
+          "Bibliothèque des Ouvrages (haut 12<47)",
+          "Lot : Lot 01 — Travaux (haut 28<47)",
+          "Multiple (haut 13<47)",
+          "Multiple (haut 20<47)",
+          "Façades (droite 395>390)",
+          "Surface · Rectangle (bas 814>810)"
+        ],
+        "inspecteur": [
+          "Retour aux ouvrages du lot (haut 12<47)",
+          "Mode simple (haut 23<47)",
+          "Mode avancé (haut 23<47)"
+        ]
+      },
+      "envPaysage": {
+        "haut": "0px",
+        "droite": "47px",
+        "bas": "21px",
+        "gauche": "47px"
+      },
+      "zonesSuresPaysage": {
+        "etats": {
+          "#dashboard": [
+            "ikadevis - Tableau de bord (gauche 16<47)",
+            "Menu du profil utilisateur (droite 828>797)",
+            "Tableau de bord (gauche 8<47)",
+            "Tableau de bord (gauche 10<47)",
+            "Chantiers (gauche 8<47)",
+            "Chantiers (gauche 15<47)",
+            "Clients (gauche 8<47)",
+            "Clients (gauche 21<47)",
+            "Mes devis (gauche 8<47)",
+            "Mes devis (gauche 15<47)",
+            "Paramètres du compte (bas 374>369, gauche 8<47)",
+            "Modifier et personnaliser le (droite 799>797)",
+            "Choisissez les travaux, rens (bas 378>369)",
+            "Créer mon premier devis (bas 387>369, droite 803>797)"
+          ],
+          "#devis": [
+            "ikadevis - Tableau de bord (gauche 16<47)",
+            "Menu du profil utilisateur (droite 828>797)",
+            "Tableau de bord (gauche 8<47)",
+            "Tableau de bord (gauche 10<47)",
+            "Chantiers (gauche 8<47)",
+            "Chantiers (gauche 15<47)",
+            "Clients (gauche 8<47)",
+            "Clients (gauche 21<47)",
+            "Mes devis (gauche 8<47)",
+            "Mes devis (gauche 15<47)",
+            "Paramètres du compte (bas 374>369, gauche 8<47)",
+            "Nouveau devis (droite 824>797)",
+            "Rechercher dans les devis (droite 817>797)",
+            "Trier les devis (droite 817>797)",
+            "Tableau des devis (défilemen (bas 385>369, droite 828>797)",
+            "ACTIONS (droite 827>797)",
+            "Afficher le devis DEV-2026-0 (bas 384>369, droite 827>797)",
+            "20 589 256 FCFA (bas 384>369)",
+            "Supprimer le devis DEV-2026- (droite 811>797)"
+          ],
+          "#chiffrage": [
+            "ikadevis - Tableau de bord (gauche 16<47)",
+            "Menu du profil utilisateur (droite 828>797)",
+            "Tableau de bord (gauche 8<47)",
+            "Tableau de bord (gauche 10<47)",
+            "Chantiers (gauche 8<47)",
+            "Chantiers (gauche 15<47)",
+            "Clients (gauche 8<47)",
+            "Clients (gauche 21<47)",
+            "Chiffrage en cours (gauche 8<47)",
+            "Chiffrage en cours (gauche 10<47)",
+            "Paramètres du compte (bas 374>369, gauche 8<47)",
+            "Enregistré localement (droite 818>797)",
+            "Importer Excel / CSV (droite 816>797)",
+            "Taux de TVA du devis (bas 374>369)"
+          ],
+          "#materiaux": [
+            "ikadevis - Tableau de bord (gauche 16<47)",
+            "Menu du profil utilisateur (droite 828>797)",
+            "Tableau de bord (gauche 8<47)",
+            "Tableau de bord (gauche 10<47)",
+            "Chantiers (gauche 8<47)",
+            "Chantiers (gauche 15<47)",
+            "Clients (gauche 8<47)",
+            "Clients (gauche 21<47)",
+            "Mes devis (gauche 8<47)",
+            "Mes devis (gauche 15<47)",
+            "Paramètres du compte (bas 374>369, gauche 8<47)",
+            "Main-d'œuvre (19) (droite 819>797)",
+            "Exporter au format CSV (droite 828>797)",
+            "Ajouter une nouvelle matière (droite 828>797)",
+            "Rechercher dans les ressourc (droite 828>797)"
+          ]
+        },
+        "usage": {
+          "contenuHaut": 326,
+          "barreLaterale": 72,
+          "barreLateraleDefile": false
+        }
+      },
+      "erreur": "Error: introuvable : /^Nom du client/",
       "essai": 1
     },
     "C117": {
@@ -4967,21 +5034,19 @@
           "survol": []
         },
         "390 lot vide": {
-          "nbPetits": 3,
+          "nbPetits": 2,
           "petits": [
             "Ajouter un lot au devis 27×20",
-            "Synthèse des lots 34×21",
-            "Options du lot 21×34"
+            "Synthèse des lots 34×21"
           ],
           "echecs": [],
           "survol": []
         },
         "390 bibliothèque d’ouvrages": {
-          "nbPetits": 3,
+          "nbPetits": 2,
           "petits": [
             "Ajouter un lot au devis 27×20",
-            "Synthèse des lots 34×21",
-            "Options du lot 21×34"
+            "Synthèse des lots 34×21"
           ],
           "echecs": [
             {
@@ -4995,12 +5060,6 @@
               "l": 34,
               "h": 21,
               "voisin": "Rechercher un ouvrage par nom,"
-            },
-            {
-              "nom": "Options du lot",
-              "l": 21,
-              "h": 34,
-              "voisin": "Façades"
             }
           ],
           "survol": []
@@ -5028,227 +5087,26 @@
           "survol": []
         },
         "390 lot avec ouvrage": {
-          "nbPetits": 3,
+          "nbPetits": 2,
           "petits": [
             "Ajouter un lot au devis 27×20",
-            "Synthèse des lots 34×21",
-            "Options du lot 21×34"
+            "Synthèse des lots 34×21"
           ],
           "echecs": [],
           "survol": []
         },
         "390 menu mobile": {
-          "nbPetits": 3,
-          "petits": [
-            "Ajouter un lot au devis 27×20",
-            "Synthèse des lots 34×21",
-            "Options du lot 21×34"
-          ],
-          "echecs": [],
-          "survol": []
-        },
-        "390 fiche devis": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "390 fiche devis, menu ⋮": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "390 fenêtre Facturer": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "390 factures (1 brouillon)": {
           "nbPetits": 2,
           "petits": [
-            "Sélectionner toutes les factur 13×13",
-            "Sélectionner facture Société I 13×13"
+            "Ajouter un lot au devis 27×20",
+            "Synthèse des lots 34×21"
           ],
-          "echecs": [],
-          "survol": []
-        },
-        "320#dashboard": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "320#devis": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "320#factures": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "320#chiffrage": {
-          "nbPetits": 0,
-          "petits": [],
-          "echecs": [],
-          "survol": []
-        },
-        "320#materiaux": {
-          "nbPetits": 0,
-          "petits": [],
           "echecs": [],
           "survol": []
         }
       },
-      "frequentes": [
-        {
-          "libelle": "barre du bas · Accueil",
-          "l": 84,
-          "h": 57,
-          "touchablePx": 56,
-          "fraction": 1
-        },
-        {
-          "libelle": "barre du bas · Devis",
-          "l": 84,
-          "h": 57,
-          "touchablePx": 56,
-          "fraction": 1
-        },
-        {
-          "libelle": "barre du bas · Chantiers",
-          "l": 84,
-          "h": 57,
-          "touchablePx": 56,
-          "fraction": 1
-        },
-        {
-          "libelle": "barre du bas · Factures",
-          "l": 84,
-          "h": 57,
-          "touchablePx": 56,
-          "fraction": 1
-        },
-        {
-          "libelle": "barre du bas · Menu",
-          "l": 48,
-          "h": 48,
-          "touchablePx": 48,
-          "fraction": 1
-        },
-        {
-          "libelle": "Nouveau devis",
-          "l": 166,
-          "h": 40,
-          "touchablePx": 40,
-          "fraction": 1
-        },
-        {
-          "libelle": "Supprimer le devis",
-          "l": 32,
-          "h": 32,
-          "touchablePx": 32,
-          "fraction": 1
-        },
-        {
-          "libelle": "Ajouter mon premier ouvrage",
-          "l": 342,
-          "h": 48,
-          "touchablePx": 12,
-          "fraction": 0.2
-        },
-        {
-          "libelle": "Ajouter un nouveau lot",
-          "l": 28,
-          "h": 28,
-          "touchablePx": 28,
-          "fraction": 1
-        },
-        {
-          "libelle": "Enregistrer",
-          "l": 100,
-          "h": 52,
-          "touchablePx": 52,
-          "fraction": 1
-        },
-        {
-          "libelle": "Aperçu PDF",
-          "l": 102,
-          "h": 52,
-          "touchablePx": 52,
-          "fraction": 1
-        },
-        {
-          "libelle": "Ajouter un lot (barre des lots)",
-          "l": 27,
-          "h": 20,
-          "touchablePx": 20,
-          "fraction": 0.96
-        },
-        {
-          "libelle": "Synthèse des lots",
-          "l": 34,
-          "h": 21,
-          "touchablePx": 21,
-          "fraction": 1
-        },
-        {
-          "libelle": "Ajouter un ouvrage au lot",
-          "l": 222,
-          "h": 44,
-          "touchablePx": 44,
-          "fraction": 1
-        },
-        {
-          "libelle": "Confirmer mes quantités",
-          "l": 209,
-          "h": 40,
-          "touchablePx": 40,
-          "fraction": 1
-        },
-        {
-          "libelle": "Surface directe (champ)",
-          "l": 316,
-          "h": 44,
-          "touchablePx": 44,
-          "fraction": 1
-        },
-        {
-          "libelle": "Terminer",
-          "l": 366,
-          "h": 44,
-          "touchablePx": 44,
-          "fraction": 1
-        },
-        {
-          "libelle": "Quantité (ligne)",
-          "l": 116,
-          "h": 38,
-          "touchablePx": 38,
-          "fraction": 1
-        },
-        {
-          "libelle": "Dupliquer (ligne)",
-          "l": 32,
-          "h": 38,
-          "touchablePx": 38,
-          "fraction": 1
-        },
-        {
-          "libelle": "Supprimer (ligne)",
-          "l": 30,
-          "h": 38,
-          "touchablePx": 38,
-          "fraction": 1
-        }
-      ],
-      "essai": 1,
-      "dureeS": 63
+      "erreur": "Error: introuvable : /^Afficher le devis DEV-2026-001/",
+      "essai": 1
     },
     "C118": {
       "fermetures": {
@@ -5263,12 +5121,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1316,
+            "max": 1396,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 250
+            "doigt": 253
           },
           "fondPendant": null,
           "navOk": true
@@ -5284,12 +5142,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1316,
+            "max": 1396,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 250
+            "doigt": 253
           },
           "fondPendant": null,
           "navOk": true
@@ -5305,12 +5163,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1316,
+            "max": 1396,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 256
+            "doigt": 252
           },
           "fondPendant": 0,
           "navOk": true
@@ -5326,12 +5184,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1953,
+            "max": 2017,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 243
+            "doigt": 253
           },
           "fondPendant": null,
           "navOk": true
@@ -5346,12 +5204,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1953,
+            "max": 2017,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 249
+            "doigt": 255
           }
         },
         "profil touche Échap": {
@@ -5364,12 +5222,12 @@
               "y": 288
             },
             "scrollTop": 0,
-            "max": 1953,
+            "max": 2017,
             "body": "hidden",
             "html": "visible",
             "voile": null,
             "molette": 300,
-            "doigt": 252
+            "doigt": 253
           }
         }
       },
@@ -5380,12 +5238,12 @@
           "y": 288
         },
         "scrollTop": 0,
-        "max": 1316,
+        "max": 1396,
         "body": "hidden",
         "html": "visible",
         "voile": null,
         "molette": 300,
-        "doigt": 250
+        "doigt": 254
       },
       "menuPlus": {
         "ouvert": {
@@ -5400,11 +5258,11 @@
         },
         "defilementFiche": {
           "avant": 0,
-          "apres": 303
+          "apres": 302
         },
         "apresDefilement": {
-          "haut": -66,
-          "bas": 56,
+          "haut": -65,
+          "bas": 57,
           "classe": "saved-quote-mobile-more-menu absolute le"
         },
         "apresEchap": null,
@@ -5426,7 +5284,7 @@
         "navApres": true
       },
       "essai": 1,
-      "dureeS": 65
+      "dureeS": 63
     },
     "C119": {
       "draggable": 0,
@@ -5447,43 +5305,7 @@
         ],
         "monter": "Monter le lot"
       },
-      "poignee": {
-        "poignee": {
-          "x": 195,
-          "y": 226.5
-        },
-        "toujoursOuvert": true
-      },
-      "filtres": {
-        "rangee": {
-          "cacheADroite": true,
-          "overflowX": "auto",
-          "x": 195,
-          "y": 136.25,
-          "avant": 0
-        },
-        "apres": {
-          "scrollLeft": 320,
-          "visible": true,
-          "fraction": 1
-        }
-      },
-      "signature390": {
-        "doigt": {
-          "x0": 104,
-          "x1": 286,
-          "y": 433
-        },
-        "canevas": {
-          "attributs": "440×180",
-          "affiche": "304×176",
-          "gauche": 43,
-          "haut": 345
-        },
-        "encre": null,
-        "ecartDroite": null
-      },
-      "erreur": "Error: recouvert, impossible à toucher : Effacer",
+      "erreur": "Error: recouvert, impossible à toucher : Ouvrir le menu de navigation",
       "essai": 1
     },
     "C120": {
@@ -5541,7 +5363,7 @@
       ],
       "devis": false,
       "essai": 1,
-      "dureeS": 10
+      "dureeS": 11
     }
   },
   "resultats": [
@@ -5578,12 +5400,12 @@
     {
       "label": "C111 · 767×1024 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
       "pass": false,
-      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.76}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.76},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.31}], rognées 0, titre ok, nav ok"
+      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.76}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.76},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.22}], rognées 0, titre ok, nav ok"
     },
     {
       "label": "C111 · 768×1024 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
       "pass": false,
-      "detail": "#devis: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Supprimer le devis DEV-2026-001\",\"visible\":\"50 %\"}], titre ok, nav ok | #depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.53}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 8 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.48},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.19}], rognées 0, titre ok, nav ok"
+      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.53}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 6 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.48},{\"a\":\"Pourcentage de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.65}], rognées 0, titre ok, nav ok"
     },
     {
       "label": "C111 · 820×1180 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
@@ -5611,44 +5433,9 @@
       "detail": "#depenses: débord 0, échappés 0, collisions 4 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.32},{\"a\":\"Chantier à analyser\",\"b\":\"À payer\",\"part\":0.47}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.85},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.35}], rognées 0, titre ok, nav ok"
     },
     {
-      "label": "C112 · Écrans de liste (8) : toute action visible à 1440 existe aussi à 390",
-      "pass": true,
-      "detail": "aucune action de contenu perdue"
-    },
-    {
-      "label": "C112 · Réglages : les 10 sections du menu latéral restent accessibles à 390 (liste déroulante « Section des paramètres »)",
-      "pass": true,
-      "detail": "absents à 390 : 0 entrées de menu ; remplacées par : Section des paramètres"
-    },
-    {
-      "label": "C112 · 390 px : les 10 destinations principales s’atteignent au doigt (barre du bas ou menu)",
-      "pass": true,
-      "detail": "10/10 atteintes (Accueil, Mes devis, Chantiers, Factures, Clients, Dépenses, Ouvrages, Ressources, Nouveau devis, Paramètres)"
-    },
-    {
-      "label": "C112 · 390 px : formule / abonnement accessible depuis le menu",
-      "pass": true,
-      "detail": "bannière « Formule STARTER 14j restants 1/3 devis créés • Pas »"
-    },
-    {
-      "label": "C112 · Éditeur de devis à 390 : client, chantier, lots, ouvrages, TVA, aperçu, enregistrement, annuler/rétablir",
+      "label": "C112 · ERREUR DE SONDE",
       "pass": false,
-      "detail": "absents : Annuler / Rétablir (historique) — boutons d’historique présents dans le DOM mais masqués ([{\"nom\":\"Annuler la modification (Cmd+Z\",\"visible\":false,\"affichage\":\"none\"},{\"nom\":\"Rétablir la modification (Cmd+\",\"visible\":false,\"affichage\":\"none\"}])"
-    },
-    {
-      "label": "C112 · 390 px : changement d’organisation (présent dans la barre du haut à 1440) reste accessible",
-      "pass": false,
-      "detail": "barre du haut 1440 : « IKADEVIS BTP — changer d'organisation » ; à 390 cherché dans barre du haut, menu du profil, menu mobile : absent (menu profil : Aller au contenu principal · Formule & Facturation Starter · Mon Profil & Compte · Paramètres Entreprise · Se déconnecter)"
-    },
-    {
-      "label": "C112 · 390 px : recherche globale (présente à 1440) ou équivalent",
-      "pass": false,
-      "detail": "à 1440 : « Recherche globale dans ikadevis » ; à 390 : absente (seules les recherches propres à chaque liste existent)"
-    },
-    {
-      "label": "C112 · Fiche devis à 390 : statut, client/chantier, envoyer, PDF, facturer, modifier, partager, signer, imprimer",
-      "pass": true,
-      "detail": "10/10 présentes"
+      "detail": "Error: recouvert, impossible à toucher : Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c112 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G"
     },
     {
       "label": "C113 · Liste des devis 390×844 : cartes reprenant les 6 colonnes du tableau",
@@ -5658,7 +5445,7 @@
     {
       "label": "C113 · Liste des devis 768×1024 : tableau 6 colonnes entièrement lisible",
       "pass": false,
-      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[\"ACTIONS\"],\"defilementH\":0,\"debordementDoc\":0,\"supprimer\":{\"gauche\":738,\"droite\":766,\"fraction\":0.5,\"x\":537.890625,\"y\":362},\"supprimerApresGlisser\":{\"gauche\":738,\"droi"
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[\"ACTIONS\"],\"defilementH\":58,\"debordementDoc\":0,\"supprimer\":{\"gauche\":765,\"droite\":793,\"fraction\":0,\"x\":565,\"y\":362},\"supprimerApresGlisser\":{\"gauche\":707,\"droite\":735,"
     },
     {
       "label": "C113 · Liste des devis 1024×768 : tableau 6 colonnes entièrement lisible",
@@ -5682,13 +5469,13 @@
     },
     {
       "label": "C113 · « Facturer DEV-… » à 390 : le tableau des lots (5 colonnes) reste dans une zone défilante horizontalement",
-      "pass": true,
-      "detail": "zone 310 px pour 564 px ; glisser au doigt → scrollLeft 254"
+      "pass": false,
+      "detail": "zone 310 px pour 310 px ; glisser au doigt → scrollLeft 0"
     },
     {
       "label": "C113 · « Facturer DEV-… » à 390 : colonnes utiles visibles sans geste caché, et la colonne « Lot » reste lisible pendant le défilement",
       "pass": false,
-      "detail": "au repos : colonnes masquées Montant total (67 %), Déjà facturé (0 %), % cumulé (0 %), Cette facture (0 %) ; champs « % cumulé » visibles 0/3 ; indice de défilement affiché : non ; après glisser : « Lot » visible à 0 %, colonne figée : non"
+      "detail": "au repos : colonnes masquées Montant total (0 %), Déjà facturé (0 %) ; champs « % cumulé » visibles 3/3 ; indice de défilement affiché : non ; après glisser : « Lot » visible à 100 %, colonne figée : non"
     },
     {
       "label": "C114 · ERREUR DE SONDE",
@@ -5703,67 +5490,52 @@
     {
       "label": "C116 · ERREUR DE SONDE",
       "pass": false,
-      "detail": "Error: recouvert, impossible à toucher : 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c116 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:10"
+      "detail": "Error: introuvable : /^Nom du client/\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:250:21)\n    at async c116 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:1067:9)\n    at async run (file:///Users/mahamaneh"
     },
     {
-      "label": "C117 · Cibles < 24 px sans espacement suffisant (WCAG 2.5.8), 25 états à 390/320 px — hors « Options du lot » (UX-P3-02 connu)",
+      "label": "C117 · ERREUR DE SONDE",
       "pass": false,
-      "detail": "390 bibliothèque d’ouvrages : « Ajouter un lot au devis » 27×20 (voisin « Rechercher un ouvrage par nom, ») | 390 bibliothèque d’ouvrages : « Synthèse des lots » 34×21 (voisin « Rechercher un ouvrage par nom, ») | 390 inspecteur : « Mode simple » 69×23 (voisin « État de connexion : Démonstrat ») | 390 inspecteur : « Mode avancé » 69×23 (voisin « Menu du profil utilisateur »)"
-    },
-    {
-      "label": "C117 · Aucune action rendue quasi invisible sur écran tactile (dévoilée au survol seulement)",
-      "pass": true,
-      "detail": "aucune"
-    },
-    {
-      "label": "C117 · Actions fréquentes (21) : surface touchable ≥ 24 px dans les deux dimensions",
-      "pass": false,
-      "detail": "Ajouter mon premier ouvrage 342×48, touchable 12 px (20 %) | Ajouter un lot (barre des lots) 27×20, touchable 20 px (96 %) | Synthèse des lots 34×21, touchable 21 px (100 %)"
-    },
-    {
-      "label": "C117 · Actions fréquentes : taille confortable ≥ 44 px (recommandation, WCAG 2.5.5 AAA)",
-      "pass": false,
-      "detail": "Nouveau devis 166×40 | Supprimer le devis 32×32 | Ajouter un nouveau lot 28×28 | Confirmer mes quantités 209×40 | Quantité (ligne) 116×38 | Dupliquer (ligne) 32×38 | Supprimer (ligne) 30×38"
+      "detail": "Error: introuvable : /^Afficher le devis DEV-2026-001/\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:250:21)\n    at async c117 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:1190:9)\n    at async run (file:/"
     },
     {
       "label": "C118 · Menu mobile fermé par bouton « Fermer le menu » : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
       "pass": true,
-      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 250 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
     },
     {
       "label": "C118 · Menu mobile fermé par toucher le voile au-dessus du panneau : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
       "pass": true,
-      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 250 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
     },
     {
       "label": "C118 · Menu mobile fermé par touche Échap : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
       "pass": true,
-      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 256 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok, fond défilé pendant l’ouverture : 0 px"
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 252 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok, fond défilé pendant l’ouverture : 0 px"
     },
     {
       "label": "C118 · Menu mobile fermé par choix d’une destination (Clients & CRM) : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
       "pass": true,
-      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 243 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
     },
     {
       "label": "C118 · Menu du profil fermé par toucher à l’extérieur, puis défilement de la liste des ressources",
       "pass": true,
-      "detail": "ouvert true, fermé true, molette 300 px, doigt 249 px, voile aucun"
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 255 px, voile aucun"
     },
     {
       "label": "C118 · Menu du profil fermé par touche Échap, puis défilement de la liste des ressources",
       "pass": true,
-      "detail": "ouvert true, fermé true, molette 300 px, doigt 252 px, voile aucun"
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 253 px, voile aucun"
     },
     {
       "label": "C118 · Fenêtre « Nouveau client » fermée par Échap : aucun verrou de défilement ne subsiste (écran suivant défilable)",
       "pass": true,
-      "detail": "fermée true, molette 300, doigt 255, body hidden"
+      "detail": "fermée true, molette 300, doigt 252, body hidden"
     },
     {
       "label": "C118 · Menu ⋮ « Plus d’actions » (fiche devis, 390) : se ferme au toucher extérieur",
       "pass": false,
-      "detail": "ouvert {\"haut\":237,\"bas\":359,\"classe\":\"saved-quote-mobile-more-menu absolute le\"} ; après toucher sur le texte « Société Immobilière NBB » : TOUJOURS OUVERT ; après glisser au doigt (fiche 0 → 303 px) : toujours ouvert (-66–56 px)"
+      "detail": "ouvert {\"haut\":237,\"bas\":359,\"classe\":\"saved-quote-mobile-more-menu absolute le\"} ; après toucher sur le texte « Société Immobilière NBB » : TOUJOURS OUVERT ; après glisser au doigt (fiche 0 → 302 px) : toujours ouvert (-65–57 px)"
     },
     {
       "label": "C118 · Menu ⋮ « Plus d’actions » : Échap ferme le menu sans fermer la fiche devis",
@@ -5778,7 +5550,7 @@
     {
       "label": "C119 · ERREUR DE SONDE",
       "pass": false,
-      "detail": "Error: recouvert, impossible à toucher : Effacer\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c119 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:1477:9)\n    at async run (file:///User"
+      "detail": "Error: recouvert, impossible à toucher : Ouvrir le menu de navigation\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c119 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:1431:9)\n    at as"
     },
     {
       "label": "C120 · Chromium 152 (émulation Android 412×915, toucher) : créer un client, chiffrer et enregistrer un devis, le facturer",

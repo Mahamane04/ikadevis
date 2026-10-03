@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-03T04:14:46.420Z",
+  "date": "2026-10-03T09:41:26.599Z",
   "seuils": {
     "lcpBonMs": 2500,
     "lcpMauvaisMs": 4000,
@@ -47,29 +47,29 @@
         "fcp": 128,
         "lcp": 128,
         "lcpEl": "h1.text-neutral-900.font-bold.text-2xl «Le devis BTP juste, en quelques minutes.»",
-        "ecranAcces": 90,
-        "dcl": 90,
-        "load": 112,
+        "ecranAcces": 87,
+        "dcl": 88,
+        "load": 111,
         "tbt": 0,
         "longues": [],
         "loafBloquantMs": 0,
         "loaf": [],
         "cls": 0.0004,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
         "bloquantsTete": [
           "tailwind.css",
           "react.production.min.js",
-          "react-dom.production.min.js",
           "all.min.css",
+          "react-dom.production.min.js",
           "supabase.min.js"
         ]
       },
-      "entreeDemoMs": 49,
+      "entreeDemoMs": 62,
       "routes": [
         {
           "route": "#dashboard",
-          "ms": 705,
+          "ms": 706,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -78,6 +78,662 @@
         },
         {
           "route": "#chantiers",
+          "ms": 378,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 363,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 395,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0002,
+              "src": [
+                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 364,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0002,
+              "src": [
+                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 364,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 366,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 361,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Catalogue des Ouvrages"
+        },
+        {
+          "route": "#materiaux",
+          "ms": 375,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Ressources & Prix"
+        },
+        {
+          "route": "#abonnement",
+          "ms": 369,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        },
+        {
+          "route": "#settings/entreprise",
+          "ms": 704,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        }
+      ],
+      "documentsCharges": 12,
+      "libsPdfDemandees": [],
+      "externes": [],
+      "erreurs": []
+    },
+    "S1_mobile_1": {
+      "vp": "390x844@3x",
+      "cpu": 4,
+      "rep": 1,
+      "boot": {
+        "fcp": 140,
+        "lcp": 172,
+        "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
+        "ecranAcces": 140,
+        "dcl": 127,
+        "load": 144,
+        "tbt": 0,
+        "longues": [],
+        "loafBloquantMs": 0,
+        "loaf": [],
+        "cls": 0,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
+        "bloquantsTete": [
+          "tailwind.css",
+          "react.production.min.js",
+          "react-dom.production.min.js",
+          "supabase.min.js",
+          "all.min.css"
+        ]
+      },
+      "entreeDemoMs": 211,
+      "routes": [
+        {
+          "route": "#dashboard",
+          "ms": 709,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Espace IKADEVIS BTP"
+        },
+        {
+          "route": "#chantiers",
+          "ms": 382,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 35 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 368,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 429,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 378,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 34 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 380,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 385,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 378,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Catalogue des Ouvrages"
+        },
+        {
+          "route": "#materiaux",
+          "ms": 379,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Ressources & Prix"
+        },
+        {
+          "route": "#abonnement",
+          "ms": 399,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        },
+        {
+          "route": "#settings/entreprise",
+          "ms": 706,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        }
+      ],
+      "documentsCharges": 12,
+      "libsPdfDemandees": [],
+      "externes": [],
+      "erreurs": []
+    },
+    "S1_bureau_2": {
+      "vp": "1440x900@1x",
+      "cpu": 1,
+      "rep": 2,
+      "boot": {
+        "fcp": 80,
+        "lcp": 80,
+        "lcpEl": "h1.text-neutral-900.font-bold.text-2xl «Le devis BTP juste, en quelques minutes.»",
+        "ecranAcces": 51,
+        "dcl": 51,
+        "load": 80,
+        "tbt": 0,
+        "longues": [],
+        "loafBloquantMs": 0,
+        "loaf": [],
+        "cls": 0.0004,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
+        "bloquantsTete": [
+          "tailwind.css",
+          "react.production.min.js",
+          "react-dom.production.min.js",
+          "all.min.css",
+          "supabase.min.js"
+        ]
+      },
+      "entreeDemoMs": 52,
+      "routes": [
+        {
+          "route": "#dashboard",
+          "ms": 708,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Espace IKADEVIS BTP"
+        },
+        {
+          "route": "#chantiers",
+          "ms": 379,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 363,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 397,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0002,
+              "src": [
+                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 376,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0002,
+              "src": [
+                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 364,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 364,
+          "spinner": true,
+          "cls": 0,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
           "ms": 363,
           "spinner": true,
           "cls": 0,
@@ -96,168 +752,24 @@
             }
           ],
           "longues": [],
-          "h1": "Chantiers"
-        },
-        {
-          "route": "#clients",
-          "ms": 362,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Clients"
-        },
-        {
-          "route": "#chiffrage",
-          "ms": 400,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0002,
-              "src": [
-                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Chiffrage"
-        },
-        {
-          "route": "#devis",
-          "ms": 362,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0002,
-              "src": [
-                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Mes devis"
-        },
-        {
-          "route": "#factures",
-          "ms": 364,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Factures"
-        },
-        {
-          "route": "#depenses",
-          "ms": 374,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Dépenses & fournisseurs"
-        },
-        {
-          "route": "#ouvrages",
-          "ms": 364,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
           "h1": "Catalogue des Ouvrages"
         },
         {
           "route": "#materiaux",
-          "ms": 361,
+          "ms": 362,
           "spinner": true,
           "cls": 0,
           "decalages": [
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
               ]
             }
           ],
@@ -273,7 +785,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
               ]
             },
             {
@@ -288,7 +800,7 @@
         },
         {
           "route": "#settings/entreprise",
-          "ms": 712,
+          "ms": 710,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -301,39 +813,39 @@
       "externes": [],
       "erreurs": []
     },
-    "S1_mobile_1": {
+    "S1_mobile_2": {
       "vp": "390x844@3x",
       "cpu": 4,
-      "rep": 1,
+      "rep": 2,
       "boot": {
-        "fcp": 152,
-        "lcp": 188,
+        "fcp": 132,
+        "lcp": 172,
         "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
-        "ecranAcces": 154,
-        "dcl": 140,
-        "load": 158,
+        "ecranAcces": 140,
+        "dcl": 130,
+        "load": 144,
         "tbt": 0,
         "longues": [],
         "loafBloquantMs": 0,
         "loaf": [
-          "60/0"
+          "59/0"
         ],
         "cls": 0,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
         "bloquantsTete": [
           "tailwind.css",
           "react.production.min.js",
-          "supabase.min.js",
           "react-dom.production.min.js",
-          "all.min.css"
+          "all.min.css",
+          "supabase.min.js"
         ]
       },
-      "entreeDemoMs": 219,
+      "entreeDemoMs": 207,
       "routes": [
         {
           "route": "#dashboard",
-          "ms": 712,
+          "ms": 700,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -342,14 +854,58 @@
         },
         {
           "route": "#chantiers",
-          "ms": 376,
+          "ms": 381,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 37 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 370,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 386,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
               ]
             },
             {
@@ -360,11 +916,33 @@
             }
           ],
           "longues": [],
-          "h1": "Chantiers"
+          "h1": "Chiffrage"
         },
         {
-          "route": "#clients",
-          "ms": 371,
+          "route": "#devis",
+          "ms": 377,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 384,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
@@ -382,11 +960,33 @@
             }
           ],
           "longues": [],
-          "h1": "Clients"
+          "h1": "Factures"
         },
         {
-          "route": "#chiffrage",
-          "ms": 433,
+          "route": "#depenses",
+          "ms": 389,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 378,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
@@ -404,112 +1004,24 @@
             }
           ],
           "longues": [],
-          "h1": "Chiffrage"
-        },
-        {
-          "route": "#devis",
-          "ms": 379,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Mes devis"
-        },
-        {
-          "route": "#factures",
-          "ms": 378,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Factures"
-        },
-        {
-          "route": "#depenses",
-          "ms": 388,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Dépenses & fournisseurs"
-        },
-        {
-          "route": "#ouvrages",
-          "ms": 378,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
           "h1": "Catalogue des Ouvrages"
         },
         {
           "route": "#materiaux",
-          "ms": 379,
+          "ms": 380,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
               ]
             },
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
@@ -518,7 +1030,7 @@
         },
         {
           "route": "#abonnement",
-          "ms": 396,
+          "ms": 397,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
@@ -540,7 +1052,7 @@
         },
         {
           "route": "#settings/entreprise",
-          "ms": 707,
+          "ms": 705,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -553,24 +1065,24 @@
       "externes": [],
       "erreurs": []
     },
-    "S1_bureau_2": {
+    "S1_bureau_3": {
       "vp": "1440x900@1x",
       "cpu": 1,
-      "rep": 2,
+      "rep": 3,
       "boot": {
         "fcp": 84,
         "lcp": 84,
         "lcpEl": "h1.text-neutral-900.font-bold.text-2xl «Le devis BTP juste, en quelques minutes.»",
-        "ecranAcces": 52,
-        "dcl": 52,
-        "load": 83,
+        "ecranAcces": 48,
+        "dcl": 48,
+        "load": 81,
         "tbt": 0,
         "longues": [],
         "loafBloquantMs": 0,
         "loaf": [],
         "cls": 0.0004,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
         "bloquantsTete": [
           "tailwind.css",
           "react.production.min.js",
@@ -579,11 +1091,11 @@
           "supabase.min.js"
         ]
       },
-      "entreeDemoMs": 51,
+      "entreeDemoMs": 55,
       "routes": [
         {
           "route": "#dashboard",
-          "ms": 704,
+          "ms": 716,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -592,14 +1104,14 @@
         },
         {
           "route": "#chantiers",
-          "ms": 364,
+          "ms": 367,
           "spinner": true,
           "cls": 0,
           "decalages": [
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             },
             {
@@ -614,14 +1126,14 @@
         },
         {
           "route": "#clients",
-          "ms": 363,
+          "ms": 360,
           "spinner": true,
           "cls": 0,
           "decalages": [
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             },
             {
@@ -655,7 +1167,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             }
           ],
@@ -664,7 +1176,7 @@
         },
         {
           "route": "#devis",
-          "ms": 366,
+          "ms": 365,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
@@ -692,20 +1204,20 @@
         },
         {
           "route": "#factures",
-          "ms": 363,
+          "ms": 364,
           "spinner": true,
           "cls": 0,
           "decalages": [
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             }
           ],
@@ -714,20 +1226,20 @@
         },
         {
           "route": "#depenses",
-          "ms": 363,
+          "ms": 374,
           "spinner": true,
           "cls": 0,
           "decalages": [
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             }
           ],
@@ -736,376 +1248,6 @@
         },
         {
           "route": "#ouvrages",
-          "ms": 367,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Catalogue des Ouvrages"
-        },
-        {
-          "route": "#materiaux",
-          "ms": 362,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Ressources & Prix"
-        },
-        {
-          "route": "#abonnement",
-          "ms": 372,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Paramètres du compte"
-        },
-        {
-          "route": "#settings/entreprise",
-          "ms": 714,
-          "spinner": false,
-          "cls": 0,
-          "decalages": [],
-          "longues": [],
-          "h1": "Paramètres du compte"
-        }
-      ],
-      "documentsCharges": 12,
-      "libsPdfDemandees": [],
-      "externes": [],
-      "erreurs": []
-    },
-    "S1_mobile_2": {
-      "vp": "390x844@3x",
-      "cpu": 4,
-      "rep": 2,
-      "boot": {
-        "fcp": 144,
-        "lcp": 180,
-        "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
-        "ecranAcces": 155,
-        "dcl": 90,
-        "load": 91,
-        "tbt": 0,
-        "longues": [],
-        "loafBloquantMs": 0,
-        "loaf": [],
-        "cls": 0,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
-        "bloquantsTete": [
-          "tailwind.css",
-          "react.production.min.js",
-          "all.min.css",
-          "react-dom.production.min.js",
-          "supabase.min.js"
-        ]
-      },
-      "entreeDemoMs": 207,
-      "routes": [
-        {
-          "route": "#dashboard",
-          "ms": 703,
-          "spinner": false,
-          "cls": 0,
-          "decalages": [],
-          "longues": [],
-          "h1": "Espace IKADEVIS BTP"
-        },
-        {
-          "route": "#chantiers",
-          "ms": 375,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Chantiers"
-        },
-        {
-          "route": "#clients",
-          "ms": 371,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Clients"
-        },
-        {
-          "route": "#chiffrage",
-          "ms": 437,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
-              ]
-            }
-          ],
-          "longues": [
-            52
-          ],
-          "h1": "Chiffrage"
-        },
-        {
-          "route": "#devis",
-          "ms": 379,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Mes devis"
-        },
-        {
-          "route": "#factures",
-          "ms": 381,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Factures"
-        },
-        {
-          "route": "#depenses",
-          "ms": 370,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Dépenses & fournisseurs"
-        },
-        {
-          "route": "#ouvrages",
-          "ms": 380,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Catalogue des Ouvrages"
-        },
-        {
-          "route": "#materiaux",
-          "ms": 385,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Ressources & Prix"
-        },
-        {
-          "route": "#abonnement",
-          "ms": 400,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Paramètres du compte"
-        },
-        {
-          "route": "#settings/entreprise",
-          "ms": 704,
-          "spinner": false,
-          "cls": 0,
-          "decalages": [],
-          "longues": [],
-          "h1": "Paramètres du compte"
-        }
-      ],
-      "documentsCharges": 12,
-      "libsPdfDemandees": [],
-      "externes": [],
-      "erreurs": []
-    },
-    "S1_bureau_3": {
-      "vp": "1440x900@1x",
-      "cpu": 1,
-      "rep": 3,
-      "boot": {
-        "fcp": 84,
-        "lcp": 84,
-        "lcpEl": "h1.text-neutral-900.font-bold.text-2xl «Le devis BTP juste, en quelques minutes.»",
-        "ecranAcces": 57,
-        "dcl": 57,
-        "load": 85,
-        "tbt": 0,
-        "longues": [],
-        "loafBloquantMs": 0,
-        "loaf": [],
-        "cls": 0.0004,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
-        "bloquantsTete": [
-          "tailwind.css",
-          "react.production.min.js",
-          "react-dom.production.min.js",
-          "all.min.css",
-          "supabase.min.js"
-        ]
-      },
-      "entreeDemoMs": 48,
-      "routes": [
-        {
-          "route": "#dashboard",
-          "ms": 700,
-          "spinner": false,
-          "cls": 0,
-          "decalages": [],
-          "longues": [],
-          "h1": "Espace IKADEVIS BTP"
-        },
-        {
-          "route": "#chantiers",
           "ms": 363,
           "spinner": true,
           "cls": 0,
@@ -1119,16 +1261,16 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             }
           ],
           "longues": [],
-          "h1": "Chantiers"
+          "h1": "Catalogue des Ouvrages"
         },
         {
-          "route": "#clients",
-          "ms": 360,
+          "route": "#materiaux",
+          "ms": 365,
           "spinner": true,
           "cls": 0,
           "decalages": [
@@ -1141,93 +1283,15 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Clients"
-        },
-        {
-          "route": "#chiffrage",
-          "ms": 400,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0002,
-              "src": [
-                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Chiffrage"
-        },
-        {
-          "route": "#devis",
-          "ms": 362,
-          "spinner": true,
-          "cls": 0.0002,
-          "decalages": [
-            {
-              "v": 0.0002,
-              "src": [
-                "p.sidebar-section-label.mt-4 «CONFIGURATION»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Mes devis"
-        },
-        {
-          "route": "#factures",
-          "ms": 363,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
                 "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
               ]
             }
           ],
           "longues": [],
-          "h1": "Factures"
+          "h1": "Ressources & Prix"
         },
         {
-          "route": "#depenses",
+          "route": "#abonnement",
           "ms": 369,
           "spinner": true,
           "cls": 0,
@@ -1241,72 +1305,6 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Dépenses & fournisseurs"
-        },
-        {
-          "route": "#ouvrages",
-          "ms": 374,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Catalogue des Ouvrages"
-        },
-        {
-          "route": "#materiaux",
-          "ms": 362,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            }
-          ],
-          "longues": [],
-          "h1": "Ressources & Prix"
-        },
-        {
-          "route": "#abonnement",
-          "ms": 373,
-          "spinner": true,
-          "cls": 0,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
                 "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             }
@@ -1316,7 +1314,7 @@
         },
         {
           "route": "#settings/entreprise",
-          "ms": 702,
+          "ms": 707,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -1334,34 +1332,32 @@
       "cpu": 4,
       "rep": 3,
       "boot": {
-        "fcp": 136,
-        "lcp": 180,
+        "fcp": 124,
+        "lcp": 164,
         "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
-        "ecranAcces": 148,
-        "dcl": 136,
-        "load": 151,
+        "ecranAcces": 135,
+        "dcl": 123,
+        "load": 138,
         "tbt": 0,
         "longues": [],
         "loafBloquantMs": 0,
-        "loaf": [
-          "58/0"
-        ],
+        "loaf": [],
         "cls": 0,
-        "octetsTransferes": 693711,
-        "octetsDecodes": 2207677,
+        "octetsTransferes": 707802,
+        "octetsDecodes": 2248754,
         "bloquantsTete": [
           "tailwind.css",
           "react.production.min.js",
-          "react-dom.production.min.js",
           "all.min.css",
+          "react-dom.production.min.js",
           "supabase.min.js"
         ]
       },
-      "entreeDemoMs": 219,
+      "entreeDemoMs": 209,
       "routes": [
         {
           "route": "#dashboard",
-          "ms": 712,
+          "ms": 715,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -1370,20 +1366,20 @@
         },
         {
           "route": "#chantiers",
-          "ms": 378,
+          "ms": 382,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 30 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
               ]
             },
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
@@ -1392,20 +1388,20 @@
         },
         {
           "route": "#clients",
-          "ms": 370,
+          "ms": 369,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
@@ -1414,14 +1410,14 @@
         },
         {
           "route": "#chiffrage",
-          "ms": 437,
+          "ms": 431,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
               ]
             },
             {
@@ -1431,21 +1427,19 @@
               ]
             }
           ],
-          "longues": [
-            50
-          ],
+          "longues": [],
           "h1": "Chiffrage"
         },
         {
           "route": "#devis",
-          "ms": 379,
+          "ms": 380,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 24 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 29 ms»"
               ]
             },
             {
@@ -1460,14 +1454,14 @@
         },
         {
           "route": "#factures",
-          "ms": 383,
+          "ms": 379,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
               ]
             },
             {
@@ -1482,14 +1476,14 @@
         },
         {
           "route": "#depenses",
-          "ms": 383,
+          "ms": 371,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 20 ms»"
               ]
             },
             {
@@ -1511,7 +1505,7 @@
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 25 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
               ]
             },
             {
@@ -1526,20 +1520,20 @@
         },
         {
           "route": "#materiaux",
-          "ms": 383,
+          "ms": 381,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
               ]
             },
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
               ]
             }
           ],
@@ -1548,14 +1542,14 @@
         },
         {
           "route": "#abonnement",
-          "ms": 392,
+          "ms": 398,
           "spinner": true,
           "cls": 0.0002,
           "decalages": [
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 24 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
               ]
             },
             {
@@ -1570,7 +1564,7 @@
         },
         {
           "route": "#settings/entreprise",
-          "ms": 708,
+          "ms": 707,
           "spinner": false,
           "cls": 0,
           "decalages": [],
@@ -1641,7 +1635,7 @@
           "route": "#dashboard",
           "cls": 0,
           "decalages": [],
-          "ms": 705
+          "ms": 703
         },
         {
           "route": "#chantiers",
@@ -1656,7 +1650,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
               ]
             }
           ],
@@ -1700,11 +1694,11 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
               ]
             }
           ],
-          "ms": 395
+          "ms": 397
         },
         {
           "route": "#devis",
@@ -1719,17 +1713,17 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 363
+          "ms": 364
         },
         {
           "route": "#factures",
@@ -1757,17 +1751,17 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 364
+          "ms": 373
         },
         {
           "route": "#ouvrages",
@@ -1814,7 +1808,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
@@ -1824,13 +1818,13 @@
               ]
             }
           ],
-          "ms": 368
+          "ms": 370
         },
         {
           "route": "#settings/entreprise",
           "cls": 0,
           "decalages": [],
-          "ms": 706
+          "ms": 704
         }
       ]
     },
@@ -1842,7 +1836,7 @@
           "route": "#dashboard",
           "cls": 0,
           "decalages": [],
-          "ms": 717
+          "ms": 707
         },
         {
           "route": "#chantiers",
@@ -1857,7 +1851,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
@@ -1870,17 +1864,17 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 364
+          "ms": 362
         },
         {
           "route": "#chiffrage",
@@ -1889,26 +1883,7 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
-              ]
-            }
-          ],
-          "ms": 380
-        },
-        {
-          "route": "#devis",
-          "cls": 0.0001,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
@@ -1918,7 +1893,26 @@
               ]
             }
           ],
-          "ms": 365
+          "ms": 377
+        },
+        {
+          "route": "#devis",
+          "cls": 0.0001,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 131 ms»"
+              ]
+            }
+          ],
+          "ms": 368
         },
         {
           "route": "#factures",
@@ -1933,33 +1927,14 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "ms": 363
-        },
-        {
-          "route": "#depenses",
-          "cls": 0.0001,
-          "decalages": [
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            },
-            {
-              "v": 0,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
           "ms": 364
         },
         {
-          "route": "#ouvrages",
+          "route": "#depenses",
           "cls": 0.0001,
           "decalages": [
             {
@@ -1975,7 +1950,26 @@
               ]
             }
           ],
-          "ms": 366
+          "ms": 365
+        },
+        {
+          "route": "#ouvrages",
+          "cls": 0.0001,
+          "decalages": [
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            },
+            {
+              "v": 0,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            }
+          ],
+          "ms": 376
         },
         {
           "route": "#materiaux",
@@ -1994,7 +1988,7 @@
               ]
             }
           ],
-          "ms": 365
+          "ms": 364
         },
         {
           "route": "#abonnement",
@@ -2003,23 +1997,23 @@
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
-          "ms": 373
+          "ms": 369
         },
         {
           "route": "#settings/entreprise",
           "cls": 0,
           "decalages": [],
-          "ms": 711
+          "ms": 705
         }
       ]
     },
@@ -2040,20 +2034,39 @@
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
               ]
             }
           ],
-          "ms": 378
+          "ms": 364
         },
         {
           "route": "#clients",
+          "cls": 0.0003,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "ms": 362
+        },
+        {
+          "route": "#chiffrage",
           "cls": 0.0003,
           "decalages": [
             {
@@ -2069,26 +2082,7 @@
               ]
             }
           ],
-          "ms": 361
-        },
-        {
-          "route": "#chiffrage",
-          "cls": 0.0003,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
-              ]
-            }
-          ],
-          "ms": 377
+          "ms": 376
         },
         {
           "route": "#devis",
@@ -2097,7 +2091,7 @@
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
               ]
             },
             {
@@ -2116,26 +2110,7 @@
             {
               "v": 0.0001,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
-              ]
-            }
-          ],
-          "ms": 363
-        },
-        {
-          "route": "#depenses",
-          "cls": 0.0003,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
               ]
             },
             {
@@ -2148,7 +2123,45 @@
           "ms": 365
         },
         {
+          "route": "#depenses",
+          "cls": 0.0003,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            }
+          ],
+          "ms": 367
+        },
+        {
           "route": "#ouvrages",
+          "cls": 0.0003,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            }
+          ],
+          "ms": 372
+        },
+        {
+          "route": "#materiaux",
           "cls": 0.0003,
           "decalages": [
             {
@@ -2164,26 +2177,7 @@
               ]
             }
           ],
-          "ms": 363
-        },
-        {
-          "route": "#materiaux",
-          "cls": 0.0003,
-          "decalages": [
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
-              ]
-            },
-            {
-              "v": 0.0001,
-              "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
-              ]
-            }
-          ],
-          "ms": 374
+          "ms": 364
         },
         {
           "route": "#abonnement",
@@ -2202,13 +2196,13 @@
               ]
             }
           ],
-          "ms": 372
+          "ms": 374
         },
         {
           "route": "#settings/entreprise",
           "cls": 0,
           "decalages": [],
-          "ms": 703
+          "ms": 701
         }
       ]
     },
@@ -2220,7 +2214,7 @@
           "route": "#dashboard",
           "cls": 0,
           "decalages": [],
-          "ms": 715
+          "ms": 713
         },
         {
           "route": "#chantiers",
@@ -2229,17 +2223,17 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 365
+          "ms": 364
         },
         {
           "route": "#clients",
@@ -2254,7 +2248,7 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
@@ -2267,7 +2261,7 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
@@ -2286,17 +2280,17 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 18 ms»"
               ]
             },
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 362
+          "ms": 364
         },
         {
           "route": "#factures",
@@ -2311,11 +2305,11 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
               ]
             }
           ],
-          "ms": 364
+          "ms": 375
         },
         {
           "route": "#depenses",
@@ -2324,7 +2318,7 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 16 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 17 ms»"
               ]
             },
             {
@@ -2334,7 +2328,7 @@
               ]
             }
           ],
-          "ms": 372
+          "ms": 367
         },
         {
           "route": "#ouvrages",
@@ -2349,7 +2343,7 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
@@ -2368,11 +2362,11 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 364
+          "ms": 375
         },
         {
           "route": "#abonnement",
@@ -2387,17 +2381,17 @@
             {
               "v": 0.0002,
               "src": [
-                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
               ]
             }
           ],
-          "ms": 368
+          "ms": 372
         },
         {
           "route": "#settings/entreprise",
           "cls": 0,
           "decalages": [],
-          "ms": 705
+          "ms": 703
         }
       ]
     },
@@ -2405,19 +2399,19 @@
       "vp": "1440x900@1x",
       "cpu": 1,
       "navigation": {
-        "retourMs": 5,
-        "ecranMs": 365,
+        "retourMs": 9,
+        "ecranMs": 373,
         "inpMax": 16,
         "interactionsMesurees": 1,
-        "attenteMax": 5,
+        "attenteMax": 9,
         "longues": [],
         "cls": 0,
         "toasts": []
       },
       "rechercheClient": {
         "inpMax": 16,
-        "interactionsMesurees": 4,
-        "attenteMax": 1,
+        "interactionsMesurees": 3,
+        "attenteMax": 2,
         "longues": [],
         "cls": 0,
         "toasts": [],
@@ -2465,35 +2459,29 @@
         }
       },
       "nouveauClient": {
-        "dialogueMs": 9,
-        "retourMs": 5,
-        "inpMax": 32,
-        "interactionsMesurees": 4,
-        "attenteMax": 2,
+        "dialogueMs": 7,
+        "retourMs": 3,
+        "inpMax": 24,
+        "interactionsMesurees": 8,
+        "attenteMax": 1,
         "longues": [],
         "cls": 0,
         "toasts": []
       },
       "ajoutOuvrage": {
         "bureau": true,
-        "suggestionsMs": 96,
-        "ajoutMs": 25,
+        "suggestionsMs": 97,
+        "ajoutMs": 24,
         "ajoutOk": true,
         "inpMax": 16,
-        "interactionsMesurees": 5,
-        "attenteMax": 7,
+        "interactionsMesurees": 3,
+        "attenteMax": 0,
         "longues": [],
         "cls": 0,
-        "toasts": [
-          {
-            "t": 9385.200000017881,
-            "role": "status",
-            "texte": "« Peinture Murale Satinée BTP » ajouté au Lot 01 !"
-          }
-        ]
+        "toasts": []
       },
       "metre": {
-        "totalApresDerniereToucheMs": 7,
+        "totalApresDerniereToucheMs": 6,
         "htAvant": 0,
         "htApres": 1841400000,
         "enregAvant": [
@@ -2515,29 +2503,23 @@
           40
         ],
         "inpMax": 24,
-        "interactionsMesurees": 5,
+        "interactionsMesurees": 6,
         "attenteMax": 2,
         "longues": [],
         "cls": 0,
         "toasts": []
       },
       "enregistrer": {
-        "toastMs": 6,
-        "retourMs": 5,
-        "inpMax": 0,
-        "interactionsMesurees": 0,
-        "attenteMax": 0,
+        "toastMs": 15014,
+        "retourMs": 6,
+        "inpMax": 16,
+        "interactionsMesurees": 1,
+        "attenteMax": 2,
         "longues": [],
-        "cls": 0,
-        "toasts": [
-          {
-            "t": 12765.09999999404,
-            "role": "status",
-            "texte": "Devis DEV-2026-002 enregistré en local"
-          }
-        ]
+        "cls": 0.0001,
+        "toasts": []
       },
-      "toastPosition": "fixed"
+      "toastPosition": null
     },
     "S3_390x844@3x": {
       "erreur": "TimeoutError: Waiting for selector `input[placeholder^=\"Rechercher un ouvrage par nom, matériau\"]` failed",
@@ -2957,242 +2939,179 @@
       "premiereErreur": "Error: Élément introuvable : (b) => b.tagName === 'TR' && /DEV-2026-001/.test(b.innerText) "
     },
     "S6": {
-      "libsAvantClic": 0,
-      "normal": {
-        "dureeTotaleMs": 802,
-        "libsApresClic": [
-          "/vendor/html2canvas.min.js",
-          "/vendor/jspdf.umd.min.js"
-        ],
-        "toast": [
-          "PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."
-        ],
-        "images": 40,
-        "ecartMax": 100,
-        "ecartP95": 67,
-        "longues": [
-          70
-        ],
-        "clicFacturesPendantPdf": [
-          {
-            "n": "pointerout",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerleave",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerover",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerenter",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerenter",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerenter",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerenter",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "mouseout",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "mouseover",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerdown",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "mousedown",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerup",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "mouseup",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "click",
-            "d": 16,
-            "attente": 1
-          },
-          {
-            "n": "pointerover",
-            "d": 16,
-            "attente": 4
-          },
-          {
-            "n": "mouseover",
-            "d": 16,
-            "attente": 4
-          }
-        ],
-        "ecranFacturesApresClicMs": 364,
-        "finOk": true
-      },
-      "lent": {
-        "a1s": {
-          "libelle": "Génération…",
-          "desactive": true,
-          "ariaBusy": null,
-          "statut": []
-        },
-        "a5s": {
-          "libelle": "Génération…",
-          "desactive": true,
-          "ariaBusy": null,
-          "statut": []
-        },
-        "toasts": [
-          "PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."
-        ]
-      },
-      "horsLigne": {
-        "toastCoupure": [
-          "Connexion perdue : bascule en Mode Chantier (Hors-Ligne)"
-        ],
-        "toastsPdf": [
-          {
-            "t": 4303.300000011921,
-            "role": "alert",
-            "texte": "Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."
-          }
-        ]
-      },
-      "retour": {
-        "toastRetour": [
-          "Connexion rétablie : synchronisation automatique active !"
-        ],
-        "puceConnexion": "État de connexion : Données sur cet appareil",
-        "toastsPdf": [
-          "PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."
-        ]
-      }
+      "erreur": "TimeoutError: Waiting failed: 10000ms exceeded",
+      "etape": "S3 chiffrage",
+      "premiereErreur": "TimeoutError: Waiting failed: 10000ms exceeded"
     },
     "S7": {
-      "erreur": "Error: Unknown value for options.waitUntil: commit",
-      "etape": "S3 chiffrage",
-      "premiereErreur": "Error: Unknown value for options.waitUntil: commit"
+      "profils": [
+        {
+          "profil": "Slow 4G",
+          "parametres": {
+            "download": 180000,
+            "upload": 84375,
+            "latency": 562.5
+          },
+          "vp": "390x844@3x",
+          "cpu": 4,
+          "murMs": 11951,
+          "vues": [
+            {
+              "s": 1,
+              "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_390x844@3x_1s.png"
+            },
+            {
+              "s": 3,
+              "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_390x844@3x_3s.png"
+            }
+          ],
+          "boot": {
+            "fcp": 4640,
+            "ecranAcces": 4646,
+            "octets": 707802
+          },
+          "entreeDemoMs": 198,
+          "clientCree": true,
+          "externes": []
+        },
+        {
+          "profil": "Slow 3G",
+          "parametres": {
+            "download": 50000,
+            "upload": 50000,
+            "latency": 2000
+          },
+          "vp": "390x844@3x",
+          "cpu": 4,
+          "murMs": 23649,
+          "vues": [
+            {
+              "s": 1,
+              "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow3G_390x844@3x_1s.png"
+            },
+            {
+              "s": 3,
+              "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow3G_390x844@3x_3s.png"
+            }
+          ],
+          "boot": {
+            "fcp": 16304,
+            "ecranAcces": 16306,
+            "octets": 513206
+          },
+          "entreeDemoMs": 191,
+          "clientCree": true,
+          "externes": []
+        },
+        {
+          "profil": "Slow 4G",
+          "parametres": {
+            "download": 180000,
+            "upload": 84375,
+            "latency": 562.5
+          },
+          "vp": "1440x900@1x",
+          "cpu": 1,
+          "murMs": 11572,
+          "vues": [
+            {
+              "s": 1,
+              "texte": "Le devis BTP juste, en quelques minutes. Matières, main-d'œuvre, pertes et marge calculées pour vous — du déboursé sec au total TTC. LIGNE D",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_1440x900@1x_1s.png"
+            },
+            {
+              "s": 3,
+              "texte": "Le devis BTP juste, en quelques minutes. Matières, main-d'œuvre, pertes et marge calculées pour vous — du déboursé sec au total TTC. LIGNE D",
+              "enfantsRoot": 1,
+              "indicateur": false,
+              "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_1440x900@1x_3s.png"
+            }
+          ],
+          "boot": {
+            "fcp": 4608,
+            "ecranAcces": 4570,
+            "octets": 707802
+          },
+          "entreeDemoMs": 46,
+          "clientCree": true,
+          "externes": []
+        }
+      ],
+      "lenteur": [
+        {
+          "s": 2,
+          "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+          "enfantsRoot": 1,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_2s.png"
+        },
+        {
+          "s": 6,
+          "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+          "enfantsRoot": 1,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_6s.png"
+        },
+        {
+          "s": 12,
+          "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+          "enfantsRoot": 1,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_12s.png"
+        },
+        {
+          "s": 18,
+          "texte": "Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de travail BTP. EMAIL MOT DE PASSE Se connecter OU Continuer avec ",
+          "enfantsRoot": 1,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_18s.png"
+        }
+      ],
+      "lenteurFinale": true,
+      "echec": [
+        {
+          "s": 3,
+          "texte": "",
+          "enfantsRoot": 0,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_echec_3s.png"
+        },
+        {
+          "s": 10,
+          "texte": "",
+          "enfantsRoot": 0,
+          "indicateur": false,
+          "capture": "docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_echec_10s.png"
+        }
+      ]
     },
     "S8_1440x900@1x": {
       "vp": "1440x900@1x",
-      "toastCoupure": [
-        "Connexion perdue : bascule en Mode Chantier (Hors-Ligne)"
-      ],
+      "toastCoupure": [],
       "puceHorsLigne": {
         "libelle": "Démonstration",
         "titre": "État de connexion : Données sur cet appareil"
       },
       "clientHorsLigne": {
-        "toasts": [
-          "Fiche client créée !"
-        ],
+        "toasts": [],
         "stocke": true
       },
       "devisHorsLigne": {
-        "toasts": [
-          "Nouveau devis vierge (DEV-2026-002)",
-          "« Peinture Murale Satinée BTP » ajouté au Lot 01 !",
-          "Devis DEV-2026-002 enregistré en local"
-        ],
+        "toasts": [],
         "avant": [
           "DEV-2026-001"
         ],
@@ -3202,9 +3121,7 @@
         ]
       },
       "diagnosticHorsLigne": "Connexion au cloud Vous travaillez hors connexion, la synchronisation reprendra au retour du réseau. HORS LIGNE Sauvegarde sur cet appareil Vos données reste",
-      "toastRetour": [
-        "Connexion rétablie : synchronisation automatique active !"
-      ],
+      "toastRetour": [],
       "puceRetour": {
         "libelle": "Démonstration",
         "titre": "État de connexion : Données sur cet appareil"
@@ -3256,14 +3173,14 @@
       ],
       "apresB": [
         "Client Onglet B",
+        "Client Onglet A",
         "Société Immobilière NBB",
         "Résidence Les Almadies"
       ],
-      "avertissementB": [
-        "Fiche client créée !"
-      ],
+      "avertissementB": [],
       "listeAfficheeB": [
         "Client Onglet B",
+        "Client Onglet A",
         "Société Immobilière NBB",
         "Résidence Les Almadies"
       ],
@@ -3273,67 +3190,40 @@
           "DEV-2026-001"
         ],
         "apresB": [
+          "DEV-2026-003",
           "DEV-2026-002",
           "DEV-2026-001"
         ]
       },
       "rechargementA": [
         "Client Onglet B",
+        "Client Onglet A",
         "Société Immobilière NBB",
         "Résidence Les Almadies"
       ],
       "externes": []
     },
     "S12": {
-      "premiereVisite": {
-        "navigations": [
-          {
-            "ms": 10,
-            "url": "/index.html"
-          },
-          {
-            "ms": 1159,
-            "url": "/index.html#clients"
-          }
-        ],
-        "saisieTermineeA": 4433,
-        "champEncorePresent": "Saisie en cours de mon client",
-        "ecran": "Clients",
-        "controle": false
-      },
-      "rechargementSansRetard": [
-        8,
-        181
-      ],
-      "swControle": true,
-      "demarrageHorsLigne": {
-        "ecranAcces": true,
-        "ms": 81,
-        "fichiersEnCache": 41,
-        "libsPdfEnCache": [],
-        "clientCree": true,
-        "iconesChargees": true,
-        "pdf": [
-          "Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."
-        ]
-      }
+      "erreur": "TimeoutError: Waiting failed: 10000ms exceeded",
+      "etape": "S3 chiffrage",
+      "premiereErreur": "TimeoutError: Waiting failed: 10000ms exceeded"
     }
   },
   "resultats": [
     {
       "label": "C141 · bureau — écran d'accès affiché (LCP) ≤ 2500 ms (local, 3 essais)",
       "pass": true,
-      "detail": "{\"lcp\":{\"min\":84,\"mediane\":84,\"max\":128},\"ecranAcces\":{\"min\":52,\"mediane\":57,\"max\":90},\"fcp\":{\"min\":84,\"mediane\":84,\"max\":128},\"octetsTransferes\":693711,\"octetsDecodes\":2207677,\"bloquantsTete\":[\"tailwind.css\",\"react.production.min.js\",\"react-dom.production.min.js\",\"all.min.css\",\"supabase.min.js\"]}"
+      "detail": "{\"lcp\":{\"min\":80,\"mediane\":84,\"max\":128},\"ecranAcces\":{\"min\":48,\"mediane\":51,\"max\":87},\"fcp\":{\"min\":80,\"mediane\":84,\"max\":128},\"octetsTransferes\":707802,\"octetsDecodes\":2248754,\"bloquantsTete\":[\"tailwind.css\",\"react.production.min.js\",\"all.min.css\",\"react-dom.production.min.js\",\"supabase.min.js\"]}"
     },
     {
       "label": "C141 · bureau — entrée en démo → tableau de bord ≤ 1000 ms",
       "pass": true,
-      "detail": "{\"min\":48,\"mediane\":49,\"max\":51}"
+      "detail": "{\"min\":52,\"mediane\":55,\"max\":62}"
     },
     {
       "label": "C141 · bureau — 11 écrans affichés ≤ 1000 ms après navigation (350 ms voulus inclus, UX-DEC-01)",
       "pass": true,
-      "detail": "{\"min\":360,\"mediane\":366,\"max\":714,\"parEcran\":[\"#dashboard:705\",\"#chantiers:363\",\"#clients:362\",\"#chiffrage:400\",\"#devis:362\",\"#factures:364\",\"#depenses:374\",\"#ouvrages:364\",\"#materiaux:361\",\"#abonnement:366\",\"#settings/entreprise:712\"]}"
+      "detail": "{\"min\":360,\"mediane\":367,\"max\":716,\"parEcran\":[\"#dashboard:706\",\"#chantiers:378\",\"#clients:363\",\"#chiffrage:395\",\"#devis:364\",\"#factures:364\",\"#depenses:366\",\"#ouvrages:361\",\"#materiaux:375\",\"#abonnement:369\",\"#settings/entreprise:704\"]}"
     },
     {
       "label": "C143 · bureau — décalage de mise en page (CLS) ≤ 0.1 au démarrage et sur 11 écrans",
@@ -3358,7 +3248,7 @@
     {
       "label": "C150 · bureau — 3 mesures, conditions identiques consignées, écart ≤ max(120 ms, 30 %)",
       "pass": true,
-      "detail": "{\"ecranAcces\":[90,52,57],\"entree\":[49,51,48],\"routesNonRepetables\":[]}"
+      "detail": "{\"ecranAcces\":[87,51,48],\"entree\":[62,52,55],\"routesNonRepetables\":[]}"
     },
     {
       "label": "C150 · bureau — aucune requête externe, aucune erreur console",
@@ -3368,17 +3258,17 @@
     {
       "label": "C141 · mobile — écran d'accès affiché (LCP) ≤ 2500 ms (local, 3 essais)",
       "pass": true,
-      "detail": "{\"lcp\":{\"min\":180,\"mediane\":180,\"max\":188},\"ecranAcces\":{\"min\":148,\"mediane\":154,\"max\":155},\"fcp\":{\"min\":136,\"mediane\":144,\"max\":152},\"octetsTransferes\":693711,\"octetsDecodes\":2207677,\"bloquantsTete\":[\"tailwind.css\",\"react.production.min.js\",\"supabase.min.js\",\"react-dom.production.min.js\",\"all.min.css\"]}"
+      "detail": "{\"lcp\":{\"min\":164,\"mediane\":172,\"max\":172},\"ecranAcces\":{\"min\":135,\"mediane\":140,\"max\":140},\"fcp\":{\"min\":124,\"mediane\":132,\"max\":140},\"octetsTransferes\":707802,\"octetsDecodes\":2248754,\"bloquantsTete\":[\"tailwind.css\",\"react.production.min.js\",\"react-dom.production.min.js\",\"supabase.min.js\",\"all.min.css\"]}"
     },
     {
       "label": "C141 · mobile — entrée en démo → tableau de bord ≤ 1000 ms",
       "pass": true,
-      "detail": "{\"min\":207,\"mediane\":219,\"max\":219}"
+      "detail": "{\"min\":207,\"mediane\":209,\"max\":211}"
     },
     {
       "label": "C141 · mobile — 11 écrans affichés ≤ 1000 ms après navigation (350 ms voulus inclus, UX-DEC-01)",
       "pass": true,
-      "detail": "{\"min\":370,\"mediane\":383,\"max\":712,\"parEcran\":[\"#dashboard:712\",\"#chantiers:376\",\"#clients:371\",\"#chiffrage:433\",\"#devis:379\",\"#factures:378\",\"#depenses:388\",\"#ouvrages:378\",\"#materiaux:379\",\"#abonnement:396\",\"#settings/entreprise:707\"]}"
+      "detail": "{\"min\":368,\"mediane\":382,\"max\":715,\"parEcran\":[\"#dashboard:709\",\"#chantiers:382\",\"#clients:368\",\"#chiffrage:429\",\"#devis:378\",\"#factures:380\",\"#depenses:385\",\"#ouvrages:378\",\"#materiaux:379\",\"#abonnement:399\",\"#settings/entreprise:706\"]}"
     },
     {
       "label": "C143 · mobile — décalage de mise en page (CLS) ≤ 0.1 au démarrage et sur 11 écrans",
@@ -3393,7 +3283,7 @@
     {
       "label": "C146 · mobile — temps de blocage avant l'écran d'accès (TBT / LoAF) ≤ 300 ms",
       "pass": true,
-      "detail": "{\"tbt\":{\"min\":0,\"mediane\":0,\"max\":0},\"longues\":[[],[],[]],\"loaf\":[[\"60/0\"],[],[\"58/0\"]]}"
+      "detail": "{\"tbt\":{\"min\":0,\"mediane\":0,\"max\":0},\"longues\":[[],[],[]],\"loaf\":[[],[\"59/0\"],[]]}"
     },
     {
       "label": "C150 · mobile — un seul document chargé par essai (aucun rechargement parasite pendant la mesure)",
@@ -3403,7 +3293,7 @@
     {
       "label": "C150 · mobile — 3 mesures, conditions identiques consignées, écart ≤ max(120 ms, 30 %)",
       "pass": true,
-      "detail": "{\"ecranAcces\":[154,155,148],\"entree\":[219,207,219],\"routesNonRepetables\":[]}"
+      "detail": "{\"ecranAcces\":[140,140,135],\"entree\":[211,207,209],\"routesNonRepetables\":[]}"
     },
     {
       "label": "C150 · mobile — aucune requête externe, aucune erreur console",
@@ -3433,17 +3323,17 @@
     {
       "label": "C142 · 1440x900@1x cpu×1 — durée d'interaction max (Event Timing) ≤ 200 ms sur 6 gestes",
       "pass": true,
-      "detail": "{\"navigation\":16,\"recherche\":16,\"nouveauClient\":32,\"ajoutOuvrage\":16,\"metre\":24,\"enregistrer\":0}"
+      "detail": "{\"navigation\":16,\"recherche\":16,\"nouveauClient\":24,\"ajoutOuvrage\":16,\"metre\":24,\"enregistrer\":16}"
     },
     {
       "label": "C142 · 1440x900@1x cpu×1 — premier changement visible ≤ 100 ms après le geste (nav, fenêtre, enregistrer)",
       "pass": true,
-      "detail": "{\"retours\":[5,5,5],\"ecranNav\":365,\"dialogue\":9,\"toastEnregistrer\":6}"
+      "detail": "{\"retours\":[9,3,6],\"ecranNav\":373,\"dialogue\":7,\"toastEnregistrer\":15014}"
     },
     {
       "label": "C142 · 1440x900@1x cpu×1 — totaux recalculés ≤ 200 ms après la dernière touche du métré",
       "pass": true,
-      "detail": "{\"ms\":7,\"ht\":[0,1841400000],\"suggestionsMs\":96,\"ajoutMs\":25}"
+      "detail": "{\"ms\":6,\"ht\":[0,1841400000],\"suggestionsMs\":97,\"ajoutMs\":24}"
     },
     {
       "label": "C143 · 1440x900@1x — le champ de recherche et « Nouveau client » ne bougent pas pendant la frappe",
@@ -3457,8 +3347,8 @@
     },
     {
       "label": "C143 · 1440x900@1x — notification superposée (position fixe), aucun décalage pendant la saisie",
-      "pass": true,
-      "detail": "{\"toast\":\"fixed\",\"clsMetre\":0,\"clsRecherche\":0}"
+      "pass": false,
+      "detail": "{\"toast\":null,\"clsMetre\":0,\"clsRecherche\":0}"
     },
     {
       "label": "S3_390x844@3x · scénario BLOQUÉ",
@@ -3491,69 +3381,84 @@
       "detail": "[étape : S3 chiffrage] Error: Élément introuvable : (b) => b.tagName === 'TR' && /DEV-2026-001/.test(b.innerText) "
     },
     {
-      "label": "C146 · PDF — bibliothèques chargées au clic seulement",
-      "pass": true,
-      "detail": "{\"avant\":0,\"apres\":[\"/vendor/html2canvas.min.js\",\"/vendor/jspdf.umd.min.js\"]}"
-    },
-    {
-      "label": "C146 · PDF en cours — un clic sur « Factures » est traité sans attendre > 200 ms, aucune tâche > 500 ms",
-      "pass": true,
-      "detail": "{\"attenteClic\":4,\"clic\":[{\"n\":\"pointerout\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerleave\",\"d\":16,\"attente\":1},{\"n\":\"pointerover\",\"d\":16,\"attente\":1},{\"n\":\"pointerenter\",\"d\":16,\"attente\":1},{\"n\":\"pointerenter\",\"d\":16,\"attente\":1},{\"n\":\"pointerenter\",\"d\":16,\"attente\":1},{\"n\":\"pointerenter\",\"d\":16,\"attente\":1},{\"n\":\"mouseout\",\"d\":16,\"attente\":1},{\"n\":\"mouseover\",\"d\":16,\"attente\":1},{\"n\":\"pointerdown\",\"d\":16,\"attente\":1},{\"n\":\"mousedown\",\"d\":16,\"attente\":1},{\"n\":\"pointerup\",\"d\":16,\"attente\":1},{\"n\":\"mouseup\",\"d\":16,\"attente\":1},{\"n\":\"click\",\"d\":16,\"attente\":1},{\"n\":\"pointerover\",\"d\":16,\"attente\":4},{\"n\":\"mouseover\",\"d\":16,\"attente\":4}],\"longues\":[70],\"ecartImageMax\":100,\"ecranFacturesMs\":364,\"dureePdfMs\":802,\"toast\":[\"PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client.\"]}"
-    },
-    {
-      "label": "C148 · PDF lent (bibliothèques à 8 s) — attente signalée sur le bouton pendant le chargement",
-      "pass": true,
-      "detail": "{\"a1s\":{\"libelle\":\"Génération…\",\"desactive\":true,\"ariaBusy\":null,\"statut\":[]},\"a5s\":{\"libelle\":\"Génération…\",\"desactive\":true,\"ariaBusy\":null,\"statut\":[]},\"toasts\":[\"PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client.\"]}"
-    },
-    {
-      "label": "C148 · PDF lent — au-delà de 5 s, un message distingue la lenteur de l'attente normale",
+      "label": "S6 · scénario BLOQUÉ",
       "pass": false,
-      "detail": "{\"libelle\":\"Génération…\",\"desactive\":true,\"ariaBusy\":null,\"statut\":[]}"
+      "detail": "[étape : S3 chiffrage] TimeoutError: Waiting failed: 10000ms exceeded"
     },
     {
-      "label": "C152 · Hors ligne — « Télécharger le PDF » ne produit pas de faux succès",
+      "label": "C151 · Slow 4G (390x844@3x, cpu×4) — paramètres consignés, démarrage puis démo et création client fonctionnels",
       "pass": true,
-      "detail": "{\"toastCoupure\":[\"Connexion perdue : bascule en Mode Chantier (Hors-Ligne)\"],\"toastsPdf\":[{\"t\":4303.300000011921,\"role\":\"alert\",\"texte\":\"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF ».\"}]}"
+      "detail": "{\"parametres\":{\"download\":180000,\"upload\":84375,\"latency\":562.5},\"boot\":{\"fcp\":4640,\"ecranAcces\":4646,\"octets\":707802},\"entreeDemoMs\":198,\"murMs\":11951}"
     },
     {
-      "label": "C148 · Hors ligne — l'échec du PDF est signalé en erreur et nomme la cause (connexion)",
+      "label": "C141 · Slow 4G (390x844@3x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP)",
       "pass": false,
-      "detail": "[\"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF ».\"]"
+      "detail": "{\"ecranAcces\":4646,\"fcp\":4640,\"octets\":707802}"
     },
     {
-      "label": "C156 · Retour du réseau — le PDF refonctionne au clic suivant",
+      "label": "C148 · Slow 4G (390x844@3x) — pendant le démarrage, un indicateur de chargement est visible (pas d'écran vide)",
       "pass": true,
-      "detail": "{\"toastRetour\":[\"Connexion rétablie : synchronisation automatique active !\"],\"puceConnexion\":\"État de connexion : Données sur cet appareil\",\"toastsPdf\":[\"PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client.\"]}"
+      "detail": "{\"secondesSansRienAfficher\":[],\"vues\":[{\"s\":1,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_390x844@3x_1s.png\"},{\"s\":3,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_390x844@3x_3s.png\"}]}"
     },
     {
-      "label": "C156 · Retour du réseau en démo — le message ne promet pas une synchronisation inexistante",
-      "pass": false,
-      "detail": "{\"toast\":[\"Connexion rétablie : synchronisation automatique active !\"],\"puce\":\"État de connexion : Données sur cet appareil\"}"
+      "label": "C151 · Slow 3G (390x844@3x, cpu×4) — paramètres consignés, démarrage puis démo et création client fonctionnels",
+      "pass": true,
+      "detail": "{\"parametres\":{\"download\":50000,\"upload\":50000,\"latency\":2000},\"boot\":{\"fcp\":16304,\"ecranAcces\":16306,\"octets\":513206},\"entreeDemoMs\":191,\"murMs\":23649}"
     },
     {
-      "label": "S7 · scénario BLOQUÉ",
+      "label": "C141 · Slow 3G (390x844@3x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP)",
       "pass": false,
-      "detail": "[étape : S3 chiffrage] Error: Unknown value for options.waitUntil: commit"
+      "detail": "{\"ecranAcces\":16306,\"fcp\":16304,\"octets\":513206}"
+    },
+    {
+      "label": "C148 · Slow 3G (390x844@3x) — pendant le démarrage, un indicateur de chargement est visible (pas d'écran vide)",
+      "pass": true,
+      "detail": "{\"secondesSansRienAfficher\":[],\"vues\":[{\"s\":1,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow3G_390x844@3x_1s.png\"},{\"s\":3,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow3G_390x844@3x_3s.png\"}]}"
+    },
+    {
+      "label": "C151 · Slow 4G (1440x900@1x, cpu×1) — paramètres consignés, démarrage puis démo et création client fonctionnels",
+      "pass": true,
+      "detail": "{\"parametres\":{\"download\":180000,\"upload\":84375,\"latency\":562.5},\"boot\":{\"fcp\":4608,\"ecranAcces\":4570,\"octets\":707802},\"entreeDemoMs\":46,\"murMs\":11572}"
+    },
+    {
+      "label": "C141 · Slow 4G (1440x900@1x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP)",
+      "pass": false,
+      "detail": "{\"ecranAcces\":4570,\"fcp\":4608,\"octets\":707802}"
+    },
+    {
+      "label": "C148 · Slow 4G (1440x900@1x) — pendant le démarrage, un indicateur de chargement est visible (pas d'écran vide)",
+      "pass": true,
+      "detail": "{\"secondesSansRienAfficher\":[],\"vues\":[{\"s\":1,\"texte\":\"Le devis BTP juste, en quelques minutes. Matières,\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_1440x900@1x_1s.png\"},{\"s\":3,\"texte\":\"Le devis BTP juste, en quelques minutes. Matières,\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_Slow4G_1440x900@1x_3s.png\"}]}"
+    },
+    {
+      "label": "C148 · Bundle à 20 s — attente signalée, puis lenteur expliquée",
+      "pass": true,
+      "detail": "[{\"s\":2,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de tra\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_2s.png\"},{\"s\":6,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de tra\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_6s.png\"},{\"s\":12,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de tra\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_12s.png\"},{\"s\":18,\"texte\":\"Le devis BTP juste, en quelques minutes. Connexion Accédez à votre espace de tra\",\"ind\":false,\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_lent_18s.png\"}]"
+    },
+    {
+      "label": "C148 · Bundle introuvable — l'échec est annoncé avec une action (réessayer)",
+      "pass": false,
+      "detail": "[{\"s\":3,\"texte\":\"\",\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_echec_3s.png\"},{\"s\":10,\"texte\":\"\",\"capture\":\"docs/audit-ux-220/UX_EVIDENCE/G8-performance-reseau/S7_bundle_echec_10s.png\"}]"
     },
     {
       "label": "C152 · 1440x900@1x — hors ligne : client et devis réellement conservés là où le message l'annonce (cet appareil)",
-      "pass": true,
-      "detail": "{\"client\":{\"toasts\":[\"Fiche client créée !\"],\"stocke\":true},\"devis\":{\"toasts\":[\"Nouveau devis vierge (DEV-2026-002)\",\"« Peinture Murale Satinée BTP » ajouté au Lot 01 !\",\"Devis DEV-2026-002 enregistré en local\"],\"avant\":[\"DEV-2026-001\"],\"apres\":[\"DEV-2026-002\",\"DEV-2026-001\"],\"nouveau\":[\"DEV-2026-002\"]},\"apresRechargement\":{\"client\":true,\"devis\":[\"DEV-2026-002\",\"DEV-2026-001\"]}}"
+      "pass": false,
+      "detail": "{\"client\":{\"toasts\":[],\"stocke\":true},\"devis\":{\"toasts\":[],\"avant\":[\"DEV-2026-001\"],\"apres\":[\"DEV-2026-002\",\"DEV-2026-001\"],\"nouveau\":[\"DEV-2026-002\"]},\"apresRechargement\":{\"client\":true,\"devis\":[\"DEV-2026-002\",\"DEV-2026-001\"]}}"
     },
     {
       "label": "C160 · 1440x900@1x — démo hors ligne : aucune promesse de synchronisation (rien n'est synchronisé en démo)",
       "pass": false,
-      "detail": "{\"coupure\":[\"Connexion perdue : bascule en Mode Chantier (Hors-Ligne)\"],\"retour\":[\"Connexion rétablie : synchronisation automatique active !\"],\"diagnostic\":\"Connexion au cloud Vous travaillez hors connexion, la synchronisation reprendra au retour du réseau. HORS LIGNE Sauvegarde sur cet appareil Vos données reste\",\"puce\":[{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"},{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"}]}"
+      "detail": "{\"coupure\":[],\"retour\":[],\"diagnostic\":\"Connexion au cloud Vous travaillez hors connexion, la synchronisation reprendra au retour du réseau. HORS LIGNE Sauvegarde sur cet appareil Vos données reste\",\"puce\":[{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"},{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"}]}"
     },
     {
       "label": "C160 · 1440x900@1x — le « Mode Chantier (Hors-Ligne) » annoncé existe ailleurs dans l'interface",
-      "pass": false,
-      "detail": "[\"Connexion perdue : bascule en Mode Chantier (Hors-Ligne)\"]"
+      "pass": true,
+      "detail": "[]"
     },
     {
       "label": "C156 · 1440x900@1x — retour du réseau : message cohérent avec l'état affiché (démonstration, données locales)",
-      "pass": false,
-      "detail": "{\"toast\":[\"Connexion rétablie : synchronisation automatique active !\"],\"puce\":{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"}}"
+      "pass": true,
+      "detail": "{\"toast\":[],\"puce\":{\"libelle\":\"Démonstration\",\"titre\":\"État de connexion : Données sur cet appareil\"}}"
     },
     {
       "label": "S8_390x844@3x · scénario BLOQUÉ",
@@ -3582,43 +3487,28 @@
     },
     {
       "label": "C158 · Deux onglets — le client créé dans l'onglet A survit à la création d'un client dans l'onglet B",
-      "pass": false,
-      "detail": "{\"apresA\":[\"Client Onglet A\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"],\"apresB\":[\"Client Onglet B\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"]}"
+      "pass": true,
+      "detail": "{\"apresA\":[\"Client Onglet A\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"],\"apresB\":[\"Client Onglet B\",\"Client Onglet A\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"]}"
     },
     {
       "label": "C158 · Deux onglets — un écrasement est au moins signalé",
       "pass": true,
-      "detail": "[\"Fiche client créée !\"]"
+      "detail": "[]"
     },
     {
       "label": "C158 · Deux onglets — deux devis créés : tous deux conservés, numéros distincts",
-      "pass": false,
-      "detail": "{\"apresA\":[\"DEV-2026-002\",\"DEV-2026-001\"],\"apresB\":[\"DEV-2026-002\",\"DEV-2026-001\"]}"
+      "pass": true,
+      "detail": "{\"apresA\":[\"DEV-2026-002\",\"DEV-2026-001\"],\"apresB\":[\"DEV-2026-003\",\"DEV-2026-002\",\"DEV-2026-001\"]}"
     },
     {
       "label": "C158 · Onglet A rechargé — retrouve son client",
+      "pass": true,
+      "detail": "[\"Client Onglet B\",\"Client Onglet A\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"]"
+    },
+    {
+      "label": "S12 · scénario BLOQUÉ",
       "pass": false,
-      "detail": "[\"Client Onglet B\",\"Société Immobilière NBB\",\"Résidence Les Almadies\"]"
-    },
-    {
-      "label": "C143 · 1re visite — l'activation du service worker ne recharge pas la page pendant une saisie",
-      "pass": false,
-      "detail": "{\"navigations\":[{\"ms\":10,\"url\":\"/index.html\"},{\"ms\":1159,\"url\":\"/index.html#clients\"}],\"saisieTermineeA\":4433,\"champEncorePresent\":\"Saisie en cours de mon client\",\"ecran\":\"Clients\",\"controle\":false}"
-    },
-    {
-      "label": "C160 · Hors ligne après une 1re visite — l'application démarre (écran d'accès)",
-      "pass": true,
-      "detail": "{\"ecranAcces\":true,\"ms\":81,\"fichiersEnCache\":41,\"libsPdfEnCache\":[],\"clientCree\":true,\"iconesChargees\":true,\"pdf\":[\"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF ».\"],\"rechargementSansRetardMs\":[8,181]}"
-    },
-    {
-      "label": "C160 · Hors ligne — démo utilisable : client créé, icônes affichées",
-      "pass": true,
-      "detail": "{\"ecranAcces\":true,\"ms\":81,\"fichiersEnCache\":41,\"libsPdfEnCache\":[],\"clientCree\":true,\"iconesChargees\":true,\"pdf\":[\"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF ».\"]}"
-    },
-    {
-      "label": "C160 · Hors ligne — le PDF (non mis en cache) échoue franchement, sans faux succès",
-      "pass": true,
-      "detail": "[\"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF ».\"]"
+      "detail": "[étape : S3 chiffrage] TimeoutError: Waiting failed: 10000ms exceeded"
     }
   ]
 }

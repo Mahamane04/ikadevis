@@ -154,6 +154,65 @@ const zoneImpressionVisible = () => {
     }) || zones[0] || null;
 };
 
+// Audit UX 220 (revue 2, E3) — plusieurs zones imprimables peuvent être
+// AFFICHÉES en même temps : la quittance s'ouvre par-dessus le détail de la
+// facture. La feuille d'impression les sortait toutes deux, posées l'une sur
+// l'autre en haut de la page. Juste avant l'impression (bouton ou ⌘P), on
+// repère le document que l'utilisateur a sous les yeux — celui qui reçoit le
+// point visé en son centre, à défaut celui de la fenêtre ouverte la plus
+// récente — et l'on ÉCARTE les autres (`data-impression-exclue`, index.html).
+//
+// On écarte, on ne désigne pas : à l'impression, Chrome relit les règles
+// responsives à la largeur de la FEUILLE (~ 794 px en A4). Le panneau de
+// bureau d'un devis (`hidden lg:flex`) y disparaît et c'est sa copie jumelle
+// (`lg:hidden`) qui s'imprime. Une première version qui ne gardait que la
+// zone vue à l'écran imprimait donc une page BLANCHE (troisième revue). Une
+// zone masquée à l'écran n'est conservée que si elle est la jumelle du
+// document visé — même `data-document-cle` — sinon elle est écartée aussi
+// (devis resté ouvert en coulisse derrière une facture, par exemple).
+const zoneVisibleALEcran = (z) => {
+    const r = z.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+};
+const zoneImpressionCible = () => {
+    const visibles = [...document.querySelectorAll('[data-zone-impression]')].filter(zoneVisibleALEcran);
+    if (visibles.length < 2) return visibles[0] || null;
+    const auPremierPlan = visibles.find((z) => {
+        const r = z.getBoundingClientRect();
+        const g = Math.max(0, r.left), d = Math.min(window.innerWidth, r.right);
+        const h = Math.max(0, r.top), b = Math.min(window.innerHeight, r.bottom);
+        if (d <= g || b <= h) return false;
+        const touche = document.elementFromPoint((g + d) / 2, (h + b) / 2);
+        return !!touche && z.contains(touche);
+    });
+    if (auPremierPlan) return auPremierPlan;
+    const enFenetre = visibles.filter((z) => z.closest('[aria-modal="true"], [role="dialog"]'));
+    return enFenetre.length ? enFenetre[enFenetre.length - 1] : visibles[0];
+};
+const leverCibleImpression = () => {
+    document.querySelectorAll('[data-impression-cible], [data-impression-exclue]').forEach((z) => {
+        z.removeAttribute('data-impression-cible');
+        z.removeAttribute('data-impression-exclue');
+    });
+};
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeprint', () => {
+        leverCibleImpression();
+        const zones = [...document.querySelectorAll('[data-zone-impression]')];
+        if (zones.length < 2) return;
+        const cible = zoneImpressionCible();
+        if (!cible) return;
+        const cle = cible.getAttribute('data-document-cle');
+        cible.setAttribute('data-impression-cible', '');
+        zones.forEach((z) => {
+            if (z === cible) return;
+            const jumelle = !zoneVisibleALEcran(z) && !!cle && z.getAttribute('data-document-cle') === cle;
+            if (!jumelle) z.setAttribute('data-impression-exclue', '');
+        });
+    });
+    window.addEventListener('afterprint', leverCibleImpression);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // LIBELLÉS DE NAVIGATION — SOURCE UNIQUE
 // ═══════════════════════════════════════════════════════════════
@@ -14016,6 +14075,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         <div
             className={`saved-quote-document ${paperView ? 'document-paper' : 'document-mobile-read'} document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
+            data-document-cle={`devis:${devis?.id ?? devis?.number ?? ""}`}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
@@ -14588,6 +14648,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
         <div
             className={`document-echelle bg-white p-4 sm:p-6 space-y-3.5 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
             data-zone-impression="1"
+            data-document-cle={`facture:${facture?.id ?? facture?.numero ?? ""}`}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
@@ -15729,6 +15790,7 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                 <div className="p-8 overflow-y-auto custom-scroll flex-1 space-y-6 text-neutral-800 bg-white"
                      id="quittance_document_printable"
                      data-zone-impression="quittance"
+                     data-document-cle="quittance"
                      data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
                      data-format-papier={cfg.general.formatPapier || 'A4'}
                      data-orientation={cfg.general.orientation || 'portrait'}
@@ -19760,6 +19822,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     projectsRef.current = projects;
     const isCompteAdminRef = useRef(isCompteAdmin);
     isCompteAdminRef.current = isCompteAdmin;
+    // Revue 2 (E10) — garde du chiffrage non enregistré sur Retour / Suivant
+    // du navigateur : le routeur ci-dessous est installé une seule fois, il
+    // lit donc l'écran, l'indicateur et la question par des références.
+    const activeViewRef = useRef(activeView);
+    activeViewRef.current = activeView;
+    const devisNonEnregistreRef = useRef(devisNonEnregistre);
+    devisNonEnregistreRef.current = devisNonEnregistre;
+    const proposerEnregistrementRef = useRef(null);
+    const adresseAutoriseeRef = useRef(null);
 
     // ═══════════════════════════════════════════════════════════════════
     // LOT 6 (UX-03) : ROUTAGE UNIVERSEL D'URL & SYNCHRONISATION NAVIGATEUR
@@ -19777,6 +19848,34 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             try {
                 const rawHash = window.location.hash || '';
                 const hash = rawHash.replace(/^\/?#\/?/, '#');
+
+                // Revue 2 (E10) — « Retour » emportait un chiffrage non
+                // enregistré sans la question que pose la barre latérale
+                // (naviguerVers). On remet l'adresse du chiffrage, on pose la
+                // question, et l'on ne repart vers l'adresse demandée que si
+                // l'utilisateur l'accepte (adresseAutoriseeRef).
+                if (evenement && adresseAutoriseeRef.current !== rawHash
+                    && activeViewRef.current === 'calculator' && devisNonEnregistreRef.current
+                    && !/^#(chiffrage|new-quote)$/.test(hash) && !/[=&]/.test(hash)
+                    && typeof proposerEnregistrementRef.current === 'function') {
+                    window.history.pushState(null, '', '#chiffrage');
+                    proposerEnregistrementRef.current(() => {
+                        adresseAutoriseeRef.current = rawHash;
+                        setTimeout(() => { adresseAutoriseeRef.current = null; }, 1000);
+                        // L'entrée précédente est justement l'adresse demandée.
+                        window.history.back();
+                    });
+                    return;
+                }
+
+                // Une fiche devis ouverte en fenêtre (la copie mobile, montée au
+                // niveau de l'application tant qu'un devis est « vu ») restait
+                // ouverte quand l'adresse menait ailleurs : sur téléphone elle
+                // recouvrait l'écran demandé, et à l'impression elle sortait
+                // avec la facture. Seuls les gestes de navigation (Retour,
+                // Suivant, adresse saisie) passent ici : l'application, elle,
+                // écrit ses adresses par pushState, sans évènement.
+                if (evenement && !/^#(devis|quotes)(\/|$)/.test(hash) && !/[=&]/.test(hash)) setViewingSavedQuote(null);
 
                 if (!hash || hash === '#') {
                     // Audit UX 220 (UX-P2-06) — Retour jusqu'à l'adresse
@@ -20255,9 +20354,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // prétendant l'avoir sauvé.
     const enregistrerChiffrageRef = React.useRef(null);
 
-    const naviguerVers = React.useCallback((vue) => {
-        if (vue === activeView) return;
-        if (activeView !== 'calculator' || !devisNonEnregistre) { setActiveView(vue); return; }
+    // `partir` : ce qui se passe une fois la question tranchée — changer
+    // d'écran (barre latérale) ou reprendre l'adresse demandée (Retour du
+    // navigateur, voir le routeur).
+    const proposerEnregistrement = (partir) => {
         setConfirmDialog({
             isOpen: true,
             title: 'Enregistrer le devis en cours ?',
@@ -20269,11 +20369,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             // boîte par la gauche.
             confirmLabel: 'Enregistrer',
             secondaryLabel: 'Ne pas enregistrer',
-            onSecondary: () => { closeConfirm(); setActiveView(vue); },
+            onSecondary: () => { closeConfirm(); partir(); },
             onConfirm: () => {
                 closeConfirm();
                 const enregistrer = enregistrerChiffrageRef.current;
-                if (typeof enregistrer !== 'function') { setActiveView(vue); return; }
+                if (typeof enregistrer !== 'function') { partir(); return; }
                 // L'atelier dit ce qui s'est passé plutôt que de laisser
                 // deviner : 'enregistre' (c'est fait, on peut partir),
                 // 'bloque' (validation refusée, on reste, l'erreur est à
@@ -20283,9 +20383,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // l'enregistrement le rallumait et la navigation n'avait
                 // jamais lieu, sans que rien ne l'explique.
                 const issue = enregistrer();
-                if (issue === 'enregistre') setActiveView(vue);
+                if (issue === 'enregistre') partir();
             }
         });
+    };
+    proposerEnregistrementRef.current = proposerEnregistrement;
+
+    const naviguerVers = React.useCallback((vue) => {
+        if (vue === activeView) return;
+        if (activeView !== 'calculator' || !devisNonEnregistre) { setActiveView(vue); return; }
+        proposerEnregistrement(() => setActiveView(vue));
     }, [activeView, devisNonEnregistre]);
 
     // Audit approfondi du 2026-09-02 — défaut SYSTÉMIQUE, mesuré sur la
@@ -23402,10 +23509,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         // Audit UX 220 (C083) — chaque indicateur ouvre la liste qui le compose
         // (bouton natif : clavier, focus et nom accessible inclus).
-        const DashboardMetric = ({ label, value, detail, icon, tone = 'brand', onOuvrir }) => {
+        // Appelée comme une FONCTION, pas comme un composant : déclarée ici,
+        // `<DashboardMetric>` était un nouveau type à chaque rendu, React
+        // démontait puis recréait le bouton, et le focus clavier retombait
+        // sur <body> au moindre rafraîchissement (revue 2, E11).
+        const carteIndicateur = ({ cle, label, value, detail, icon, tone = 'brand', onOuvrir }) => {
             const Conteneur = onOuvrir ? 'button' : 'div';
             return (
-            <Conteneur {...(onOuvrir ? { type: 'button', onClick: onOuvrir, title: `${detail} — ouvrir la liste` } : {})} className="text-left w-full bg-white p-4 sm:p-5 rounded-xl border border-neutral-200/80 shadow-2xs hover:border-neutral-300 hover:shadow-xs transition-all flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <Conteneur key={cle} {...(onOuvrir ? { type: 'button', onClick: onOuvrir, title: `${detail} — ouvrir la liste` } : {})} className="text-left w-full bg-white p-4 sm:p-5 rounded-xl border border-neutral-200/80 shadow-2xs hover:border-neutral-300 hover:shadow-xs transition-all flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
                 <div className="flex items-center justify-between gap-2 mb-3">
                     <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-neutral-500 truncate">{label}</p>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
@@ -23621,40 +23732,44 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 {/* 4. CARTES KPIS ESSENTIELLES (Sans Rupture de Ligne sur la Devise) */}
                 {enabledWidgets.kpis !== false && (
                     <section aria-label="Indicateurs clés" className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                        <DashboardMetric
-                            label="Total des devis TTC"
-                            value={formatMoney(totalChiffre, companyInfo.currency)}
-                            detail={surPeriode(`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`)}
-                            icon="fa-coins"
-                            tone="brand"
-                            onOuvrir={() => ouvrirDevisFiltres('all')}
-                        />
-                        <DashboardMetric
-                            label="Devis à suivre"
-                            value={pendingQuotes.length}
-                            detail={surPeriode(pendingQuotes.length === 0 ? 'Aucun devis envoyé en attente' : `Envoyés, en attente : ${formatMoney(pendingTotal, companyInfo.currency)} TTC`)}
-                            icon="fa-file-signature"
-                            tone="amber"
-                            onOuvrir={() => ouvrirDevisFiltres('sent')}
-                        />
-                        <DashboardMetric
-                            label="Chantiers actifs"
-                            value={activeProjects.length}
-                            detail={projects.length === 0 ? 'Aucun chantier' : projects.length === activeProjects.length ? 'Tous en cours · toutes périodes' : `sur ${projects.length} chantier${projects.length > 1 ? 's' : ''} · toutes périodes`}
-                            icon="fa-folder-tree"
-                            tone="violet"
-                            onOuvrir={() => setActiveView('projects')}
-                        />
-                        <DashboardMetric
-                            label="Total facturé TTC"
-                            value={formatMoney(invoicedTotal, companyInfo.currency)}
-                            detail={resteAEncaisser > 0
+                        {carteIndicateur({
+                            cle: 'devis',
+                            label: 'Total des devis TTC',
+                            value: formatMoney(totalChiffre, companyInfo.currency),
+                            detail: surPeriode(`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`),
+                            icon: 'fa-coins',
+                            tone: 'brand',
+                            onOuvrir: () => ouvrirDevisFiltres('all'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'a-suivre',
+                            label: 'Devis à suivre',
+                            value: pendingQuotes.length,
+                            detail: surPeriode(pendingQuotes.length === 0 ? 'Aucun devis envoyé en attente' : `Envoyés, en attente : ${formatMoney(pendingTotal, companyInfo.currency)} TTC`),
+                            icon: 'fa-file-signature',
+                            tone: 'amber',
+                            onOuvrir: () => ouvrirDevisFiltres('sent'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'chantiers',
+                            label: 'Chantiers actifs',
+                            value: activeProjects.length,
+                            detail: projects.length === 0 ? 'Aucun chantier' : projects.length === activeProjects.length ? 'Tous en cours · toutes périodes' : `sur ${projects.length} chantier${projects.length > 1 ? 's' : ''} · toutes périodes`,
+                            icon: 'fa-folder-tree',
+                            tone: 'violet',
+                            onOuvrir: () => setActiveView('projects'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'facture',
+                            label: 'Total facturé TTC',
+                            value: formatMoney(invoicedTotal, companyInfo.currency),
+                            detail: resteAEncaisser > 0
                                 ? `Reste à encaisser : ${formatMoney(resteAEncaisser, companyInfo.currency)}${facturesEnRetard.length ? ` · ${facturesEnRetard.length} en retard` : ''}`
-                                : surPeriode(issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`)}
-                            icon="fa-chart-line"
-                            tone="emerald"
-                            onOuvrir={() => { setInvoiceStatusFilter(facturesEnRetard.length ? 'overdue' : 'all'); setActiveView('invoices'); }}
-                        />
+                                : surPeriode(issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`),
+                            icon: 'fa-chart-line',
+                            tone: 'emerald',
+                            onOuvrir: () => { setInvoiceStatusFilter(facturesEnRetard.length ? 'overdue' : 'all'); setActiveView('invoices'); },
+                        })}
                     </section>
                 )}
 
@@ -23759,7 +23874,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     revient sur une seule ligne comme avant (assez de place). */}
                                                 <div className="min-w-0 flex-1 basis-full sm:basis-0">
                                                     <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{q.clientName || 'Client non renseigné'}</p>
-                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
+                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Chantier non renseigné'} · {q.number}</p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0 ml-auto">
                                                     <span className="font-bold text-xs text-neutral-900 tabular-nums">
@@ -27611,7 +27726,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 {viewingSavedQuote.projectRef ? (
                                                     <span><i className="fa-solid fa-folder text-[10px] mr-1 text-neutral-500"></i>{viewingSavedQuote.projectRef}</span>
                                                 ) : (
-                                                    <span className="italic text-neutral-500">Projet non renseigné</span>
+                                                    <span className="italic text-neutral-500">Chantier non renseigné</span>
                                                 )} &bull; {viewingSavedQuote.date}
                                             </p>
                                         </div>
@@ -28141,7 +28256,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     configuration={configurationDocument}
                                 />
                             ) : (
-                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">
+                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1" data-document-cle={`etude:${viewingSavedQuote?.id ?? ""}`}>
                                     {(() => {
                                         // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
                                         // cartes, PAS un document : elle n'avait pas d'data-zone-impression="1", donc
@@ -31517,37 +31632,42 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 setNewClientOriginModal(null);
                             }} className="space-y-4">
                                 <AvisBrouillonRestaure brouillon={brouillonClient} />
+                                {/* Audit UX 220 (C056) — ces champs décrivent un TIERS : le
+                                    remplissage automatique du navigateur y proposait
+                                    l'identité, le téléphone et l'adresse de l'utilisateur.
+                                    autoComplete="off" sur chaque champ ; le collage reste
+                                    libre (aucun gestionnaire ne le bloque). */}
                                 <div>
                                     <label htmlFor="newClientForm-name" className="app-label">Nom du client / raison sociale</label>
-                                    <input id="newClientForm-name" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                                    <input id="newClientForm-name" autoComplete="off" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
                                 </div>
                                 <details open={Boolean(editingClientId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
                                 <div>
                                     <label htmlFor="newClientForm-contactPerson" className="app-label">Contact principal</label>
-                                    <input id="newClientForm-contactPerson" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                                    <input id="newClientForm-contactPerson" autoComplete="off" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="newClientForm-taxId" className="app-label">NIF / RCCM</label>
-                                    <input id="newClientForm-taxId" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
+                                    <input id="newClientForm-taxId" autoComplete="off" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
                                     </div>
                                     <div>
                                         <label htmlFor="newClientForm-phone" className="app-label">Téléphone</label>
-                                    <input id="newClientForm-phone" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                                    <input id="newClientForm-phone" autoComplete="off" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
                                     </div>
                                 </div>
                                 <div>
                                     <label htmlFor="newClientForm-email" className="app-label">Email</label>
-                                    <input id="newClientForm-email" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                                    <input id="newClientForm-email" autoComplete="off" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="newClientForm-address" className="app-label">Adresse</label>
-                                    <input id="newClientForm-address" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
+                                    <input id="newClientForm-address" autoComplete="off" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
                                     </div>
                                     <div>
                                         <label htmlFor="newClientForm-city" className="app-label">Ville</label>
-                                    <input id="newClientForm-city" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
+                                    <input id="newClientForm-city" autoComplete="off" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
                                     </div>
                                 </div>
                             </details>

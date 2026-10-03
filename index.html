@@ -1170,6 +1170,16 @@
             body *:not([data-zone-impression]):not([data-zone-impression] *):not(:has([data-zone-impression])) {
                 display: none !important;
             }
+            /* Revue 2 (E3) — quittance ouverte par-dessus la facture : deux
+               zones affichées. `beforeprint` ÉCARTE les documents que
+               l'utilisateur ne regarde pas (voir zoneImpressionCible) : la
+               zone, et tout ce qui ne contient que des zones écartées. On ne
+               désigne pas la zone gardée : à la largeur de la feuille, c'est
+               parfois sa copie jumelle qui s'affiche. */
+            [data-impression-exclue],
+            body *:has([data-impression-exclue]):not(:has([data-zone-impression]:not([data-impression-exclue]))) {
+                display: none !important;
+            }
         }
         /* Audit UI/UX septembre 2026 : priorité au travail en cours. */
         [data-testid="quote-items-desktop"] input[data-col="price"] { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -1245,18 +1255,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/payment-data-safety.js?v=92bf42cef4"></script>
-    <script src="js/catalog-persistence.js?v=92bf42cef4"></script>
-    <script src="js/tenant-persistence.js?v=92bf42cef4"></script>
-    <script src="js/finance-core.js?v=92bf42cef4"></script>
-    <script src="js/quote-import.js?v=92bf42cef4"></script>
-    <script src="js/project-profitability.js?v=92bf42cef4"></script>
-    <script src="js/calc-engine.js?v=92bf42cef4"></script>
-    <script src="js/utils.js?v=92bf42cef4"></script>
-    <script src="js/quote-templates.js?v=92bf42cef4"></script>
-    <script src="js/saspay-service.js?v=92bf42cef4"></script>
-    <script src="js/subscription-service.js?v=92bf42cef4"></script>
-    <script src="app.compiled.js?v=92bf42cef4"></script>
+    <script src="js/payment-data-safety.js?v=af7513dc8d"></script>
+    <script src="js/catalog-persistence.js?v=af7513dc8d"></script>
+    <script src="js/tenant-persistence.js?v=af7513dc8d"></script>
+    <script src="js/finance-core.js?v=af7513dc8d"></script>
+    <script src="js/quote-import.js?v=af7513dc8d"></script>
+    <script src="js/project-profitability.js?v=af7513dc8d"></script>
+    <script src="js/calc-engine.js?v=af7513dc8d"></script>
+    <script src="js/utils.js?v=af7513dc8d"></script>
+    <script src="js/quote-templates.js?v=af7513dc8d"></script>
+    <script src="js/saspay-service.js?v=af7513dc8d"></script>
+    <script src="js/subscription-service.js?v=af7513dc8d"></script>
+    <script src="app.compiled.js?v=af7513dc8d"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.

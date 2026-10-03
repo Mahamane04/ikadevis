@@ -14,11 +14,11 @@ correctif écrit mais non exécuté est « à retester », jamais « validé ».
 | Cause | `LS.get/LS.set(clé, activeOrganizationId)` → l'organisation occupe le paramètre **utilisateur** de `TenantPersistence.getKey(clé, userId, orgId)` ; l'organisation est lue dans un contexte posé par un `useEffect`, donc APRÈS les initialiseurs `useState`. Écriture : `costcalc:<org>:<org>:<clé>` ; lecture au démarrage : `costcalc:<org>:global:<clé>`, absente des clés de repli. |
 | Occurrences | 17 appels : App (`clients`, `projects`, `invoices` — lectures, écritures, rapatriement du référentiel), `ExpensesScreen` (`depenses`), `FinanceSettingsPanel` (`finance`, `depenses`, clé locale). |
 | Test détectant le défaut | `tests/ux/test_persistance_rechargement.mjs` — **4 échecs sur 6 avant correction**, pour la bonne raison (client absent, facture absente, devis refacturable, écrasement). |
-| Correction | `index_jsx.js` : les 17 appels passent explicitement `(clé, [valeur,] utilisateur, organisation)`. `js/tenant-persistence.js` : la clé historique `costcalc:<org>:<org>:<clé>` est relue une fois puis recopiée sous la bonne clé — les données déjà saisies **réapparaissent** au lieu d'être abandonnées. |
+| Correction | `index_jsx.js` : les 17 appels passent explicitement `(clé, [valeur,] utilisateur, organisation)`. Première version : la clé historique `costcalc:<org>:<org>:<clé>` était relue puis recopiée sous la bonne clé. **Retirée après la seconde revue adversariale (lot 6)** : son propriétaire ne peut pas être établi (la démonstration et un compte réel resté sur `org_default` hors ligne écrivaient la même clé), et la relire faisait passer des données d'un espace à l'autre — jusqu'au serveur d'une vraie organisation. Ces anciennes clés restent **intactes sur l'appareil**, non relues. |
 | Défaut lié corrigé | `js/tenant-persistence.js` était absent de `FICHIERS_JS` (`scripts/bump-version.mjs`) : jeton de cache **figé** à `000ddd755e` depuis sa création, donc aucune correction de cette couche n'était garantie d'atteindre un navigateur qui l'avait en cache. Ajouté ; jeton désormais dérivé du contenu. |
-| Retest | `tests/ux/test_persistance_rechargement.mjs` **6/6**. Migration réelle vérifiée dans le navigateur : un profil contenant des données à l'ancien format retrouve ses 3 clients et FACT-2026-001, recopiés sous `costcalc:guest:*`. `npm run test:audit` : exit 0, tous lots verts (lot 2 : 28/28). |
+| Retest | `tests/ux/test_persistance_rechargement.mjs` **6/6** (rechargement, création, facturation : rien n'est perdu ni écrasé). `npm run test:audit` : exit 0, tous lots verts (lot 2 : 28/28). La migration, vérifiée un temps dans le navigateur, a ensuite été retirée (voir Correction) ; contrôle à part : une clé historique n'est relue ni par un compte réel ni par la démo, et une liste vidée (« [] ») n'est plus ressuscitée par une clé de repli. |
 | Faux vert révélé | Les 28 contrôles du lot 2 (persistance) étaient verts **avec** le défaut : ils éprouvent `TenantPersistence` isolément, jamais ses appels réels depuis l'application. |
-| Risque résiduel | Mode connecté NON TESTÉ (compte requis) : les mêmes appels y sont corrigés ; en ligne, le chargement serveur remplaçait déjà l'état. Les données écrites sous l'ancienne clé pour un **autre** utilisateur de la même organisation sur le même appareil seront relues par le premier qui ouvre l'app (l'ancienne clé ne portait pas d'identifiant utilisateur) — même exposition qu'avant correction, pas pire. |
+| Risque résiduel | Mode connecté NON TESTÉ (compte requis) : les mêmes appels y sont corrigés ; en ligne, le chargement serveur remplace l'état. Ce qui avait été saisi en **démonstration** sous la version défectueuse ne réapparaît pas automatiquement (c'était déjà invisible après un rechargement avant correction) : les données restent sur l'appareil, sous leur ancienne clé, récupérables à la main. |
 
 ## Lot 2 — Engagement financier : règle unique de « facture soldée » (P2)
 
@@ -191,7 +191,7 @@ bancs et la suite complète n'avaient pas vues :
 | Constat | Gravité | Correction |
 |---|---|---|
 | « Signer » faisait planter toute l'application : trois `useRef` ajoutés APRÈS le `return null` de `QuoteSignatureModal` (toujours montée) → « Rendered more hooks than during the previous render » | P0 (régression) | hooks remontés avant le retour anticipé ; tracé remis à zéro à chaque ouverture. Les autres composants modifiés ont été passés au crible : aucun autre hook après un retour anticipé |
-| Clé de migration `costcalc:<org>:<org>` : à la 1re connexion d'un compte sur l'appareil (organisation encore `org_default`), les données de **démo** étaient relues puis poussées dans la vraie organisation sur le serveur | P0 (régression) | clé relue seulement si rien n'est stocké, seulement par son propriétaire légitime (invité ↔ `org_default`, compte réel ↔ vraie organisation, jamais `org_default`/`org_local_*`), puis **supprimée** après recopie (migration unique, plus de résurrection d'une liste vidée) |
+| Clé de migration `costcalc:<org>:<org>` : à la 1re connexion d'un compte sur l'appareil (organisation encore `org_default`), les données de **démo** étaient relues puis poussées dans la vraie organisation sur le serveur | P0 (régression) | d'abord restreinte à un « propriétaire légitime » ; la seconde revue (lot 6) a montré que ce propriétaire ne peut pas être établi : la migration est **retirée** — clé historique jamais relue |
 | Écran de connexion : `LS.get(…, 'guest')` héritait du contexte de l'utilisateur déconnecté et recopiait ses factures réelles dans l'espace de démo | P1 (régression) | lecture directe des clés de démonstration ; contexte de stockage remis à zéro à toute fin de session |
 
 Corrigés aussi (constats non contre-vérifiés mais reproduits à la lecture) :
@@ -215,3 +215,80 @@ rouge rendu à « Retirer l'étape ».
 plantait — aucun banc n'ouvre la fenêtre de signature. Une relecture
 adversariale par domaine est indispensable avant toute publication d'un
 diff de cette taille.
+
+## Lot 6 — Seconde revue adversariale, puis rejeu complet (2026-10-03)
+
+Une seconde relecture adversariale a porté sur les correctifs du lot 5
+eux-mêmes. Ce qu'elle a fait corriger :
+
+| Constat | Gravité | Correction | Retest |
+|---|---|---|---|
+| La migration des clés `costcalc:<org>:<org>`, même restreinte, ne pouvait pas établir le propriétaire des données (démo et compte réel hors ligne sur `org_default` écrivaient la même clé) ; une liste vidée pouvait être « complétée » par une clé de repli | P0 | migration **retirée** ; repli seulement si rien n'est stocké ; un compte réel ne relit jamais une clé de démo ni d'organisation provisoire (`org_default`, `org_local_*`) ; même règle dans le repli de `LS.get` hors `TenantPersistence` | `tests/ux/test_persistance_cles_historiques.mjs` **7/7** (nouveau) ; `test_persistance_rechargement` 6/6 |
+| Mode connecté : au chargement, les listes clients/chantiers en mémoire (éventuellement celles d'une autre organisation) étaient envoyées à `synchroniserReferentiel` de l'organisation chargée | P1 | listes lues sous la clé de l'organisation résolue ; la mémoire n'est utilisée que s'il s'agit de la même organisation | **NON TESTÉ en réel** (compte requis) — relu |
+| Organisation choisie non mémorisée après vérification de l'appartenance | P2 | `ikadevis_active_org_<utilisateur>` écrit après vérification | **NON TESTÉ en réel** |
+| Avoirs en mode connecté : la facture corrigée (`corrects_invoice_id`) n'était pas relue, donc « reste à encaisser » et « en retard » ne déduisaient pas l'avoir | P2 | `mapInvoiceFromDb` relit `correctsInvoiceId` | règle de déduction : banc lot 6 (avoir total → plus rien à encaisser ; témoin sans avoir : 177 000 dus) ; relecture serveur **NON TESTÉE** |
+| Import CSV de matières : identifiants en collision, homonymes, fusion qui écrasait les champs absents du fichier, prix calculé non recalculé ; confirmation « Remplacer tout » restée valable après changement de fichier ; import refusé (quota) annoncé comme réussi | P1 | plan d'import (`nouvelleMatiere`, `cibleParNom`, `champsFournis`) ; confirmation liée à la liste exacte des suppressions ; `updateMaterials` renvoie `false` sur refus | `test_material_csv_mapping` 9/9 |
+| « Marquer envoyées » : une facture réglée entre-temps (autre poste) pouvait repasser « envoyée » | P1 | mise à jour serveur conditionnée à `status = 'issued'`, lignes réellement changées comptées, liste locale relue au moment d'écrire | partie locale : banc lot 5 (brouillon et réglée écartés, émise → envoyée) ; condition serveur **NON TESTÉE en réel** |
+| Brouillons de création : restaurés par-dessus un contexte prérempli, effacés en mode édition, perdus sur refus de quota | P2 | brouillon restauré seulement sans contexte, touché seulement en création, effacé après le contrôle de quota | banc lot 5 (fermer → rouvrir → saisie restaurée ; « Repartir de zéro ») ; cas contexte prérempli / édition / quota : **relus, non joués** |
+| Carte du tableau de bord → « Mes devis » : un filtre client ou une recherche restés actifs montraient une liste ≠ chiffre | P2 | filtre client et recherche remis à zéro | banc lot 6 (recherche laissée dans « Mes devis » → carte « Devis à suivre » → recherche vide) |
+| Signature : nom du signataire du devis précédent conservé | P3 | nom repris du client du devis à chaque ouverture | banc lot 6 (devis A, nom modifié, fermé → devis B : nom du client de B) |
+| **E10** « Retour » du navigateur : chiffrage non enregistré quitté sans la question posée par la barre latérale | P1 | le routeur remet `#chiffrage`, pose la même question (`proposerEnregistrement`), ne repart vers l'adresse demandée que sur « Ne pas enregistrer » ou enregistrement réussi | `tests/ux/test_audit220_lot6.mjs` (Retour → question ; Annuler → reste ; Ne pas enregistrer → tableau de bord ; Retour libre sans modification) |
+| **E11** Cartes d'indicateurs déclarées comme composant à l'intérieur du rendu : remontées à chaque rendu, focus clavier perdu | P2 | appelées comme fonction (`carteIndicateur`), clé stable | banc lot 6 (focus conservé après un rendu provoqué) |
+| **E3** Quittance ouverte sur la facture : les deux documents imprimés l'un sur l'autre | P2 | `beforeprint` repère le document au premier plan et **écarte** les autres (`data-impression-exclue`) ; une copie masquée à l'écran n'est gardée que si elle est la jumelle du document visé (même `data-document-cle`) ; marquage levé à `afterprint` | banc lot 6, mesuré à la **largeur A4 (794 px)** en média print, **avec témoin** (sans marquage, facture et quittance sortent ensemble) |
+| Fiche devis restée montée « en coulisse » après une navigation par l'adresse (Retour, adresse saisie) : sur téléphone elle recouvrait l'écran Factures ; à l'impression elle serait sortie avec la facture | P2 (antérieur à l'audit) | le routeur ferme la fiche devis quand l'adresse mène ailleurs (seuls les gestes de navigation passent par lui) | banc lot 6 ; constaté avant correction : `#devis/101` → `#factures` à 390 px, fenêtre devis de 390 px de large toujours affichée |
+
+**Contrôles corrigés mais jamais rejoués.** Plusieurs contrôles étaient
+notés « corrigé » sans qu'aucune sonde ne les rejoue : la règle de l'audit
+(PASSÉ seulement si tous les cas passent) les laissait en ÉCHEC. Ils sont
+rejoués par `tests/ux/test_audit220_rejeu_corriges.mjs` ; deux restaient
+réellement ouverts et sont corrigés ici :
+
+| Contrôle | Constat | Correction |
+|---|---|---|
+| C003 | « Projet non renseigné » sur la fiche devis et au tableau de bord, « Chantier non renseigné » dans les listes : deux noms pour un même objet | « Chantier non renseigné » partout |
+| C056 | Fiche « Nouveau client » (un **tiers**) : le navigateur y proposait l'identité, le téléphone et l'adresse de l'utilisateur | `autoComplete="off"` sur les 7 champs ; collage non bloqué (vérifié) |
+| C015, C016 | corrigés au lot 4 (UX-P2-06), jamais rejoués | rejoués : lien direct, Facturer → Précédent → Suivant |
+| C182, C202, C204, C215 | corrigés au lot 4, jamais rejoués | rejoués |
+
+Restent en échec, assumés : C005 (l'échec mène désormais à l'ouvrage et à
+son bouton, R6, mais le prérequis n'est pas visible AVANT la tentative),
+C149 (350 ms conservés, décision R5), C203 (politique de renouvellement à
+fournir, R9), C210 (effets TVA / numérotation sur l'équipe non revus).
+
+**Troisième relecture (correctifs E3/E10/E11).** Un défaut grave dans le
+premier E3 : la zone retenue était celle vue à l'écran, or Chrome imprime à
+la largeur de la feuille, où le panneau de bureau du devis (`hidden lg:flex`)
+disparaît au profit de sa copie jumelle (`lg:hidden`) — que la règle
+masquait. **Imprimer un devis depuis un écran large donnait une page
+blanche** (reproduit : à 794 px en média print, aucune des deux copies
+n'avait de boîte). Le banc E3 ne l'avait pas vu : il mesurait à 1440 px.
+D'où l'inversion (écarter plutôt que désigner), la clé de document, et un
+banc qui mesure à la largeur de la feuille. E10 et E11 : rien de grave.
+Écarts mineurs assumés : « Annuler » après plusieurs Retour d'un coup efface
+les entrées « Suivant » (l'adresse du chiffrage est réinscrite) ; si
+l'enregistrement demande une confirmation (« Mettre à jour ce devis ? »), on
+reste sur le chiffrage après l'enregistrement — même comportement que la
+barre latérale ; un marquage d'impression resté en place parce qu'un
+navigateur n'émettrait pas `afterprint` est effacé au `beforeprint` suivant.
+
+Restent ouverts, antérieurs à l'audit et hors de son périmètre :
+`emettreAvoirFacture` insère côté serveur des colonnes probablement absentes
+du schéma (**non vérifié** : compte requis) ; d'autres replis sur
+`org_default` subsistent hors de la couche de persistance.
+
+### Vérification (étape, build JS `af7513dc8d`)
+
+- Bancs `tests/ux` : accessibilité 6/6, lot 5 20/20, **lot 6 15/15**,
+  **rejeu des contrôles corrigés 11/11**, **clés historiques 7/7**,
+  persistance 6/6, soldes 4/4. `npm run test:audit` vert.
+- Suite complète `npm test` : **539/627, 26/58 suites, 7/7 étalons —
+  identique à `main`** (0 échec nouveau, 0 disparu, comparaison nominative).
+- Sondes G1–G9 rejouées sur le build précédent (`27dc426429`, identique à
+  un libellé et des attributs `autocomplete` près) : **185 échecs bruts
+  contre 333** avant correction. Ce chiffre n'est pas encore un bilan :
+  plusieurs sections de sondes sont **interrompues par des sélecteurs
+  périmés** (libellés renommés par les corrections), donc des contrôles ne
+  sont pas réellement rejoués. Tri (défaut réel / artefact de sonde /
+  décision assumée) et réparation des sondes en cours.
+
+<!-- RÉSULTATS-FINAUX -->
