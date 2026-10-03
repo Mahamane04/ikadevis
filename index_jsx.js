@@ -4616,7 +4616,7 @@ function WorkItemTable({
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="quote-items-container p-4 md:p-6 space-y-4">
             {/* M8 (2026-08-18) — Le tableau desktop était réutilisé tel quel en
                 mobile : désignations tronquées à un mot, colonne prix hors écran,
                 contenu qui débordait son conteneur (624px dans 337px mesurés lors
@@ -4770,14 +4770,14 @@ function WorkItemTable({
                                 <div>
                                     <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">Total Net HT</span>
                                     <span className="font-bold text-neutral-900 text-base">{formatMoney(total, currency)}</span>
-                                    {margin && (
-                                        <span
-                                            title={margin.tooltip}
-                                            className={`block text-[11px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
+                                    {(
+                                        <button type="button" onClick={() => onOpenInspector(idx, 'pricing')} aria-label={`Modifier le prix et la marge de ${item.name}`}
+                                            title={margin?.tooltip || 'Renseignez le coût d’achat pour connaître la marge'}
+                                            className={`quote-margin-edit text-[11px] font-bold font-mono ${margin?.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
                                         >
-                                            {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
-                                            {margin.label}
-                                        </span>
+                                            {margin?.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
+                                            Marge {margin?.label || 'à compléter'} <i className="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                                        </button>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -5020,14 +5020,14 @@ function WorkItemTable({
                                         <span className="block truncate text-[11px] font-bold" title={formatMoney(total, currency)}>
                                             {formatMoney(total, currency)}
                                         </span>
-                                        {margin && (
-                                            <span
-                                                title={margin.tooltip}
-                                                className={`block mt-0.5 text-[9.5px] font-bold font-mono ${margin.colorClass || (margin.isLoss ? 'text-red-600' : 'text-emerald-700')}`}
+                                        {(
+                                            <button type="button" onClick={() => onOpenInspector(idx, 'pricing')} aria-label={`Modifier le prix et la marge de ${item.name}`}
+                                                title={margin?.tooltip || 'Renseignez le coût d’achat pour connaître la marge'}
+                                                className={`quote-margin-edit mt-0.5 text-[11px] font-bold font-mono ${margin?.colorClass || (margin?.isLoss ? 'text-red-600' : 'text-emerald-700')}`}
                                             >
-                                                {(margin.isLoss || margin.isCritical) && <i className="fa-solid fa-triangle-exclamation mr-0.5 text-[8.5px]"></i>}
-                                                {margin.label}
-                                            </span>
+                                                {(margin?.isLoss || margin?.isCritical) && <i className="fa-solid fa-triangle-exclamation mr-0.5 text-[8.5px]"></i>}
+                                                Marge {margin?.label || 'à compléter'} <i className="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                                            </button>
                                         )}
                                     </td>
 
@@ -5521,6 +5521,8 @@ function WorkItemPicker({
 }
 
 function WorkItemInspector({
+    pricingEntry = null,
+    vatRate = 18,
     isOpen,
     onClose,
     item,
@@ -5544,6 +5546,18 @@ function WorkItemInspector({
     const [inspectorMode, setInspectorMode] = useState('simple'); // 'simple' | 'advanced'
     const [activeTab, setActiveTab] = useState('dimensions'); // 'dimensions' | 'costs' | 'pricing' | 'client' | 'calepinage'
     const inspectorRef = useRef(null);
+    // A margin link opens the existing pricing fields; it never converts a
+    // calculated item into a manual price. Wait for simple mode to render.
+    useEffect(() => {
+        if (!isOpen || !pricingEntry) return;
+        setInspectorMode('simple');
+        const frame = requestAnimationFrame(() => {
+            const field = inspectorRef.current?.querySelector('[data-pricing-section] input[aria-label="Marge souhaitée (%)"], [data-pricing-section] input[aria-label="Prix de vente unitaire HT"]');
+            field?.focus({ preventScroll: true });
+            field?.scrollIntoView({ block: 'center', behavior: 'instant' });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isOpen, pricingEntry, item?.id]);
     const closeInspectorRef = useRef(onClose);
     closeInspectorRef.current = onClose;
     const [compactInspector, setCompactInspector] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
@@ -5700,7 +5714,7 @@ function WorkItemInspector({
             </section>;
         })}
     </div>;
-    const simplePricing = !isManualLine && <section className="rounded-2xl border border-neutral-200 p-4 space-y-3">
+    const simplePricing = !isManualLine && <section data-pricing-section="true" className="rounded-2xl border border-neutral-200 p-4 space-y-3">
         <h4 className="font-semibold text-sm">Vos prix et votre marge</h4>
         <details><summary className="cursor-pointer py-2 text-brand-700 text-sm font-semibold">Modifier mes prix d’achat</summary>{resourcePrices}</details>
         <div className="grid grid-cols-2 gap-3">
@@ -5708,7 +5722,7 @@ function WorkItemInspector({
             <label className="text-xs font-semibold">Frais généraux (%)<input aria-label="Frais généraux (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="50" step="any" value={calcForm.overheadRate ?? 5} onChange={e => handleParamChange('overheadRate', e.target.value)} /></label>
         </div>
         <p className="text-xs text-neutral-600">{calcForm.marginType === 'markup' ? 'Majoration appliquée au coût de revient.' : 'La marge représente une part du prix de vente HT, après les frais.'} Sur {formatMoney(pvTotal, currency)} vendus, il reste {formatMoney(margeValeur, currency)} après {formatMoney(dsTotal, currency)} de coûts.</p>
-        <p className="text-xs text-neutral-600">TVA du devis : {calcForm.vatRate ?? 18} %. Vérifiez le taux applicable dans les réglages du devis.</p>
+        <p className="text-xs text-neutral-600">TVA du devis : {vatRate} %. Ce taux se règle dans le récapitulatif en bas de l’écran et ne change pas votre marge HT.</p>
     </section>;
 
     return (
@@ -6011,7 +6025,8 @@ function WorkItemInspector({
                             )}
                         </div>
 
-                        {isManualLine && <section className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                        {isManualLine && <section data-pricing-section="true" className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                            <h4 className="font-semibold text-sm">Prix et marge de cette ligne libre</h4>
                             <label className="block text-xs font-semibold">Prix de vente unitaire HT ({currency})<input aria-label="Prix de vente unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.unitPriceHT ?? ''} onChange={e => onUpdateItem({ unitPriceHT: e.target.value })} /></label>
                             <label className="block text-xs font-semibold">Coût d’achat unitaire HT ({currency})<input aria-label="Coût d’achat unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.costUnit ?? ''} onChange={e => onUpdateItem({ costUnit: e.target.value })} /></label>
                             <p className="text-xs text-neutral-600">Saisissez votre coût pour connaître la marge de cette ligne. Les frais généraux du devis s’appliquent à ce coût.</p>
@@ -6676,14 +6691,25 @@ function QuoteTotalsBar({
     // marge, TVA) reste à un appui. Sur desktop la place ne manque pas : rien
     // ne change, le repli n'existe pas là-bas.
     const [totauxDeplies, setTotauxDeplies] = useState(false);
+    const totalsBarRef = useRef(null);
+    useEffect(() => {
+        const bar = totalsBarRef.current;
+        if (!bar) return;
+        const update = () => document.documentElement.style.setProperty('--quote-totals-height', `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+        const observer = new ResizeObserver(update);
+        observer.observe(bar);
+        update();
+        return () => { observer.disconnect(); document.documentElement.style.removeProperty('--quote-totals-height'); };
+    }, []);
 
-    return (
+
+    return ReactDOM.createPortal(
         // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
         // passait donc SOUS la sidebar de navigation et sous la barre d'onglets
         // mobile. `.quote-totals-bar` (index.html) la cale à droite de la
         // sidebar (72px en tablette, --sidebar-width en desktop) et au-dessus
         // de la barre d'onglets sur mobile.
-        <div className={`quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating ${totauxDeplies ? 'quote-totals-deplie' : 'quote-totals-replie'}`}>
+        <div ref={totalsBarRef} className={`quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating ${totauxDeplies ? 'quote-totals-deplie' : 'quote-totals-replie'}`}>
             <div className="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
                 {/* Métriques Financières BTP */}
                 <div className="quote-mobile-metrics flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
@@ -6714,7 +6740,7 @@ function QuoteTotalsBar({
                         <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(totalHT, currency)}</span>
                     </div>
 
-                    <div className="hidden sm:block pl-3 border-l border-neutral-200">
+                    <div className="quote-metrique-secondaire pl-3 border-l border-neutral-200" title="Marge calculée après frais, sur le prix de vente HT. Pour l’ajuster, utilisez le bouton Marge de chaque ouvrage.">
                         <span className="text-[10px] text-neutral-500 block uppercase font-bold flex items-center gap-1">
                             {hasIncompleteCustomLines ? 'Marge à compléter' : 'Marge prévue'}
                             {isLowProfit && <span className="text-amber-700 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
@@ -6725,25 +6751,20 @@ function QuoteTotalsBar({
                         </span>
                     </div>
 
-                    {/* 2026-08-20 — La TVA était AFFICHÉE ici mais nulle part modifiable
-                        dans l'éditeur principal : `hybridQuote.vatRate` était lu avec un
-                        repli `|| 18` sans qu'aucun champ ne permette d'en changer (le seul
-                        champ TVA vivait dans l'ancien calculateur V5). Un devis exonéré ou
-                        à taux réduit était donc impossible à établir. Le taux se choisit
-                        maintenant là où il s'affiche, parmi les taux réglés dans
-                        Paramètres → Documents & PDF. */}
-                    <div className="hidden md:block pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">TVA</span>
+                    {/* Native picker stays usable at viewport edges and with the mobile keyboard. */}
+                    <div className="quote-metrique-secondaire quote-vat-control pl-3 border-l border-neutral-200">
+                        <label htmlFor="quote-vat-rate" className="text-[10px] text-neutral-500 block uppercase font-bold">TVA du devis</label>
                         {onChangeVatRate && !isReadOnlyDueToDowngrade ? (
                             <div className="flex items-baseline gap-1.5">
-                                <CustomSelect
-                                    value={quote.vatRate !== undefined ? quote.vatRate : 18}
-                                    onChange={(e) => onChangeVatRate(parseFloat(e.target.value))}
-                                    options={vatRates.map(r => ({ value: r, label: r === 0 ? 'Exonéré' : `${r}%` }))}
-                                    size="xs"
-                                    buttonClassName="!py-0.5 !px-2 text-xs font-bold text-neutral-700 bg-white border-neutral-200 rounded-lg shadow-2xs"
+                                <select
+                                    id="quote-vat-rate"
+                                    value={quote.vatRate ?? 18}
+                                    onChange={(e) => onChangeVatRate(Number(e.target.value))}
+                                    className="quote-vat-select"
                                     aria-label="Taux de TVA du devis"
-                                />
+                                >
+                                    {vatRates.map(rate => <option key={rate} value={rate}>{rate === 0 ? '0 % — Exonéré' : `${rate} %`}</option>)}
+                                </select>
                                 <span className="font-medium text-neutral-600 text-sm">+{formatMoney(totalTVA, currency)}</span>
                             </div>
                         ) : (
@@ -6758,10 +6779,10 @@ function QuoteTotalsBar({
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
                                 {!totauxDeplies && !hasIncompleteCustomLines && marginPct != null && (
-                                    <span className={`sm:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                                    <span className={`md:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
                                         isLowProfit ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' : 'bg-emerald-100 text-emerald-800'
                                     }`}>
-                                        {marginPct < 0 ? '' : '+'}{marginPct}%
+                                        Marge {marginPct < 0 ? '' : '+'}{marginPct}%
                                     </span>
                                 )}
                             </div>
@@ -6771,7 +6792,7 @@ function QuoteTotalsBar({
                         <button
                             type="button"
                             onClick={() => setTotauxDeplies(v => !v)}
-                            className="quote-totals-bascule sm:hidden shrink-0 w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
+                            className="quote-totals-bascule md:hidden shrink-0 w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
                             aria-expanded={totauxDeplies}
                             aria-label={totauxDeplies ? 'Masquer le détail du chiffrage' : 'Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)'}
                         >
@@ -6843,7 +6864,7 @@ function QuoteTotalsBar({
                 </div>
             )}
         </div>
-    );
+    , document.body);
 }
 
 function QuoteImportModal({ onClose, onImport, currency }) {
@@ -6990,6 +7011,7 @@ function QuoteWorkspace({
         return [...new Set([...regles, courant])].sort((a, b) => b - a);
     })();
     const [inspectorItemIndex, setInspectorItemIndex] = useState(null);
+    const [inspectorEntry, setInspectorEntry] = useState(null);
     const [deletedItemUndo, setDeletedItemUndo] = useState(null);
     const [autosaveTime, setAutosaveTime] = useState(null);
     // Fix UX-1 (2026-08-30) — hasUnsavedChanges est un état LOCAL à ce
@@ -7326,6 +7348,7 @@ function QuoteWorkspace({
             items: [...(updatedLots[activeLotIndex].items || []), newItem]
         };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+        setInspectorEntry(null);
         setInspectorItemIndex(updatedLots[activeLotIndex].items.length - 1);
         setIsPickerOpen(false);
         showToast(`« ${sol.name} » ajouté au Lot ${updatedLots[activeLotIndex].code || activeLotIndex + 1} !`);
@@ -7791,7 +7814,7 @@ function QuoteWorkspace({
                             items={activeLot.items || []}
                             solutions={solutions}
                             onUpdateItem={handleUpdateItem}
-                            onOpenInspector={(idx) => setInspectorItemIndex(idx)}
+                            onOpenInspector={(idx, section) => { setInspectorEntry(section === 'pricing' ? {} : null); setInspectorItemIndex(idx); }}
                             onDuplicateItem={handleDuplicateItem}
                             onDeleteItem={handleDeleteItem}
                             onOpenPicker={() => setIsPickerOpen(true)}
@@ -7821,6 +7844,8 @@ function QuoteWorkspace({
                             isOpen={inspectorItemIndex !== null}
                             onClose={() => setInspectorItemIndex(null)}
                             item={activeLot.items?.[inspectorItemIndex]}
+                            pricingEntry={inspectorEntry}
+                            vatRate={calculatedQuote.vatRate ?? 18}
                             lot={activeLot}
                             lots={calculatedQuote.lots || []}
                             lotIndex={activeLotIndex}
@@ -7887,7 +7912,7 @@ function QuoteWorkspace({
                 hasUnsavedChanges={hasUnsavedChanges}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
-                onChangeVatRate={(taux) => { pushState(); handleUpdateQuote({ vatRate: taux }); }}
+                onChangeVatRate={(taux) => { if (!Number.isFinite(taux) || taux < 0 || taux > 100 || taux === hybridQuote.vatRate) return; pushState(); handleUpdateQuote({ vatRate: taux }); }}
                 vatRates={vatRatesDisponibles}
                 isReadOnlyDueToDowngrade={isReadOnlyDueToDowngrade}
                 currency={companyInfo.currency}

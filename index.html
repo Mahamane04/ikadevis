@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=a52ce8aee5">
+    <link rel="stylesheet" href="tailwind.css?v=0113cfb1b1">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -660,9 +660,27 @@
            Cette feuille est chargée APRÈS tailwind.css : à spécificité égale
            elle gagne, donc `p-2` posé sur le même élément ne réécrase pas ce
            padding-bottom. Piège documenté au § 37.3. */
-        .clear-totals-bar { padding-bottom: 15rem; }
+        /* Switch to cards when the actual work area is narrow (including the split inspector). */
+        .quote-items-container { container-type: inline-size; }
+        @container (max-width: 680px) {
+            [data-testid="quote-items-mobile"] { display: block; }
+            [data-testid="quote-items-desktop"] { display: none; }
+        }
+        /* Pricing controls: usable hit areas and persistent keyboard focus. */
+        .quote-vat-select { min-height: 36px; max-width: 100%; padding: 6px 8px; border: 1px solid #94a3b8; border-radius: 8px; background: #fff; color: #334155; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .quote-margin-edit { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 32px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; white-space: normal; }
+        .quote-margin-edit:hover { background: #eff6ff; border-color: #2563eb; }
+        .quote-vat-select:focus-visible, .quote-margin-edit:focus-visible { outline: 2px solid #005fcc; outline-offset: 2px; }
+        @media (max-width: 767px) {
+            .quote-vat-select, .quote-margin-edit { min-height: 44px; }
+            .quote-vat-control > div { flex-wrap: wrap; }
+            .quote-mobile-metrics > div { overflow-wrap: anywhere; }
+            .quote-mobile-metrics > div:last-child { grid-column: 1 / -1; justify-content: space-between; }
+            .quote-totals-bascule { min-width: 44px; min-height: 44px; }
+        }
+        .clear-totals-bar { padding-bottom: calc(var(--quote-totals-height, 144px) + 6rem); }
         @media (min-width: 768px) {
-            .clear-totals-bar { padding-bottom: 6rem; }
+            .clear-totals-bar { padding-bottom: calc(var(--quote-totals-height, 72px) + 1.5rem); }
         }
 
         /* PWA MOBILE — cette couche ne s'applique qu'aux écrans de téléphone.
@@ -1201,18 +1219,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/payment-data-safety.js?v=d3a7b1b6cf"></script>
-    <script src="js/catalog-persistence.js?v=d3a7b1b6cf"></script>
+    <script src="js/payment-data-safety.js?v=e6ad4d65a5"></script>
+    <script src="js/catalog-persistence.js?v=e6ad4d65a5"></script>
     <script src="js/tenant-persistence.js?v=000ddd755e"></script>
-    <script src="js/finance-core.js?v=d3a7b1b6cf"></script>
-    <script src="js/quote-import.js?v=d3a7b1b6cf"></script>
-    <script src="js/project-profitability.js?v=d3a7b1b6cf"></script>
-    <script src="js/calc-engine.js?v=d3a7b1b6cf"></script>
-    <script src="js/utils.js?v=d3a7b1b6cf"></script>
-    <script src="js/quote-templates.js?v=d3a7b1b6cf"></script>
-    <script src="js/saspay-service.js?v=d3a7b1b6cf"></script>
-    <script src="js/subscription-service.js?v=d3a7b1b6cf"></script>
-    <script src="app.compiled.js?v=d3a7b1b6cf"></script>
+    <script src="js/finance-core.js?v=e6ad4d65a5"></script>
+    <script src="js/quote-import.js?v=e6ad4d65a5"></script>
+    <script src="js/project-profitability.js?v=e6ad4d65a5"></script>
+    <script src="js/calc-engine.js?v=e6ad4d65a5"></script>
+    <script src="js/utils.js?v=e6ad4d65a5"></script>
+    <script src="js/quote-templates.js?v=e6ad4d65a5"></script>
+    <script src="js/saspay-service.js?v=e6ad4d65a5"></script>
+    <script src="js/subscription-service.js?v=e6ad4d65a5"></script>
+    <script src="app.compiled.js?v=e6ad4d65a5"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
