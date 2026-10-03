@@ -308,3 +308,39 @@ occupe 345 px et la zone défilante n'a que 18 px visibles.
   correction proposée, dans `UX_AUDIT.md` § Défauts restants.
 - Matrice finale des 220 contrôles : **119 PASSÉ, 43 ÉCHEC, 30 BLOQUÉ,
   25 NON APPLICABLE, 3 NON TESTÉ**.
+
+## Lot 7 — Les deux défauts prioritaires (2026-10-03)
+
+| Défaut | Cause | Correction | Retest (banc lot 6) |
+|---|---|---|---|
+| **Signature impossible sous 1024 px** (C119/C130) | « Signer » et « Partager » avaient le niveau d'empilement de la fiche devis mobile (z-140), montée APRÈS elles : la fenêtre s'ouvrait sous la fiche | fenêtres passées à z-[145] | 390×844 : la toile est l'élément au premier plan, un tracé au doigt active « Valider & Signer » ; **témoin** : ramenée à z-140, la toile est recouverte |
+| **Faux succès quand le stockage est plein** (C152, UX-P1-06) | l'enregistrement local annonçait « Devis enregistré en local » sans lire le résultat de l'écriture, et l'atelier effaçait « Modifications non enregistrées » | `updateSavedQuotes` renvoie le résultat ; en cas d'échec : liste remise à son état réel, bouton en erreur, message « NON enregistré », brouillon de secours conservé, l'atelier reste « non enregistré » | écriture de `savedQuotes` refusée : aucun « enregistré », échec annoncé, rien d'écrit ; quitter pose la question et « Enregistrer » ne laisse pas partir ; place retrouvée → enregistré et annoncé |
+
+**Relecture adversariale des deux corrections** (un relecteur par
+correction, chaque constat soumis à réfutation — 10 constats, tous
+confirmés). Ce qui relevait des deux corrections a été corrigé et testé :
+
+| Constat | Nature | Correction | Retest |
+|---|---|---|---|
+| La notification (z-140) passait SOUS « Signer » / « Partager » relevées à z-145 : « Lien copié » illisible | **régression** de la correction 1 | notification à z-[230], au-dessus de toutes les fenêtres (elle ne capte aucun clic) | « Partager » → « Copier » : notification 230 > fenêtre 145 |
+| L'état « fenêtre de signature ouverte » survivait à la fermeture du devis : elle ressurgissait sur le devis suivant (rendu visible par la correction 1) | effet de bord | état remis à zéro quand le devis affiché change | Signer → Retour → rouvrir : pas de fenêtre |
+| Téléphone en paysage ou petit écran : la carte dépassait l'écran, « Valider » hors d'atteinte | correction 1 incomplète | carte défilante (`max-h` + défilement), idem « Partager » | 844×390 : « Valider & Signer » et « Annuler » atteignables |
+| « Enregistrer d'abord » (avant de remplacer le devis par un vierge ou un modèle) ignorait l'échec : le devis était remplacé sans avoir été sauvé | **P1**, trou de la correction 2 | l'action n'a lieu que si l'enregistrement n'est pas refusé | stockage plein → « Initialiser le Devis Vierge » → « Enregistrer d'abord » : le devis reste |
+| Après un échec, un atelier non marqué « modifié » restait « Enregistré localement » | correction 2 incomplète | l'échec force « non enregistré » | couvert par le cas ci-dessus |
+| Même faux succès pour un client, une duplication, une révision, une signature | correction 2 incomplète | en démonstration, aucun succès n'est annoncé dans le geste où une écriture locale vient d'être refusée : l'échec est dit à la place | liste des clients non inscriptible → créer un client : pas de « Fiche client créée ! » |
+
+Limite assumée de ce dernier point : la fenêtre se ferme et l'élément
+reste visible en mémoire jusqu'au rechargement ; seul le message est
+véridique. Les quatre défauts antérieurs relevés au passage (confirmations
+et fenêtres sous la fiche devis mobile, « Voir la facture », échec serveur
+en mode connecté) sont consignés dans `UX_AUDIT.md` § Défauts restants.
+
+### Vérification (build JS `d0b6781e24`)
+
+- Bancs `tests/ux` : **81/81** (lot 6 : 27/27). `npm run test:audit` vert.
+- Suite complète `npm test` : **539/627, 26/58 suites, 7/7 étalons —
+  identique à `main`** (0 échec nouveau, 0 disparu, comparaison nominative).
+- Matrice : **119 PASSÉ, 41 ÉCHEC, 32 BLOQUÉ, 25 NON APPLICABLE, 3 NON
+  TESTÉ** (C119 et C152 passent d'ÉCHEC à BLOQUÉ : défaut corrigé, cas de
+  la sonde non rejoués).
+

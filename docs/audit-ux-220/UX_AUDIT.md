@@ -113,7 +113,7 @@ listés dans le journal.
 | UX-P1-03 | Import « Remplacer tout » : matières des ouvrages supprimées sans confirmation (C165/C166) | DF | P1 | corrigé |
 | UX-P1-04 | Première visite : rechargement en pleine saisie (C143) | DF | P1 | corrigé |
 | UX-P1-05 | Démo : une « nouvelle entreprise » montre les données de la précédente (C107) | DF | P1 | corrigé (création refusée en démo, expliquée) |
-| UX-P1-06 | Stockage plein : écriture perdue sans avertissement (G8 S4) | DF | P1 | **partiellement corrigé** : l'avertissement s'affiche, mais le message de succès « enregistré en local » aussi (voir § Défauts restants) |
+| UX-P1-06 | Stockage plein : écriture perdue sans avertissement (G8 S4) | DF | P1 | corrigé en deux temps : avertissement (lot 4), puis plus aucun faux succès (lot 7, retesté) |
 | UX-P1-07 | Le logo « Tableau de bord » ouvre l'écran Factures (C018) | DF | P1 | corrigé |
 | UX-P2-13 | Dates jj/mm/aaaa lues comme mm/jj : « Ce mois » vide, brouillons mal classés (C082/C075) | DF | P2 | corrigé |
 | UX-P2-14 | Indicateurs du tableau de bord inexacts ou muets (à suivre, 0 %, période, reste à encaisser, retards) (C081–C086) | DF/UX | P2 | corrigé |
@@ -166,7 +166,7 @@ listés dans le journal.
 | UX-DEC-01 350 ms | — | décision : conservé (R5), en-tête du test corrigé |
 | UX-P1-01 … UX-P3-07 | — | voir § Constats du lot 4 |
 
-## Retest final (2026-10-03, build JS `510af75a66`)
+## Retest final (2026-10-03, build JS `d0b6781e24`)
 
 Trois relectures adversariales du diff et un rejeu des sondes ont suivi les
 corrections. Détail des causes et des corrections : `UX_FIX_LOG.md` § Lots 5
@@ -195,7 +195,7 @@ et 6. **Aucun déploiement** ; mode connecté **non testé** (compte réel requi
 |---|---|---|
 | Sondes G1–G9 avant correction | 926 | 571 ✓ / 355 ✗ |
 | Sondes G1–G9 après correction (build `27dc426429`) | 827 | 622 ✓ / 205 ✗ — 99 cas de moins : sections de sondes **interrompues** par des libellés que les corrections ont renommés |
-| Bancs `tests/ux` (build final) | 71 | **71 ✓** (6, 20, 17, 11, 7, 6, 4) |
+| Bancs `tests/ux` (build final) | 81 | **81 ✓** (6, 20, 27, 11, 7, 6, 4) |
 | `npm run test:audit` (build final) | lots P0–7 | vert |
 | Suite complète `npm test` (build final) | 627 | 539 ✓ — 26/58 suites, 7/7 étalons : **identique à `main`**, 0 échec nouveau (les 88 échecs sont la dette déjà présente sur `main`) |
 
@@ -205,8 +205,8 @@ PASSÉ que si tous ses cas joués passent et qu'aucun n'est resté non joué :
 | Statut | Contrôles |
 |---|---|
 | PASSÉ | **119** (dont 59 en échec avant correction, rejoués verts) |
-| ÉCHEC | **43** (dont 20 partiellement corrigés ; écarts restants ci-dessous) |
-| BLOQUÉ | **30** — non rejoués : échecs imputés à la sonde (sélecteur ou lecture périmés), comportement relu dans le code, pas démontré |
+| ÉCHEC | **41** (dont 20 partiellement corrigés ; écarts restants ci-dessous) |
+| BLOQUÉ | **32** — non rejoués : échecs imputés à la sonde (sélecteur ou lecture périmés), comportement relu dans le code, pas démontré |
 | NON APPLICABLE | 25 |
 | NON TESTÉ | 3 (C153, C179 : mode connecté ; C213 : autres moteurs) |
 
@@ -218,8 +218,8 @@ Aucun contrôle supplémentaire n'a été ajouté aux 220.
 |---|---|---|
 | 1. Découverte sans explication | **non validé** — hypothèses UX-HYP-01/02 | étude utilisateur requise |
 | 2. Clavier seul | **partiel** — fenêtres, Échap, onglets, raccourcis validés ; focus perdu après ajout d'ouvrage et « Confirmer mes quantités » (C124) | test technique |
-| 3. Petit écran | **partiel** — premier ouvrage corrigé à 390 et 360 px ; **signature impossible sous 1024 px** ; 320 px ouvert | test technique (émulation) |
-| 4. Réseau interrompu | **partiel** — hors ligne : client et devis conservés ; stockage plein : faux succès restant | test technique |
+| 3. Petit écran | **partiel** — premier ouvrage corrigé à 390 et 360 px ; signature au doigt validée à 390 px et en paysage (lot 7) ; restent : confirmations « Supprimer » / « Dupliquer » sous la fiche devis, 320 px | test technique (émulation) |
+| 4. Réseau interrompu | **partiel** — stockage plein : plus de faux succès, le devis reste « non enregistré » (lot 7, retesté) ; hors ligne : conservation relue, non rejouée | test technique |
 | 5. Double activation | **validé** — devis, brouillon de facture, émission : une seule création | test technique |
 | 6. Retour arrière | **partiel** — validé à 1440 px (Retour sur chiffrage non enregistré, Facturer → Précédent → Suivant) ; à 390 px Retour depuis une fiche devis mène au tableau de bord (C017) | test technique |
 | 7. Formulaire erroné | **validé** — erreurs désignées, saisie conservée (C061, C063, C065) | test technique |
@@ -236,11 +236,12 @@ Aucun contrôle supplémentaire n'a été ajouté aux 220.
   un compte réel, factures recopiées vers la démo, page blanche à
   l'impression d'un devis) + 2 reproduits au rejeu (bouton « Ajouter mon
   premier ouvrage » recouvert sur téléphone, fiche devis restée ouverte en
-  coulisse). Classement de découverte : **1er** (au moins 20). Les 47
+  coulisse). Classement de découverte : **1er** (au moins 20). Les 49
   constats « restants » ci-dessous sont **relevés**, pas tous confirmés :
-  un seul relecteur, 2 contre-vérifiés.
-- **Corrections validées par un test rejoué** : 37 défauts distincts
-  (59 contrôles repassés au vert ; bancs `tests/ux` 71/71).
+  45 par un seul relecteur (2 contre-vérifiés), 4 contre-vérifiés issus de
+  la relecture du lot 7.
+- **Corrections validées par un test rejoué** : 39 défauts distincts
+  (59 contrôles repassés au vert ; bancs `tests/ux` 81/81).
   Classement des corrections : **1er** (au moins 20). Les quatre
   régressions sont corrigées et couvertes par un banc.
 - **Corrigé mais non rejoué** : les contrôles BLOQUÉ de la matrice dont le
@@ -256,7 +257,7 @@ Aucun contrôle supplémentaire n'a été ajouté aux 220.
 - **Moteurs et appareils** : Chromium émulé seulement — ni Firefox, ni
   Safari/WebKit, ni appareil physique, ni lecteur d'écran réel (C213, C214,
   seconde moitié de C120).
-- **30 contrôles BLOQUÉ** : sondes à réparer avant tout nouveau rejeu
+- **32 contrôles BLOQUÉ** : sondes à réparer avant tout nouveau rejeu
   (sélecteurs « Convertir en facture », « Mon Profil & Compte », « Afficher
   le devis… », lecture des annonces par nœuds ajoutés alors que les régions
   d'annonce sont désormais permanentes).
@@ -273,8 +274,6 @@ correction proposée. À traiter par petits lots, test à l'appui.
 
 | Prio | Contrôle | Constat | Correction proposée | Effort | Contre-vérifié |
 |---|---|---|---|---|---|
-| P1 | C119 | Sous 1024 px, la fenêtre « Signature électronique du devis » (et « Partager ») s'ouvre SOUS la fiche devis : signer au doigt est impossible (aucun trait à 390 px). | Passer QuoteSignatureModal (11703) et QuoteShareModal (11822) de z-[140] à z-[145] — 2 lignes — ou déplacer la ligne 33396 avant 33369. Le filet de focus (20514-20516)… | S | non |
-| P1 | C152 | Stockage plein : l'avertissement s'affiche bien (lot 4), mais l'application annonce AUSSI « Devis enregistré en local » — faux succès. | Faire renvoyer à updateSavedQuotes et updateClients le résultat de LS.set ; dans les deux gestionnaires (index_jsx.js:22248 et :31621), si false :… | M | non |
 | P2 | C017 | À 390 px, le Retour du navigateur depuis une fiche devis mène au tableau de bord (#dashboard) au lieu de refermer la fiche sur la liste filtrée. | index_jsx.js:28869-28872 : remplacer le corps par `const selectQuote = () => selectSavedQuote(sq);`, comme les trois autres listes (selectSavedQuote fait déjà… | S | non |
 | P2 | C018 | À 390, 360 et 320 px, aucun moyen de « changer d'entreprise » n'est visible : ni sélecteur dans la barre du haut, ni entrée dans le menu du profil ou le tiroir « Menu ». | index_jsx.js:31220 : retirer la condition `userOrganizations.length > 1 &&` (la section montre alors l'entreprise active, cochée) et y ajouter un bouton « Nouvelle… | S | non |
 | P2 | C029 | #chiffrage vide à 320×568 : « Ajouter mon premier ouvrage » reste recouvert (corrigé à 390 et 360 px) — l'en-tête occupe 345 px, la zone défilante n'a que 18 px visibles. | Application : rendre l'appel à l'intérieur de la zone dégagée, par exemple une prop `pied` de LotNavigator rendue à la fin du `<nav className="… clear-totals-bar">`… | S | non |
@@ -321,7 +320,15 @@ correction proposée. À traiter par petits lots, test à l'appui.
 | P3 | — | Hors lignes en échec, relevé dans la capture de preuve C039-rail-768-focus-parametres.png : le panneau « Accès rapide » de la recherche reste ouvert alors que le focus clavier est parti sur l'engrenage du rail. | Application : sur le conteneur (index_jsx.js:11078), ajouter `onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsOpen(false); }}`. 1 à 2 lignes. | S | non |
 | P3 | — | Constat incident, qu'aucune ligne en échec n'asserte : le détail des lignes C026 montre l'action d'écran rendue en gris neutre (texte rgb(28,43,51), bord rgb(228,233,238)) alors que le code demande l'accent de marque, et le… | 1) index_jsx.js:8046-8050 : faire porter `lg:hidden` par un conteneur (`<div className="lg:hidden">…</div>`) autour du bouton, comme en :3611 et :7062. 2) index.html… | S | non |
 
-Deux priorités ressortent : **la signature au doigt est impossible sous
-1024 px** (la fenêtre s'ouvre sous la fiche devis — deux lignes de
-`z-index`) et **le faux succès quand le stockage est plein**.
+Les deux priorités de ce tableau — **signature impossible sous 1024 px**
+et **faux succès quand le stockage est plein** — ont été corrigées et
+retestées au lot 7 (`UX_FIX_LOG.md`). La relecture de ces deux corrections
+a relevé, dans le même voisinage, quatre défauts antérieurs non traités :
+
+| Prio | Contrôle | Constat | Correction proposée | Effort | Contre-vérifié |
+|---|---|---|---|---|---|
+| P2 | C119 | Téléphone : les confirmations « Supprimer » et « Dupliquer » ouvertes depuis la fiche devis s'affichent SOUS elle (dialogue z-130, fiche z-140) — rien ne se passe à l'écran, le dialogue ressurgit plus tard. | Passer le dialogue de confirmation au-dessus de la fiche et des fenêtres qui l'ouvrent (au moins z-[150]). | S | oui |
+| P2 | C119 | Téléphone : « Nouveau client » et « Nouveau chantier » ouverts depuis « Modifier client / chantier » de la fiche devis restent SOUS la fiche (z-100). | z-[100] → z-[145] sur ces deux fenêtres. | S | oui |
+| P2 | C017 | Téléphone : « Voir la facture » depuis la fiche devis change l'adresse et le titre, mais la fiche reste par-dessus. | Refermer la fiche (`setViewingSavedQuote(null)`) dans les deux branches « brouillon existant » et « entièrement facturé » de `convertirEnFacture`. | S | oui |
+| P2 | C153 | Mode connecté : après un échec serveur de l'enregistrement, l'atelier affiche « Enregistré à … » et la garde de sortie laisse partir (seuls la notification et le bouton « Réessayer » le disent). | Faire renvoyer `false` par `onSaveQuote` sur ses sorties d'erreur et rétablir « non enregistré ». **Non testable sans compte.** | S | oui |
 

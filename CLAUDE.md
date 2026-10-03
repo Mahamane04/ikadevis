@@ -269,6 +269,8 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Une notification courte a produit un FAUX VERT** *(2026-10-03)* | `test_pdf_zone_visible` lisait les messages à 6 s ; la notification d'échec disparaissait à 3,5 s → « aucun message » → vert, alors que le montage masquait la seule zone imprimable. Un test qui conclut à l'absence d'erreur doit attendre un **succès** explicite, pas un silence. |
 | **`LS.set` peut échouer (stockage plein)** *(2026-10-03)* | `TenantPersistence.set` renvoie `false` sans lever. `LS.set` émet désormais `ikadevis:ecriture-locale-impossible`, que l'App transforme en message. Ne pas réintroduire d'écriture locale qui ignore ce retour. |
 | **L'impression relit les règles responsives à la largeur de la FEUILLE** *(2026-10-03)* | Chrome imprime à ~794 px (A4) : le panneau de bureau d'un devis (`hidden lg:flex`) y disparaît et c'est sa copie mobile (`lg:hidden`) qui sort. Ne jamais « désigner » à l'impression la zone vue à l'écran (page blanche) : `beforeprint` **écarte** les autres documents (`data-impression-exclue`) et garde les copies jumelles (même `data-document-cle`). Tester l'impression avec `setViewport(794×1123)` + `emulateMediaType('print')`, jamais à 1440 px seulement. |
+| **La fiche devis mobile est une fenêtre plein écran en z-140, montée en fin d'App** *(2026-10-03)* | Sous 1024 px, toute fenêtre ouverte DEPUIS cette fiche doit avoir un niveau supérieur (signature et partage : z-145), sinon elle s'ouvre dessous, invisible. La notification est en z-230, au-dessus de tout. Restent dessous : le dialogue de confirmation (z-130) et « Nouveau client / chantier » (z-100). |
+| **Une écriture locale refusée ne doit jamais être suivie d'un succès** *(2026-10-03)* | `LS.set` renvoie `false` et émet `ikadevis:ecriture-locale-impossible` `{cle}` de façon SYNCHRONE. L'enregistrement d'un devis lit ce résultat (pas de « enregistré », atelier laissé « non enregistré »). En démonstration, `showToast` remplace tout succès annoncé dans le même geste par l'échec. Toute nouvelle écriture qui annonce un succès doit lire le booléen. |
 
 ---
 
@@ -387,11 +389,12 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   envoyées » en lot, import « Remplacer tout », dates jj/mm/aaaa,
   accessibilité clavier et lecteur d'écran, documents de facture,
   impression, Retour du navigateur sur un chiffrage non enregistré.
-  Matrice : **119 PASSÉ, 43 ÉCHEC, 30 BLOQUÉ, 25 N/A, 3 non testés**.
-  **Non déployé.** Reste ouvert (`UX_AUDIT.md` § Défauts restants, 47
-  lignes avec correction proposée) : **signature impossible sous 1024 px**
-  (fenêtre sous la fiche devis), faux succès quand le stockage est plein,
-  320 px, focus perdu après ajout d'ouvrage… **Les sondes G1–G9 sont à
+  Signature au doigt sous 1024 px et faux succès quand le stockage est plein
+  corrigés (lot 7). Matrice : **119 PASSÉ, 41 ÉCHEC, 32 BLOQUÉ, 25 N/A,
+  3 non testés**. **Non déployé.** Reste ouvert (`UX_AUDIT.md` § Défauts
+  restants, 49 lignes avec correction proposée) : confirmations « Supprimer »
+  / « Dupliquer » et fenêtres « Nouveau client / chantier » sous la fiche
+  devis mobile, 320 px, focus perdu après ajout d'ouvrage… **Les sondes G1–G9 sont à
   réparer avant tout rejeu** : plusieurs sélecteurs sont périmés (libellés
   renommés) et leur capture des annonces guette des nœuds AJOUTÉS alors que
   les régions d'annonce sont permanentes. Décisions : `UX_REDESIGN_PLAN.md`

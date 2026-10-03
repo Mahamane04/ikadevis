@@ -7812,11 +7812,22 @@ function QuoteWorkspace({
     const handleSaveQuoteAction = () => {
         if (!confirmPendingQuantities()) return 'bloque';
         setClientManquant(false);
+        // Renvoie `false` si le devis n'a pas pu être écrit sur l'appareil.
+        // En mode local, l'écriture a lieu PENDANT l'appel à onSaveQuote ;
+        // LS.set signale son échec (stockage plein) par un évènement qui
+        // nomme la ressource. L'indicateur « non enregistré » et l'heure du
+        // dernier enregistrement ne changent alors pas : sinon quitter le
+        // chiffrage ne poserait plus de question et le devis serait perdu.
         const doSave = () => {
             const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
-            onSaveQuote(savedQ);
+            let nonEcrit = false;
+            const noterEchec = (e) => { if (e && e.detail && e.detail.cle === 'savedQuotes') nonEcrit = true; };
+            window.addEventListener('ikadevis:ecriture-locale-impossible', noterEchec);
+            try { onSaveQuote(savedQ); } finally { window.removeEventListener('ikadevis:ecriture-locale-impossible', noterEchec); }
+            if (nonEcrit) { setHasUnsavedChanges(true); return false; }
             setHasUnsavedChanges(false);
             setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            return true;
         };
 
         // Fix "doublon à chaque Enregistrer" (2026-08-30) — demandé par
@@ -7836,8 +7847,10 @@ function QuoteWorkspace({
             // reprend sa navigation s'il le souhaite.
             return 'confirmation';
         }
-        doSave();
-        return 'enregistre';
+        // Écriture impossible : on ne dit pas « enregistré », la garde de
+        // sortie du chiffrage ne laisse donc pas partir (même issue qu'un
+        // refus de validation).
+        return doSave() ? 'enregistre' : 'bloque';
     };
 
     const handlePreviewQuoteAction = () => {
@@ -7861,7 +7874,10 @@ function QuoteWorkspace({
             message: `${ref} contient des modifications qui ne sont pas enregistrées.\nElles seront perdues si vous continuez.`,
             secondaryLabel: "Enregistrer d'abord",
             onSecondary: () => {
-                handleSaveQuoteAction();
+                // 'bloque' : rien n'a été enregistré (quantités à confirmer,
+                // ou écriture refusée par l'appareil — stockage plein). On ne
+                // remplace pas le devis : il serait perdu sans avoir été sauvé.
+                if (handleSaveQuoteAction() === 'bloque') return;
                 action();
             },
             confirmLabel: 'Continuer sans enregistrer',
@@ -11708,8 +11724,13 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[140] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up">
+        /* Audit UX 220 (C119/C130) — z-[145], au-dessus de la fiche devis
+           mobile (z-[140], montée APRÈS cette fenêtre) : sous 1024 px la
+           signature s'ouvrait SOUS la fiche, donc invisible et intouchable.
+           La carte défile (max-h) : en paysage ou sur petit téléphone elle
+           dépassait l'écran et « Valider » était hors d'atteinte. */
+        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto border border-neutral-200 animate-scale-up">
                 <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
                     <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base">
@@ -11827,8 +11848,9 @@ Cordialement.`;
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[140] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-neutral-200 animate-scale-up">
+        /* z-[145] : même raison que la fenêtre de signature (C119). */
+        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto border border-neutral-200 animate-scale-up">
                 <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
                     <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
@@ -17721,6 +17743,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    // Ces deux fenêtres appartiennent au devis affiché. Fermer ou changer de
+    // devis sans les avoir refermées (Retour du téléphone) laissait l'état à
+    // « ouverte » : la fenêtre ressurgissait, sans avoir été demandée, sur le
+    // devis ouvert ensuite.
+    useEffect(() => {
+        setIsSignatureModalOpen(false);
+        setIsShareModalOpen(false);
+    }, [viewingSavedQuote?.id]);
     const [isQuoteDetailMoreOpen, setIsQuoteDetailMoreOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -19591,11 +19621,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (!isBootstrapping) stageCatalogChange('recipes', newVal, mapRecipeToDb);
     };
 
+    // Renvoie `false` quand l'écriture sur l'appareil a échoué (stockage
+    // plein) : l'appelant qui annonce un enregistrement doit le vérifier.
     const updateSavedQuotes = useCallback((newVal) => {
         setSavedQuotes(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('savedQuotes', newVal, sbUser.id);
+            return LS.set('savedQuotes', newVal, sbUser.id) !== false;
         }
+        return true;
     }, [isReadOnlyDueToDowngrade, sbUser]);
 
     // P0.12 (2026-08-17) — Rattrapage : relie les devis déjà enregistrés
@@ -19747,8 +19780,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Audit UX 220 (C154) — écriture locale refusée (stockage plein, mode
     // privé strict) : on prévient, une fois par minute au plus.
     const dernierAvisStockage = useRef(0);
+    // Vrai pendant le geste (la tâche synchrone) où une écriture locale a
+    // échoué en démonstration — lu par showToast.
+    const echecEcritureGesteRef = useRef(false);
     useEffect(() => {
         const surEchec = () => {
+            if (estModeDemo) {
+                echecEcritureGesteRef.current = true;
+                setTimeout(() => { echecEcritureGesteRef.current = false; }, 0);
+            }
             const maintenant = Date.now();
             if (maintenant - dernierAvisStockage.current < 60000) return;
             dernierAvisStockage.current = maintenant;
@@ -19810,6 +19850,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // message long reste affiché assez longtemps pour être lu.
     const toastSeqRef = useRef(0);
     const showToast = (message, type = 'success') => {
+        // Audit UX 220 (C152) — en démonstration tout vit sur l'appareil. Si
+        // une écriture vient d'y être refusée (stockage plein) pendant le
+        // geste en cours, le succès que ce geste allait annoncer serait
+        // faux (« Fiche client créée ! », « Devis dupliqué »…) : on dit
+        // l'échec à la place.
+        if (type === 'success' && echecEcritureGesteRef.current) {
+            message = 'Stockage de l’appareil plein : cette action n’a pas pu être enregistrée sur cet appareil. Supprimez d’anciens devis d’essai ou créez un compte.';
+            type = 'error';
+        }
         const id = ++toastSeqRef.current;
         setToast({ message, type, id });
         const duree = Math.min(9000, Math.max(3500, String(message || '').length * 55));
@@ -22255,7 +22304,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             // devis n'existe réellement.
                             const isNewLocalQuote = !savedQuotes.some(q => q.id === savedQ.id);
                             const updatedQuotes = [savedQ, ...savedQuotes.filter(q => q.id !== savedQ.id)];
-                            updateSavedQuotes(updatedQuotes);
+                            // Audit UX 220 (C152, UX-P1-06) — stockage de l'appareil
+                            // plein : l'écriture échouait, et l'on annonçait quand même
+                            // « Devis enregistré en local ». Le devis n'est PAS sur
+                            // l'appareil : la liste reprend son état réel, aucun succès
+                            // n'est annoncé, le brouillon de secours est conservé, et
+                            // l'atelier garde « Modifications non enregistrées » (il
+                            // détecte le même échec, voir handleSaveQuoteAction).
+                            if (!updateSavedQuotes(updatedQuotes)) {
+                                setSavedQuotes(savedQuotes);
+                                setSaveQuoteStatus('error');
+                                setSaveQuoteError("Stockage de l'appareil plein : ce devis n'est pas enregistré.");
+                                showToast(`Devis ${savedQ.number} NON enregistré : le stockage de cet appareil est plein. Supprimez d'anciens devis, ou téléchargez le PDF avant de quitter.`, 'error');
+                                return;
+                            }
                             if (isNewLocalQuote) updateNextQuoteSeq(nextQuoteSeq + 1);
                             // Le devis est en sécurité : le brouillon de secours n'a plus
                             // de raison d'être, et le laisser ferait proposer une reprise
@@ -34903,7 +34965,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                    rendre traversante suffit — ce bloc ne contient aucun élément
                    interactif, seulement une icône et un texte, donc rien à
                    réactiver en `pointer-events-auto`. */
-                <div key={toast.id} aria-hidden="true" data-toast={toast.type || 'success'} className="pointer-events-none fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
+                <div key={toast.id} aria-hidden="true" data-toast={toast.type || 'success'} className="pointer-events-none fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[230] max-w-sm border border-neutral-700 animate-slide-up">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${pastille}`}>
                         <i className={`fa-solid ${icone}`}></i>
                     </div>

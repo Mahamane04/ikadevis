@@ -13,7 +13,7 @@ import puppeteer from 'puppeteer';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { startServer } from '../../scratch/lib/server.mjs';
-import { enterGuestMode, addCatalogItemBySearch } from '../../scratch/lib/harness.mjs';
+import { enterGuestMode, addCatalogItemBySearch, setFirstOuvrageSurface } from '../../scratch/lib/harness.mjs';
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const CONFIG_FACTICE = await readFile(new URL('../../config.example.js', import.meta.url), 'utf8');
@@ -288,6 +288,228 @@ export async function run() {
             ok(`Téléphone ${largeur}×${hauteur} : « Ajouter mon premier ouvrage » n'est pas recouvert, l'appui ouvre la bibliothèque — ${JSON.stringify({ ...cible, bibliotheque })}`,
                 cible && cible.libre && bibliotheque);
             await mobile.close();
+        }
+
+        // ── Signature sur téléphone (C119/C130). Sous 1024 px la fenêtre
+        //    « Signer » s'ouvrait SOUS la fiche devis : toile invisible,
+        //    aucun trait possible. On vérifie que la toile est bien l'élément
+        //    au premier plan, puis qu'un tracé au doigt active « Valider ».
+        {
+            const tel = await navigateur.newPage();
+            await tel.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+            await preparer(tel, url);
+            await tel.evaluate(() => localStorage.clear());
+            await tel.reload({ waitUntil: 'networkidle0' });
+            await cliquer(tel, '^Essayer sans compte$');
+            await attendre(2500);
+            const idDemo = await tel.evaluate(() => (JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]')[0] || {}).id);
+            await tel.evaluate((i) => { location.hash = `#devis/${i}`; }, idDemo);
+            await attendre(1800);
+            const direct = await tel.evaluate(() => {
+                const b = [...document.querySelectorAll('button[aria-label="Signer le devis"]')].find((x) => x.getBoundingClientRect().width > 0);
+                b?.click();
+                return Boolean(b);
+            });
+            if (!direct) {
+                await cliquer(tel, '^Plus d’actions sur le devis$');
+                await attendre(400);
+                await tel.evaluate(() => [...document.querySelectorAll('.saved-quote-mobile-more-menu button')].find((x) => /Signer le devis/.test(x.textContent))?.click());
+            }
+            await attendre(900);
+            const premierPlan = () => tel.evaluate(() => {
+                const toile = document.querySelector('canvas[aria-label="Zone de signature manuscrite"]');
+                if (!toile) return null;
+                const r = toile.getBoundingClientRect();
+                const touche = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                return { x: r.left, y: r.top, w: r.width, h: r.height, auDessus: touche === toile, recouvertPar: touche === toile ? null : (touche?.className || touche?.tagName || '').toString().slice(0, 50) };
+            });
+            const toile = await premierPlan();
+            let valideActif = null;
+            if (toile && toile.auDessus) {
+                const y = toile.y + toile.h / 2;
+                await tel.touchscreen.touchStart(toile.x + 30, y);
+                for (let i = 1; i <= 10; i++) await tel.touchscreen.touchMove(toile.x + 30 + i * 18, y + (i % 2 ? 18 : -18));
+                await tel.touchscreen.touchEnd();
+                await attendre(300);
+                valideActif = await tel.evaluate(() => [...document.querySelectorAll('button')].find((b) => /Valider & Signer/.test(b.textContent))?.disabled === false);
+            }
+            ok(`Téléphone 390 px : la fenêtre « Signer » est au premier plan et un tracé au doigt active « Valider & Signer » — ${JSON.stringify({ ...toile, valideActif })}`,
+                toile && toile.auDessus && valideActif === true);
+            // Témoin : ramenée au niveau de la fiche devis (l'ancien z-index),
+            // la toile n'est plus l'élément touché.
+            const temoin = await tel.evaluate(() => {
+                const toile = document.querySelector('canvas[aria-label="Zone de signature manuscrite"]');
+                const fenetre = toile?.closest('.fixed.inset-0');
+                if (!fenetre) return null;
+                fenetre.style.zIndex = '140';
+                const r = toile.getBoundingClientRect();
+                const touche = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                fenetre.style.zIndex = '';
+                return touche === toile;
+            });
+            ok(`Témoin : au niveau d'empilement d'avant, la toile est recouverte par la fiche devis — toile touchée=${temoin}`, temoin === false);
+
+            // Retour du téléphone, fenêtre de signature restée ouverte : elle
+            // ne doit pas ressurgir sur le devis ouvert ensuite.
+            await tel.evaluate(() => history.back());
+            await attendre(1200);
+            await tel.evaluate((i) => { location.hash = `#devis/${i}`; }, idDemo);
+            await attendre(1500);
+            const ressurgie = await tel.evaluate(() => Boolean(document.querySelector('canvas[aria-label="Zone de signature manuscrite"]')));
+            ok(`Signature laissée ouverte puis Retour : elle ne ressurgit pas à la réouverture du devis — toile présente=${ressurgie}`, ressurgie === false);
+
+            // Téléphone tenu à l'horizontale : la carte défile, « Valider &
+            // Signer » et « Fermer » restent atteignables.
+            await tel.setViewport({ width: 844, height: 390, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+            await attendre(600);
+            const rouvre = await tel.evaluate(() => {
+                const b = [...document.querySelectorAll('button[aria-label="Signer le devis"]')].find((x) => x.getBoundingClientRect().width > 0);
+                b?.click();
+                return Boolean(b);
+            });
+            if (!rouvre) {
+                await cliquer(tel, '^Plus d’actions sur le devis$');
+                await attendre(400);
+                await tel.evaluate(() => [...document.querySelectorAll('.saved-quote-mobile-more-menu button')].find((x) => /Signer le devis/.test(x.textContent))?.click());
+            }
+            await attendre(900);
+            const paysage = await tel.evaluate(() => {
+                const atteignable = (b) => {
+                    if (!b) return null;
+                    b.scrollIntoView({ block: 'center' });
+                    const r = b.getBoundingClientRect();
+                    const touche = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                    return r.top >= 0 && r.bottom <= window.innerHeight && !!touche && b.contains(touche);
+                };
+                const fenetre = document.querySelector('canvas[aria-label="Zone de signature manuscrite"]')?.closest('.fixed.inset-0');
+                if (!fenetre) return null;
+                const boutons = [...fenetre.querySelectorAll('button')];
+                return { valider: atteignable(boutons.find((b) => /Valider & Signer/.test(b.textContent))), annuler: atteignable(boutons.find((b) => /^Annuler$/.test(b.textContent.trim()))), hauteur: window.innerHeight };
+            });
+            ok(`Téléphone en paysage (844×390) : « Valider & Signer » et « Annuler » atteignables dans la fenêtre de signature — ${JSON.stringify(paysage)}`,
+                paysage && paysage.valider === true && paysage.annuler === true);
+            await tel.close();
+        }
+
+        // ── Stockage plein (C152, UX-P1-06) : pas de faux « enregistré ».
+        {
+            const pleine = await navigateur.newPage();
+            await pleine.setViewport({ width: 1440, height: 900 });
+            await preparer(pleine, url);
+            await pleine.evaluate(() => localStorage.clear());
+            await pleine.reload({ waitUntil: 'networkidle0' });
+            await enterGuestMode(pleine, { createQuote: false });
+            await attendre(1500);
+            const cli = await pleine.evaluate(() => (JSON.parse(localStorage.getItem('costcalc:guest:clients') || '[]')[0]) || null);
+            await pleine.evaluate((id) => { location.hash = `#clients/${id}`; }, cli?.id);
+            await attendre(1500);
+            await cliquer(pleine, '^Créer Devis pour ');
+            await pleine.waitForFunction(() => document.body.innerText.includes('LOTS DU DEVIS'), { timeout: 10000 });
+            await attendre(600);
+            await addCatalogItemBySearch(pleine, 'Peinture Murale');
+            await setFirstOuvrageSurface(pleine, 25);
+            await attendre(500);
+            await pleine.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Confirmer mes quantités' && b.getBoundingClientRect().width > 0)?.click());
+            await attendre(500);
+            const etat = () => pleine.evaluate(() => ({
+                messages: [...document.querySelectorAll('[role="status"], [role="alert"], [data-toast]')].map((e) => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | '),
+                bouton: [...document.querySelectorAll('[data-etat-enregistrement]')].find((b) => b.getBoundingClientRect().width > 0)?.getAttribute('data-etat-enregistrement'),
+                nonEnregistre: document.body.innerText.includes('Modifications non enregistrées'),
+                stockes: JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]').length,
+                hash: location.hash
+            }));
+            const enregistrer = () => pleine.evaluate(() => [...document.querySelectorAll('[data-etat-enregistrement]')].find((b) => b.getBoundingClientRect().width > 0)?.click());
+            const avant = await etat();
+            // L'appareil refuse désormais d'écrire la liste des devis.
+            await pleine.evaluate(() => {
+                window.__ecrire = Storage.prototype.setItem;
+                Storage.prototype.setItem = function (k, v) {
+                    if (String(k).endsWith(':savedQuotes')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+                    return window.__ecrire.call(this, k, v);
+                };
+            });
+            await enregistrer();
+            await attendre(900);
+            const plein = await etat();
+            ok(`Stockage plein : aucun « enregistré », l'échec est dit, le devis reste « non enregistré » — ${JSON.stringify(plein)}`,
+                !/enregistré en local|mis à jour en local/.test(plein.messages) && /NON enregistré/.test(plein.messages) && /stockage/i.test(plein.messages)
+                && plein.bouton === 'error' && plein.nonEnregistre && plein.stockes === avant.stockes);
+
+            // Quitter le chiffrage : la question est posée ; « Enregistrer »
+            // échoue encore, donc on reste.
+            await cliquer(pleine, '^Clients$', 'aside button');
+            await attendre(700);
+            const question = await pleine.evaluate(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].some((d) => d.getBoundingClientRect().width > 0 && /Enregistrer le devis en cours/.test(d.innerText)));
+            if (question) { await cliquer(pleine, '^Enregistrer$', '[role="dialog"] button, [role="alertdialog"] button'); await attendre(900); }
+            const apresGarde = await etat();
+            ok(`Stockage plein : quitter pose la question, et « Enregistrer » ne laisse pas partir — question=${question} ${JSON.stringify({ hash: apresGarde.hash, nonEnregistre: apresGarde.nonEnregistre })}`,
+                question && apresGarde.hash === '#chiffrage' && apresGarde.nonEnregistre);
+
+            // Remplacer le devis par un devis vierge → « Enregistrer d'abord » :
+            // l'écriture échoue, le devis en cours ne doit PAS être remplacé.
+            await pleine.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.getAttribute('title') === "Ouvrir l'assistant intelligent de création de devis" && b.getBoundingClientRect().width > 0)?.click());
+            await attendre(900);
+            await cliquer(pleine, '^Initialiser le Devis Vierge$');
+            await attendre(700);
+            const gardeRemplacement = await pleine.evaluate(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].some((d) => d.getBoundingClientRect().width > 0 && /Modifications non enregistrées/.test(d.innerText)));
+            if (gardeRemplacement) { await cliquer(pleine, "^Enregistrer d'abord$", '[role="dialog"] button, [role="alertdialog"] button'); await attendre(900); }
+            const apresRemplacement = await pleine.evaluate(() => ({
+                // L'inspecteur de l'ouvrage est ouvert (la liste du lot est
+                // repliée) : l'ouvrage se lit dans l'atelier, et un devis
+                // vierge n'en contiendrait aucun.
+                ouvrageGarde: document.body.innerText.includes('Peinture Murale'),
+                vierge: /Ajouter mon premier ouvrage|Aucun ouvrage/.test(document.body.innerText),
+                messages: [...document.querySelectorAll('[role="status"], [role="alert"]')].map((e) => e.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | ')
+            }));
+            ok(`Stockage plein : « Enregistrer d'abord » ne remplace pas le devis resté non enregistré — garde=${gardeRemplacement} ${JSON.stringify(apresRemplacement)}`,
+                gardeRemplacement && apresRemplacement.ouvrageGarde && !apresRemplacement.vierge && !/vierge initialisé/.test(apresRemplacement.messages));
+
+            // De la place est retrouvée : l'enregistrement aboutit et le dit.
+            await pleine.evaluate(() => { Storage.prototype.setItem = window.__ecrire; });
+            await enregistrer();
+            await attendre(900);
+            const libre = await etat();
+            ok(`Place retrouvée : le devis est enregistré et annoncé — ${JSON.stringify(libre)}`,
+                /enregistré en local/.test(libre.messages) && !libre.nonEnregistre && libre.stockes === avant.stockes + 1);
+
+            // Même faux succès pour un client : la liste des clients ne peut
+            // plus être écrite — « Fiche client créée ! » ne doit pas sortir.
+            await pleine.evaluate(() => {
+                Storage.prototype.setItem = function (k, v) {
+                    if (String(k).endsWith(':clients')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+                    return window.__ecrire.call(this, k, v);
+                };
+                location.hash = '#clients';
+            });
+            await attendre(1400);
+            await cliquer(pleine, '^Créer un nouveau client$');
+            await attendre(700);
+            await pleine.type('#newClientForm-name', 'Client stockage plein');
+            await cliquer(pleine, '^Créer le client$');
+            await attendre(900);
+            const msgClient = await pleine.evaluate(() => [...document.querySelectorAll('[role="status"], [role="alert"]')].map((e) => e.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | '));
+            ok(`Stockage plein : créer un client n'annonce pas « Fiche client créée ! » — « ${msgClient} »`,
+                !/Fiche client créée/.test(msgClient) && /[Ss]tockage/.test(msgClient));
+            await pleine.evaluate(() => { Storage.prototype.setItem = window.__ecrire; });
+
+            // Partage : « Lien copié » reste lisible AU-DESSUS de la fenêtre
+            // (la notification passait sous son voile une fois celle-ci
+            // relevée au-dessus de la fiche devis).
+            const idQ = await pleine.evaluate(() => (JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]')[0] || {}).id);
+            await pleine.evaluate((i) => { location.hash = `#devis/${i}`; }, idQ);
+            await attendre(1500);
+            await cliquer(pleine, '^Partager le devis$');
+            await attendre(800);
+            await pleine.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.getAttribute('title') === 'Copier le lien' && b.getBoundingClientRect().width > 0)?.click());
+            await attendre(600);
+            const niveaux = await pleine.evaluate(() => {
+                const notif = document.querySelector('[data-toast]');
+                const fenetre = [...document.querySelectorAll('button')].find((b) => b.getAttribute('title') === 'Copier le lien')?.closest('.fixed.inset-0');
+                return { notification: notif ? Number(getComputedStyle(notif).zIndex) : null, texte: notif ? notif.textContent.trim().slice(0, 40) : null, fenetre: fenetre ? Number(getComputedStyle(fenetre).zIndex) : null };
+            });
+            ok(`Partage : la notification « Lien copié » est au-dessus de la fenêtre — ${JSON.stringify(niveaux)}`,
+                niveaux.notification !== null && niveaux.fenetre !== null && niveaux.notification > niveaux.fenetre && /copié/.test(niveaux.texte || ''));
+            await pleine.close();
         }
     } finally {
         await navigateur.close();
