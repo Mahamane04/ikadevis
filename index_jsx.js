@@ -15,7 +15,28 @@ if (typeof window !== 'undefined' && !window.__APP_CONFIG__) {
 }
 const SUPABASE_URL  = __CFG.SUPABASE_URL || '';
 const SUPABASE_ANON = __CFG.SUPABASE_ANON || '';
-const sb = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL && SUPABASE_ANON)
+
+// Audit UX 220 (C102/C109) — un lien e-mail périmé (invitation ou mot de
+// passe oublié) renvoie ici avec « #error=access_denied&error_code=
+// otp_expired… » : l'écran de connexion s'affichait sans un mot. Lu AVANT la
+// création du client Supabase, qui peut nettoyer l'adresse en la traitant.
+const ERREUR_LIEN_AUTH = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const params = new URLSearchParams(`${(window.location.hash || '').replace(/^#/, '')}&${(window.location.search || '').replace(/^\?/, '')}`);
+        const code = params.get('error_code') || '';
+        const erreur = params.get('error') || '';
+        if (!code && !erreur) return null;
+        const description = params.get('error_description') || '';
+        window.history.replaceState(null, '', window.location.pathname);
+        if (/otp_expired/i.test(code) || /expired|invalid/i.test(description)) {
+            return 'Ce lien e-mail a expiré ou a déjà servi. Mot de passe oublié : demandez un nouveau lien avec « Mot de passe oublié ? ». Invitation : demandez à la personne qui vous a invité de vous la renvoyer.';
+        }
+        return 'Le lien e-mail n’a pas pu être utilisé. Demandez-en un nouveau, ou connectez-vous.';
+    } catch (_) { return null; }
+})();
+
+const sb =(typeof window !== 'undefined' && window.supabase && SUPABASE_URL && SUPABASE_ANON)
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
     : null;
 
@@ -132,6 +153,65 @@ const zoneImpressionVisible = () => {
         return r.width > 0 && r.height > 0;
     }) || zones[0] || null;
 };
+
+// Audit UX 220 (revue 2, E3) — plusieurs zones imprimables peuvent être
+// AFFICHÉES en même temps : la quittance s'ouvre par-dessus le détail de la
+// facture. La feuille d'impression les sortait toutes deux, posées l'une sur
+// l'autre en haut de la page. Juste avant l'impression (bouton ou ⌘P), on
+// repère le document que l'utilisateur a sous les yeux — celui qui reçoit le
+// point visé en son centre, à défaut celui de la fenêtre ouverte la plus
+// récente — et l'on ÉCARTE les autres (`data-impression-exclue`, index.html).
+//
+// On écarte, on ne désigne pas : à l'impression, Chrome relit les règles
+// responsives à la largeur de la FEUILLE (~ 794 px en A4). Le panneau de
+// bureau d'un devis (`hidden lg:flex`) y disparaît et c'est sa copie jumelle
+// (`lg:hidden`) qui s'imprime. Une première version qui ne gardait que la
+// zone vue à l'écran imprimait donc une page BLANCHE (troisième revue). Une
+// zone masquée à l'écran n'est conservée que si elle est la jumelle du
+// document visé — même `data-document-cle` — sinon elle est écartée aussi
+// (devis resté ouvert en coulisse derrière une facture, par exemple).
+const zoneVisibleALEcran = (z) => {
+    const r = z.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+};
+const zoneImpressionCible = () => {
+    const visibles = [...document.querySelectorAll('[data-zone-impression]')].filter(zoneVisibleALEcran);
+    if (visibles.length < 2) return visibles[0] || null;
+    const auPremierPlan = visibles.find((z) => {
+        const r = z.getBoundingClientRect();
+        const g = Math.max(0, r.left), d = Math.min(window.innerWidth, r.right);
+        const h = Math.max(0, r.top), b = Math.min(window.innerHeight, r.bottom);
+        if (d <= g || b <= h) return false;
+        const touche = document.elementFromPoint((g + d) / 2, (h + b) / 2);
+        return !!touche && z.contains(touche);
+    });
+    if (auPremierPlan) return auPremierPlan;
+    const enFenetre = visibles.filter((z) => z.closest('[aria-modal="true"], [role="dialog"]'));
+    return enFenetre.length ? enFenetre[enFenetre.length - 1] : visibles[0];
+};
+const leverCibleImpression = () => {
+    document.querySelectorAll('[data-impression-cible], [data-impression-exclue]').forEach((z) => {
+        z.removeAttribute('data-impression-cible');
+        z.removeAttribute('data-impression-exclue');
+    });
+};
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeprint', () => {
+        leverCibleImpression();
+        const zones = [...document.querySelectorAll('[data-zone-impression]')];
+        if (zones.length < 2) return;
+        const cible = zoneImpressionCible();
+        if (!cible) return;
+        const cle = cible.getAttribute('data-document-cle');
+        cible.setAttribute('data-impression-cible', '');
+        zones.forEach((z) => {
+            if (z === cible) return;
+            const jumelle = !zoneVisibleALEcran(z) && !!cle && z.getAttribute('data-document-cle') === cle;
+            if (!jumelle) z.setAttribute('data-impression-exclue', '');
+        });
+    });
+    window.addEventListener('afterprint', leverCibleImpression);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // LIBELLÉS DE NAVIGATION — SOURCE UNIQUE
@@ -319,29 +399,119 @@ const getModePaiementInfo = (modeId) => {
 const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     try {
-        const d = new Date(dateStr);
-        return isNaN(d.getTime()) ? String(dateStr) : d.toLocaleDateString('fr-FR');
+        // Audit UX 220 (C095) — « 03/10/2026 » (déjà au format affiché) était
+        // relu à l'américaine puis réaffiché « 10/03/2026 ».
+        const d = lireDateDocument(dateStr);
+        return d ? d.toLocaleDateString('fr-FR') : String(dateStr);
     } catch(e) {
         return String(dateStr);
     }
 };
 
 // 2026-09-10 — Détection d'échéance dépassée pour les factures émises
+// Audit UX 2026-10 (UX-P2-02/03) — UNE seule règle pour dire qu'une facture est
+// soldée : le reste dû, arrêté à la précision de sa devise, est nul. La fiche
+// l'appliquait déjà ; la liste, ses compteurs, ses filtres, l'export, l'état
+// « en retard » et la fenêtre de règlement comparaient des montants BRUTS — une
+// facture réglée à 100 % (net 1 466 781,30 F, réglé 1 466 781 F) y était tenue
+// pour partiellement payée, voire en retard une fois l'échéance passée.
+// Audit UX 220 (C168) — un seul nom de fichier PDF par facture, quel que soit
+// le bouton (fiche, aperçu, téléchargement groupé). L'aperçu passait
+// « Facture_FACT-….pdf » : l'extension, nettoyée, devenait « -pdf.pdf ».
+// Sans extension ici : telechargerElementEnPdf l'ajoute.
+const nomFichierFacture = (f) => {
+    const type = f?.type === 'avoir' ? 'Avoir' : 'Facture';
+    return f?.numero
+        ? `${type} ${f.numero} ${f.clientName || ''}`.trim()
+        : `Brouillon ${type.toLowerCase()} ${f?.clientName || ''}`.trim();
+};
+const deviseDeFacture = (f) =>(f && (f.devise || f.currency || f.companyInfoSnapshot?.currency)) || 'FCFA';
+const resteFactureArrondi = (f) => {
+    const net = Number(f?.netAPayerTTC != null ? f.netAPayerTTC : f?.totalTTC) || 0;
+    const regle = Number(f?.montantRegle) || 0;
+    const arrondir = typeof arrondiDevise === 'function' ? arrondiDevise : (v) => Math.round(v * 100) / 100;
+    return Math.max(0, arrondir(net - regle, deviseDeFacture(f)));
+};
+// Audit UX 220 — UNE règle pour « que me doit-on ? », partagée par l'écran
+// Factures et le tableau de bord (qui additionnait les restes sans déduire
+// les avoirs : une facture annulée par avoir y restait due). Calcul FACTURE
+// PAR FACTURE : un avoir ne réduit que la facture qu'il corrige — un avoir
+// sur une facture déjà réglée (somme à rembourser) ne fait pas baisser la
+// créance d'un autre client.
+const resteARecouvrerGlobal = (factures) => (factures || [])
+    .filter(f => f.type !== 'avoir' && f.statut !== 'draft' && f.statut !== 'cancelled')
+    .reduce((s, f) => s + Math.max(0, resteFactureArrondi(f) - avoirsSurFacture(factures, f)), 0);
+// Montant des avoirs émis sur une facture (par identifiant ou numéro).
+const avoirsSurFacture = (factures, f) => (factures || [])
+    .filter(a => a.type === 'avoir' && a.statut !== 'draft' && a.statut !== 'cancelled'
+        && ((a.correctsInvoiceId != null && (String(a.correctsInvoiceId) === String(f.id) || String(a.correctsInvoiceId) === String(f.serverId)))
+            || (a.correctsInvoiceNumber && f.numero && a.correctsInvoiceNumber === f.numero)))
+    .reduce((s, a) => s + Math.abs(Number(a.netAPayerTTC != null ? a.netAPayerTTC : a.totalTTC) || 0), 0);
+// En retard ET encore due une fois ses avoirs déduits.
+const estFactureEnRetardDue = (factures, f) => isInvoiceOverdue(f) && resteFactureArrondi(f) - avoirsSurFacture(factures, f) > 0;
+
+// Audit UX 220 (C046) — un devis restait « Facturé » tant que sa facture
+// était émise ou réglée, mais redevenait « Accepté » dès un règlement
+// PARTIEL (statut partially_paid) ou une fois la facture envoyée. Toute
+// facture sortie du brouillon et non annulée compte.
+const estFactureEmise = (f) => !!f && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut) && f.type !== 'avoir';
+const estFactureSoldee = (f) => {
+    const net = Number(f?.netAPayerTTC != null ? f.netAPayerTTC : f?.totalTTC) || 0;
+    return net > 0 && resteFactureArrondi(f) === 0;
+};
+
+// Audit UX 220 (C082/C075) — les devis et brouillons stockent leur date au
+// format affiché « 03/10/2026 » (toLocaleDateString('fr-FR')), parfois suivi
+// de l'heure. `new Date('03/10/2026')` la lit à l'américaine : 10 MARS. Le
+// devis du jour sortait donc de « Ce mois » et de « Trimestre », et un
+// brouillon se classait au mauvais rang. Une seule lecture, partout.
+const lireDateDocument = (valeur) => {
+    if (valeur == null || valeur === '') return null;
+    if (valeur instanceof Date) return isNaN(valeur.getTime()) ? null : valeur;
+    if (typeof valeur === 'number') {
+        const d = new Date(valeur);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const texte = String(valeur).trim();
+    const fr = texte.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2})[:h](\d{2}))?/);
+    if (fr) {
+        const d = new Date(Number(fr[3]), Number(fr[2]) - 1, Number(fr[1]), Number(fr[4] || 0), Number(fr[5] || 0));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(texte);
+    return isNaN(d.getTime()) ? null : d;
+};
+// Période du tableau de bord ('month' | 'quarter' | 'year' | 'all'), partagée
+// avec la liste des devis ouverte depuis un indicateur. Sans date lisible,
+// le document reste compté (comportement historique du tableau de bord).
+const dateDansPeriode = (valeur, periode) => {
+    if (!valeur || !periode || periode === 'all') return true;
+    const d = lireDateDocument(valeur);
+    if (!d) return true;
+    const now = new Date();
+    if (d.getFullYear() !== now.getFullYear()) return false;
+    if (periode === 'month') return d.getMonth() === now.getMonth();
+    if (periode === 'quarter') return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3);
+    return true; // 'year'
+};
+const horodatageDocument = (valeur) => {
+    const d = lireDateDocument(valeur);
+    return d ? d.getTime() : 0;
+};
+
 const isInvoiceOverdue = (f) => {
     if (!f || f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
-    const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
-    const regle = Number(f.montantRegle) || 0;
-    if (regle >= netTTC && netTTC > 0) return false;
+    if (estFactureSoldee(f)) return false;
 
     const now = new Date();
     if (f.dateEcheance) {
-        const d = new Date(f.dateEcheance);
-        return !isNaN(d.getTime()) && d < now;
+        const d = lireDateDocument(f.dateEcheance);
+        return !!d && d < now;
     }
     const dateRef = f.dateEmission || f.date || f.dateCreation;
     if (!dateRef) return false;
-    const d = new Date(dateRef);
-    if (isNaN(d.getTime())) return false;
+    const d = lireDateDocument(dateRef);
+    if (!d) return false;
     const diffDays = (now.getTime() - d.getTime()) / (1000 * 3600 * 24);
     return diffDays > 30;
 };
@@ -351,8 +521,8 @@ const matchesInvoicePeriod = (f, period) => {
     if (!period || period === 'all') return true;
     const dateStr = f.dateEmission || f.date || f.dateCreation;
     if (!dateStr) return true;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return true;
+    const d = lireDateDocument(dateStr);
+    if (!d) return true;
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -477,17 +647,18 @@ const LS = {
             }
             const k = LS.getKey(key, userId, orgId);
             let v = localStorage.getItem(k);
-            if (v === null || v === '[]' || v === '{}') {
+            // Même règle que TenantPersistence.get (audit UX 220) : repli
+            // seulement si rien n'est stocké, et jamais de clé de démonstration
+            // ni d'organisation provisoire pour un compte réel.
+            if (v === null) {
                 const uid = userId || 'guest';
                 const oid = orgId;
-                const candidates = [
-                    uid && uid !== 'guest' ? `costcalc:${uid}:${key}` : null,
-                    oid && oid !== 'guest' ? `costcalc:${oid}:${key}` : null,
-                    `costcalc:org_default:${key}`,
-                    `costcalc:guest:${key}`,
-                    `costcalc:guest:guest:${key}`,
-                    `costcalc:${key}`
-                ].filter(Boolean);
+                const invite = !uid || uid === 'guest';
+                const vraieOrg = oid && oid !== 'guest' && oid !== 'org_default' && !String(oid).startsWith('org_local_');
+                const candidates = (invite
+                    ? [`costcalc:guest:${key}`, `costcalc:guest:guest:${key}`, `costcalc:org_default:${key}`, `costcalc:${key}`]
+                    : [`costcalc:${uid}:${key}`, vraieOrg ? `costcalc:${oid}:${key}` : null]
+                ).filter(Boolean);
                 for (const c of candidates) {
                     if (c !== k) {
                         const cv = localStorage.getItem(c);
@@ -504,13 +675,24 @@ const LS = {
         } catch(e) { return null; }
     },
     set: (key, val, userId, orgId) => {
+        // Audit UX 220 (C154/S4) — stockage de l'appareil plein : l'écriture
+        // échouait EN SILENCE (TenantPersistence.set renvoie false) et la
+        // dernière saisie était perdue au rechargement sans qu'on le sache.
+        // L'échec est désormais signalé à l'application, qui le dit.
+        let ecrit = false;
         try {
             if (globalTenantPersistence) {
-                return globalTenantPersistence.set(key, val, userId, orgId);
+                ecrit = globalTenantPersistence.set(key, val, userId, orgId) !== false;
+            } else {
+                const k = LS.getKey(key, userId, orgId);
+                localStorage.setItem(k, JSON.stringify(withoutPaymentSecrets(val)));
+                ecrit = true;
             }
-            const k = LS.getKey(key, userId, orgId);
-            localStorage.setItem(k, JSON.stringify(withoutPaymentSecrets(val)));
-        } catch(e) {}
+        } catch(e) { ecrit = false; }
+        if (!ecrit && typeof window !== 'undefined') {
+            try { window.dispatchEvent(new CustomEvent('ikadevis:ecriture-locale-impossible', { detail: { cle: key } })); } catch (_) { /* navigateur ancien */ }
+        }
+        return ecrit;
     },
     getOutbox: (userId, orgId) => {
         if (globalTenantPersistence && orgId) {
@@ -658,14 +840,29 @@ const messageErreurAuth = (err, secours = 'Une erreur est survenue.') => {
     return brut || secours;
 };
 
-function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
+let erreurLienAuthAffichee = false;
+function AuthScreen({ onAuthSuccess, initialMode = 'login', avisInitial = null }) {
     const [mode, setMode] = useState(initialMode);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [orgName, setOrgName] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [info, setInfo] = useState(null);
+    const [error, setError] = useState(() => {
+        if (ERREUR_LIEN_AUTH && !erreurLienAuthAffichee) { erreurLienAuthAffichee = true; return ERREUR_LIEN_AUTH; }
+        return null;
+    });
+    // Audit UX 220 (C103) — une session terminée sans action de l'utilisateur
+    // (expiration, déconnexion ailleurs) ramenait ici sans explication.
+    const [info, setInfo] = useState(avisInitial);
+    // Audit UX 220 (C101, WCAG 2.4.3) — en passant de « Connexion » à « Créer
+    // un compte » (ou au mot de passe oublié), le focus tombait sur la page :
+    // il va au premier champ du nouveau formulaire.
+    const modeAuDemarrage = useRef(true);
+    useEffect(() => {
+        if (modeAuDemarrage.current) { modeAuDemarrage.current = false; return; }
+        const premier = document.getElementById(mode === 'signup' ? 'auth-org' : 'auth-email');
+        if (premier) premier.focus();
+    }, [mode]);
 
     const [googleLoading, setGoogleLoading] = useState(false);
     const [cguAcceptees, setCguAcceptees] = useState(false);
@@ -844,14 +1041,17 @@ function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
                             {mode === 'signup' && (
                                 <div>
                                     <label htmlFor="auth-org" className="app-label">Nom de l'organisation</label>
-                                    <input id="auth-org" type="text" value={orgName} onChange={e=>setOrgName(e.target.value)} required
+                                    <input id="auth-org" type="text" autoComplete="organization" value={orgName} onChange={e=>setOrgName(e.target.value)} required
                                         className="app-input"
                                         placeholder="Ex: BATI SARL, BTP Constructions…" />
                                 </div>
                             )}
                             <div>
                                 <label htmlFor="auth-email" className="app-label">Email</label>
+                                {/* Audit UX 220 (C110/C140, WCAG 1.3.5) — `autocomplete` : le gestionnaire
+                                    de mots de passe et le remplissage automatique reconnaissent les champs. */}
                                 <input id="auth-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required
+                                    autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false}
                                     className="app-input"
                                     placeholder="vous@entreprise.com" />
                             </div>
@@ -864,6 +1064,7 @@ function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
                                         bloquant l'envoi avant tout appel réseau. La contrainte
                                         n'a de sens qu'à la création du mot de passe. */}
                                     <input id="auth-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={mode === 'signup' ? 8 : undefined}
+                                        autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                                         className="app-input"
                                         placeholder={mode === 'signup' ? 'Minimum 8 caractères' : '••••••••'} />
                                 </div>
@@ -905,7 +1106,7 @@ function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
                             <>
                                 <div className="auth-sep flex items-center gap-3 my-5">
                                     <div className="flex-1 h-px bg-neutral-200"></div>
-                                    <span className="text-neutral-400 text-[11px] font-bold uppercase tracking-wider">ou</span>
+                                    <span className="text-neutral-500 text-[11px] font-bold uppercase tracking-wider">ou</span>
                                     <div className="flex-1 h-px bg-neutral-200"></div>
                                 </div>
                                 <button
@@ -939,14 +1140,30 @@ function AuthScreen({ onAuthSuccess, initialMode = 'login' }) {
                                 <i className="fa-solid fa-play text-emerald-600"></i>
                                 Essayer sans compte
                             </button>
-                            <p className="text-neutral-400 text-[11px] leading-relaxed -mt-1">
-                                {LS.get('demoTransfer', 'guest') ? 'Votre devis d’essai est conservé ici. Retrouvez-le en démonstration ou récupérez-le après connexion.' : 'Devis d’exemple déjà chiffré · rien n’est envoyé'}
+                            {/* Audit UX 220 (UX-P2-10 / R3) — après un rechargement, rien ne
+                                disait qu'une démonstration en cours était conservée : on
+                                croyait repartir de zéro. */}
+                            <p className="text-neutral-500 text-[11px] leading-relaxed -mt-1">
+                                {(() => {
+                                    // Lecture DIRECTE des clés de démonstration : LS.get applique
+                                    // les clés de repli et le contexte de la dernière session (un
+                                    // utilisateur qui vient de se déconnecter) — il aurait pu
+                                    // recopier ses factures réelles dans l'espace de démonstration.
+                                    const lireDemo = (cle) => {
+                                        try { return JSON.parse(localStorage.getItem(`costcalc:guest:${cle}`) || 'null'); } catch (_) { return null; }
+                                    };
+                                    if (lireDemo('demoTransfer')) return 'Votre devis d’essai est conservé ici. Retrouvez-le en démonstration ou récupérez-le après connexion.';
+                                    const devisEssai = (lireDemo('savedQuotes') || []).length;
+                                    const facturesEssai = (lireDemo('invoices') || []).length;
+                                    if (devisEssai > 1 || facturesEssai > 0) return `Démonstration en cours sur cet appareil : vos ${devisEssai} devis${facturesEssai ? ` et ${facturesEssai} facture(s)` : ''} d’essai sont conservés — ce bouton la reprend.`;
+                                    return 'Devis d’exemple déjà chiffré · rien n’est envoyé';
+                                })()}
                             </p>
                             {mode === 'login' && (
                                 <button onClick={()=>{setMode('signup');setError(null);}} className="text-neutral-600 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">Pas encore de compte ? <span className="text-brand-600 underline underline-offset-2">Créer un compte</span></button>
                             )}
                             {mode === 'login' && (
-                                <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-400 hover:text-neutral-700 text-xs font-medium transition-colors py-2 px-2 -mx-2 rounded-lg">Mot de passe oublié ?</button>
+                                <button onClick={()=>{setMode('reset');setError(null);}} className="text-neutral-500 hover:text-neutral-700 text-xs font-medium transition-colors py-2 px-2 -mx-2 rounded-lg">Mot de passe oublié ?</button>
                             )}
                             {mode !== 'login' && (
                                 <button onClick={()=>{setMode('login');setError(null);}} className="text-neutral-500 hover:text-neutral-900 text-sm font-semibold transition-colors py-2 px-2 -mx-2 rounded-lg">← Retour à la connexion</button>
@@ -1015,12 +1232,13 @@ const CustomSelect = ({
     size = 'md', // 'sm' | 'md' | 'xs'
     disabled = false, 
     ['aria-label']: ariaLabel,
+    ['aria-describedby']: ariaDescribedBy,
     placeholder = 'Sélectionner...',
     dropdownClassName = ''
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectRef = useRef(null);
-    
+
     const selectedOption = options.find(o => String(o.value) === String(value)) || options[0];
 
     useEffect(() => {
@@ -1058,18 +1276,20 @@ const CustomSelect = ({
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 onKeyDown={handleKeyDown}
                 aria-label={ariaLabel}
+                aria-describedby={ariaDescribedBy}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
+                // Audit UX 220 (C132) — bordure au repos #7f8c9a (3,4:1), comme les champs de saisie.
                 className={`w-full text-left font-semibold transition-all focus:outline-none flex justify-between items-center gap-2 ${sizeClasses} ${
-                    disabled 
-                        ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed' 
-                        : isOpen 
-                        ? 'border border-brand-500 bg-white ring-2 ring-brand-500/20 text-brand-700 shadow-2xs' 
-                        : 'bg-white border border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50 shadow-2xs'
+                    disabled
+                        ? 'bg-neutral-100 text-neutral-500 border border-neutral-200 cursor-not-allowed'
+                        : isOpen
+                        ? 'border border-brand-500 bg-white ring-2 ring-brand-500/20 text-brand-700 shadow-2xs'
+                        : 'bg-white border border-[#7f8c9a] text-neutral-800 hover:border-neutral-600 hover:bg-neutral-50 shadow-2xs focus-visible:ring-2 focus-visible:ring-brand-500'
                 } ${buttonClassName}`}
             >
                 <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`}></i>
+                <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : 'text-neutral-500'}`}></i>
             </button>
             {/* Native select accessible et rétrocompatible pour tests automatisés et formulaires */}
             <select
@@ -1387,7 +1607,7 @@ function ClientCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ clientName: '', clientId: null }); setIsOpen(true); }}
-                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
                         aria-label="Effacer le client"
                         title="Effacer le client"
                     >
@@ -1666,7 +1886,7 @@ function ProjectCombobox({
                     <button
                         type="button"
                         onClick={() => { setQuery(''); onChange?.({ projectRef: '', projectId: null }); setIsOpen(true); }}
-                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
+                        className="champ-effacer absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-200/70 transition-colors"
                         aria-label="Effacer le projet"
                         title="Effacer le projet"
                     >
@@ -3246,7 +3466,7 @@ function QuoteStatusDropdown({ value, onChange, options }) {
             </select>
             {isOpen && (
                 <div role="listbox" className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-44 bg-white border border-neutral-200 rounded-2xl shadow-floating p-1.5 z-[130] animate-fade-in space-y-0.5">
-                    <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider px-2.5 py-1">Changer le statut</p>
+                    <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider px-2.5 py-1">Changer le statut</p>
                     {options.map(opt => {
                         const isSelected = opt.value === (value || 'draft');
                         return (
@@ -3442,6 +3662,8 @@ function QuoteHeader({
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                             className="w-8 h-8 rounded-lg border border-neutral-200 hover:bg-neutral-100 flex items-center justify-center text-neutral-600 transition-all"
                             aria-label="Plus d'actions sur le devis"
+                            aria-haspopup="menu"
+                            aria-expanded={isMenuOpen}
                         >
                             <i className="fa-solid fa-ellipsis-vertical text-xs"></i>
                         </button>
@@ -3944,7 +4166,7 @@ function LotsOverviewModal({
                                                         title={isExpanded ? "Replier les ouvrages de ce lot" : "Déplier les ouvrages de ce lot"}
                                                         aria-label={isExpanded ? `Replier les ouvrages de ${l.name || idx + 1}` : `Déplier les ouvrages de ${l.name || idx + 1}`}
                                                     >
-                                                        <i className={`fa-solid fa-chevron-right transition-transform ${isExpanded ? 'rotate-90 text-brand-600' : 'text-neutral-400'}`}></i>
+                                                        <i className={`fa-solid fa-chevron-right transition-transform ${isExpanded ? 'rotate-90 text-brand-600' : 'text-neutral-500'}`}></i>
                                                     </button>
                                                 </td>
                                                 <td className="py-2.5 px-3 min-w-0">
@@ -3988,7 +4210,7 @@ function LotsOverviewModal({
                                                         }`}>
                                                             {marginPct}%
                                                         </span>
-                                                    ) : <span className="text-neutral-400">—</span>}
+                                                    ) : <span className="text-neutral-500">—</span>}
                                                 </td>
                                                 <td className="py-2.5 px-3 text-center whitespace-nowrap">
                                                     <button
@@ -4035,7 +4257,7 @@ function LotsOverviewModal({
                                                                                     <td className="py-2 px-3 font-medium text-neutral-900">
                                                                                         <p className="font-semibold text-xs leading-tight">{item.name}</p>
                                                                                         {item.description && (
-                                                                                            <p className="text-[10px] text-neutral-400 truncate max-w-sm">{item.description}</p>
+                                                                                            <p className="text-[10px] text-neutral-500 truncate max-w-sm">{item.description}</p>
                                                                                         )}
                                                                                     </td>
                                                                                     <td className="py-2 px-2 text-center font-mono font-bold text-neutral-800">
@@ -4055,7 +4277,7 @@ function LotsOverviewModal({
                                                                                             <span className={`text-[10px] font-bold ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}>
                                                                                                 {margin.label}
                                                                                             </span>
-                                                                                        ) : <span className="text-neutral-400">—</span>}
+                                                                                        ) : <span className="text-neutral-500">—</span>}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
@@ -4064,7 +4286,7 @@ function LotsOverviewModal({
                                                                 </table>
                                                             </div>
                                                         ) : (
-                                                            <div className="py-2 px-3 text-xs text-neutral-400 italic bg-white rounded-xl border border-dashed border-neutral-200 text-center">
+                                                            <div className="py-2 px-3 text-xs text-neutral-500 italic bg-white rounded-xl border border-dashed border-neutral-200 text-center">
                                                                 Aucun ouvrage dans ce lot pour le moment.
                                                             </div>
                                                         )}
@@ -4204,9 +4426,9 @@ function LotSelectorDropdown({
                     role="listbox"
                     aria-label="Sélectionner un lot"
                 >
-                    <div className="px-2 py-1 border-b border-neutral-100 flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                    <div className="px-2 py-1 border-b border-neutral-100 flex items-center justify-between text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
                         <span>Changer de lot ({lots.length})</span>
-                        <span className="text-neutral-400 font-normal">⌥↑ / ⌥↓</span>
+                        <span className="text-neutral-500 font-normal">⌥↑ / ⌥↓</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto custom-scroll py-1 space-y-0.5">
                         {lots.map((l, idx) => {
@@ -4239,7 +4461,7 @@ function LotSelectorDropdown({
                                         <p className="truncate text-xs font-semibold leading-tight">
                                             {l.name || `Lot ${idx + 1}`}
                                         </p>
-                                        <p className="text-[10px] text-neutral-400 font-normal">
+                                        <p className="text-[10px] text-neutral-500 font-normal">
                                             {itemCount} ouvrage{itemCount > 1 ? 's' : ''} &bull; {formatMoney(subtotal, currency)}
                                         </p>
                                     </div>
@@ -4300,7 +4522,7 @@ function MoveItemPopover({ lots = [], currentLotIndex = 0, onMove }) {
             </button>
             {isOpen && (
                 <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-neutral-200 rounded-xl shadow-floating p-1.5 z-50 text-xs font-medium animate-fade-in space-y-0.5">
-                    <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider px-2 py-1">Transférer vers le lot :</p>
+                    <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider px-2 py-1">Transférer vers le lot :</p>
                     {otherLots.map(targetLot => (
                         <button
                             key={targetLot.id || targetLot.originalIndex}
@@ -4438,9 +4660,12 @@ function ActiveLotHeader({
                     <button
                         type="button"
                         onClick={() => setIsMenuOpen(prev => !prev)}
-                        className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs"
+                        // Audit UX 220 (UX-P3-02, WCAG 2.5.8) — cible de 21 px : 36 px minimum.
+                        className="inline-flex items-center justify-center min-w-[36px] min-h-[36px] p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-all text-xs"
                         title="Options du lot"
                         aria-label="Options du lot"
+                        aria-haspopup="menu"
+                        aria-expanded={isMenuOpen}
                     >
                         <i className="fa-solid fa-ellipsis-vertical"></i>
                     </button>
@@ -4452,7 +4677,7 @@ function ActiveLotHeader({
                                 onClick={() => { setIsMenuOpen(false); setIsEditingTitle(true); }}
                                 className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
                             >
-                                <i className="fa-solid fa-pen text-neutral-400 w-4"></i> Renommer le lot
+                                <i className="fa-solid fa-pen text-neutral-500 w-4"></i> Renommer le lot
                             </button>
                             <button
                                 type="button"
@@ -4461,7 +4686,7 @@ function ActiveLotHeader({
                                 title="Dupliquer ce lot"
                                 aria-label="Dupliquer ce lot"
                             >
-                                <i className="fa-solid fa-clone text-neutral-400 w-4"></i> Dupliquer ce lot
+                                <i className="fa-solid fa-clone text-neutral-500 w-4"></i> Dupliquer ce lot
                             </button>
                             {lotIndex > 0 && (
                                 <button
@@ -4469,7 +4694,7 @@ function ActiveLotHeader({
                                     onClick={() => { setIsMenuOpen(false); onMoveLot && onMoveLot(lotIndex, -1); }}
                                     className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
                                 >
-                                    <i className="fa-solid fa-arrow-up text-neutral-400 w-4"></i> Monter le lot
+                                    <i className="fa-solid fa-arrow-up text-neutral-500 w-4"></i> Monter le lot
                                 </button>
                             )}
                             {lotIndex < lotsCount - 1 && (
@@ -4478,7 +4703,7 @@ function ActiveLotHeader({
                                     onClick={() => { setIsMenuOpen(false); onMoveLot && onMoveLot(lotIndex, 1); }}
                                     className="w-full text-left px-3 py-2 text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
                                 >
-                                    <i className="fa-solid fa-arrow-down text-neutral-400 w-4"></i> Descendre le lot
+                                    <i className="fa-solid fa-arrow-down text-neutral-500 w-4"></i> Descendre le lot
                                 </button>
                             )}
                             {lotsCount > 1 && (
@@ -4522,7 +4747,17 @@ function ActiveLotHeader({
                             <h2 className="text-base sm:text-lg font-bold text-neutral-900 line-clamp-2 sm:truncate">
                                 {lot.name || `Lot ${lotIndex + 1}`}
                             </h2>
-                            <i className="fa-solid fa-pencil text-xs text-neutral-400 group-hover:text-brand-500 transition-colors shrink-0"></i>
+                            {/* Audit UX 2026-10 (UX-P2-08) — le renommage n'était offert
+                                qu'au clic sur le titre : un vrai bouton le rend atteignable
+                                au clavier, sans retirer au titre son rôle de titre. */}
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                                aria-label={`Renommer le lot ${lot.name || `Lot ${lotIndex + 1}`}`}
+                                className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            >
+                                <i className="fa-solid fa-pencil text-xs text-neutral-500 group-hover:text-brand-500 transition-colors" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                 )}
@@ -4616,7 +4851,7 @@ function WorkItemTable({
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="quote-items-container p-4 md:p-6 space-y-4">
             {/* M8 (2026-08-18) — Le tableau desktop était réutilisé tel quel en
                 mobile : désignations tronquées à un mot, colonne prix hors écran,
                 contenu qui débordait son conteneur (624px dans 337px mesurés lors
@@ -4770,14 +5005,14 @@ function WorkItemTable({
                                 <div>
                                     <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">Total Net HT</span>
                                     <span className="font-bold text-neutral-900 text-base">{formatMoney(total, currency)}</span>
-                                    {margin && (
-                                        <span
-                                            title={margin.tooltip}
-                                            className={`block text-[11px] font-bold font-mono ${margin.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
+                                    {(
+                                        <button type="button" onClick={() => onOpenInspector(idx, 'pricing')} aria-label={`Modifier le prix et la marge de ${item.name}`}
+                                            title={margin?.tooltip || 'Renseignez le coût d’achat pour connaître la marge'}
+                                            className={`quote-margin-edit text-[11px] font-bold font-mono ${margin?.isLoss ? 'text-red-600' : 'text-emerald-700'}`}
                                         >
-                                            {margin.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
-                                            {margin.label}
-                                        </span>
+                                            {margin?.isLoss && <i className="fa-solid fa-triangle-exclamation mr-0.5"></i>}
+                                            Marge {margin?.label || 'à compléter'} <i className="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                                        </button>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -4817,7 +5052,7 @@ function WorkItemTable({
                             <th className="py-2.5 px-1.5 text-right">Total HT</th>
                             <th className="py-2.5 px-0.5 text-center" title="Actions">
                                 <span className="sr-only">Actions</span>
-                                <i className="fa-solid fa-ellipsis text-neutral-400 text-xs" aria-hidden="true"></i>
+                                <i className="fa-solid fa-ellipsis text-neutral-500 text-xs" aria-hidden="true"></i>
                             </th>
                         </tr>
                     </thead>
@@ -4859,7 +5094,7 @@ function WorkItemTable({
                                                     value={item.description || ''}
                                                     onChange={(e) => onUpdateItem(idx, { description: e.target.value })}
                                                     placeholder="Description (optionnelle)..."
-                                                    className="w-full min-w-0 max-w-full text-[11px] text-neutral-400 focus:text-neutral-700 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all placeholder-neutral-300 truncate"
+                                                    className="w-full min-w-0 max-w-full text-[11px] text-neutral-500 focus:text-neutral-700 bg-transparent hover:bg-neutral-100/80 focus:bg-white border border-transparent hover:border-neutral-200 focus:border-brand-500 rounded px-1.5 py-0.5 outline-none transition-all placeholder-neutral-300 truncate"
                                                     aria-label={`Description pour ${item.name}`}
                                                 />
                                                 <div className="flex items-center gap-1.5 pl-1.5 pt-0.5 text-[10px] flex-wrap min-w-0">
@@ -5020,14 +5255,14 @@ function WorkItemTable({
                                         <span className="block truncate text-[11px] font-bold" title={formatMoney(total, currency)}>
                                             {formatMoney(total, currency)}
                                         </span>
-                                        {margin && (
-                                            <span
-                                                title={margin.tooltip}
-                                                className={`block mt-0.5 text-[9.5px] font-bold font-mono ${margin.colorClass || (margin.isLoss ? 'text-red-600' : 'text-emerald-700')}`}
+                                        {(
+                                            <button type="button" onClick={() => onOpenInspector(idx, 'pricing')} aria-label={`Modifier le prix et la marge de ${item.name}`}
+                                                title={margin?.tooltip || 'Renseignez le coût d’achat pour connaître la marge'}
+                                                className={`quote-margin-edit mt-0.5 text-[11px] font-bold font-mono ${margin?.colorClass || (margin?.isLoss ? 'text-red-600' : 'text-emerald-700')}`}
                                             >
-                                                {(margin.isLoss || margin.isCritical) && <i className="fa-solid fa-triangle-exclamation mr-0.5 text-[8.5px]"></i>}
-                                                {margin.label}
-                                            </span>
+                                                {(margin?.isLoss || margin?.isCritical) && <i className="fa-solid fa-triangle-exclamation mr-0.5 text-[8.5px]"></i>}
+                                                Marge {margin?.label || 'à compléter'} <i className="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                                            </button>
                                         )}
                                     </td>
 
@@ -5056,7 +5291,7 @@ function WorkItemTable({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteItem(idx)}
-                                                className="w-5.5 h-5.5 rounded-md border border-neutral-200 hover:border-rose-300 hover:bg-rose-50 text-neutral-400 hover:text-rose-600 text-[10px] transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
+                                                className="w-5.5 h-5.5 rounded-md border border-neutral-200 hover:border-rose-300 hover:bg-rose-50 text-neutral-500 hover:text-rose-600 text-[10px] transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
                                                 title="Supprimer cette ligne"
                                                 aria-label={`Supprimer ${item.name}`}
                                             >
@@ -5521,6 +5756,8 @@ function WorkItemPicker({
 }
 
 function WorkItemInspector({
+    pricingEntry = null,
+    vatRate = 18,
     isOpen,
     onClose,
     item,
@@ -5544,6 +5781,18 @@ function WorkItemInspector({
     const [inspectorMode, setInspectorMode] = useState('simple'); // 'simple' | 'advanced'
     const [activeTab, setActiveTab] = useState('dimensions'); // 'dimensions' | 'costs' | 'pricing' | 'client' | 'calepinage'
     const inspectorRef = useRef(null);
+    // A margin link opens the existing pricing fields; it never converts a
+    // calculated item into a manual price. Wait for simple mode to render.
+    useEffect(() => {
+        if (!isOpen || !pricingEntry) return;
+        setInspectorMode('simple');
+        const frame = requestAnimationFrame(() => {
+            const field = inspectorRef.current?.querySelector('[data-pricing-section] input[aria-label="Marge souhaitée (%)"], [data-pricing-section] input[aria-label="Prix de vente unitaire HT"]');
+            field?.focus({ preventScroll: true });
+            field?.scrollIntoView({ block: 'center', behavior: 'instant' });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isOpen, pricingEntry, item?.id]);
     const closeInspectorRef = useRef(onClose);
     closeInspectorRef.current = onClose;
     const [compactInspector, setCompactInspector] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
@@ -5700,7 +5949,7 @@ function WorkItemInspector({
             </section>;
         })}
     </div>;
-    const simplePricing = !isManualLine && <section className="rounded-2xl border border-neutral-200 p-4 space-y-3">
+    const simplePricing = !isManualLine && <section data-pricing-section="true" className="rounded-2xl border border-neutral-200 p-4 space-y-3">
         <h4 className="font-semibold text-sm">Vos prix et votre marge</h4>
         <details><summary className="cursor-pointer py-2 text-brand-700 text-sm font-semibold">Modifier mes prix d’achat</summary>{resourcePrices}</details>
         <div className="grid grid-cols-2 gap-3">
@@ -5708,7 +5957,7 @@ function WorkItemInspector({
             <label className="text-xs font-semibold">Frais généraux (%)<input aria-label="Frais généraux (%)" className="app-input mt-1" type="number" inputMode="decimal" min="0" max="50" step="any" value={calcForm.overheadRate ?? 5} onChange={e => handleParamChange('overheadRate', e.target.value)} /></label>
         </div>
         <p className="text-xs text-neutral-600">{calcForm.marginType === 'markup' ? 'Majoration appliquée au coût de revient.' : 'La marge représente une part du prix de vente HT, après les frais.'} Sur {formatMoney(pvTotal, currency)} vendus, il reste {formatMoney(margeValeur, currency)} après {formatMoney(dsTotal, currency)} de coûts.</p>
-        <p className="text-xs text-neutral-600">TVA du devis : {calcForm.vatRate ?? 18} %. Vérifiez le taux applicable dans les réglages du devis.</p>
+        <p className="text-xs text-neutral-600">TVA du devis : {vatRate} %. Ce taux se règle dans le récapitulatif en bas de l’écran et ne change pas votre marge HT.</p>
     </section>;
 
     return (
@@ -6011,7 +6260,8 @@ function WorkItemInspector({
                             )}
                         </div>
 
-                        {isManualLine && <section className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                        {isManualLine && <section data-pricing-section="true" className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                            <h4 className="font-semibold text-sm">Prix et marge de cette ligne libre</h4>
                             <label className="block text-xs font-semibold">Prix de vente unitaire HT ({currency})<input aria-label="Prix de vente unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.unitPriceHT ?? ''} onChange={e => onUpdateItem({ unitPriceHT: e.target.value })} /></label>
                             <label className="block text-xs font-semibold">Coût d’achat unitaire HT ({currency})<input aria-label="Coût d’achat unitaire HT" className="app-input mt-1" type="number" inputMode="decimal" min="0" step="any" value={item.costUnit ?? ''} onChange={e => onUpdateItem({ costUnit: e.target.value })} /></label>
                             <p className="text-xs text-neutral-600">Saisissez votre coût pour connaître la marge de cette ligne. Les frais généraux du devis s’appliquent à ce coût.</p>
@@ -6676,14 +6926,25 @@ function QuoteTotalsBar({
     // marge, TVA) reste à un appui. Sur desktop la place ne manque pas : rien
     // ne change, le repli n'existe pas là-bas.
     const [totauxDeplies, setTotauxDeplies] = useState(false);
+    const totalsBarRef = useRef(null);
+    useEffect(() => {
+        const bar = totalsBarRef.current;
+        if (!bar) return;
+        const update = () => document.documentElement.style.setProperty('--quote-totals-height', `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+        const observer = new ResizeObserver(update);
+        observer.observe(bar);
+        update();
+        return () => { observer.disconnect(); document.documentElement.style.removeProperty('--quote-totals-height'); };
+    }, []);
 
-    return (
+
+    return ReactDOM.createPortal(
         // P0.17 (2026-08-17) — La barre était `fixed left-0 right-0` : elle
         // passait donc SOUS la sidebar de navigation et sous la barre d'onglets
         // mobile. `.quote-totals-bar` (index.html) la cale à droite de la
         // sidebar (72px en tablette, --sidebar-width en desktop) et au-dessus
         // de la barre d'onglets sur mobile.
-        <div className={`quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating ${totauxDeplies ? 'quote-totals-deplie' : 'quote-totals-replie'}`}>
+        <div ref={totalsBarRef} className={`quote-totals-bar bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 sm:p-4 shadow-floating ${totauxDeplies ? 'quote-totals-deplie' : 'quote-totals-replie'}`}>
             <div className="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
                 {/* Métriques Financières BTP */}
                 <div className="quote-mobile-metrics flex flex-wrap items-center gap-3 sm:gap-5 text-xs">
@@ -6714,7 +6975,7 @@ function QuoteTotalsBar({
                         <span className="font-semibold text-neutral-900 text-sm sm:text-base">{formatMoney(totalHT, currency)}</span>
                     </div>
 
-                    <div className="hidden sm:block pl-3 border-l border-neutral-200">
+                    <div className="quote-metrique-secondaire pl-3 border-l border-neutral-200" title="Marge calculée après frais, sur le prix de vente HT. Pour l’ajuster, utilisez le bouton Marge de chaque ouvrage.">
                         <span className="text-[10px] text-neutral-500 block uppercase font-bold flex items-center gap-1">
                             {hasIncompleteCustomLines ? 'Marge à compléter' : 'Marge prévue'}
                             {isLowProfit && <span className="text-amber-700 font-bold" title="Marge faible (< 15%)"><i className="fa-solid fa-triangle-exclamation"></i></span>}
@@ -6725,25 +6986,20 @@ function QuoteTotalsBar({
                         </span>
                     </div>
 
-                    {/* 2026-08-20 — La TVA était AFFICHÉE ici mais nulle part modifiable
-                        dans l'éditeur principal : `hybridQuote.vatRate` était lu avec un
-                        repli `|| 18` sans qu'aucun champ ne permette d'en changer (le seul
-                        champ TVA vivait dans l'ancien calculateur V5). Un devis exonéré ou
-                        à taux réduit était donc impossible à établir. Le taux se choisit
-                        maintenant là où il s'affiche, parmi les taux réglés dans
-                        Paramètres → Documents & PDF. */}
-                    <div className="hidden md:block pl-3 border-l border-neutral-200">
-                        <span className="text-[10px] text-neutral-500 block uppercase font-bold">TVA</span>
+                    {/* Native picker stays usable at viewport edges and with the mobile keyboard. */}
+                    <div className="quote-metrique-secondaire quote-vat-control pl-3 border-l border-neutral-200">
+                        <label htmlFor="quote-vat-rate" className="text-[10px] text-neutral-500 block uppercase font-bold">TVA du devis</label>
                         {onChangeVatRate && !isReadOnlyDueToDowngrade ? (
                             <div className="flex items-baseline gap-1.5">
-                                <CustomSelect
-                                    value={quote.vatRate !== undefined ? quote.vatRate : 18}
-                                    onChange={(e) => onChangeVatRate(parseFloat(e.target.value))}
-                                    options={vatRates.map(r => ({ value: r, label: r === 0 ? 'Exonéré' : `${r}%` }))}
-                                    size="xs"
-                                    buttonClassName="!py-0.5 !px-2 text-xs font-bold text-neutral-700 bg-white border-neutral-200 rounded-lg shadow-2xs"
+                                <select
+                                    id="quote-vat-rate"
+                                    value={quote.vatRate ?? 18}
+                                    onChange={(e) => onChangeVatRate(Number(e.target.value))}
+                                    className="quote-vat-select"
                                     aria-label="Taux de TVA du devis"
-                                />
+                                >
+                                    {vatRates.map(rate => <option key={rate} value={rate}>{rate === 0 ? '0 % — Exonéré' : `${rate} %`}</option>)}
+                                </select>
                                 <span className="font-medium text-neutral-600 text-sm">+{formatMoney(totalTVA, currency)}</span>
                             </div>
                         ) : (
@@ -6758,10 +7014,10 @@ function QuoteTotalsBar({
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-neutral-500 block uppercase font-semibold tracking-wider">TOTAL TTC</span>
                                 {!totauxDeplies && !hasIncompleteCustomLines && marginPct != null && (
-                                    <span className={`sm:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                                    <span className={`md:hidden text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
                                         isLowProfit ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' : 'bg-emerald-100 text-emerald-800'
                                     }`}>
-                                        {marginPct < 0 ? '' : '+'}{marginPct}%
+                                        Marge {marginPct < 0 ? '' : '+'}{marginPct}%
                                     </span>
                                 )}
                             </div>
@@ -6771,7 +7027,7 @@ function QuoteTotalsBar({
                         <button
                             type="button"
                             onClick={() => setTotauxDeplies(v => !v)}
-                            className="quote-totals-bascule sm:hidden shrink-0 w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
+                            className="quote-totals-bascule md:hidden shrink-0 w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
                             aria-expanded={totauxDeplies}
                             aria-label={totauxDeplies ? 'Masquer le détail du chiffrage' : 'Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)'}
                         >
@@ -6843,7 +7099,7 @@ function QuoteTotalsBar({
                 </div>
             )}
         </div>
-    );
+    , document.body);
 }
 
 function QuoteImportModal({ onClose, onImport, currency }) {
@@ -6887,7 +7143,8 @@ function QuoteImportModal({ onClose, onImport, currency }) {
                                 finally { if (request === fileRequest.current) setBusy(false); }
                             }} />
                         </label>
-                        <p className="text-xs text-neutral-600">Lecture sur cet appareil · 5 Mo maximum · 1 000 lignes de travaux. Les formules Excel utilisent leurs dernières valeurs enregistrées.</p>
+                        <p className="text-xs text-neutral-600">Lecture sur cet appareil · 5 Mo maximum · 1 000 lignes de travaux. Les formules Excel utilisent leurs dernières valeurs enregistrées. CSV : UTF-8 conseillé (un CSV Excel Windows est aussi accepté).</p>
+                        {sheets[sheetIndex]?.encodage === 'windows-1252' && <p role="status" className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2">Fichier enregistré en encodage Windows (ANSI) : les accents ont été convertis. Vérifiez les désignations ci-dessous.</p>}
                         <a className="text-sm font-semibold text-brand-700 underline" href="assets/templates/bordereau-ikadevis.csv" download>Télécharger un modèle de bordereau</a>
                     </div>
                     <details className="border border-neutral-200 rounded-xl p-3">
@@ -6906,18 +7163,30 @@ function QuoteImportModal({ onClose, onImport, currency }) {
                         <div><h3 className="font-bold text-sm mb-2">1. Associez les colonnes</h3><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{api.fields.map(field => <label key={field.key} className="text-xs font-semibold">{field.label}{field.required ? ' *' : ''}<select className="app-input mt-1 w-full min-h-[44px]" value={mapping[field.key] ?? ''} onChange={e => setMapping(prev => ({ ...prev, [field.key]: e.target.value }))}><option value="">Non associée</option>{columns.map((c, i) => <option key={i} value={i}>{i + 1}. {String(c || 'Sans titre')}</option>)}</select></label>)}</div><p className="text-xs text-neutral-500 mt-2">Pour un BPU, renseignez les quantités du chantier dans votre tableau avant l’import. Aucun prix ni coût n’est inventé.</p></div>
                         {preview.errors.length > 0 && <ul className="text-sm text-red-700 list-disc pl-5" role="alert">{preview.errors.map(x => <li key={x}>{x}</li>)}</ul>}
                         <div><h3 className="font-bold text-sm mb-2">2. Vérifiez les lignes</h3><p className="text-xs text-neutral-500 mb-2">Décochez les titres, sous-totaux et lignes à exclure. Les lignes identiques sont conservées.</p>
-                            <div className="sm:hidden space-y-3">{preview.lines.map(line => <div key={line.rowNumber} className={`rounded-xl border p-3 text-sm ${line.ignored ? 'bg-neutral-50 border-neutral-200 text-neutral-400' : line.issues.length ? 'bg-red-50 border-red-200' : 'border-neutral-200'}`}>
+                            <div className="sm:hidden space-y-3">{preview.lines.map(line => <div key={line.rowNumber} className={`rounded-xl border p-3 text-sm ${line.ignored ? 'bg-neutral-50 border-neutral-200 text-neutral-500' : line.issues.length ? 'bg-red-50 border-red-200' : 'border-neutral-200'}`}>
                                 <label className="flex items-start gap-3 min-h-[44px]"><input className="mt-1" type="checkbox" aria-label={`Inclure la ligne ${line.rowNumber}`} checked={!line.ignored} onChange={() => setExcluded(prev => line.ignored ? prev.filter(n => n !== line.rowNumber) : [...prev, line.rowNumber])} /><span className="min-w-0 break-words"><span className="text-xs block">Ligne {line.rowNumber} · {line.lot}</span><strong>{line.name || 'Sans désignation'}</strong></span></label>
                                 {!line.ignored && <><p className="mt-2">{Number.isFinite(line.qty) ? line.qty.toLocaleString('fr-FR') : '—'} {line.unit} × {Number.isFinite(line.price) ? formatMoney(line.price, currency) : '—'} HT</p><p className="font-bold mt-1">Total : {formatMoney(line.total, currency)} HT</p>{line.issues.length > 0 && <p className="text-xs text-red-700 mt-2">{line.issues.join(' · ')}</p>}</>}
                             </div>)}</div>
-                            <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-xl max-h-[320px] overflow-y-auto"><table className="w-full text-xs min-w-[620px]"><thead className="bg-neutral-50 sticky top-0"><tr>{['Garder', 'Lot / désignation', 'Quantité', 'Unité', 'PU HT', 'Total HT'].map(x => <th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{preview.lines.map(line => <tr key={line.rowNumber} className={`border-t border-neutral-100 ${line.ignored ? 'bg-neutral-50 text-neutral-400' : line.issues.length ? 'bg-red-50' : ''}`}><td className="p-3"><label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" aria-label={`Inclure la ligne ${line.rowNumber}`} checked={!line.ignored} onChange={() => setExcluded(prev => line.ignored ? prev.filter(n => n !== line.rowNumber) : [...prev, line.rowNumber])} />{line.rowNumber}</label></td><td className="p-3 max-w-[260px] break-words"><span className="text-neutral-500 block">{line.lot}</span><strong>{line.name || 'Sans désignation'}</strong>{!line.ignored && line.issues.length > 0 && <p className="text-red-700 mt-1">{line.issues.join(' · ')}</p>}</td><td className="p-3">{Number.isFinite(line.qty) ? line.qty.toLocaleString('fr-FR') : '—'}</td><td className="p-3">{line.unit}</td><td className="p-3 whitespace-nowrap">{Number.isFinite(line.price) ? formatMoney(line.price, currency) : '—'}</td><td className="p-3 whitespace-nowrap">{formatMoney(line.total, currency)}</td></tr>)}</tbody></table></div>
+                            <div className="hidden sm:block overflow-x-auto border border-neutral-200 rounded-xl max-h-[320px] overflow-y-auto"><table className="w-full text-xs min-w-[620px]"><thead className="bg-neutral-50 sticky top-0"><tr>{['Garder', 'Lot / désignation', 'Quantité', 'Unité', 'PU HT', 'Total HT'].map(x => <th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{preview.lines.map(line => <tr key={line.rowNumber} className={`border-t border-neutral-100 ${line.ignored ? 'bg-neutral-50 text-neutral-500' : line.issues.length ? 'bg-red-50' : ''}`}><td className="p-3"><label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" aria-label={`Inclure la ligne ${line.rowNumber}`} checked={!line.ignored} onChange={() => setExcluded(prev => line.ignored ? prev.filter(n => n !== line.rowNumber) : [...prev, line.rowNumber])} />{line.rowNumber}</label></td><td className="p-3 max-w-[260px] break-words"><span className="text-neutral-500 block">{line.lot}</span><strong>{line.name || 'Sans désignation'}</strong>{!line.ignored && line.issues.length > 0 && <p className="text-red-700 mt-1">{line.issues.join(' · ')}</p>}</td><td className="p-3">{Number.isFinite(line.qty) ? line.qty.toLocaleString('fr-FR') : '—'}</td><td className="p-3">{line.unit}</td><td className="p-3 whitespace-nowrap">{Number.isFinite(line.price) ? formatMoney(line.price, currency) : '—'}</td><td className="p-3 whitespace-nowrap">{formatMoney(line.total, currency)}</td></tr>)}</tbody></table></div>
                         </div>
                         {preview.missingCosts > 0 && <p className="bg-amber-50 text-amber-800 rounded-xl p-3 text-sm">{preview.missingCosts} ligne(s) sans coût d’achat : le prix de vente sera importé, mais la marge restera à compléter.</p>}
                         <label className="flex gap-3 items-start text-sm p-3 border border-neutral-200 rounded-xl"><input type="checkbox" className="mt-1" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} /><span>J’ai vérifié les lignes, les quantités et les prix. Les montants sont HT, en {currency}, et la TVA du devis sera appliquée.</span></label>
                     </>}
                 </div>
                 <footer className="p-4 border-t border-neutral-200 shrink-0 bg-white flex flex-wrap justify-between gap-3 items-center">
-                    <div className="text-sm"><strong>{preview.lines.filter(l => !l.ignored).length} ligne(s) · {formatMoney(preview.total, currency)} HT</strong><p className="text-xs text-neutral-500">Ajout au devis en cours · {preview.skipped} ligne(s) exclue(s)</p></div>
+                    {(() => {
+                        // Audit UX 220 (C164) — le bouton restait grisé sans dire pourquoi ni combien de lignes corriger.
+                        const aCorriger = preview.lines.filter(l => !l.ignored && l.issues.length > 0).length;
+                        const raison = busy ? 'Lecture du fichier en cours…'
+                            : error ? 'Corrigez le problème signalé plus haut.'
+                            : !rows.length ? 'Choisissez un fichier ou collez un tableau.'
+                            : !preview.valid ? (aCorriger > 0 ? `${aCorriger} ligne(s) à corriger ou à décocher avant l’ajout.` : (preview.errors[0] || 'Associez les colonnes obligatoires (*).'))
+                            : !acknowledged ? 'Cochez la case « J’ai vérifié les lignes… » pour continuer.'
+                            : '';
+                        return (
+                            <div className="text-sm"><strong>{preview.lines.filter(l => !l.ignored).length} ligne(s) · {formatMoney(preview.total, currency)} HT</strong><p className="text-xs text-neutral-500">Ajout au devis en cours · {preview.skipped} ligne(s) exclue(s)</p>{raison && <p className="text-xs font-semibold text-amber-800 mt-0.5" role="status">{raison}</p>}</div>
+                        );
+                    })()}
                     <button type="button" className="btn-primary min-h-[44px] w-full sm:w-auto" disabled={busy || !!error || !preview.valid || !acknowledged} onClick={() => onImport(api.toLots(preview, sourceName))}>Ajouter au devis</button>
                 </footer>
             </section>
@@ -6990,6 +7259,7 @@ function QuoteWorkspace({
         return [...new Set([...regles, courant])].sort((a, b) => b - a);
     })();
     const [inspectorItemIndex, setInspectorItemIndex] = useState(null);
+    const [inspectorEntry, setInspectorEntry] = useState(null);
     const [deletedItemUndo, setDeletedItemUndo] = useState(null);
     const [autosaveTime, setAutosaveTime] = useState(null);
     // Fix UX-1 (2026-08-30) — hasUnsavedChanges est un état LOCAL à ce
@@ -7326,6 +7596,7 @@ function QuoteWorkspace({
             items: [...(updatedLots[activeLotIndex].items || []), newItem]
         };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
+        setInspectorEntry(null);
         setInspectorItemIndex(updatedLots[activeLotIndex].items.length - 1);
         setIsPickerOpen(false);
         showToast(`« ${sol.name} » ajouté au Lot ${updatedLots[activeLotIndex].code || activeLotIndex + 1} !`);
@@ -7470,9 +7741,13 @@ function QuoteWorkspace({
             setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
 
             // Undo support
-            setDeletedItemUndo({ lotIndex: activeLotIndex, itemIndex: itemIdx, item: deleted });
-            showToast("Ouvrage supprimé du lot");
-            setTimeout(() => setDeletedItemUndo(null), 6000);
+            // Audit UX 220 (C069) — le minuteur de la suppression précédente
+            // effaçait le lien « Annuler » de la suivante au bout de 0,8 s au
+            // lieu de 6 s. Chaque minuteur ne retire que SON lien. Plus de
+            // notification en double : le bandeau d'annulation EST le message.
+            const jeton = Date.now() + Math.random();
+            setDeletedItemUndo({ lotIndex: activeLotIndex, itemIndex: itemIdx, item: deleted, jeton });
+            setTimeout(() => setDeletedItemUndo(courant => (courant && courant.jeton === jeton ? null : courant)), 6000);
         };
 
         if (!confirmAction) { supprimer(); return; }
@@ -7519,19 +7794,40 @@ function QuoteWorkspace({
     const confirmPendingQuantities = () => {
         const lotIndex = (calculatedQuote.lots || []).findIndex(l => l.items.some(i => i.needsQuantityConfirmation));
         if (lotIndex < 0) return true;
+        const itemIndex = calculatedQuote.lots[lotIndex].items.findIndex(i => i.needsQuantityConfirmation);
+        const restants = (calculatedQuote.lots || []).reduce((n, l) => n + l.items.filter(i => i.needsQuantityConfirmation).length, 0);
         setActiveLotIndex(lotIndex);
-        setInspectorItemIndex(calculatedQuote.lots[lotIndex].items.findIndex(i => i.needsQuantityConfirmation));
-        showToast('Confirmez les quantités de chaque ouvrage avant de finaliser le devis.', 'info');
+        setInspectorItemIndex(itemIndex);
+        // Audit UX 220 (UX-P2-12 / R6) — le message ne disait ni quel ouvrage
+        // ni où agir. Il nomme l'ouvrage ouvert, le nombre restant, et le
+        // focus va sur « Confirmer mes quantités ».
+        const nomOuvrage = calculatedQuote.lots[lotIndex].items[itemIndex]?.name || 'cet ouvrage';
+        showToast(`Quantités à confirmer : « ${nomOuvrage} » est ouvert — vérifiez puis cliquez « Confirmer mes quantités »${restants > 1 ? ` (${restants} ouvrages au total)` : ''}.`, 'info');
+        setTimeout(() => {
+            const bouton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Confirmer mes quantités' && b.getClientRects().length > 0);
+            if (bouton) { bouton.scrollIntoView({ block: 'center' }); bouton.focus({ preventScroll: true }); }
+        }, 250);
         return false;
     };
     const handleSaveQuoteAction = () => {
         if (!confirmPendingQuantities()) return 'bloque';
         setClientManquant(false);
+        // Renvoie `false` si le devis n'a pas pu être écrit sur l'appareil.
+        // En mode local, l'écriture a lieu PENDANT l'appel à onSaveQuote ;
+        // LS.set signale son échec (stockage plein) par un évènement qui
+        // nomme la ressource. L'indicateur « non enregistré » et l'heure du
+        // dernier enregistrement ne changent alors pas : sinon quitter le
+        // chiffrage ne poserait plus de question et le devis serait perdu.
         const doSave = () => {
             const savedQ = adaptHybridToSavedQuote(calculatedQuote, companyInfo);
-            onSaveQuote(savedQ);
+            let nonEcrit = false;
+            const noterEchec = (e) => { if (e && e.detail && e.detail.cle === 'savedQuotes') nonEcrit = true; };
+            window.addEventListener('ikadevis:ecriture-locale-impossible', noterEchec);
+            try { onSaveQuote(savedQ); } finally { window.removeEventListener('ikadevis:ecriture-locale-impossible', noterEchec); }
+            if (nonEcrit) { setHasUnsavedChanges(true); return false; }
             setHasUnsavedChanges(false);
             setAutosaveTime(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            return true;
         };
 
         // Fix "doublon à chaque Enregistrer" (2026-08-30) — demandé par
@@ -7551,8 +7847,10 @@ function QuoteWorkspace({
             // reprend sa navigation s'il le souhaite.
             return 'confirmation';
         }
-        doSave();
-        return 'enregistre';
+        // Écriture impossible : on ne dit pas « enregistré », la garde de
+        // sortie du chiffrage ne laisse donc pas partir (même issue qu'un
+        // refus de validation).
+        return doSave() ? 'enregistre' : 'bloque';
     };
 
     const handlePreviewQuoteAction = () => {
@@ -7576,7 +7874,10 @@ function QuoteWorkspace({
             message: `${ref} contient des modifications qui ne sont pas enregistrées.\nElles seront perdues si vous continuez.`,
             secondaryLabel: "Enregistrer d'abord",
             onSecondary: () => {
-                handleSaveQuoteAction();
+                // 'bloque' : rien n'a été enregistré (quantités à confirmer,
+                // ou écriture refusée par l'appareil — stockage plein). On ne
+                // remplace pas le devis : il serait perdu sans avoir été sauvé.
+                if (handleSaveQuoteAction() === 'bloque') return;
                 action();
             },
             confirmLabel: 'Continuer sans enregistrer',
@@ -7638,9 +7939,31 @@ function QuoteWorkspace({
                 visible casserait le `sticky top-0` et la répartition en
                 colonne. À partir de lg: elle est toujours affichée. */}
             <div className={(mobileShowLotList && inspectorItemIndex === null) ? 'contents' : 'hidden lg:contents'}>
-            <nav aria-label="Progression du devis" className="discovery-progress flex flex-wrap gap-2 px-4 py-2 text-xs text-neutral-600">
-                <span>1. Travaux</span><span aria-hidden="true">→</span><span>2. Quantités</span><span aria-hidden="true">→</span><span>3. Prix et marge</span><span aria-hidden="true">→</span><span>4. Vérification</span>
-            </nav>
+            {/* Audit UX 220 (C093) — la progression ne marquait jamais l'étape
+                en cours : quatre libellés identiques, avant comme après l'ajout
+                d'un ouvrage. L'étape se déduit du devis lui-même. */}
+            {(() => {
+                const ouvrages = (calculatedQuote.lots || []).flatMap(l => l.items || []);
+                const etapeCourante = ouvrages.length === 0 ? 1
+                    : ouvrages.some(i => i.needsQuantityConfirmation) ? 2
+                    : !quoteAlreadySaved ? 3 : 4;
+                const etapes = ['Travaux', 'Quantités', 'Prix et marge', 'Vérification'];
+                return (
+                    <nav aria-label="Progression du devis" className="discovery-progress flex flex-wrap gap-2 px-4 py-2 text-xs text-neutral-600">
+                        {etapes.map((libelle, i) => (
+                            <React.Fragment key={libelle}>
+                                {i > 0 && <span aria-hidden="true">→</span>}
+                                <span aria-current={etapeCourante === i + 1 ? 'step' : undefined}
+                                    className={etapeCourante === i + 1 ? 'font-bold text-brand-700' : etapeCourante > i + 1 ? 'text-emerald-700' : ''}>
+                                    {etapeCourante > i + 1 && <span aria-hidden="true">✓ </span>}
+                                    {i + 1}. {libelle}
+                                    {etapeCourante > i + 1 && <span className="sr-only"> (terminée)</span>}
+                                </span>
+                            </React.Fragment>
+                        ))}
+                    </nav>
+                );
+            })()}
             <QuoteHeader
                 quote={calculatedQuote}
                 clients={clients}
@@ -7737,9 +8060,17 @@ function QuoteWorkspace({
                         currency={companyInfo.currency}
                     />
                     {(activeLot?.items || []).length === 0 && (
-                        <button type="button" className="lg:hidden btn-primary m-4 min-h-[48px]" onClick={() => { setMobileShowLotList(false); setIsPickerOpen(true); }}>
-                            <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter mon premier ouvrage
-                        </button>
+                        /* Audit UX 220 (C029/C134, rejeu) — sur téléphone cet appel
+                           restait SOUS la barre de totaux (390 px) ou sous la barre
+                           d'onglets (360 et 320 px) : un appui en son centre ouvrait
+                           « Aperçu PDF » ou changeait d'écran. Il réserve maintenant
+                           la hauteur des deux barres, comme toute colonne du
+                           chiffrage (.clear-totals-bar, index.html). */
+                        <div className="lg:hidden flex flex-col shrink-0 clear-totals-bar">
+                            <button type="button" className="btn-primary m-4 min-h-[48px]" onClick={() => { setMobileShowLotList(false); setIsPickerOpen(true); }}>
+                                <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter mon premier ouvrage
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -7791,7 +8122,7 @@ function QuoteWorkspace({
                             items={activeLot.items || []}
                             solutions={solutions}
                             onUpdateItem={handleUpdateItem}
-                            onOpenInspector={(idx) => setInspectorItemIndex(idx)}
+                            onOpenInspector={(idx, section) => { setInspectorEntry(section === 'pricing' ? {} : null); setInspectorItemIndex(idx); }}
                             onDuplicateItem={handleDuplicateItem}
                             onDeleteItem={handleDeleteItem}
                             onOpenPicker={() => setIsPickerOpen(true)}
@@ -7821,6 +8152,8 @@ function QuoteWorkspace({
                             isOpen={inspectorItemIndex !== null}
                             onClose={() => setInspectorItemIndex(null)}
                             item={activeLot.items?.[inspectorItemIndex]}
+                            pricingEntry={inspectorEntry}
+                            vatRate={calculatedQuote.vatRate ?? 18}
                             lot={activeLot}
                             lots={calculatedQuote.lots || []}
                             lotIndex={activeLotIndex}
@@ -7887,25 +8220,32 @@ function QuoteWorkspace({
                 hasUnsavedChanges={hasUnsavedChanges}
                 onSaveQuote={handleSaveQuoteAction}
                 onPreviewQuote={handlePreviewQuoteAction}
-                onChangeVatRate={(taux) => { pushState(); handleUpdateQuote({ vatRate: taux }); }}
+                onChangeVatRate={(taux) => { if (!Number.isFinite(taux) || taux < 0 || taux > 100 || taux === hybridQuote.vatRate) return; pushState(); handleUpdateQuote({ vatRate: taux }); }}
                 vatRates={vatRatesDisponibles}
                 isReadOnlyDueToDowngrade={isReadOnlyDueToDowngrade}
                 currency={companyInfo.currency}
             />
 
-            {/* Undo Toast Notification */}
-            {deletedItemUndo && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl shadow-floating z-50 flex items-center gap-3 border border-neutral-700 animate-slide-up text-xs font-bold">
-                    <span>Ouvrage supprimé du lot</span>
-                    <button
-                        type="button"
-                        onClick={handleUndoDelete}
-                        className="text-brand-400 hover:text-brand-300 underline font-semibold"
-                    >
-                        Annuler
-                    </button>
-                </div>
-            )}
+            {/* Undo Toast Notification
+                Audit UX 220 (C069) — région d'annonce permanente (le message
+                est lu par un lecteur d'écran) ; sur téléphone le bandeau se
+                place au-dessus de la barre des totaux et de la barre
+                d'onglets (même hauteur que les notifications), là où il
+                était recouvert et le lien inatteignable. */}
+            <div role="status" aria-live="polite">
+                {deletedItemUndo && (
+                    <div className="fixed bottom-52 md:bottom-24 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-4 py-2.5 rounded-xl shadow-floating z-[141] flex items-center gap-3 border border-neutral-700 animate-slide-up text-xs font-bold">
+                        <span>Ouvrage « {deletedItemUndo.item?.name || 'sans nom'} » supprimé du lot</span>
+                        <button
+                            type="button"
+                            onClick={handleUndoDelete}
+                            className="text-brand-300 hover:text-brand-200 underline font-semibold min-h-[44px] px-2"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -7930,6 +8270,21 @@ const ROLE_PERMISSIONS = {
     commercial: { canEditQuotes: true, canDeleteQuotes: false, canEditCatalog: false, canEditPrices: false, canEditSettings: false, canViewAudit: false },
     viewer:     { canEditQuotes: false, canDeleteQuotes: false, canEditCatalog: false, canEditPrices: false, canEditSettings: false, canViewAudit: false }
 };
+
+// Ce que permet un rôle, en clair, déduit de ROLE_PERMISSIONS (C210).
+function descriptionRole(role) {
+    const p = ROLE_PERMISSIONS[role];
+    if (!p) return '';
+    const peut = [
+        p.canEditQuotes && 'créer et modifier les devis',
+        p.canDeleteQuotes && 'supprimer des devis',
+        p.canEditCatalog && 'modifier le catalogue d’ouvrages',
+        p.canEditPrices && 'modifier les prix des ressources',
+        p.canEditSettings && 'changer les paramètres de l’entreprise',
+        p.canViewAudit && 'consulter le journal d’audit',
+    ].filter(Boolean);
+    return peut.length ? `Peut ${peut.join(', ')}.` : 'Consultation seule : ne peut rien modifier.';
+}
 
 function hasPermission(role, action) {
     const roleConfig = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.viewer;
@@ -8191,10 +8546,50 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
     const [chargement, setChargement] = useState(true);
     const [occupe, setOccupe] = useState(false);
     const [erreurs, setErreurs] = useState([]);
+    // Audit UX 220 (C061/C065) — après un échec, le résumé d'erreurs restait
+    // hors écran (y négatif) et le focus sur « Enregistrer » ; aucun champ
+    // n'était marqué. Le résumé reçoit le focus, chaque message renvoie à
+    // son champ, et le champ porte aria-invalid + bordure rouge.
+    const refResumeErreurs = useRef(null);
+    const montrerErreurs = () => setTimeout(() => {
+        const r = refResumeErreurs.current;
+        if (r) { r.scrollIntoView({ block: 'center', behavior: 'smooth' }); r.focus({ preventScroll: true }); }
+    }, 0);
+    const champDErreur = (msg) => ([
+        [/décrivez la dépense|description est trop longue/i, 'dep_description'],
+        [/date de la dépense/i, 'dep_date'],
+        [/échéance/i, 'dep_echeance'],
+        [/montant doit/i, 'dep_montant'],
+        [/indiquez le taux/i, 'dep_taux'],
+        [/avancé la dépense/i, 'dep_avance'],
+        [/compte d’où|le compte est en/i, 'dep_compte'],
+    ].find(([motif]) => motif.test(msg)) || [])[1] || null;
+    const champsEnErreur = new Set(erreurs.map(champDErreur).filter(Boolean));
+    const invalide = (id) => (champsEnErreur.has(id)
+        ? { 'aria-invalid': true, 'aria-describedby': 'dep_erreurs', className: 'app-input border-red-500 ring-1 ring-red-500/30' }
+        : { className: 'app-input' });
     const [filtre, setFiltre] = useState('tout');
     const [recherche, setRecherche] = useState('');
     const [ouverte, setOuverte] = useState(null);       // id de la dépense dépliée
-    const [edition, setEdition] = useState(null);       // brouillon du formulaire
+    // Audit UX 220 (C057) — « Ajouter un compte » depuis le formulaire menait
+    // aux Paramètres et la dépense en cours (objet, montant…) était perdue.
+    // Elle est mise de côté le temps de créer le compte, puis rouverte.
+    const CLE_DEPENSE_EN_COURS = `ikadevis:depense-en-cours:${organizationId || 'local'}`;
+    const [edition, setEdition] = useState(() => {
+        try {
+            const brut = sessionStorage.getItem(CLE_DEPENSE_EN_COURS);
+            if (!brut) return null;
+            sessionStorage.removeItem(CLE_DEPENSE_EN_COURS);
+            return JSON.parse(brut);
+        } catch (_) { return null; }
+    });       // brouillon du formulaire
+    const [depenseReprise, setDepenseReprise] = useState(() => edition !== null);
+    const allerCreerCompte = () => {
+        if (edition) {
+            try { sessionStorage.setItem(CLE_DEPENSE_EN_COURS, JSON.stringify(edition)); } catch (_) { /* stockage indisponible : on part sans brouillon */ }
+        }
+        onOuvrirReglages();
+    };
     const [reglement, setReglement] = useState(null);   // brouillon de règlement
 
     const orgCloud = !!(organizationId && !organizationId.startsWith('org_default') && !organizationId.startsWith('org_local') && organizationId !== 'guest_org');
@@ -8203,14 +8598,14 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
 
     // ── Chargement ────────────────────────────────────────────────────────
     const refsLocales = () => {
-        const f = LS.get('finance', organizationId);
+        const f = LS.get('finance', sbUser?.id || 'guest', organizationId);
         if (f && f.settings) return f;
         const d = financeDefautsDepuisEntreprise(companyInfo, nouvelIdFinance);
-        LS.set('finance', d, organizationId);
+        LS.set('finance', d, sbUser?.id || 'guest', organizationId);
         return d;
     };
     const depensesLocales = () => {
-        const l = LS.get('depenses', organizationId);
+        const l = LS.get('depenses', sbUser?.id || 'guest', organizationId);
         return Array.isArray(l) ? l : [];
     };
     const lireCloud = async (dejaInitialise = false) => {
@@ -8262,7 +8657,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
     };
     useEffect(() => { charger(); }, [organizationId, supabaseClient, sbUser?.id]);
 
-    const enregistrerLocal = (liste) => { LS.set('depenses', liste, organizationId); setDepenses(liste); };
+    const enregistrerLocal = (liste) => { LS.set('depenses', liste, sbUser?.id || 'guest', organizationId); setDepenses(liste); };
     const traduireErreur = (err) => {
         const brut = err?.message || String(err);
         if (/row-level security|permission/i.test(brut)) return "Vous n'avez pas les droits pour saisir des dépenses.";
@@ -8413,7 +8808,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
         if (e.currency !== deviseBase && !(Number(e.fx_rate) > 0)) errs.push(`Indiquez le taux : combien vaut 1 ${e.currency} en ${deviseBase}.`);
         if (e.kind === 'expense' && e.payePar === 'personne' && !d.advanced_by) errs.push('Indiquez qui a avancé la dépense.');
         setErreurs(errs);
-        if (errs.length) return;
+        if (errs.length) { montrerErreurs(); return; }
         const ok = await executer(async () => {
             if (mode === 'cloud') {
                 const { error } = await supabaseClient.rpc('enregistrer_depense_v1', { p: d });
@@ -8448,7 +8843,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
         if (!(montant > 0)) errs.push('Le montant doit être supérieur à zéro.');
         else if (arrondiDevise(montant, r.expense.currency) > r.expense.etat.reste) errs.push(`Le règlement dépasse le reste à payer (${formatMoney(r.expense.etat.reste, r.expense.currency)}).`);
         setErreurs(errs);
-        if (errs.length) return;
+        if (errs.length) { montrerErreurs(); return; }
         const ok = await executer(async () => {
             if (mode === 'cloud') {
                 const { error } = await supabaseClient.rpc('regler_depense_v1', {
@@ -8498,8 +8893,19 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
 
     // ── Rendu ─────────────────────────────────────────────────────────────
     const blocErreurs = erreurs.length > 0 && (
-        <div role="alert" className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs space-y-1">
-            {erreurs.map((x) => <p key={x}><i className="fa-solid fa-circle-exclamation mr-1.5"></i>{x}</p>)}
+        <div role="alert" id="dep_erreurs" ref={refResumeErreurs} tabIndex={-1} className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs space-y-1 outline-none focus-visible:ring-2 focus-visible:ring-rose-400">
+            {erreurs.length > 1 && <p className="font-bold">{erreurs.length} points à corriger :</p>}
+            {erreurs.map((x) => {
+                const champ = champDErreur(x);
+                return (
+                    <p key={x}>
+                        <i className="fa-solid fa-circle-exclamation mr-1.5" aria-hidden="true"></i>
+                        {champ && document.getElementById(champ)
+                            ? <a href={`#${champ}`} className="underline underline-offset-2" onClick={(ev) => { ev.preventDefault(); const el = document.getElementById(champ); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }}>{x}</a>
+                            : x}
+                    </p>
+                );
+            })}
         </div>
     );
     const optionsDevises = devises.map((c) => ({ value: c, label: c }));
@@ -8540,15 +8946,15 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
 
                 <div className={`${depenses.length ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-3 gap-3`}>
                     <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
-                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reste à payer</p>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Reste à payer</p>
                         <p className="text-lg font-bold text-neutral-900 mt-1" data-kpi-reste>{montantsParDevise(resteParDevise)}</p>
                     </div>
                     <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
-                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Échéances dépassées</p>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Échéances dépassées</p>
                         <p className={`text-lg font-bold mt-1 ${enRetard ? 'text-rose-600' : 'text-neutral-900'}`}>{enRetard}</p>
                     </div>
                     <div className="p-4 rounded-2xl border border-neutral-200 bg-white">
-                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Payé ce mois-ci</p>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Payé ce mois-ci</p>
                         <p className="text-lg font-bold text-neutral-900 mt-1">{montantsParDevise(payeCeMois)}</p>
                     </div>
                 </div>
@@ -8558,6 +8964,12 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                         className="p-4 sm:p-5 rounded-2xl border border-neutral-200 bg-white space-y-4 shadow-2xs"
                         aria-label={e.id ? 'Modifier la dépense' : 'Nouvelle dépense'}>
                         <p className="text-sm font-bold text-neutral-800">{e.id ? `Modifier « ${e.description} »` : 'Nouvelle dépense'}</p>
+                        {depenseReprise && (
+                            <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                                <span>Votre dépense en cours a été conservée : choisissez maintenant le compte.</span>
+                                <button type="button" className="underline" onClick={() => setDepenseReprise(false)}>Compris</button>
+                            </p>
+                        )}
                         {blocErreurs}
                         {dejaReglee && (
                             <p className="text-[11px] text-neutral-500"><i className="fa-solid fa-lock mr-1"></i>Cette dépense a un règlement : son montant, sa devise et sa nature sont figés. Annulez le règlement pour les modifier.</p>
@@ -8576,7 +8988,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="sm:col-span-2">
                                 <label htmlFor="dep_description" className="app-label">Objet *</label>
-                                <input id="dep_description" className="app-input" value={e.description} placeholder="Ex. Ciment 50 sacs, location nacelle" onChange={(ev) => setEdition({ ...e, description: ev.target.value })} />
+                                <input id="dep_description" {...invalide('dep_description')} value={e.description} placeholder="Ex. Ciment 50 sacs, location nacelle" onChange={(ev) => setEdition({ ...e, description: ev.target.value })} />
                             </div>
                             <div>
                                 <label htmlFor="dep_fournisseur" className="app-label">Fournisseur</label>
@@ -8591,17 +9003,17 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                             </div>
                             <div>
                                 <label htmlFor="dep_date" className="app-label">Date *</label>
-                                <input id="dep_date" type="date" className="app-input" value={e.expense_date} onChange={(ev) => setEdition({ ...e, expense_date: ev.target.value })} />
+                                <input id="dep_date" type="date" {...invalide('dep_date')} value={e.expense_date} onChange={(ev) => setEdition({ ...e, expense_date: ev.target.value })} />
                             </div>
                             {e.kind === 'supplier_invoice' && (
                                 <div>
                                     <label htmlFor="dep_echeance" className="app-label">Échéance *</label>
-                                    <input id="dep_echeance" type="date" className="app-input" value={e.due_date} onChange={(ev) => setEdition({ ...e, due_date: ev.target.value })} />
+                                    <input id="dep_echeance" type="date" {...invalide('dep_echeance')} value={e.due_date} onChange={(ev) => setEdition({ ...e, due_date: ev.target.value })} />
                                 </div>
                             )}
                             <div>
                                 <label htmlFor="dep_montant" className="app-label">Montant {taxeChoisie?.is_inclusive ? 'TTC' : 'HT'} *</label>
-                                <input id="dep_montant" type="number" step="any" min="0" className="app-input" value={e.montant} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, montant: ev.target.value })} />
+                                <input id="dep_montant" type="number" step="any" min="0" {...invalide('dep_montant')} value={e.montant} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, montant: ev.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -8618,7 +9030,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                             {e.currency !== deviseBase && (
                                 <div className="sm:col-span-2">
                                     <label htmlFor="dep_taux" className="app-label">Taux : 1 {e.currency} = combien de {deviseBase} ? *</label>
-                                    <input id="dep_taux" type="number" step="any" min="0" className="app-input" value={e.fx_rate} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, fx_rate: ev.target.value })} />
+                                    <input id="dep_taux" type="number" step="any" min="0" {...invalide('dep_taux')} value={e.fx_rate} disabled={dejaReglee} onChange={(ev) => setEdition({ ...e, fx_rate: ev.target.value })} />
                                 </div>
                             )}
                             <div className="sm:col-span-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 flex flex-wrap gap-x-6 gap-y-1" data-dep-totaux>
@@ -8692,7 +9104,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                                                 <CustomSelect id="dep_compte" size="md" aria-label="Compte de sortie" value={e.account_id}
                                                     onChange={(ev) => setEdition({ ...e, account_id: ev.target.value })} options={optionsComptes(e.currency)} />
                                             ) : (
-                                                <p className="text-xs text-amber-700 p-2">Aucun compte en {e.currency}. <button type="button" className="underline" onClick={onOuvrirReglages}>Ajouter un compte</button></p>
+                                                <p className="text-xs text-amber-800 p-2">Aucun compte en {e.currency}. <button type="button" className="underline" onClick={allerCreerCompte}>Ajouter un compte</button> — votre saisie sera conservée.</p>
                                             )}
                                         </div>
                                         <div>
@@ -8704,7 +9116,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                                 ) : (
                                     <div>
                                         <label htmlFor="dep_avance" className="app-label">Avancée par *</label>
-                                        <input id="dep_avance" className="app-input" value={e.advanced_by} placeholder="Nom de la personne à rembourser" onChange={(ev) => setEdition({ ...e, advanced_by: ev.target.value })} />
+                                        <input id="dep_avance" {...invalide('dep_avance')} value={e.advanced_by} placeholder="Nom de la personne à rembourser" onChange={(ev) => setEdition({ ...e, advanced_by: ev.target.value })} />
                                         <p className="text-[11px] text-neutral-500 mt-1">Aucun compte de l'entreprise n'est touché : la somme apparaîtra « à rembourser ».</p>
                                     </div>
                                 )}
@@ -8761,7 +9173,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                                         <div className="w-full sm:w-auto text-left sm:text-right">
                                             <p className="text-base font-bold text-neutral-900" data-depense-ttc>{formatMoney(d.amount_ttc, d.currency)}</p>
                                             {d.etat.statut !== 'paid' && d.etat.regle > 0 && <p className="text-[11px] text-neutral-500" data-depense-reste>reste {formatMoney(d.etat.reste, d.currency)}</p>}
-                                            {d.due_date && d.etat.statut !== 'paid' && <p className={`text-[11px] ${retard ? 'text-rose-600' : 'text-neutral-400'}`}>échéance {formatDate(d.due_date)}</p>}
+                                            {d.due_date && d.etat.statut !== 'paid' && <p className={`text-[11px] ${retard ? 'text-rose-600' : 'text-neutral-500'}`}>échéance {formatDate(d.due_date)}</p>}
                                         </div>
                                     </button>
                                     {estOuverte && (
@@ -8778,7 +9190,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                                                 <ul className="text-xs space-y-1">
                                                     {d.reglements.map((r) => (
                                                         <li key={r.id} className="flex flex-wrap items-center gap-2 text-neutral-600">
-                                                            <i className="fa-solid fa-arrow-right-from-bracket text-neutral-400"></i>
+                                                            <i className="fa-solid fa-arrow-right-from-bracket text-neutral-500"></i>
                                                             <span>{formatDate(r.payment_date)} · {nomCompte(r.account_id)} · <strong className="text-neutral-900">{formatMoney(r.amount, d.currency)}</strong></span>
                                                             {r.status && r.status !== 'confirmed' && <Badge colorClass="bg-rose-100 text-rose-700">{r.status === 'bounced' ? 'Rejeté' : r.status}</Badge>}
                                                             {modifiable && <button type="button" className="text-rose-600 underline" onClick={() => annulerReglement(d, r)}>Annuler</button>}
@@ -8835,7 +9247,7 @@ function ExpensesScreen({ organizationId, supabaseClient, sbUser, companyInfo, p
                         })}
                     </ul>
                 )}
-                <p className="text-[11px] text-neutral-400">{mode === 'cloud' ? 'Enregistré dans votre espace en ligne.' : 'Enregistré sur cet appareil.'}</p>
+                <p className="text-[11px] text-neutral-500">{mode === 'cloud' ? 'Enregistré dans votre espace en ligne.' : 'Enregistré sur cet appareil.'}</p>
             </div>
         </div>
     );
@@ -8922,10 +9334,10 @@ function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyI
     const modifiable = !isReadOnly && (mode === 'local' || canEdit);
     const cleLocale = 'finance';
 
-    const enregistrerLocal = (d) => { LS.set(cleLocale, d, organizationId); };
+    const enregistrerLocal = (d) => { LS.set(cleLocale, d, sbUser?.id || 'guest', organizationId); };
 
     const chargerLocal = () => {
-        const stocke = LS.get(cleLocale, organizationId);
+        const stocke = LS.get(cleLocale, sbUser?.id || 'guest', organizationId);
         if (stocke && stocke.settings) return stocke;
         const d = financeDefautsDepuisEntreprise(companyInfo, nouvelIdFinance);
         enregistrerLocal(d);
@@ -9046,7 +9458,7 @@ function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyI
         }
         // Mode local : les règlements des dépenses (écran Dépenses) sont les
         // sorties des comptes — même règle que la vue SQL.
-        return soldeCompte(compte, mouvementsDepuisDepenses(LS.get('depenses', organizationId) || []));
+        return soldeCompte(compte, mouvementsDepuisDepenses(LS.get('depenses', sbUser?.id || 'guest', organizationId) || []));
     };
 
     const enregistrerCompte = async () => {
@@ -9407,9 +9819,9 @@ function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyI
                                     {/* Sous 640 px, le solde passe sous le nom : sur la même ligne,
                                         il réduisait le nom du compte à « Ecoba… » (mesuré à 390 px). */}
                                     <div className="w-full sm:w-auto pl-[3.25rem] sm:pl-0 text-left sm:text-right">
-                                        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Solde calculé</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Solde calculé</p>
                                         <p className={`text-base font-bold ${s.solde < 0 ? 'text-rose-600' : 'text-neutral-900'}`} data-solde-compte>{formatMoney(s.solde, a.currency)}</p>
-                                        <p className="text-[10px] text-neutral-400">initial {formatMoney(Number(a.opening_balance) || 0, a.currency)} au {formatDate(a.opening_date)}</p>
+                                        <p className="text-[10px] text-neutral-500">initial {formatMoney(Number(a.opening_balance) || 0, a.currency)} au {formatDate(a.opening_date)}</p>
                                     </div>
                                     {modifiable && (
                                         <div className="flex gap-1 w-full sm:w-auto justify-end">
@@ -9430,7 +9842,7 @@ function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyI
                         </button>
                     )}
                     {mode === 'local' && donnees.accounts.length > 0 && (
-                        <p className="text-[11px] text-neutral-400">Les mouvements (encaissements, dépenses, transferts) alimenteront ces soldes dans une prochaine étape.</p>
+                        <p className="text-[11px] text-neutral-500">Les mouvements (encaissements, dépenses, transferts) alimenteront ces soldes dans une prochaine étape.</p>
                     )}
                 </section>
             )}
@@ -9658,7 +10070,7 @@ function FinanceSettingsPanel({ organizationId, supabaseClient, sbUser, companyI
                 />
             )}
 
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
                 {mode === 'cloud' ? 'Enregistré dans votre espace en ligne.' : 'Enregistré sur cet appareil.'}
             </p>
         </div>
@@ -9797,7 +10209,12 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                             aria-label="Rôle du membre invité"
                             size="md"
                             options={ROLES_INVITABLES.map(r => ({ value: r, label: ROLE_LABELS_EQUIPE[r] }))}
+                            aria-describedby="team_invite_role_effet"
                         />
+                        {/* Audit UX 220 (C210) — le rôle se choisissait sans savoir ce qu'il
+                            autorise. Décrit à partir de la table de permissions elle-même,
+                            pour ne jamais dire autre chose que ce que l'application applique. */}
+                        <p id="team_invite_role_effet" className="mt-1 text-[11px] leading-snug text-neutral-600">{descriptionRole(inviteRole)}</p>
                     </div>
                     <button type="submit" disabled={isInviting} className="btn-primary text-xs py-2.5 px-4">
                         {isInviting ? <i className="fa-solid fa-circle-notch fa-spin mr-1.5"></i> : <i className="fa-solid fa-user-plus mr-1.5"></i>}
@@ -9830,7 +10247,7 @@ function TeamSettingsPanel({ organizationId, supabaseClient, currentUserId, curr
                                 return (
                                     <tr key={m.user_id} className="hover:bg-neutral-50/60">
                                         <td className="p-3 pl-4 font-bold text-neutral-800">
-                                            {m.email}{soiMeme && <span className="ml-1.5 text-[10px] font-normal text-neutral-400">(vous)</span>}
+                                            {m.email}{soiMeme && <span className="ml-1.5 text-[10px] font-normal text-neutral-500">(vous)</span>}
                                         </td>
                                         <td className="p-3">
                                             {estProprietaire && !soiMeme && m.role !== 'owner' ? (
@@ -10131,7 +10548,7 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                                                 </td>
                                                 <td className="p-3 font-bold text-neutral-900">
                                                     {nomFormule}
-                                                    <span className="block text-[10px] font-normal text-neutral-400">
+                                                    <span className="block text-[10px] font-normal text-neutral-500">
                                                         {item.billing_cycle === 'yearly' ? 'Annuel' : 'Mensuel'}
                                                         {item.network ? ` · ${item.network}` : ''}
                                                     </span>
@@ -10150,7 +10567,7 @@ function SubscriptionSettingsPanel({ showToast, onOpenUpgradeModal, savedQuotesC
                             </table>
                         </div>
                     ) : (
-                        <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-xl border border-dashed border-neutral-200 text-xs">
+                        <div className="p-6 text-center text-neutral-500 bg-neutral-50 rounded-xl border border-dashed border-neutral-200 text-xs">
                             <i className="fa-solid fa-receipt text-2xl mb-2 text-neutral-300"></i>
                             <p>Aucun paiement d'abonnement pour le moment. Votre compte utilise actuellement l'essai Starter gratuit.</p>
                         </div>
@@ -10353,7 +10770,9 @@ function TopBarOrganizationSwitcher({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-neutral-200/90 bg-white hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition-all shadow-2xs group max-w-[170px] sm:max-w-[220px] ${isOpen ? 'ring-2 ring-brand-500/20 border-brand-300' : ''}`}
-                aria-label="Changer d'organisation"
+                // Audit UX 2026-10 (2.5.3) : le nom accessible commence par le texte
+                // affiché, pour qu'une commande vocale « IKADEVIS BTP » trouve ce bouton.
+                aria-label={`${activeOrg.name} — changer d'organisation`}
                 aria-expanded={isOpen}
                 title={`Organisation active : ${activeOrg.name}`}
             >
@@ -10363,14 +10782,14 @@ function TopBarOrganizationSwitcher({
                     <i className="fa-solid fa-building text-[11px]"></i>
                 </span>
                 <span className="truncate font-semibold text-neutral-900 text-left flex-1 min-w-0">{activeOrg.name}</span>
-                <i className={`fa-solid fa-chevron-down text-[10px] text-neutral-400 transition-transform shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+                <i className={`fa-solid fa-chevron-down text-[10px] text-neutral-500 transition-transform shrink-0 ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
             </button>
 
             {isOpen && (
                 <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200 p-2 z-50 animate-fade-in space-y-1">
                     <div className="px-3 py-1.5 flex items-center justify-between border-b border-neutral-100 pb-2">
                         <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Organisation active</span>
-                        <span className="text-[10px] text-neutral-400 font-mono">{organizations.length} dispo(s)</span>
+                        <span className="text-[10px] text-neutral-500 font-mono">{organizations.length} dispo(s)</span>
                     </div>
                     <div className="max-h-56 overflow-y-auto custom-scroll space-y-0.5 py-1">
                         {organizations.map(org => {
@@ -10486,7 +10905,7 @@ function TopBarUserProfile({
                 <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ring-2 ring-white group-hover:ring-neutral-200 transition-all">
                     {isGuest ? <i className="fa-solid fa-user text-[11px]"></i> : <span>{initials}</span>}
                 </div>
-                <i className={`fa-solid fa-chevron-down text-[9px] text-neutral-400 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
+                <i className={`fa-solid fa-chevron-down text-[9px] text-neutral-500 transition-transform ${isOpen ? 'rotate-180 text-brand-600' : ''}`}></i>
             </button>
 
             {isOpen && (
@@ -10528,20 +10947,9 @@ function TopBarUserProfile({
                             </span>
                         </button>
 
-                        {/* Mon Profil & Compte */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsOpen(false);
-                                onOpenSettings('compte');
-                            }}
-                            className="group w-full text-left p-2 rounded-xl text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 transition-colors"
-                        >
-                            <div className="w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
-                                <i className="fa-solid fa-user-gear text-[11px]"></i>
-                            </div>
-                            <span>Mon Profil & Compte</span>
-                        </button>
+                        {/* Audit UX 220 (C010) — « Mon Profil & Compte » ouvrait exactement
+                            la même page que « Paramètres Entreprise » (aucune page de
+                            profil n'existe) : deux entrées pour une destination. Retirée. */}
 
                         {/* Paramètres Entreprise */}
                         <button
@@ -10621,6 +11029,9 @@ function GlobalSearch({
     useEffect(() => {
         const handleKeyDown = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                // Audit UX 220 (C033) — sous une fenêtre ouverte, le raccourci
+                // envoyait le focus dans la recherche de la page DERRIÈRE.
+                if (fenetreModaleOuverte()) return;
                 e.preventDefault();
                 inputRef.current?.focus();
                 setIsOpen(true);
@@ -10690,7 +11101,7 @@ function GlobalSearch({
     return (
         <div className="relative w-full" ref={containerRef}>
             <div className="relative flex items-center w-full">
-                <i className="fa-solid fa-magnifying-glass absolute left-3 text-neutral-400 text-xs pointer-events-none"></i>
+                <i className="fa-solid fa-magnifying-glass absolute left-3 text-neutral-500 text-xs pointer-events-none"></i>
                 <input
                     ref={inputRef}
                     type="text"
@@ -10709,13 +11120,13 @@ function GlobalSearch({
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setQuery(''); inputRef.current?.focus(); }}
-                            className="pointer-events-auto text-neutral-400 hover:text-neutral-600 p-0.5"
+                            className="pointer-events-auto text-neutral-500 hover:text-neutral-600 p-0.5"
                             aria-label="Effacer la recherche"
                         >
                             <i className="fa-solid fa-xmark text-xs"></i>
                         </button>
                     ) : (
-                        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold text-neutral-400 bg-white rounded border border-neutral-200 shadow-2xs">
+                        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold text-neutral-500 bg-white rounded border border-neutral-200 shadow-2xs">
                             ⌘K
                         </kbd>
                     )}
@@ -10728,13 +11139,13 @@ function GlobalSearch({
                         <div className="p-6 text-center text-neutral-500 text-xs">
                             <i className="fa-solid fa-magnifying-glass text-xl mb-2 text-neutral-300"></i>
                             <p className="font-semibold text-neutral-700">Aucun résultat pour « {query} »</p>
-                            <p className="text-[11px] text-neutral-400 mt-1">Recherchez un devis, client, chantier ou une vue.</p>
+                            <p className="text-[11px] text-neutral-500 mt-1">Recherchez un devis, client, chantier ou une vue.</p>
                         </div>
                     )}
 
                     {matchedQuotes.length > 0 && (
                         <div>
-                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i className="fa-solid fa-folder-open text-brand-500"></i> Devis ({matchedQuotes.length})
                             </div>
                             <div className="space-y-0.5">
@@ -10767,7 +11178,7 @@ function GlobalSearch({
 
                     {matchedInvoices.length > 0 && (
                         <div>
-                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i className="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Factures ({matchedInvoices.length})
                             </div>
                             <div className="space-y-0.5">
@@ -10800,7 +11211,7 @@ function GlobalSearch({
 
                     {matchedClients.length > 0 && (
                         <div>
-                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i className="fa-solid fa-users text-violet-600"></i> Clients ({matchedClients.length})
                             </div>
                             <div className="space-y-0.5">
@@ -10819,7 +11230,7 @@ function GlobalSearch({
                                             <span className="text-neutral-800 font-bold truncate block">{item.name}</span>
                                             <span className="text-[11px] text-neutral-500 truncate block">{item.contactPerson || item.email || item.city || ''}</span>
                                         </div>
-                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-400"></i>
+                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-500"></i>
                                     </button>
                                 ))}
                             </div>
@@ -10828,7 +11239,7 @@ function GlobalSearch({
 
                     {matchedProjects.length > 0 && (
                         <div>
-                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i className="fa-solid fa-folder-tree text-amber-600"></i> Chantiers ({matchedProjects.length})
                             </div>
                             <div className="space-y-0.5">
@@ -10847,7 +11258,7 @@ function GlobalSearch({
                                             <span className="text-neutral-800 font-bold truncate block">{item.name}</span>
                                             <span className="text-[11px] text-neutral-500 truncate block">{item.clientName || item.siteAddress || ''}</span>
                                         </div>
-                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-400"></i>
+                                        <i className="fa-solid fa-arrow-right text-[10px] text-neutral-500"></i>
                                     </button>
                                 ))}
                             </div>
@@ -10856,7 +11267,7 @@ function GlobalSearch({
 
                     {matchedNav.length > 0 && (
                         <div>
-                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i className="fa-solid fa-compass text-neutral-500"></i> {q ? 'Navigation' : 'Accès rapide'}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
@@ -11211,6 +11622,12 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
     const [isDrawing, setIsDrawing] = React.useState(false);
     const [signerName, setSignerName] = React.useState(quote?.clientName || '');
     const [hasDrawn, setHasDrawn] = React.useState(false);
+    // Audit UX 220 (C130) — état du tracé en cours. Déclaré AVANT le retour
+    // anticipé ci-dessous : un hook placé après lui change le nombre de hooks
+    // d'un rendu à l'autre et React plante à l'ouverture de la fenêtre.
+    const traceEnCours = React.useRef(false);
+    const longueurTrace = React.useRef(0);
+    const dernierPoint = React.useRef(null);
 
     React.useEffect(() => {
         if (isOpen && canvasRef.current) {
@@ -11222,37 +11639,66 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#1e293b';
             setHasDrawn(false);
+            traceEnCours.current = false;
+            longueurTrace.current = 0;
+            dernierPoint.current = null;
         }
-    }, [isOpen]);
+        // La fenêtre reste montée d'un devis à l'autre : sans cette remise à
+        // zéro, le signataire du devis précédent était reproposé (revue).
+        if (isOpen) setSignerName(quote?.clientName || '');
+    }, [isOpen, quote?.id]);
 
     if (!isOpen || !quote) return null;
+
+    // Audit UX 220 (C130) — trois défauts mesurés : (1) le trait ne suivait
+    // pas le pointeur dès que la toile affichée n'avait pas la taille de son
+    // dessin (440×180 affichée 458×176 sur ordinateur, 304×176 sur
+    // téléphone) — les coordonnées sont maintenant ramenées à l'échelle du
+    // dessin ; (2) au doigt, rien ne se dessinait — un seul jeu d'événements
+    // « pointer » couvre souris, doigt et stylet, avec capture du pointeur ;
+    // (3) « Valider & Signer » acceptait une toile vide — il faut désormais
+    // un vrai tracé (quelques millimètres au moins).
+    const pointDuDessin = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
 
     const startDrawing = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+        e.preventDefault();
+        if (canvas.setPointerCapture && e.pointerId != null) {
+            try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* pointeur déjà relâché */ }
+        }
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-        const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+        const p = pointDuDessin(e);
         ctx.beginPath();
-        ctx.moveTo(x, y);
+        ctx.moveTo(p.x, p.y);
+        dernierPoint.current = p;
+        traceEnCours.current = true;
         setIsDrawing(true);
-        setHasDrawn(true);
     };
 
     const draw = (e) => {
-        if (!isDrawing) return;
+        if (!traceEnCours.current) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-        const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-        ctx.lineTo(x, y);
+        const p = pointDuDessin(e);
+        ctx.lineTo(p.x, p.y);
         ctx.stroke();
+        const avant = dernierPoint.current || p;
+        longueurTrace.current += Math.hypot(p.x - avant.x, p.y - avant.y);
+        dernierPoint.current = p;
+        if (longueurTrace.current >= 15 && !hasDrawn) setHasDrawn(true);
     };
 
     const stopDrawing = () => {
+        traceEnCours.current = false;
         setIsDrawing(false);
     };
 
@@ -11261,10 +11707,12 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        longueurTrace.current = 0;
         setHasDrawn(false);
     };
 
     const handleSave = () => {
+        if (!hasDrawn) return;
         const canvas = canvasRef.current;
         const signatureData = canvas ? canvas.toDataURL('image/png') : '';
         onConfirmSignature({
@@ -11276,8 +11724,13 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[140] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-neutral-200 animate-scale-up">
+        /* Audit UX 220 (C119/C130) — z-[145], au-dessus de la fiche devis
+           mobile (z-[140], montée APRÈS cette fenêtre) : sous 1024 px la
+           signature s'ouvrait SOUS la fiche, donc invisible et intouchable.
+           La carte défile (max-h) : en paysage ou sur petit téléphone elle
+           dépassait l'écran et « Valider » était hors d'atteinte. */
+        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto border border-neutral-200 animate-scale-up">
                 <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
                     <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base">
@@ -11295,9 +11748,11 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
 
                 <div className="p-6 space-y-4 bg-neutral-50/50">
                     <div>
-                        <label className="text-xs font-bold text-neutral-700 block mb-1">Nom & Prénom du Signataire / Fonction :</label>
+                        <label htmlFor="signataire-nom" className="text-xs font-bold text-neutral-700 block mb-1">Nom & Prénom du Signataire / Fonction :</label>
                         <input
+                            id="signataire-nom"
                             type="text"
+                            autoComplete="name"
                             value={signerName}
                             onChange={(e) => setSignerName(e.target.value)}
                             placeholder="Ex: Jean KOUASSI (Gérant)"
@@ -11317,14 +11772,13 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                                 ref={canvasRef}
                                 width={440}
                                 height={180}
-                                className="w-full h-44 block"
-                                onMouseDown={startDrawing}
-                                onMouseMove={draw}
-                                onMouseUp={stopDrawing}
-                                onMouseLeave={stopDrawing}
-                                onTouchStart={startDrawing}
-                                onTouchMove={draw}
-                                onTouchEnd={stopDrawing}
+                                className="w-full h-44 block touch-none"
+                                role="img"
+                                aria-label="Zone de signature manuscrite"
+                                onPointerDown={startDrawing}
+                                onPointerMove={draw}
+                                onPointerUp={stopDrawing}
+                                onPointerCancel={stopDrawing}
                             />
                             {!hasDrawn && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-neutral-300 text-xs font-medium">
@@ -11339,12 +11793,17 @@ function QuoteSignatureModal({ isOpen, onClose, quote, onConfirmSignature }) {
                         <span>En validant, vous certifiez l'exactitude des informations et acceptez les conditions contractuelles du devis.</span>
                     </div>
 
+                    {!hasDrawn && (
+                        <p className="text-[11px] font-semibold text-neutral-600 text-right" id="signature-aide">Tracez la signature dans le cadre pour pouvoir valider.</p>
+                    )}
                     <div className="pt-2 flex justify-end gap-2">
                         <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-4 font-bold">Annuler</button>
                         <button
                             type="button"
                             onClick={handleSave}
-                            className="btn-primary text-xs py-2 px-5 font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
+                            disabled={!hasDrawn}
+                            aria-describedby={!hasDrawn ? 'signature-aide' : undefined}
+                            className="btn-primary text-xs py-2 px-5 font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <i className="fa-solid fa-check"></i>
                             <span>Valider &amp; Signer le Devis</span>
@@ -11373,12 +11832,12 @@ function QuoteShareModal({ isOpen, onClose, quote, showToast }) {
     };
 
     const handleShareWhatsApp = () => {
-        const text = `Bonjour, veuillez consulter votre devis ${quote.number} pour le projet "${quote.projectRef}" : ${shareUrl}`;
+        const text = `Bonjour, veuillez consulter votre devis ${quote.number}${quote.projectRef ? ` pour le projet "${quote.projectRef}"` : ''} : ${shareUrl}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     };
 
     const handleShareEmail = () => {
-        const subject = `Devis ${quote.number} — ${quote.projectRef}`;
+        const subject = quote.projectRef ? `Devis ${quote.number} — ${quote.projectRef}` : `Devis ${quote.number}`;
         const body = `Bonjour,
 
 Veuillez trouver ci-joint votre devis chiffré ${quote.number}.
@@ -11389,8 +11848,9 @@ Cordialement.`;
     };
 
     return (
-        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[140] p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-neutral-200 animate-scale-up">
+        /* z-[145] : même raison que la fenêtre de signature (C119). */
+        <div className="fixed inset-0 bg-neutral-900/75 backdrop-blur-sm flex items-center justify-center z-[145] p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto border border-neutral-200 animate-scale-up">
                 <div className="p-5 border-b border-neutral-100 flex justify-between items-center bg-white">
                     <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
@@ -11569,6 +12029,7 @@ const autoMapCsvColumns = (columns) => {
 };
 
 const buildMaterialRowsFromCsvMapping = (records, mapping) => {
+    const baseIdentifiants = Date.now();
     const rows = [];
     const errors = [];
     const sourceValue = (record, field) => {
@@ -11598,8 +12059,19 @@ const buildMaterialRowsFromCsvMapping = (records, mapping) => {
         if (!isValid && mapping.name && mapping.priceBuy) {
             errors.push(`Ligne ${record.lineNumber || index + 2} (${name || 'sans désignation'}) : ${rowErrors.join(', ')}`);
         }
+        // Audit UX 220 (revue) — `Date.now() + index + aléa(0–999)` donnait
+        // des identifiants en double dès quelques dizaines de lignes (70 % de
+        // risque à 50 lignes) : deux matières confondues à l'enregistrement.
+        // Identifiants consécutifs, uniques dans l'import ; les collisions avec
+        // le catalogue sont écartées au moment d'appliquer (planImport).
+        // `champsFournis` : colonnes réellement associées ET renseignées, pour
+        // qu'une mise à jour ne remplace pas un champ existant par une valeur
+        // par défaut (« Divers », « u », perte 0…).
+        const champsFournis = ['name', 'category', 'unitBuy', 'unitSize', 'unitCalc', 'priceBuy', 'waste', 'yieldRate']
+            .filter((champ) => sourceValue(record, champ) !== '');
         rows.push({
-            id: Date.now() + index + Math.floor(Math.random() * 1000),
+            id: baseIdentifiants + index,
+            champsFournis,
             name,
             category,
             unitBuy,
@@ -11617,11 +12089,141 @@ const buildMaterialRowsFromCsvMapping = (records, mapping) => {
     return { rows, errors };
 };
 
+// Audit UX 220 (C137) — les icônes Font Awesome (police d'icônes) passaient
+// leur glyphe (un caractère d'usage privé) dans le nom accessible des
+// boutons : 64 noms du type « Nouveau devis » lus avec un caractère
+// parasite. Une icône sans nom propre est décorative : masquée aux aides
+// techniques, à l'affichage initial comme à chaque ajout dans la page.
+if (typeof window !== 'undefined' && window.MutationObserver) {
+    const masquerIcones = (racine) => {
+        if (!racine || racine.nodeType !== 1) return;
+        const icones = racine.matches('i[class*="fa-"]') ? [racine] : [];
+        icones.push(...racine.querySelectorAll('i[class*="fa-"]'));
+        for (const icone of icones) {
+            if (!icone.hasAttribute('aria-hidden') && !icone.hasAttribute('aria-label') && !icone.hasAttribute('role')) {
+                icone.setAttribute('aria-hidden', 'true');
+            }
+        }
+    };
+    const demarrerMasquage = () => {
+        masquerIcones(document.body);
+        new MutationObserver((mutations) => {
+            for (const m of mutations) for (const n of m.addedNodes) masquerIcones(n);
+        }).observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.body) demarrerMasquage();
+    else document.addEventListener('DOMContentLoaded', demarrerMasquage);
+}
+
+// Audit UX 220 (C128) — les groupes d'onglets (lots du devis, filtres des
+// dépenses, rubriques Finances, type de document…) n'avaient pas le modèle
+// clavier attendu : les flèches ne passaient pas d'un onglet à l'autre. Un
+// seul gestionnaire pour tous les role="tablist" : ←/→ voisin, Début/Fin.
+if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey || !['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+        const cible = e.target;
+        if (!cible || !cible.closest || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName) || cible.isContentEditable) return;
+        const onglet = cible.closest('[role="tab"]');
+        const groupe = onglet && onglet.closest('[role="tablist"]');
+        if (!groupe) return;
+        const onglets = [...groupe.querySelectorAll('[role="tab"]')].filter((t) => t.getClientRects().length > 0 && !t.disabled);
+        const i = onglets.indexOf(onglet);
+        if (i < 0 || onglets.length < 2) return;
+        const j = e.key === 'Home' ? 0 : e.key === 'End' ? onglets.length - 1
+            : (i + (e.key === 'ArrowRight' ? 1 : -1) + onglets.length) % onglets.length;
+        e.preventDefault();
+        onglets[j].focus();
+        onglets[j].click();
+    });
+}
+
+// Audit UX 220 (C033) — une fenêtre modale visible (marquée aria-modal par
+// le filet de focus) suspend les raccourcis globaux de navigation.
+const fenetreModaleOuverte = () => [...document.querySelectorAll('[aria-modal="true"]')]
+    .some((el) => el.getClientRects().length > 0);
+
+// Audit UX 220 (C034) — fermer « Nouveau client », « Nouveau chantier » ou
+// « Nouvel ouvrage » après avoir tapé (croix, Échap, Annuler) jetait la
+// saisie sans prévenir : à la réouverture, tout était vide. Plutôt qu'une
+// confirmation qui bloque à chaque fermeture, la saisie abandonnée est
+// gardée en mémoire et RESTAURÉE à la prochaine ouverture, avec un bouton
+// pour repartir de zéro. Une fiche enregistrée efface son brouillon.
+// `actif` : faux en modification d'une fiche existante (rien à garder).
+// `conserver` : champs qu'un contexte d'ouverture peut avoir préremplis
+// (le client d'un chantier ouvert depuis sa fiche) — la restauration ne les
+// écrase jamais par ceux du brouillon.
+function useBrouillonCreation(ouverte, valeurs, remplacer, { vide, actif = true, conserver = [] }) {
+    const reserve = useRef(null);
+    const etaitOuverte = useRef(false);
+    const enregistre = useRef(false);
+    const derniereSaisie = useRef(valeurs);
+    const actifPendantSaisie = useRef(actif);
+    // Valeurs à l'OUVERTURE : ce qu'un contexte a prérempli (client, ville,
+    // nom tapé dans un devis) n'est pas une saisie de l'utilisateur.
+    const valeursOuverture = useRef({});
+    if (ouverte) { derniereSaisie.current = valeurs; actifPendantSaisie.current = actif; }
+    const [restauree, setRestauree] = useState(false);
+    const champs = Object.keys(vide);
+    const texte = (v) => String(v ?? '').trim();
+    const contexteDe = (v) => Object.fromEntries(conserver
+        .filter((k) => v && texte(v[k]) !== '')
+        .map((k) => [k, v[k]]));
+    useEffect(() => {
+        if (ouverte && !etaitOuverte.current) {
+            enregistre.current = false;
+            valeursOuverture.current = { ...(valeurs || {}) };
+            // Un contexte qui a prérempli un champ de saisie (ex. le nom d'un
+            // client tapé dans un devis) désigne une AUTRE fiche : le brouillon
+            // n'y est pas mêlé (il reste en réserve). Seuls les champs
+            // `conserver` (client, ville) cohabitent avec lui, et priment.
+            const champsDuContexte = champs.filter((k) => !conserver.includes(k) && texte(valeurs?.[k]) !== texte(vide[k]));
+            if (actif && reserve.current && champsDuContexte.length === 0) {
+                remplacer({ ...valeurs, ...reserve.current, ...contexteDe(valeurs) });
+                setRestauree(true);
+            }
+        } else if (!ouverte && etaitOuverte.current) {
+            // Une fiche EXISTANTE ouverte puis fermée ne touche pas au brouillon
+            // de création en réserve.
+            if (actifPendantSaisie.current) {
+                const ouverture = valeursOuverture.current;
+                const aUneSaisie = champs.some((k) => {
+                    const v = texte(derniereSaisie.current?.[k]);
+                    return v !== texte(vide[k]) && v !== texte(ouverture[k]);
+                });
+                if (enregistre.current) reserve.current = null;
+                else if (aUneSaisie) reserve.current = derniereSaisie.current;
+            }
+            setRestauree(false);
+        }
+        etaitOuverte.current = ouverte;
+    }, [ouverte]);
+    return {
+        restauree,
+        marquerEnregistre: () => { enregistre.current = true; if (actifPendantSaisie.current) reserve.current = null; },
+        repartirDeZero: () => {
+            reserve.current = null;
+            setRestauree(false);
+            remplacer({ ...valeurs, ...vide, ...contexteDe(valeursOuverture.current) });
+        },
+    };
+}
+function AvisBrouillonRestaure({ brouillon }) {
+    if (!brouillon.restauree) return null;
+    return (
+        <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            <span><i className="fa-solid fa-clock-rotate-left mr-1.5" aria-hidden="true"></i>Votre saisie précédente, non enregistrée, a été restaurée.</span>
+            <button type="button" onClick={brouillon.repartirDeZero} className="underline underline-offset-2 min-h-[32px]">Repartir de zéro</button>
+        </p>
+    );
+}
+
 function MaterialCsvModal({
     isOpen,
     onClose,
     onImportMaterials,
-    existingMaterials = []
+    existingMaterials = [],
+    materiauxUtilises = new Set()
 }) {
     const [csvFileName, setCsvFileName] = useState('');
     const [csvColumns, setCsvColumns] = useState([]);
@@ -11631,6 +12233,11 @@ function MaterialCsvModal({
     const [importMode, setImportMode] = useState('merge'); // 'merge' | 'replace'
     const [parseErrors, setParseErrors] = useState([]);
     const [fileIssue, setFileIssue] = useState('');
+    const [noteEncodage, setNoteEncodage] = useState('');
+    // Liste des suppressions que l'utilisateur a confirmées (signature), et
+    // non un simple booléen : un autre fichier ou une autre association des
+    // colonnes qui change cette liste redemande la confirmation.
+    const [remplacementConfirme, setRemplacementConfirme] = useState('');
 
     useEffect(() => {
         if (csvRecords.length === 0) {
@@ -11648,9 +12255,29 @@ function MaterialCsvModal({
     const handleFileUpload = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            setFileIssue(`Fichier trop lourd (${(file.size / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo) : 5 Mo maximum. Découpez-le en plusieurs fichiers.`);
+            e.target.value = '';
+            return;
+        }
         const reader = new FileReader();
+        // Audit UX 220 (C164) — un CSV enregistré par Excel sous Windows est
+        // en Windows-1252 : lu comme de l'UTF-8, chaque accent devenait « � »
+        // sans aucun avertissement (« B�ton », « Pl�tre »). On lit les octets,
+        // on tente l'UTF-8 strict, et seulement en cas d'échec on décode en
+        // Windows-1252 en le disant.
         reader.onload = (event) => {
-            validateAndParseCsv(String(event.target?.result || ''), file.name);
+            const octets = event.target?.result;
+            let texte = '';
+            let note = '';
+            try {
+                texte = new TextDecoder('utf-8', { fatal: true }).decode(octets);
+            } catch (_) {
+                texte = new TextDecoder('windows-1252').decode(octets);
+                note = 'Fichier enregistré en encodage Windows (ANSI) : les accents ont été convertis. Vérifiez les désignations dans l’aperçu.';
+            }
+            setNoteEncodage(note);
+            validateAndParseCsv(texte.replace(/^\uFEFF/, ''), file.name);
         };
         reader.onerror = () => {
             setFileIssue('Le fichier n’a pas pu être lu. Vérifiez son encodage puis réessayez.');
@@ -11658,7 +12285,7 @@ function MaterialCsvModal({
             setCsvRecords([]);
             setColumnMapping({});
         };
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file);
         // Permet de choisir deux fois le même fichier après l'avoir corrigé.
         e.target.value = '';
     };
@@ -11717,22 +12344,98 @@ function MaterialCsvModal({
     const configuredMappingCount = MATERIAL_CSV_FIELDS.filter(field => Boolean(columnMapping[field.key])).length;
     const mappingReady = csvRecords.length > 0 && missingRequiredFields.length === 0;
 
+    // Audit UX 220 (C165/C166) — le plan d'import est calculé UNE fois et
+    // sert à la fois à l'aperçu, au bouton et au bilan final : ce qui est
+    // annoncé est exactement ce qui est appliqué. Avant, l'aperçu comptait
+    // un doublon comme « prêt », et « Remplacer tout » effaçait sans
+    // confirmation 36 matières dont celles des ouvrages, qui perdaient
+    // alors leurs composants.
+    const cleNom = (nom) => String(nom || '').toLowerCase().trim();
+    const planImport = (() => {
+        const lignes = parsedRows.filter(r => r.isValid).map(({ isValid, rowErrors, ...item }) => item);
+        const vus = new Set();
+        const fichier = [];
+        let doublonsFichier = 0;
+        lignes.forEach(item => {
+            const k = cleNom(item.name);
+            if (vus.has(k)) { doublonsFichier++; return; }
+            vus.add(k);
+            fichier.push(item);
+        });
+        const existantsParNom = new Map(existingMaterials.map(m => [cleNom(m.name), m]));
+        // Nouvelle matière : sans le marqueur interne `champsFournis`, et avec
+        // un identifiant qui ne heurte aucune matière déjà au catalogue.
+        const idsPris = new Set(existingMaterials.map(m => String(m.id)));
+        const nouvelleMatiere = ({ champsFournis, ...matiere }) => {
+            let id = Number(matiere.id) || Date.now();
+            while (idsPris.has(String(id))) id += 1;
+            idsPris.add(String(id));
+            return { ...matiere, id };
+        };
+        if (importMode !== 'replace') {
+            const aAjouter = fichier.filter(item => !existantsParNom.has(cleNom(item.name)));
+            return {
+                ajoutees: aAjouter.length, misesAJour: 0, supprimees: [], conservees: [],
+                ignorees: fichier.length - aAjouter.length + doublonsFichier,
+                liste: [...existingMaterials, ...aAjouter.map(nouvelleMatiere)]
+            };
+        }
+        const nomsFichier = new Set(fichier.map(item => cleNom(item.name)));
+        // UNE seule matière existante par désignation est mise à jour : celle
+        // qu'un ouvrage utilise de préférence. Ses homonymes éventuels (le
+        // catalogue n'interdit pas « Ciment » et « ciment ») sont traités
+        // comme absents du fichier : conservés s'ils servent, sinon
+        // supprimés ET comptés — jamais retirés sans être annoncés.
+        const cibleParNom = new Map();
+        existingMaterials.forEach(m => {
+            const k = cleNom(m.name);
+            if (!nomsFichier.has(k)) return;
+            const actuelle = cibleParNom.get(k);
+            if (!actuelle || (!materiauxUtilises.has(String(actuelle.id)) && materiauxUtilises.has(String(m.id)))) cibleParNom.set(k, m);
+        });
+        const absentes = existingMaterials.filter(m => cibleParNom.get(cleNom(m.name)) !== m);
+        const conservees = absentes.filter(m => materiauxUtilises.has(String(m.id)));
+        const supprimees = absentes.filter(m => !materiauxUtilises.has(String(m.id)));
+        let misesAJour = 0;
+        const depuisFichier = fichier.map(item => {
+            const existant = cibleParNom.get(cleNom(item.name));
+            if (!existant) return nouvelleMatiere(item);
+            misesAJour++;
+            // Même identifiant : les ouvrages qui l'utilisent restent reliés.
+            // Seuls les champs FOURNIS par le fichier remplacent l'existant
+            // (une colonne absente ne ramène pas « Divers » ni une perte à 0).
+            const fournis = Object.fromEntries((item.champsFournis || []).map(champ => [champ, item[champ]]));
+            const fusion = { ...existant, ...fournis, id: existant.id };
+            fusion.priceCalc = Number(((Number(fusion.priceBuy) || 0) / (Number(fusion.unitSize) || 1)).toFixed(2));
+            return fusion;
+        });
+        return {
+            ajoutees: fichier.length - misesAJour, misesAJour, supprimees, conservees,
+            ignorees: doublonsFichier,
+            liste: [...conservees, ...depuisFichier]
+        };
+    })();
+    const confirmationRequise = importMode === 'replace' && planImport.supprimees.length > 0;
+    const signatureSuppressions = planImport.supprimees.map(m => m.id).join('|');
+    const confirmationValide = signatureSuppressions !== '' && remplacementConfirme === signatureSuppressions;
+
     const handleConfirmImport = () => {
         if (!mappingReady) return;
-        const validItems = parsedRows.filter(r => r.isValid).map(({ isValid, rowErrors, ...item }) => item);
-        if (validItems.length === 0) return;
-
-        if (importMode === 'replace') {
-            onImportMaterials(validItems);
-        } else {
-            const existingNames = new Set(existingMaterials.map(m => m.name.toLowerCase().trim()));
-            const toAdd = validItems.filter(v => !existingNames.has(v.name.toLowerCase().trim()));
-            onImportMaterials([...existingMaterials, ...toAdd]);
-        }
+        if (planImport.ajoutees + planImport.misesAJour === 0) return;
+        if (confirmationRequise && !confirmationValide) return;
+        const morceaux = [
+            planImport.ajoutees ? `${planImport.ajoutees} ajoutée(s)` : '',
+            planImport.misesAJour ? `${planImport.misesAJour} mise(s) à jour` : '',
+            planImport.ignorees ? `${planImport.ignorees} ignorée(s) car déjà présente(s)` : '',
+            planImport.supprimees.length ? `${planImport.supprimees.length} supprimée(s)` : '',
+            planImport.conservees.length ? `${planImport.conservees.length} conservée(s) car utilisée(s) par vos ouvrages` : '',
+        ].filter(Boolean);
+        onImportMaterials(planImport.liste, `Import terminé : ${morceaux.join(', ')}.`);
         onClose();
     };
 
     const validCount = parsedRows.filter(r => r.isValid).length;
+    const aAppliquer = planImport.ajoutees + planImport.misesAJour;
 
     return (
         <div className="fixed inset-0 bg-neutral-900/70 backdrop-blur-sm flex items-center justify-center z-[120] p-4 animate-fade-in">
@@ -11767,7 +12470,7 @@ function MaterialCsvModal({
                             <p className="text-[11px] text-neutral-500 mt-2">
                                 {csvFileName
                                     ? `Fichier chargé : ${csvFileName} · ${csvRecords.length} ligne(s) détectée(s)`
-                                    : 'Le fichier peut utiliser des virgules, points-virgules ou tabulations.'}
+                                    : 'Fichier CSV de 5 Mo maximum, séparé par virgules, points-virgules ou tabulations. Encodage UTF-8 conseillé ; un CSV enregistré par Excel sous Windows est aussi accepté.'}
                             </p>
                         </div>
                     </div>
@@ -11842,6 +12545,11 @@ function MaterialCsvModal({
                             <i className="fa-solid fa-circle-exclamation mr-1.5"></i>{fileIssue}
                         </p>
                     )}
+                    {noteEncodage && !fileIssue && (
+                        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900">
+                            <i className="fa-solid fa-language mr-1.5" aria-hidden="true"></i>{noteEncodage}
+                        </p>
+                    )}
 
                     {/* Structure requise & Télécharger Exemple */}
                     <div className="flex items-center justify-between p-3 bg-brand-50/60 rounded-xl border border-brand-200/60 text-xs">
@@ -11853,11 +12561,13 @@ function MaterialCsvModal({
                                     "Tube carré 30x30;Fer;Barre (6m);6;m;12000;5;0\n" +
                                     "Peinture Acrylique;Peinture;Pot (20L);20;L;55000;8;12\n" +
                                     "Carrelage 60x60;Revêtement;Carton (1.44m²);1.44;m²;14000;10;0";
-                                const uri = "data:text/csv;charset=utf-8," + encodeURI(sample);
+                                // Audit UX 220 (C168) — marque UTF-8 : sans elle, Excel ouvre « CatÃ©gorie ».
+                                const url = URL.createObjectURL(new Blob(['﻿' + sample.replace(/\n/g, '\r\n')], { type: 'text/csv;charset=utf-8;' }));
                                 const a = document.createElement('a');
-                                a.href = uri;
+                                a.href = url;
                                 a.download = "modele_matieres_ikadevis.csv";
                                 a.click();
+                                setTimeout(() => URL.revokeObjectURL(url), 1000);
                             }}
                             className="text-brand-700 font-semibold hover:underline flex items-center gap-1 shrink-0 ml-2"
                         >
@@ -11872,16 +12582,35 @@ function MaterialCsvModal({
                                 <span className="text-xs font-semibold text-neutral-800">
                                     Aperçu après association : {validCount} ligne(s) valide(s) sur {parsedRows.length}
                                 </span>
-                                <div className="flex items-center gap-2 text-xs font-bold">
+                                <div className="flex items-center gap-2 text-xs font-bold" role="radiogroup" aria-label="Mode d’import">
                                     <label className="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" name="importMode" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} />
+                                        <input type="radio" name="importMode" checked={importMode === 'merge'} onChange={() => { setImportMode('merge'); setRemplacementConfirme(''); }} />
                                         <span>Ajouter (Fusionner)</span>
                                     </label>
-                                    <label className="flex items-center gap-1.5 cursor-pointer ml-3 text-red-600">
-                                        <input type="radio" name="importMode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} />
+                                    <label className="flex items-center gap-1.5 cursor-pointer ml-3 text-red-700">
+                                        <input type="radio" name="importMode" checked={importMode === 'replace'} onChange={() => { setImportMode('replace'); setRemplacementConfirme(''); }} />
                                         <span>Remplacer tout</span>
                                     </label>
                                 </div>
+                            </div>
+
+                            {/* Ce qui sera appliqué, au chiffre près (le même calcul que le bouton). */}
+                            <div data-plan-import className={`rounded-xl border px-3 py-2.5 text-xs ${importMode === 'replace' ? 'border-red-200 bg-red-50 text-red-900' : 'border-neutral-200 bg-white text-neutral-800'}`}>
+                                <p className="font-bold">Ce qui sera appliqué :</p>
+                                <ul className="mt-1 space-y-0.5 leading-snug">
+                                    <li>{planImport.ajoutees} matière(s) ajoutée(s)</li>
+                                    {importMode === 'replace' && <li>{planImport.misesAJour} matière(s) existante(s) mise(s) à jour (même désignation)</li>}
+                                    {planImport.ignorees > 0 && <li>{planImport.ignorees} ligne(s) ignorée(s) : désignation déjà présente{importMode === 'replace' ? ' dans le fichier' : ' dans le catalogue'}</li>}
+                                    {validCount < parsedRows.length && <li>{parsedRows.length - validCount} ligne(s) en erreur, non importée(s)</li>}
+                                    {importMode === 'replace' && <li className="font-bold">{planImport.supprimees.length} matière(s) actuelle(s) supprimée(s) du catalogue</li>}
+                                    {importMode === 'replace' && planImport.conservees.length > 0 && <li>{planImport.conservees.length} matière(s) conservée(s) car utilisée(s) par vos ouvrages</li>}
+                                </ul>
+                                {confirmationRequise && (
+                                    <label className="mt-2 flex items-start gap-2 font-semibold cursor-pointer">
+                                        <input type="checkbox" className="mt-0.5" checked={confirmationValide} onChange={(e) => setRemplacementConfirme(e.target.checked ? signatureSuppressions : '')} />
+                                        <span>Je confirme la suppression de {planImport.supprimees.length} matière(s) : {planImport.supprimees.slice(0, 3).map(m => m.name).join(', ')}{planImport.supprimees.length > 3 ? '…' : ''}</span>
+                                    </label>
+                                )}
                             </div>
 
                             {parseErrors.length > 0 && (
@@ -11912,7 +12641,8 @@ function MaterialCsvModal({
                                                     {r.isValid ? (
                                                         <span className="text-emerald-700 font-bold">✅ Valide</span>
                                                     ) : (
-                                                        <span className="text-red-600 font-bold text-[10px]" title={r.rowErrors.join(', ')}>❌ Erreur</span>
+                                                        /* Audit UX 220 (C164) — la raison du rejet n'était lisible qu'au survol (title) : invisible au doigt et au clavier. */
+                                                        <span className="text-red-700 font-bold text-[10px] block">❌ Erreur<span className="block font-semibold">{r.rowErrors.join(', ')}</span></span>
                                                     )}
                                                 </td>
                                                 <td className="p-2 font-bold text-neutral-800">{r.name || '-'}</td>
@@ -11935,20 +12665,24 @@ function MaterialCsvModal({
                             ? 'Chargez un fichier pour continuer'
                             : !mappingReady
                                 ? 'Associez les champs requis pour continuer'
-                                : validCount > 0
-                                    ? `${validCount} ressource(s) prêtes à être importées`
-                                    : 'Corrigez les lignes signalées pour continuer'}
+                                : aAppliquer > 0
+                                    ? (confirmationRequise && !confirmationValide ? 'Cochez la confirmation de suppression pour continuer' : `${aAppliquer} matière(s) prêtes à être importées`)
+                                    : validCount > 0
+                                        ? 'Toutes les matières du fichier sont déjà dans le catalogue'
+                                        : 'Corrigez les lignes signalées pour continuer'}
                     </span>
                     <div className="flex gap-2">
                         <button type="button" onClick={onClose} className="btn-secondary text-xs py-2 px-4 font-bold">Annuler</button>
                         <button
                             type="button"
-                            disabled={!mappingReady || validCount === 0}
+                            disabled={!mappingReady || aAppliquer === 0 || (confirmationRequise && !confirmationValide)}
                             onClick={handleConfirmImport}
-                            className="btn-primary text-xs py-2 px-5 font-bold flex items-center gap-1.5"
+                            className={importMode === 'replace'
+                                ? 'inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs py-2 px-5 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2'
+                                : 'btn-primary text-xs py-2 px-5 font-bold flex items-center gap-1.5'}
                         >
-                            <i className="fa-solid fa-check"></i>
-                            <span>Importer {validCount} Matière(s)</span>
+                            <i className="fa-solid fa-check" aria-hidden="true"></i>
+                            <span>{importMode === 'replace' ? `Remplacer le catalogue (${aAppliquer} matière(s))` : `Importer ${aAppliquer} Matière(s)`}</span>
                         </button>
                     </div>
                 </div>
@@ -12153,8 +12887,13 @@ const InvoiceService = {
             prixUnitaireHT: it.sellingUnitHT || 0,
             totalHT: it.sellingTotalHT || 0
         }));
-        const totalHT = qd.netHTConsomme || 0;
-        const tva = qd.tvaConsomme !== undefined ? qd.tvaConsomme : totalHT * (tauxTva / 100);
+        // Audit UX 2026-10 (UX-P2-02/03) — montants arrêtés à la précision de la
+        // devise dès la création : un TTC de 1 466 781,30 F (le FCFA n'a pas de
+        // centimes) faisait préremplir « 1466781.3 » au règlement, et classait une
+        // facture entièrement réglée en « partiellement réglée » dans les filtres.
+        const deviseFacture = companyInfo.currency || 'FCFA';
+        const totalHT = arrondiDevise(qd.netHTConsomme || 0, deviseFacture);
+        const tva = arrondiDevise(qd.tvaConsomme !== undefined ? qd.tvaConsomme : totalHT * (tauxTva / 100), deviseFacture);
         return {
             id: `inv_${Date.now()}`,
             numero: null,
@@ -12175,9 +12914,9 @@ const InvoiceService = {
             tauxTva,
             totalHT,
             totalTva: tva,
-            totalTTC: totalHT + tva,
+            totalTTC: arrondiDevise(totalHT + tva, deviseFacture),
             deduitTTC: 0,
-            netAPayerTTC: totalHT + tva,
+            netAPayerTTC: arrondiDevise(totalHT + tva, deviseFacture),
             montantRegle: 0,
             payments: [],
             lignes,
@@ -13137,13 +13876,13 @@ const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, forma
                          style={{ top: bas, height: hauteurBande }}>
                         <div className="h-full bg-white/95 border-t border-dashed border-neutral-300 px-3 flex flex-col justify-center">
                             {pied && (
-                                <span className="text-[8px] leading-tight text-neutral-400 whitespace-pre-line block"
+                                <span className="text-[8px] leading-tight text-neutral-500 whitespace-pre-line block"
                                       style={{ textAlign: alignPied }}>
                                     {String(pied).replace(/\*\*/g, '')}
                                 </span>
                             )}
                             {numeroter && (
-                                <span className="text-[8px] text-neutral-400 block" style={{ textAlign: alignementNumero }}>
+                                <span className="text-[8px] text-neutral-500 block" style={{ textAlign: alignementNumero }}>
                                     {String(format || 'Page {page} / {total}')
                                         .replace(/\{page\}/gi, String(i + 1))
                                         .replace(/\{total\}/gi, String(nbPages))
@@ -13152,7 +13891,7 @@ const ApercuPagine = ({ largeurMm, hauteurMm, marges, numeroter, position, forma
                             )}
                         </div>
                         {!dernier && (
-                            <span className="absolute right-2 -bottom-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                            <span className="absolute right-2 -bottom-4 text-[9px] font-bold uppercase tracking-wider text-neutral-500">
                                 Page {i + 2}
                             </span>
                         )}
@@ -13366,6 +14105,7 @@ const DocumentDevisClient = ({ devis, societe, theme, disposition, gabarit, mode
         <div
             className={`saved-quote-document ${paperView ? 'document-paper' : 'document-mobile-read'} document-echelle relative w-full max-w-none bg-white p-5 sm:p-8 space-y-6 break-words print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettes ? 'document-etiquettes' : ''} ${modeDemo ? 'document-demo' : ''}`}
             data-zone-impression="1"
+            data-document-cle={`devis:${devis?.id ?? devis?.number ?? ""}`}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
@@ -13938,6 +14678,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
         <div
             className={`document-echelle bg-white p-4 sm:p-6 space-y-3.5 print:border-0 print:p-0 ${cfg.general.cadreDocument !== false ? 'rounded-2xl border border-neutral-200 shadow-sm' : ''} ${encre ? 'document-encre' : ''} ${etiquettesFacture ? 'document-etiquettes' : ''}`}
             data-zone-impression="1"
+            data-document-cle={`facture:${facture?.id ?? facture?.numero ?? ""}`}
             data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
             data-numeroter-pages={cfg.pied.afficherNumeroPage ? '1' : undefined}
             data-position-numero={cfg.pied.positionNumeroPage || 'centre'}
@@ -13990,7 +14731,8 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     </h2>
                     <p className="text-sm font-bold text-neutral-800 mt-0.5">N° : {facture.numero || 'Brouillon'}</p>
                     <p className="text-xs text-neutral-500">
-                        {facture.dateEmission ? `Émise le ${facture.dateEmission}` : (facture.date || 'Non émis')}
+                        {/* Audit UX 220 (C095) — l'horodatage brut « 2026-10-03T03:53:27.706Z » était imprimé tel quel. */}
+                        {facture.dateEmission ? `Émise le ${formatDate(facture.dateEmission)}` : (facture.date ? `Brouillon du ${formatDate(facture.date)}` : 'Non émise')}
                     </p>
                     {facture.devisNumero && (
                         <p className="text-[11px] text-neutral-500 mt-0.5">Devis d'origine : {facture.devisNumero}</p>
@@ -14023,7 +14765,7 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                     {(facture.lignes || []).map((l, i) => (
                         <tr key={i} style={fondLigneFacture(i)}>
                             <td className={`${padFacture} font-semibold text-neutral-900`}>{l.designation}</td>
-                            <td className={`${padFacture} text-center font-medium text-neutral-600 tabular-nums`}>{Number(l.quantite || 0).toFixed(2)} {l.unite}</td>
+                            <td className={`${padFacture} text-center font-medium text-neutral-600 tabular-nums`}>{/* Audit UX 220 (C180) — « 1.00 lot » : point décimal anglais sur un document français. */}{Number(l.quantite || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {l.unite}</td>
                             <td className={`${padFacture} text-right font-medium text-neutral-700 tabular-nums`}>{formatMoney(l.prixUnitaireHT, devise)}</td>
                             <td className={`${padFacture} text-right font-bold text-neutral-900 tabular-nums`}>{formatMoney(l.totalHT, devise)}</td>
                         </tr>
@@ -14082,14 +14824,14 @@ const DocumentFacture = ({ facture, ci, theme, disposition, devise, configuratio
                                 <span className="tabular-nums font-bold">-{formatMoney(facture.montantRegle, devise)}</span>
                             </div>
                             <div className="flex justify-between items-center font-bold text-xs border-t border-dashed border-neutral-300 pt-1.5 mt-1">
-                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800" : "text-emerald-700"}>
+                                <span className={resteFactureArrondi(facture) > 0 ? "text-amber-800" : "text-emerald-700"}>
                                     SOLDE RESTANT DÛ :
                                 </span>
-                                <span className={Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle) > 0 ? "text-amber-800 tabular-nums font-bold text-sm" : "text-emerald-700 tabular-nums font-extrabold text-sm"}>
-                                    {formatMoney(Math.max(0, (facture.netAPayerTTC || facture.totalTTC || 0) - facture.montantRegle), devise)}
+                                <span className={resteFactureArrondi(facture) > 0 ? "text-amber-800 tabular-nums font-bold text-sm" : "text-emerald-700 tabular-nums font-extrabold text-sm"}>
+                                    {formatMoney(resteFactureArrondi(facture), devise)}
                                 </span>
                             </div>
-                            {facture.statut === 'paid' && (
+                            {(facture.statut === 'paid' || estFactureSoldee(facture)) && (
                                 <div className="mt-2 text-center py-1.5 px-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-[11px] uppercase tracking-wider">
                                     <i className="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> Facture Soldée & Acquittée
                                 </div>
@@ -14213,7 +14955,9 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
     if (!facture) return null;
     const totalTTC = facture.netAPayerTTC || facture.totalTTC || 0;
     const dejaRegle = Number(facture.montantRegle) || 0;
-    const resteAPayer = Math.max(0, totalTTC - dejaRegle);
+    // Même règle que la fiche facture : solde arrêté à la précision de la devise
+    // (sinon « 1466781.3 » prérempli pour un reste affiché « 1 466 781 FCFA »).
+    const resteAPayer = Math.max(0, arrondiDevise(totalTTC - dejaRegle, devise));
 
     // Paramètres SasPay résolus
     const activeSaspay = {
@@ -14583,7 +15327,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                 placeholder="0"
                                 className="app-input text-base font-bold text-neutral-900 pr-16 tabular-nums"
                             />
-                            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-neutral-400">
+                            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-neutral-500">
                                 {devise}
                             </span>
                         </div>
@@ -14613,7 +15357,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                                         : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300'
                                                 }`}
                                             >
-                                                <i className={`${m.icon} ${isSelected ? 'text-emerald-600' : 'text-neutral-400'} text-sm`}></i>
+                                                <i className={`${m.icon} ${isSelected ? 'text-emerald-600' : 'text-neutral-500'} text-sm`}></i>
                                                 <span className="truncate">{m.label}</span>
                                             </button>
                                         );
@@ -14895,7 +15639,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                     <div>
                                         <label htmlFor="softpay_phone" className="app-label">Numéro mobile du client *</label>
                                         <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-500">
                                                 {currentCountry.dialCode}
                                             </span>
                                             <input
@@ -14974,7 +15718,7 @@ function InvoicePaymentModal({ facture, devise = 'FCFA', saspaySettings, company
                                 </div>
                             )}
 
-                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-400">
+                            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
                                 <span>Sécurisé par SasPay API v1</span>
                                 <button
                                     type="button"
@@ -15076,6 +15820,7 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                 <div className="p-8 overflow-y-auto custom-scroll flex-1 space-y-6 text-neutral-800 bg-white"
                      id="quittance_document_printable"
                      data-zone-impression="quittance"
+                     data-document-cle="quittance"
                      data-marges-mm={JSON.stringify(cfg.general.margesMm || {})}
                      data-format-papier={cfg.general.formatPapier || 'A4'}
                      data-orientation={cfg.general.orientation || 'portrait'}
@@ -15098,7 +15843,7 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                             </p>
                             {companyInfo?.phone && <p className="text-xs text-neutral-500">Tél : {companyInfo.phone}</p>}
                             {companyInfo?.email && <p className="text-xs text-neutral-500">Email : {companyInfo.email}</p>}
-                            {companyInfo?.nif && <p className="text-xs text-neutral-400 font-mono mt-0.5">NIF : {companyInfo.nif}</p>}
+                            {companyInfo?.nif && <p className="text-xs text-neutral-500 font-mono mt-0.5">NIF : {companyInfo.nif}</p>}
                         </div>
                         <div className="text-right">
                             <div className="mb-2">
@@ -15116,14 +15861,14 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                     <div className="grid grid-cols-2 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200/70 text-xs"
                          style={{ borderLeft: `3px solid ${brandColor}` }}>
                         <div>
-                            <span className="text-neutral-400 uppercase tracking-wider font-semibold block text-[10px]">Client versant</span>
+                            <span className="text-neutral-500 uppercase tracking-wider font-semibold block text-[10px]">Client versant</span>
                             <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{facture.clientName || 'Client'}</span>
                             {facture.projectRef && (
                                 <span className="text-neutral-500 block text-xs mt-0.5">Projet : {facture.projectRef}</span>
                             )}
                         </div>
                         <div>
-                            <span className="text-neutral-400 uppercase tracking-wider font-semibold block text-[10px]">Facture de référence</span>
+                            <span className="text-neutral-500 uppercase tracking-wider font-semibold block text-[10px]">Facture de référence</span>
                             <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{facture.numero || 'Facture'}</span>
                             <span className="text-neutral-500 block text-xs mt-0.5">Émise le : {formatDate(facture.dateEmission || facture.dateCreation)}</span>
                         </div>
@@ -15179,7 +15924,8 @@ function InvoicePaymentReceiptModal({ receiptData, companyInfo, devise = 'FCFA',
                     <div className="pt-4 flex justify-between items-end text-xs text-neutral-500 border-t border-neutral-100">
                         <div>
                             <p className="italic text-[11px]">Pour valoir quittance sous réserve d'encaissement effectif.</p>
-                            <p className="text-[10px] text-neutral-400 mt-0.5">Édité électroniquement par Micro Office BTP</p>
+                            {/* Audit UX 220 (C095) — la quittance portait le nom d'une autre entreprise, quelle que soit celle qui l'émettait. */}
+                            <p className="text-[10px] text-neutral-500 mt-0.5">{companyInfo?.name ? `Édité électroniquement par ${companyInfo.name}` : 'Document édité électroniquement'}</p>
                         </div>
                         <div className="text-right">
                             <p className="font-bold text-neutral-800">Cachet & Signature</p>
@@ -16101,6 +16847,54 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // d'ensemble ; on descend dans un chiffrage par un acte, jamais par défaut.
     const [activeView, setActiveView] = useState('dashboard');
 
+    // Audit UX 2026-10 (UX-P2-05) — après chaque changement d'écran, le focus
+    // retombait sur <body> : au clavier comme au lecteur d'écran, on repartait
+    // du haut de la page, avant la barre latérale, sans que rien n'annonce le
+    // nouvel écran. On l'amène sur le contenu principal (cible du lien
+    // « Aller au contenu principal »), une fois la transition de page passée.
+    // On ne le déplace PAS si l'utilisateur est déjà dans un champ ou une
+    // fenêtre du nouvel écran : on ne lui vole jamais une saisie.
+    const vueAuDemarrage = useRef(true);
+    useEffect(() => {
+        if (vueAuDemarrage.current) { vueAuDemarrage.current = false; return; }
+        const minuteur = setTimeout(() => {
+            const actif = document.activeElement;
+            // Ne JAMAIS reprendre le focus d'un champ : l'utilisateur peut avoir
+            // commencé à saisir pendant la transition (constaté : saisie du champ
+            // client coupée à « Reche » — l'en-tête du devis est un <header>).
+            const enSaisie = actif && (/^(INPUT|TEXTAREA|SELECT)$/.test(actif.tagName) || actif.isContentEditable
+                || (actif.getAttribute && actif.getAttribute('role') === 'combobox'));
+            if (enSaisie) return;
+            const surNavigation = actif && actif.closest && actif.closest('nav, [role="navigation"], aside');
+            if (actif && actif !== document.body && !surNavigation) return;
+            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+            // Les Paramètres s'affichent dans une surface plein écran HORS de
+            // #main-content (laissé vide) : viser son titre, pas un <main> caché.
+            const reglages = document.querySelector('.settings-page-shell');
+            const cible = (reglages && reglages.getClientRects().length > 0) ? reglages : document.getElementById('main-content');
+            if (!cible) return;
+            const titre = [...cible.querySelectorAll('h1, h2')].find((h) => h.getClientRects().length > 0);
+            const point = titre || cible;
+            if (!point.hasAttribute('tabindex')) point.setAttribute('tabindex', '-1');
+            point.focus({ preventScroll: true });
+        }, DUREE_TRANSITION_PAGE_MS + 150);
+        return () => clearTimeout(minuteur);
+    }, [activeView]);
+
+    // Audit UX 220 (C140, WCAG 2.4.2) — un seul titre d'onglet pour tous les
+    // écrans : dans l'historique, les onglets et pour un lecteur d'écran,
+    // « Mes devis » et « Factures » s'appelaient pareil.
+    useEffect(() => {
+        const TITRES = {
+            dashboard: 'Tableau de bord', calculator: 'Chiffrage', savedQuotes: 'Mes devis',
+            invoices: 'Factures', projects: 'Chantiers', clients: 'Clients', depenses: 'Dépenses',
+            recipes: 'Ouvrages', materials: 'Ressources et prix', settings: 'Paramètres',
+            subscription: 'Abonnement', platformAdmin: 'Administration'
+        };
+        const titre = TITRES[activeView];
+        document.title = titre ? `${titre} · ikadevis` : 'ikadevis — Calculateur de Devis BTP';
+    }, [activeView]);
+
     // 2026-09-16 — Transition de page.
     //
     // `activeView` est la vue DEMANDÉE, `vueAffichee` la vue RENDUE : entre les
@@ -16523,6 +17317,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const [recipeForm, setRecipeForm] = useState(null);
     const [isSolutionModalOpen, setIsSolutionModalOpen] = useState(false);
     const [solutionModalForm, setSolutionModalForm] = useState({ id: null, name: '', icon: 'fa-cube', allowedModes: ['rectangle', 'surface', 'linear'] });
+    // Audit UX 220 (C034) — brouillons des trois fenêtres de création.
+    const brouillonClient = useBrouillonCreation(isNewClientModalOpen, newClientForm, setNewClientForm, {
+        vide: { name: '', contactPerson: '', taxId: '', phone: '', email: '', address: '', city: '' },
+        actif: !editingClientId
+    });
+    const brouillonChantier = useBrouillonCreation(isNewProjectModalOpen, newProjectForm, setNewProjectForm, {
+        vide: { name: '', siteAddress: '', city: '', budgetEstimated: '', notes: '' },
+        actif: !editingProjectId,
+        conserver: ['clientId', 'city']
+    });
+    const brouillonOuvrage = useBrouillonCreation(isSolutionModalOpen, solutionModalForm, setSolutionModalForm, {
+        vide: { name: '' },
+        actif: !solutionModalForm.id
+    });
     const [clientNameError, setClientNameError] = useState(false);
     const [resourceTab, setResourceTab] = useState('materials');
     const [resourceSearchQuery, setResourceSearchQuery] = useState('');
@@ -16792,12 +17600,68 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     useEffect(() => {
         if (!viewingSavedQuote) return;
         const closeOnEscape = (event) => {
-            if (event.key === 'Escape') closeQuotePreview();
+            // Audit UX 220 (C118/C123) — Échap déjà traité ailleurs (menu « Plus
+            // d'actions » refermé, fenêtre Signature fermée par-dessus) ne doit
+            // pas refermer AUSSI la fiche devis.
+            if (event.key === 'Escape' && !event.defaultPrevented) closeQuotePreview();
         };
         window.addEventListener('keydown', closeOnEscape);
         return () => window.removeEventListener('keydown', closeOnEscape);
     }, [Boolean(viewingSavedQuote), closeQuotePreview]);
+    // Audit UX 220 (C079) — en refermant une fiche devis ou facture, on
+    // repartait en haut d'une liste redessinée, focus sur la page : la ligne
+    // qu'on venait de consulter était perdue (rang 46 sur 61). Le focus — et
+    // donc le défilement — revient sur cette ligne.
+    const derniereFicheOuverte = useRef(null);
+    useEffect(() => {
+        if (viewingSavedQuote) {
+            derniereFicheOuverte.current = `devis-${viewingSavedQuote.id}`;
+            // Ouverture au clavier (C124) : la liste passe du tableau aux tuiles
+            // et la ligne activée disparaît — le focus tombait sur la page. Il
+            // reprend sur la même ligne, dans la nouvelle présentation.
+            const cleOuverte = derniereFicheOuverte.current;
+            const minuteurOuverture = setTimeout(() => {
+                if (document.activeElement && document.activeElement !== document.body) return;
+                const ligne = [...document.querySelectorAll(`[data-retour-focus="${cleOuverte}"]`)].find((el) => el.getClientRects().length > 0);
+                if (ligne) ligne.focus({ preventScroll: false });
+            }, 80);
+            return () => clearTimeout(minuteurOuverture);
+        }
+        const cle = derniereFicheOuverte.current;
+        if (!cle || !cle.startsWith('devis-')) return;
+        derniereFicheOuverte.current = null;
+        const minuteur = setTimeout(() => {
+            const ligne = [...document.querySelectorAll(`[data-retour-focus="${cle}"]`)].find((el) => el.getClientRects().length > 0);
+            if (ligne && (document.activeElement === document.body || !document.activeElement)) {
+                ligne.scrollIntoView({ block: 'center' });
+                ligne.focus({ preventScroll: true });
+            }
+        }, 80);
+        return () => clearTimeout(minuteur);
+    }, [viewingSavedQuote?.id]); // l’identifiant : modifier le devis affiché n’est pas « ouvrir une fiche »
+    // Même besoin pour les listes à fiche plein écran sur téléphone (chantiers,
+    // clients, ouvrages, ressources) : « Retour à la liste » repartait en haut
+    // d'une liste défilée de 2 000 px (C017). On revient sur la ligne quittée.
+    const revenirSurLigne = (nomAccessible) => setTimeout(() => {
+        const ligne = [...document.querySelectorAll('[aria-label]')]
+            .find((el) => el.getAttribute('aria-label') === nomAccessible && el.getClientRects().length > 0);
+        if (ligne) { ligne.scrollIntoView({ block: 'center' }); ligne.focus({ preventScroll: true }); }
+    }, 80);
     const [viewingInvoice, setViewingInvoice] = useState(null);
+    useEffect(() => {
+        if (viewingInvoice) { derniereFicheOuverte.current = `facture-${viewingInvoice.id}`; return; }
+        const cle = derniereFicheOuverte.current;
+        if (!cle || !cle.startsWith('facture-')) return;
+        derniereFicheOuverte.current = null;
+        const minuteur = setTimeout(() => {
+            const ligne = [...document.querySelectorAll(`[data-retour-focus="${cle}"]`)].find((el) => el.getClientRects().length > 0);
+            if (ligne && (document.activeElement === document.body || !document.activeElement)) {
+                ligne.scrollIntoView({ block: 'center' });
+                ligne.focus({ preventScroll: true });
+            }
+        }, 80);
+        return () => clearTimeout(minuteur);
+    }, [viewingInvoice?.id]);
     const [paymentModalData, setPaymentModalData] = useState(null); // Facture sur laquelle saisir un paiement
     useEffect(() => {
         window.__openInvoicePaymentModal = (inv) => setPaymentModalData(inv);
@@ -16879,17 +17743,32 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    // Ces deux fenêtres appartiennent au devis affiché. Fermer ou changer de
+    // devis sans les avoir refermées (Retour du téléphone) laissait l'état à
+    // « ouverte » : la fenêtre ressurgissait, sans avoir été demandée, sur le
+    // devis ouvert ensuite.
+    useEffect(() => {
+        setIsSignatureModalOpen(false);
+        setIsShareModalOpen(false);
+    }, [viewingSavedQuote?.id]);
     const [isQuoteDetailMoreOpen, setIsQuoteDetailMoreOpen] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
+    // Audit UX 220 (C156/C160) — en démonstration, rien n'est jamais
+    // synchronisé : « synchronisation automatique active » promettait un
+    // envoi qui n'existe pas. Les messages de la démo disent ce qui est vrai.
+    const estDemoReseauRef = useRef(true);
+    estDemoReseauRef.current = !sbUser || sbUser.id === 'guest';
     useEffect(() => {
         const handleOnline = () => {
             setIsOnline(true);
-            showToast("Connexion rétablie : synchronisation automatique active !", "success");
+            if (estDemoReseauRef.current) showToast("Connexion rétablie.", "info");
+            else showToast("Connexion rétablie : synchronisation automatique active !", "success");
         };
         const handleOffline = () => {
             setIsOnline(false);
-            showToast("Connexion perdue : bascule en Mode Chantier (Hors-Ligne)", "warning");
+            if (estDemoReseauRef.current) showToast("Connexion perdue. En démonstration, tout reste sur cet appareil : vous pouvez continuer à chiffrer. Le PDF peut être indisponible hors ligne.", "warning");
+            else showToast("Connexion perdue : bascule en Mode Chantier (Hors-Ligne)", "warning");
         };
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
@@ -17646,7 +18525,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         Array.isArray(stored) ? stored : (estModeDemo ? jeuDemo : []);
 
     const [clients, setClients] = useState(() =>
-        donneesInitiales(LS.get('clients', activeOrganizationId), initialClients));
+        donneesInitiales(LS.get('clients', currentUserId, activeOrganizationId), initialClients));
     // Une fiche créée en cours de session (bouton « Nouveau Client », ou
     // création implicite depuis un devis) doit rejoindre le serveur sans
     // attendre la prochaine connexion. La remontée est volontairement en
@@ -17659,23 +18538,23 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (!aRemonter) return;
         synchroniserReferentiel(listeClients, listeProjets, activeOrganizationId)
             .then((ref) => {
-                if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, activeOrganizationId); }
-                if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, activeOrganizationId); }
+                if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, currentUserId, activeOrganizationId); }
+                if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, currentUserId, activeOrganizationId); }
             })
             .catch(e => console.warn('[Référentiel] Remontée différée impossible :', e));
     };
 
     const updateClients = (newClients) => {
         setClients(newClients);
-        LS.set('clients', newClients, activeOrganizationId);
+        LS.set('clients', newClients, currentUserId, activeOrganizationId);
         remonterReferentiel(newClients, projects);
     };
 
     const [projects, setProjects] = useState(() =>
-        donneesInitiales(LS.get('projects', activeOrganizationId), initialProjects));
+        donneesInitiales(LS.get('projects', currentUserId, activeOrganizationId), initialProjects));
     const updateProjects = (newProjects) => {
         setProjects(newProjects);
-        LS.set('projects', newProjects, activeOrganizationId);
+        LS.set('projects', newProjects, currentUserId, activeOrganizationId);
         remonterReferentiel(clients, newProjects);
     };
 
@@ -17686,16 +18565,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // Mode Démo, la numérotation est locale et rien n'est verrouillé. La
     // distinction est signalée à l'utilisateur dans la liste des factures.
     const [invoices, setInvoices] = useState(() =>
-        donneesInitiales(LS.get('invoices', activeOrganizationId), []));
+        donneesInitiales(LS.get('invoices', currentUserId, activeOrganizationId), []));
     const updateInvoices = (next) => {
         setInvoices(next);
-        LS.set('invoices', next, activeOrganizationId);
+        LS.set('invoices', next, currentUserId, activeOrganizationId);
     };
 
     const [clientSearchQuery, setClientSearchQuery] = useState('');
     const [projectSearchQuery, setProjectSearchQuery] = useState('');
     const [savedQuoteSearchQuery, setSavedQuoteSearchQuery] = useState('');
     const [savedQuoteStatusFilter, setSavedQuoteStatusFilter] = useState('all');
+    // Audit UX 220 (C083) — période reçue d'un indicateur du tableau de bord :
+    // la liste ouverte correspond au chiffre cliqué (« Devis à suivre · ce mois »).
+    const [savedQuotePeriodFilter, setSavedQuotePeriodFilter] = useState('all');
     const [savedQuoteSort, setSavedQuoteSort] = useState('recent');
     const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
     const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
@@ -18237,6 +19119,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         numero: r.invoice_number || null,
         statut: r.status || 'draft',
         type: r.invoice_type || 'standard',
+        // Audit UX 220 (revue) — un avoir relu du serveur perdait le lien vers
+        // la facture qu'il corrige : elle restait « en retard » sur le tableau
+        // de bord alors que son montant était annulé.
+        correctsInvoiceId: r.corrects_invoice_id || null,
         devisId: r.quote_id || null,
         clientId: r.client_id || null,
         projectId: r.project_id || null,
@@ -18454,6 +19340,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         const selected = parsedOrgs.find(org => org.id === resolvedOrgId);
                         setActiveOrganizationId(selected.id);
                         setActiveOrganizationRole(selected.role);
+                        // Audit UX 220 (revue) — l'organisation, une fois l'appartenance
+                        // VÉRIFIÉE, est mémorisée : sans cela, chaque rechargement
+                        // repartait de l'organisation provisoire `org_default` et lisait
+                        // le cache local sous une autre clé que celle écrite en session.
+                        localStorage.setItem(`ikadevis_active_org_${sbUser.id}`, selected.id);
                     } else {
                         // Repli sur l'organisation locale déjà connue ou bootstrap
                         const cachedOrgsStr = localStorage.getItem(`ikadevis_orgs_${sbUser.id}`);
@@ -18559,9 +19450,19 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // local sont poussées. En cas d'échec réseau on garde ce qu'on a :
                 // un référentiel local vaut mieux qu'un écran vide.
                 try {
-                    const ref = await synchroniserReferentiel(clients, projects, resolvedOrgId);
-                    if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, resolvedOrgId); }
-                    if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, resolvedOrgId); }
+                    // Le référentiel à réconcilier est celui stocké pour l'organisation
+                    // RÉSOLUE, pas l'état du premier rendu : celui-ci a pu être lu sous
+                    // l'organisation provisoire (`org_default`) — des fiches créées hors
+                    // ligne auraient manqué, ou d'autres seraient parties dans la
+                    // mauvaise organisation.
+                    const memeOrganisation = activeOrganizationId === resolvedOrgId;
+                    const referentielLocal = (cle, enMemoire) => {
+                        const stocke = LS.get(cle, currentUserId, resolvedOrgId);
+                        return Array.isArray(stocke) ? stocke : (memeOrganisation ? enMemoire : []);
+                    };
+                    const ref = await synchroniserReferentiel(referentielLocal('clients', clients), referentielLocal('projects', projects), resolvedOrgId);
+                    if (ref.clients) { setClients(ref.clients); LS.set('clients', ref.clients, currentUserId, resolvedOrgId); }
+                    if (ref.projects) { setProjects(ref.projects); LS.set('projects', ref.projects, currentUserId, resolvedOrgId); }
                 } catch (e) {
                     console.warn('[Référentiel] Synchronisation ignorée :', e);
                 }
@@ -18653,14 +19554,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         return () => { stopped = true; window.removeEventListener('online', resume); };
     }, [catalogPersistence, currentUserId, sbDataLoaded, cloudState, activeOrganizationId]);
 
+    // Renvoie `false` si la modification est refusée : l'import CSV ne doit
+    // pas annoncer « Import terminé » quand rien n'a été appliqué.
     const updateMaterials = (newVal) => {
         if (isReadOnlyDueToDowngrade || !hasPermission(activeOrganizationRole, 'canEditPrices')) {
             showToast('Votre rôle ne permet pas de modifier ce catalogue.', 'error');
-            return;
+            return false;
         }
         setMaterials(newVal);
         if (sbUser) LS.set('materials', newVal, sbUser.id);
         if (!isBootstrapping) stageCatalogChange('materials', newVal, mapMaterialToDb);
+        return true;
     };
 
     const updateCompanyInfo = useCallback((input) => {
@@ -18717,11 +19621,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         if (!isBootstrapping) stageCatalogChange('recipes', newVal, mapRecipeToDb);
     };
 
+    // Renvoie `false` quand l'écriture sur l'appareil a échoué (stockage
+    // plein) : l'appelant qui annonce un enregistrement doit le vérifier.
     const updateSavedQuotes = useCallback((newVal) => {
         setSavedQuotes(newVal);
         if (!isReadOnlyDueToDowngrade && sbUser) {
-            LS.set('savedQuotes', newVal, sbUser.id);
+            return LS.set('savedQuotes', newVal, sbUser.id) !== false;
         }
+        return true;
     }, [isReadOnlyDueToDowngrade, sbUser]);
 
     // P0.12 (2026-08-17) — Rattrapage : relie les devis déjà enregistrés
@@ -18861,6 +19768,70 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [isReadOnlyDueToDowngrade, sbUser]);
 
+    // Audit UX 220 (C143) — une nouvelle version a pris le contrôle de la
+    // page : on ne recharge plus d'office (une saisie en cours serait
+    // perdue), on le dit une fois ; elle s'appliquera au prochain chargement.
+    useEffect(() => {
+        const surNouvelleVersion = () => showToast('Une nouvelle version d’ikadevis est disponible : elle s’appliquera à la prochaine ouverture. Rechargez la page quand votre travail est enregistré.', 'info');
+        window.addEventListener('ikadevis:nouvelle-version', surNouvelleVersion);
+        return () => window.removeEventListener('ikadevis:nouvelle-version', surNouvelleVersion);
+    }, []);
+
+    // Audit UX 220 (C154) — écriture locale refusée (stockage plein, mode
+    // privé strict) : on prévient, une fois par minute au plus.
+    const dernierAvisStockage = useRef(0);
+    // Vrai pendant le geste (la tâche synchrone) où une écriture locale a
+    // échoué en démonstration — lu par showToast.
+    const echecEcritureGesteRef = useRef(false);
+    useEffect(() => {
+        const surEchec = () => {
+            if (estModeDemo) {
+                echecEcritureGesteRef.current = true;
+                setTimeout(() => { echecEcritureGesteRef.current = false; }, 0);
+            }
+            const maintenant = Date.now();
+            if (maintenant - dernierAvisStockage.current < 60000) return;
+            dernierAvisStockage.current = maintenant;
+            showToast(estModeDemo
+                ? 'Le stockage de cet appareil est plein : vos dernières modifications n’ont pas pu être enregistrées. Supprimez d’anciens devis d’essai ou créez un compte.'
+                : 'Le stockage local de cet appareil est plein : la copie hors ligne n’a pas pu être mise à jour.', 'error');
+        };
+        window.addEventListener('ikadevis:ecriture-locale-impossible', surEchec);
+        return () => window.removeEventListener('ikadevis:ecriture-locale-impossible', surEchec);
+    }, [estModeDemo]);
+
+    // Audit UX 220 (C158) — deux onglets ouverts sur le même espace. Chaque
+    // onglet gardait sa propre copie en mémoire et réécrivait TOUTE la liste
+    // à chaque enregistrement : le client créé dans l'onglet A disparaissait
+    // dès que l'onglet B créait le sien, et les deux onglets attribuaient le
+    // même numéro (DEV-2026-002 deux fois). Le navigateur prévient chaque
+    // onglet quand un autre écrit dans le stockage local : on adopte alors la
+    // version écrite, sans la réécrire (pas d'aller-retour entre onglets).
+    useEffect(() => {
+        const ressources = [
+            ['clients', setClients, true], ['projects', setProjects, true], ['invoices', setInvoices, true],
+            ['savedQuotes', setSavedQuotes], ['nextQuoteSeq', setNextQuoteSeq], ['modelesDevis', setModelesDevis],
+            ['materials', setMaterials], ['labor', setLabor], ['solutions', setSolutions],
+            ['recipes', setRecipes], ['companyInfo', setCompanyInfo],
+        ];
+        const surEcritureAutreOnglet = (e) => {
+            if (!e.key || e.newValue == null || e.storageArea !== window.localStorage) return;
+            for (const [nom, adopter, parOrganisation] of ressources) {
+                const cle = parOrganisation
+                    ? LS.getKey(nom, currentUserId, activeOrganizationId)
+                    : LS.getKey(nom, sbUser?.id);
+                if (e.key !== cle) continue;
+                try {
+                    const valeur = withoutPaymentSecrets(JSON.parse(e.newValue));
+                    adopter((actuelle) => (JSON.stringify(actuelle) === e.newValue ? actuelle : valeur));
+                } catch (_) { /* valeur illisible : on garde la copie en mémoire */ }
+                return;
+            }
+        };
+        window.addEventListener('storage', surEcritureAutreOnglet);
+        return () => window.removeEventListener('storage', surEcritureAutreOnglet);
+    }, [currentUserId, activeOrganizationId, sbUser]);
+
 
     // Ne rebascule QUE si l'ouvrage affiché a été supprimé (référence
     // orpheline) — jamais quand selectedSolutionForEdit est null. Le bouton
@@ -18873,9 +19844,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         }
     }, [solutions, selectedSolutionForEdit]);
 
+    // Audit UX 220 (C139) — le minuteur d'un premier message effaçait le
+    // suivant : deux notifications rapprochées, la seconde disparaissait
+    // aussitôt. Chaque minuteur n'efface plus que SA notification, et un
+    // message long reste affiché assez longtemps pour être lu.
+    const toastSeqRef = useRef(0);
     const showToast = (message, type = 'success') => {
-        setToast({ message, type, id: Date.now() });
-        setTimeout(() => setToast(null), 3500);
+        // Audit UX 220 (C152) — en démonstration tout vit sur l'appareil. Si
+        // une écriture vient d'y être refusée (stockage plein) pendant le
+        // geste en cours, le succès que ce geste allait annoncer serait
+        // faux (« Fiche client créée ! », « Devis dupliqué »…) : on dit
+        // l'échec à la place.
+        if (type === 'success' && echecEcritureGesteRef.current) {
+            message = 'Stockage de l’appareil plein : cette action n’a pas pu être enregistrée sur cet appareil. Supprimez d’anciens devis d’essai ou créez un compte.';
+            type = 'error';
+        }
+        const id = ++toastSeqRef.current;
+        setToast({ message, type, id });
+        const duree = Math.min(9000, Math.max(3500, String(message || '').length * 55));
+        setTimeout(() => setToast((t) => (t && t.id === id ? null : t)), duree);
     };
     const closeConfirm = () => setConfirmDialog({ isOpen: false });
 
@@ -18892,6 +19879,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     projectsRef.current = projects;
     const isCompteAdminRef = useRef(isCompteAdmin);
     isCompteAdminRef.current = isCompteAdmin;
+    // Revue 2 (E10) — garde du chiffrage non enregistré sur Retour / Suivant
+    // du navigateur : le routeur ci-dessous est installé une seule fois, il
+    // lit donc l'écran, l'indicateur et la question par des références.
+    const activeViewRef = useRef(activeView);
+    activeViewRef.current = activeView;
+    const devisNonEnregistreRef = useRef(devisNonEnregistre);
+    devisNonEnregistreRef.current = devisNonEnregistre;
+    const proposerEnregistrementRef = useRef(null);
+    const adresseAutoriseeRef = useRef(null);
 
     // ═══════════════════════════════════════════════════════════════════
     // LOT 6 (UX-03) : ROUTAGE UNIVERSEL D'URL & SYNCHRONISATION NAVIGATEUR
@@ -18902,7 +19898,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     useEffect(() => {
         let isSyncing = false;
 
-        const syncFromUrl = () => {
+        const syncFromUrl = (evenement) => {
             if (isSyncing) return;
             isSyncing = true;
             isNavigatingFromRouteRef.current = true;
@@ -18910,7 +19906,39 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 const rawHash = window.location.hash || '';
                 const hash = rawHash.replace(/^\/?#\/?/, '#');
 
+                // Revue 2 (E10) — « Retour » emportait un chiffrage non
+                // enregistré sans la question que pose la barre latérale
+                // (naviguerVers). On remet l'adresse du chiffrage, on pose la
+                // question, et l'on ne repart vers l'adresse demandée que si
+                // l'utilisateur l'accepte (adresseAutoriseeRef).
+                if (evenement && adresseAutoriseeRef.current !== rawHash
+                    && activeViewRef.current === 'calculator' && devisNonEnregistreRef.current
+                    && !/^#(chiffrage|new-quote)$/.test(hash) && !/[=&]/.test(hash)
+                    && typeof proposerEnregistrementRef.current === 'function') {
+                    window.history.pushState(null, '', '#chiffrage');
+                    proposerEnregistrementRef.current(() => {
+                        adresseAutoriseeRef.current = rawHash;
+                        setTimeout(() => { adresseAutoriseeRef.current = null; }, 1000);
+                        // L'entrée précédente est justement l'adresse demandée.
+                        window.history.back();
+                    });
+                    return;
+                }
+
+                // Une fiche devis ouverte en fenêtre (la copie mobile, montée au
+                // niveau de l'application tant qu'un devis est « vu ») restait
+                // ouverte quand l'adresse menait ailleurs : sur téléphone elle
+                // recouvrait l'écran demandé, et à l'impression elle sortait
+                // avec la facture. Seuls les gestes de navigation (Retour,
+                // Suivant, adresse saisie) passent ici : l'application, elle,
+                // écrit ses adresses par pushState, sans évènement.
+                if (evenement && !/^#(devis|quotes)(\/|$)/.test(hash) && !/[=&]/.test(hash)) setViewingSavedQuote(null);
+
                 if (!hash || hash === '#') {
+                    // Audit UX 220 (UX-P2-06) — Retour jusqu'à l'adresse
+                    // d'entrée (sans fragment) : c'est le tableau de bord. Au
+                    // premier chargement (aucun évènement), on ne touche à rien.
+                    if (evenement) setActiveView('dashboard');
                     return;
                 }
 
@@ -18924,7 +19952,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 if (settingsMatch) {
                     const section = settingsMatch[1] || 'entreprise';
                     const adminSections = ['equipe', 'audit', 'diagnostic', 'donnees'];
-                    if (adminSections.includes(section) && !isCompteAdmin) {
+                    // Audit UX 220 (C019) — une rubrique inconnue ouvrait une page vide.
+                    const sectionsConnues = ['entreprise', 'documents', 'facturation', 'finances', 'abonnement', ...adminSections];
+                    if (!sectionsConnues.includes(section)) {
+                        showToast("Cette rubrique des paramètres n'existe pas : voici la rubrique Entreprise.", "info");
+                        setAccountSettingsTab('entreprise');
+                        setActiveView('settings');
+                        window.history.replaceState(null, '', '#settings/entreprise');
+                        return;
+                    }
+                    if (adminSections.includes(section) && !isCompteAdminRef.current) {
                         showToast("Accès réservé aux administrateurs.", "info");
                         setAccountSettingsTab('entreprise');
                         setActiveView('settings');
@@ -19049,6 +20086,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     setActiveView(simpleRoutes[hash]);
                     return;
                 }
+
+                // Audit UX 220 (C019) — une adresse inconnue (lien ancien,
+                // faute de frappe) laissait l'écran précédent sans un mot :
+                // on le dit, et on revient au tableau de bord. Les fragments de
+                // retour d'authentification (#access_token=…&type=recovery,
+                // #error=…) ne sont pas des écrans : on n'y touche pas.
+                if (/[=&]/.test(hash)) return;
+                showToast("Cette page n'existe pas (ou plus) : retour au tableau de bord.", "info");
+                setActiveView('dashboard');
+                window.history.replaceState(null, '', '#dashboard');
             } finally {
                 isSyncing = false;
                 setTimeout(() => {
@@ -19065,6 +20112,40 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             window.removeEventListener('popstate', syncFromUrl);
         };
     }, []);
+
+    // Audit UX 220 (UX-P2-06) — l'adresse ne suivait que les fiches et les
+    // paramètres : « Créer mon premier devis » laissait une adresse vide, et
+    // « Facturer » depuis #devis/<id> affichait Factures sous #devis/<id> — un
+    // rechargement ramenait au devis. Chaque écran inscrit maintenant son
+    // adresse de base, sauf si l'adresse courante lui appartient déjà (fiche
+    // ouverte) ou si le changement vient lui-même de l'adresse.
+    useEffect(() => {
+        if (isNavigatingFromRouteRef.current) return;
+        const ADRESSES = {
+            dashboard: ['#dashboard', /^#dashboard$/],
+            calculator: ['#chiffrage', /^#(chiffrage|new-quote)$/],
+            savedQuotes: ['#devis', /^#(devis|quotes)(\/|$)/],
+            invoices: ['#factures', /^#(factures|invoices)(\/|$)/],
+            projects: ['#chantiers', /^#(chantiers|projets|projects)(\/|$)/],
+            clients: ['#clients', /^#clients(\/|$)/],
+            depenses: ['#depenses', /^#depenses$/],
+            recipes: ['#ouvrages', /^#(ouvrages|recettes|catalog\/recipes)$/],
+            materials: ['#materiaux', /^#(materiaux|catalog\/materials)$/],
+        };
+        const cible = ADRESSES[activeView];
+        if (!cible) return;
+        const actuelle = (window.location.hash || '').replace(/^\/?#\/?/, '#');
+        if (cible[1].test(actuelle)) return;
+        // Depuis l'adresse d'entrée sans fragment (on y était sur le tableau
+        // de bord), elle devient d'abord « #dashboard » : un « Retour » y
+        // ramène vraiment, au lieu de laisser l'écran et l'adresse diverger.
+        if (!actuelle || actuelle === '#') {
+            window.history.replaceState(null, '', '#dashboard');
+            if (cible[0] !== '#dashboard') window.history.pushState(null, '', cible[0]);
+            return;
+        }
+        window.history.pushState(null, '', cible[0]);
+    }, [activeView]);
 
     // ── Éditeur de modèles : ouvrir, enregistrer ─────────────────────────
     // La galerie s'ouvre d'abord : dès qu'on peut tenir plusieurs modèles,
@@ -19330,9 +20411,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // prétendant l'avoir sauvé.
     const enregistrerChiffrageRef = React.useRef(null);
 
-    const naviguerVers = React.useCallback((vue) => {
-        if (vue === activeView) return;
-        if (activeView !== 'calculator' || !devisNonEnregistre) { setActiveView(vue); return; }
+    // `partir` : ce qui se passe une fois la question tranchée — changer
+    // d'écran (barre latérale) ou reprendre l'adresse demandée (Retour du
+    // navigateur, voir le routeur).
+    const proposerEnregistrement = (partir) => {
         setConfirmDialog({
             isOpen: true,
             title: 'Enregistrer le devis en cours ?',
@@ -19344,11 +20426,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             // boîte par la gauche.
             confirmLabel: 'Enregistrer',
             secondaryLabel: 'Ne pas enregistrer',
-            onSecondary: () => { closeConfirm(); setActiveView(vue); },
+            onSecondary: () => { closeConfirm(); partir(); },
             onConfirm: () => {
                 closeConfirm();
                 const enregistrer = enregistrerChiffrageRef.current;
-                if (typeof enregistrer !== 'function') { setActiveView(vue); return; }
+                if (typeof enregistrer !== 'function') { partir(); return; }
                 // L'atelier dit ce qui s'est passé plutôt que de laisser
                 // deviner : 'enregistre' (c'est fait, on peut partir),
                 // 'bloque' (validation refusée, on reste, l'erreur est à
@@ -19358,9 +20440,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 // l'enregistrement le rallumait et la navigation n'avait
                 // jamais lieu, sans que rien ne l'explique.
                 const issue = enregistrer();
-                if (issue === 'enregistre') setActiveView(vue);
+                if (issue === 'enregistre') partir();
             }
         });
+    };
+    proposerEnregistrementRef.current = proposerEnregistrement;
+
+    const naviguerVers = React.useCallback((vue) => {
+        if (vue === activeView) return;
+        if (activeView !== 'calculator' || !devisNonEnregistre) { setActiveView(vue); return; }
+        proposerEnregistrement(() => setActiveView(vue));
     }, [activeView, devisNonEnregistre]);
 
     // Audit approfondi du 2026-09-02 — défaut SYSTÉMIQUE, mesuré sur la
@@ -19489,26 +20578,70 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
 
         let courante = null;
-        let declencheur = null;
+        // Audit UX 220 (C123) — une PILE de fenêtres, chacune avec ce qui
+        // l'a ouverte. Avant, un seul déclencheur était retenu (celui de la
+        // première fenêtre) : fermer « Signature » ouverte depuis une autre
+        // fenêtre laissait le focus sur la page (BODY). Et si React a
+        // remplacé le bouton déclencheur entre-temps, on le retrouve par son
+        // identifiant ou son nom.
+        const pile = [];
+        const decrire = (el) => (el && el !== document.body && el.nodeType === 1)
+            ? { el, id: el.id || null, nom: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 120) }
+            : null;
+        const retrouver = (d) => {
+            if (!d) return null;
+            if (d.el && document.contains(d.el) && visible(d.el)) return d.el;
+            if (d.id) { const parId = document.getElementById(d.id); if (parId && visible(parId)) return parId; }
+            if (d.nom) {
+                return [...document.querySelectorAll('button, a[href], [role="button"], input, select, textarea')]
+                    .find((b) => visible(b) && (b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 120) === d.nom) || null;
+            }
+            return null;
+        };
 
         const reevaluer = () => {
             const dessus = fenetreDuDessus();
             if (dessus === courante) return;
+            // Fenêtres refermées : on dépile jusqu'à celle qui reste au-dessus.
+            let aRendre = null;
+            while (pile.length && pile[pile.length - 1].fenetre !== dessus
+                && (!dessus || pile.some((p) => p.fenetre === dessus) || !document.contains(pile[pile.length - 1].fenetre))) {
+                aRendre = pile.pop().declencheur;
+            }
             if (!dessus) {
                 // La fenêtre s'est fermée : on rend le focus à ce qui l'avait
                 // ouverte, sans quoi l'utilisateur repart en haut de la page.
-                if (declencheur && document.contains(declencheur) && typeof declencheur.focus === 'function') {
-                    declencheur.focus({ preventScroll: true });
-                }
-                courante = null; declencheur = null;
+                const cible = retrouver(aRendre);
+                if (cible && typeof cible.focus === 'function') cible.focus({ preventScroll: true });
+                courante = null;
                 return;
             }
-            if (!courante) declencheur = document.activeElement;
+            if (!pile.some((p) => p.fenetre === dessus)) {
+                // Une fenêtre qui en REMPLACE une autre dans le même rendu
+                // (règlement → quittance) hérite du déclencheur de la
+                // précédente : l'élément actif, lui, vient d'être retiré.
+                const actuel = decrire(document.activeElement);
+                const declencheur = (actuel && document.contains(actuel.el) && !dessus.contains(actuel.el)) ? actuel : (aRendre || actuel);
+                pile.push({ fenetre: dessus, declencheur });
+            }
             courante = dessus;
+            const retour = retrouver(aRendre);
+            if (retour && dessus.contains(retour)) retour.focus({ preventScroll: true });
             // Annoncer la fenêtre aux lecteurs d'écran, qui sans cela ne
             // signalent rien du tout à l'ouverture.
             if (!dessus.getAttribute('role')) dessus.setAttribute('role', 'dialog');
             if (!dessus.getAttribute('aria-modal')) dessus.setAttribute('aria-modal', 'true');
+            // Audit UX 2026-10 (UX-P2-04) — une fenêtre annoncée sans nom se lit
+            // « boîte de dialogue », sans plus : « Nouveau Client » ou « Facturer
+            // DEV-… » avaient un titre visible jamais relié. On relie le premier
+            // titre de la fenêtre, sauf si un nom lui a déjà été donné.
+            if (!dessus.getAttribute('aria-label') && !dessus.getAttribute('aria-labelledby')) {
+                const titre = dessus.querySelector('h1, h2, h3, h4, [role="heading"]');
+                if (titre && titre.textContent.trim()) {
+                    if (!titre.id) titre.id = `fenetre-titre-${Math.random().toString(36).slice(2, 9)}`;
+                    dessus.setAttribute('aria-labelledby', titre.id);
+                }
+            }
             if (!dessus.contains(document.activeElement)) {
                 const premier = focalisables(dessus)[0];
                 if (premier) premier.focus({ preventScroll: true });
@@ -19516,6 +20649,29 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         };
 
         const auClavier = (e) => {
+            // Audit UX 2026-10 (UX-P2-11) — Échap ne fermait que les fenêtres
+            // listées une à une (« Nouveau Client » n'y était pas). Le filet
+            // active le bouton de fermeture DE LA FENÊTRE elle-même : même effet
+            // qu'un clic de l'utilisateur, confirmation éventuelle comprise.
+            // Garde (2026-10-03) : le filet prend aussi pour « fenêtre » les listes
+            // déroulantes plein écran (classes `.fixed.inset-0`) ; elles gèrent
+            // leur propre Échap (annuler la recherche). On n'agit que si le focus
+            // est DANS la fenêtre, et jamais depuis un champ de liste déroulante.
+            const depuisListe = e.target && e.target.closest
+                && e.target.closest('[role="combobox"], [role="listbox"], [role="option"], .picker-popover');
+            if (e.key === 'Escape' && !e.defaultPrevented && courante && document.contains(courante)
+                && courante.contains(e.target) && !depuisListe && !courante.classList.contains('picker-popover')) {
+                // Audit UX 220 (C118) — Échap dans un menu déroulant (« Plus
+                // d'actions ») refermait toute la fiche. Le menu ouvert, s'il y en
+                // a un, se referme d'abord ; le focus revient sur son bouton.
+                const menuOuvert = [...courante.querySelectorAll('[aria-expanded="true"][aria-haspopup]')]
+                    .filter((b) => b.tagName === 'BUTTON' && visible(b) && b.getAttribute('role') !== 'combobox').pop();
+                if (menuOuvert) { e.preventDefault(); menuOuvert.click(); menuOuvert.focus({ preventScroll: true }); return; }
+                const fermer =courante.querySelector('[aria-label="Fermer la boîte de dialogue"], [aria-label^="Fermer"], [data-fermer-fenetre]')
+                    || [...courante.querySelectorAll('button')].find((b) => /^(Annuler|Fermer)$/.test((b.innerText || '').trim()));
+                if (fermer && !fermer.disabled) { e.preventDefault(); fermer.click(); }
+                return;
+            }
             if (e.key !== 'Tab' || !courante || !document.contains(courante)) return;
             const liste = focalisables(courante);
             if (liste.length === 0) return;
@@ -20763,7 +21919,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             number: quoteNumber,
             date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
             clientName: saveQuoteForm.clientName.trim() || 'Client Passage',
-            projectRef: saveQuoteForm.projectRef || (isMultiLot ? `Chantier Multi-Lots (${workingLots.length} ouvrages)` : currentQuote.solutionName),
+            projectRef: (saveQuoteForm.projectRef || '').trim(), // UX-P2-01 : aucun chantier inventé (ni « Chantier Multi-Lots », ni le nom de l'ouvrage)
             notes: saveQuoteForm.notes || '',
             vatRate: quoteDataToSave.vatRate,
             isMultiLot,
@@ -20815,17 +21971,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return;
         }
         if (!supabaseClient || !sbUser || sbUser.id === 'guest') {
-            const newLocalOrg = {
-                id: `org_local_${Date.now()}`,
-                name,
-                currency,
-                role: 'owner'
-            };
-            const updated = [...userOrganizations, newLocalOrg];
-            setUserOrganizations(updated);
-            setActiveOrganizationId(newLocalOrg.id);
-            setActiveOrganizationRole('owner');
-            showToast(`Organisation ${name} créée avec succès !`, "success");
+            // Audit UX 220 (C107) — voir onOpenCreateOrg : pas de fausse
+            // entreprise locale qui partagerait les données de la démo.
+            showToast('En démonstration, une seule entreprise fictive est disponible. Créez un compte pour gérer plusieurs entreprises.', 'info');
             return;
         }
 
@@ -20979,7 +22127,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={() => setDevisExempleCharge(false)}
-                            className="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-brand-100/60 transition-colors"
+                            className="text-neutral-500 hover:text-neutral-700 p-1 rounded hover:bg-brand-100/60 transition-colors"
                             aria-label="Fermer le bandeau d'exemple"
                             title="Fermer le bandeau"
                         >
@@ -20994,7 +22142,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 <button
                     type="button"
                     onClick={() => setBandeauExempleReplie(true)}
-                    className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-brand-100/60 transition-colors"
+                    className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-lg text-neutral-500 hover:text-neutral-700 hover:bg-brand-100/60 transition-colors"
                     aria-label="Replier l'aide"
                     title="Replier le bandeau d'aide pour libérer l'espace"
                 >
@@ -21156,7 +22304,20 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             // devis n'existe réellement.
                             const isNewLocalQuote = !savedQuotes.some(q => q.id === savedQ.id);
                             const updatedQuotes = [savedQ, ...savedQuotes.filter(q => q.id !== savedQ.id)];
-                            updateSavedQuotes(updatedQuotes);
+                            // Audit UX 220 (C152, UX-P1-06) — stockage de l'appareil
+                            // plein : l'écriture échouait, et l'on annonçait quand même
+                            // « Devis enregistré en local ». Le devis n'est PAS sur
+                            // l'appareil : la liste reprend son état réel, aucun succès
+                            // n'est annoncé, le brouillon de secours est conservé, et
+                            // l'atelier garde « Modifications non enregistrées » (il
+                            // détecte le même échec, voir handleSaveQuoteAction).
+                            if (!updateSavedQuotes(updatedQuotes)) {
+                                setSavedQuotes(savedQuotes);
+                                setSaveQuoteStatus('error');
+                                setSaveQuoteError("Stockage de l'appareil plein : ce devis n'est pas enregistré.");
+                                showToast(`Devis ${savedQ.number} NON enregistré : le stockage de cet appareil est plein. Supprimez d'anciens devis, ou téléchargez le PDF avant de quitter.`, 'error');
+                                return;
+                            }
                             if (isNewLocalQuote) updateNextQuoteSeq(nextQuoteSeq + 1);
                             // Le devis est en sécurité : le brouillon de secours n'a plus
                             // de raison d'être, et le laisser ferait proposer une reprise
@@ -22207,7 +23368,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-8 h-8 rounded-lg border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-colors cursor-pointer"
+                            className="w-8 h-8 rounded-lg border border-neutral-200 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-colors cursor-pointer"
                             aria-label="Fermer la personnalisation"
                         >
                             <i className="fa-solid fa-xmark text-sm"></i>
@@ -22235,7 +23396,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             className="app-input font-bold font-mono text-sm pl-3 pr-16"
                                             placeholder="15000000"
                                         />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-[11px] pointer-events-none">
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 font-bold text-[11px] pointer-events-none">
                                             {currency}
                                         </span>
                                     </div>
@@ -22274,10 +23435,16 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 {widgetDefinitions.map(w => {
                                     const isActive = tempConfig.widgets[w.key] !== false;
                                     return (
-                                        <div
+                                        // Audit UX 220 (C089, WCAG 2.1.1 / 4.1.2) — ces interrupteurs
+                                        // étaient des <div> cliquables : ni Tab, ni Espace, ni état
+                                        // annoncé. Un vrai bouton « switch » avec aria-checked.
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={isActive}
                                             key={w.key}
                                             onClick={() => toggleWidget(w.key)}
-                                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
+                                            className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
                                                 isActive
                                                     ? 'bg-white border-neutral-300 shadow-2xs hover:border-brand-400'
                                                     : 'bg-neutral-50/60 border-neutral-200/50 opacity-60 hover:opacity-80'
@@ -22285,7 +23452,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                                    isActive ? 'bg-brand-50 text-brand-600' : 'bg-neutral-200 text-neutral-400'
+                                                    isActive ? 'bg-brand-50 text-brand-600' : 'bg-neutral-200 text-neutral-500'
                                                 }`}>
                                                     <i className={`fa-solid ${w.icon} text-xs`}></i>
                                                 </div>
@@ -22296,14 +23463,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                             </div>
 
                                             {/* Toggle Switch */}
-                                            <div
+                                            <span
+                                                aria-hidden="true"
                                                 className={`w-11 h-6 flex items-center rounded-full p-0.5 shrink-0 transition-colors duration-200 ease-in-out ${
-                                                    isActive ? 'bg-brand-600 justify-end' : 'bg-neutral-300 justify-start'
+                                                    isActive ? 'bg-brand-600 justify-end' : 'bg-neutral-400 justify-start'
                                                 }`}
                                             >
-                                                <div className="w-5 h-5 rounded-full bg-white shadow-xs transition-all"></div>
-                                            </div>
-                                        </div>
+                                                <span className="w-5 h-5 rounded-full bg-white shadow-xs transition-all"></span>
+                                            </span>
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -22351,24 +23519,8 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     const renderDashboard = () => {
         const latestDraft = savedQuotes.find(q => q.status === 'draft' && q.hybridQuoteSnapshot);
         // Filtrage temporel helper
-        const isDateInPeriod = (dateStr, period) => {
-            if (!dateStr || period === 'all') return true;
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return true;
-            const now = new Date();
-            if (period === 'month') {
-                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            }
-            if (period === 'quarter') {
-                const currentQuarter = Math.floor(now.getMonth() / 3);
-                const itemQuarter = Math.floor(d.getMonth() / 3);
-                return itemQuarter === currentQuarter && d.getFullYear() === now.getFullYear();
-            }
-            if (period === 'year') {
-                return d.getFullYear() === now.getFullYear();
-            }
-            return true;
-        };
+        // Même règle que la liste des devis ouverte depuis un indicateur.
+        const isDateInPeriod = (dateStr, period) => dateDansPeriode(dateStr, period);
 
         const activePeriod = dashboardPeriodFilter || 'all';
         const filteredQuotes = savedQuotes.filter(q => isDateInPeriod(q.date || q.createdAt || q.updatedAt, activePeriod));
@@ -22387,12 +23539,25 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
         const conversionRate = filteredQuotes.length > 0 ? Math.round((acceptedQuotes.length / filteredQuotes.length) * 100) : 0;
 
-        const pendingQuotes = filteredQuotes.filter(q => !['approved', 'accepted'].includes(q.status));
-        const pendingTotal = pendingQuotes.reduce((sum, q) => sum + Number(q.quoteData?.totalTTCConsomme || q.totalTTC || 0), 0);
+        // Audit UX 220 (C082) — « Devis à suivre » comptait aussi les
+        // brouillons jamais envoyés : un devis ne s'attend chez le client
+        // qu'une fois envoyé. Ce sont donc les devis envoyés, sans réponse.
+        const pendingQuotes = sentQuotes;
+        const pendingTotal = sentTotal;
+        // Rappel de la période active dans les libellés (C082) : sans lui,
+        // « 0 devis chiffré » sur « Ce mois » se lisait comme un total.
+        const libellePeriode = { month: 'ce mois', quarter: 'ce trimestre', year: 'cette année' }[activePeriod] || '';
+        const surPeriode = (texte) => (libellePeriode ? `${texte} · ${libellePeriode}` : texte);
 
         const activeProjects = projects.filter(p => ['active', 'in_progress'].includes(p.status));
-        const issuedInvoices = invoices.filter(f => isDateInPeriod(f.date || f.createdAt, activePeriod) && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut));
+        const issuedInvoices = invoices.filter(f => isDateInPeriod(f.dateEmission || f.date || f.createdAt, activePeriod) && ['issued', 'sent', 'paid', 'partially_paid'].includes(f.statut) && f.type !== 'avoir');
         const invoicedTotal = issuedInvoices.reduce((sum, f) => sum + Number(f.totalTTC || f.totalTtc || f.total || 0), 0);
+        // Audit UX 220 (C081) — « que me doit-on ? » : le reste à encaisser
+        // n'apparaissait que dans l'écran Factures. Toutes périodes : une
+        // créance ancienne reste due.
+        // Même règle que « Reste à percevoir » de l'écran Factures (avoirs déduits).
+        const resteAEncaisser = resteARecouvrerGlobal(invoices);
+        const facturesEnRetard = invoices.filter(f => estFactureEnRetardDue(invoices, f));
 
         // Objectif Mensuel (calculé sur le mois en cours)
         const now = new Date();
@@ -22406,12 +23571,22 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
         const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthAchieved / monthlyGoal) * 100)) : 0;
         const goalRemaining = Math.max(0, monthlyGoal - monthAchieved);
 
-        const recentQuotes = savedQuotes.slice(0, 4);
+        // Même périmètre que les cartes (C082) : sur « Ce mois », la liste ne
+        // montre plus un devis que la carte ne compte pas.
+        const recentQuotes = filteredQuotes.slice(0, 4);
         const recentInvoices = invoices.slice(0, 3);
         const enabledWidgets = dashboardConfig.widgets || DEFAULT_DASHBOARD_CONFIG.widgets;
 
-        const DashboardMetric = ({ label, value, detail, icon, tone = 'brand' }) => (
-            <div className="bg-white p-4 sm:p-5 rounded-xl border border-neutral-200/80 shadow-2xs hover:border-neutral-300 hover:shadow-xs transition-all flex flex-col justify-between">
+        // Audit UX 220 (C083) — chaque indicateur ouvre la liste qui le compose
+        // (bouton natif : clavier, focus et nom accessible inclus).
+        // Appelée comme une FONCTION, pas comme un composant : déclarée ici,
+        // `<DashboardMetric>` était un nouveau type à chaque rendu, React
+        // démontait puis recréait le bouton, et le focus clavier retombait
+        // sur <body> au moindre rafraîchissement (revue 2, E11).
+        const carteIndicateur = ({ cle, label, value, detail, icon, tone = 'brand', onOuvrir }) => {
+            const Conteneur = onOuvrir ? 'button' : 'div';
+            return (
+            <Conteneur key={cle} {...(onOuvrir ? { type: 'button', onClick: onOuvrir, title: `${detail} — ouvrir la liste` } : {})} className="text-left w-full bg-white p-4 sm:p-5 rounded-xl border border-neutral-200/80 shadow-2xs hover:border-neutral-300 hover:shadow-xs transition-all flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
                 <div className="flex items-center justify-between gap-2 mb-3">
                     <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-neutral-500 truncate">{label}</p>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
@@ -22429,8 +23604,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     </p>
                     <p className="mt-1 text-[11px] text-neutral-500 truncate">{detail}</p>
                 </div>
-            </div>
-        );
+            </Conteneur>
+            );
+        };
+        const ouvrirDevisFiltres = (statut) => { setSavedQuoteStatusFilter(statut); setSavedQuotePeriodFilter(activePeriod); setQuotesClientFilter(null); setSavedQuoteSearchQuery(''); setActiveView('savedQuotes'); };
 
         return (
             <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-5 h-full min-h-0 overflow-y-auto custom-scroll pr-1 pb-8">
@@ -22439,7 +23616,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-brand-600">Tableau de bord de pilotage</span>
-                            <span className="text-[10px] text-neutral-400">•</span>
+                            <span className="text-[10px] text-neutral-500" aria-hidden="true">•</span>
                             <span className="text-xs text-neutral-500 capitalize">{new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</span>
                         </div>
                         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 mt-1">
@@ -22462,6 +23639,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 <button
                                     key={p.key}
                                     type="button"
+                                    aria-pressed={activePeriod === p.key}
                                     onClick={() => setDashboardPeriodFilter(p.key)}
                                     className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                                         activePeriod === p.key
@@ -22545,15 +23723,18 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
 
                         <button
                             type="button"
-                            onClick={() => setActiveView('invoices')}
+                            // Audit UX 220 (C041/C090) — annonçait « Facturer un acompte » mais
+                            // ouvrait seulement la liste des factures. Il ouvre maintenant le
+                            // choix du devis à facturer (acompte et situations s'y règlent).
+                            onClick={() => { setActiveView('invoices'); setIsCreateInvoiceMenuOpen(true); }}
                             className="p-3.5 rounded-xl border border-neutral-200/80 bg-white hover:border-emerald-400 hover:shadow-xs transition-all text-left flex items-center gap-3 group cursor-pointer"
                         >
                             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
                                 <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
                             </div>
                             <div className="min-w-0">
-                                <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Créer facture</p>
-                                <p className="text-[11px] text-neutral-500">Facturer un acompte</p>
+                                <p className="font-bold text-xs text-neutral-900 group-hover:text-emerald-800 transition-colors">Facturer un devis</p>
+                                <p className="text-[11px] text-neutral-500">Choisir le devis à facturer</p>
                             </div>
                         </button>
                     </section>
@@ -22621,34 +23802,44 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                 {/* 4. CARTES KPIS ESSENTIELLES (Sans Rupture de Ligne sur la Devise) */}
                 {enabledWidgets.kpis !== false && (
                     <section aria-label="Indicateurs clés" className="shrink-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                        <DashboardMetric
-                            label="Total des devis TTC"
-                            value={formatMoney(totalChiffre, companyInfo.currency)}
-                            detail={`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`}
-                            icon="fa-coins"
-                            tone="brand"
-                        />
-                        <DashboardMetric
-                            label="Devis à Suivre"
-                            value={pendingQuotes.length}
-                            detail={`En attente : ${formatMoney(pendingTotal, companyInfo.currency)}`}
-                            icon="fa-file-signature"
-                            tone="amber"
-                        />
-                        <DashboardMetric
-                            label="Chantiers Actifs"
-                            value={activeProjects.length}
-                            detail={projects.length === activeProjects.length ? "Tous en cours" : `sur ${projects.length} chantiers totaux`}
-                            icon="fa-folder-tree"
-                            tone="violet"
-                        />
-                        <DashboardMetric
-                            label="Total Facturé"
-                            value={formatMoney(invoicedTotal, companyInfo.currency)}
-                            detail={issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`}
-                            icon="fa-chart-line"
-                            tone="emerald"
-                        />
+                        {carteIndicateur({
+                            cle: 'devis',
+                            label: 'Total des devis TTC',
+                            value: formatMoney(totalChiffre, companyInfo.currency),
+                            detail: surPeriode(`${filteredQuotes.length} devis chiffré${filteredQuotes.length > 1 ? 's' : ''}`),
+                            icon: 'fa-coins',
+                            tone: 'brand',
+                            onOuvrir: () => ouvrirDevisFiltres('all'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'a-suivre',
+                            label: 'Devis à suivre',
+                            value: pendingQuotes.length,
+                            detail: surPeriode(pendingQuotes.length === 0 ? 'Aucun devis envoyé en attente' : `Envoyés, en attente : ${formatMoney(pendingTotal, companyInfo.currency)} TTC`),
+                            icon: 'fa-file-signature',
+                            tone: 'amber',
+                            onOuvrir: () => ouvrirDevisFiltres('sent'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'chantiers',
+                            label: 'Chantiers actifs',
+                            value: activeProjects.length,
+                            detail: projects.length === 0 ? 'Aucun chantier' : projects.length === activeProjects.length ? 'Tous en cours · toutes périodes' : `sur ${projects.length} chantier${projects.length > 1 ? 's' : ''} · toutes périodes`,
+                            icon: 'fa-folder-tree',
+                            tone: 'violet',
+                            onOuvrir: () => setActiveView('projects'),
+                        })}
+                        {carteIndicateur({
+                            cle: 'facture',
+                            label: 'Total facturé TTC',
+                            value: formatMoney(invoicedTotal, companyInfo.currency),
+                            detail: resteAEncaisser > 0
+                                ? `Reste à encaisser : ${formatMoney(resteAEncaisser, companyInfo.currency)}${facturesEnRetard.length ? ` · ${facturesEnRetard.length} en retard` : ''}`
+                                : surPeriode(issuedInvoices.length === 0 ? "Aucune facture émise" : `${issuedInvoices.length} facture${issuedInvoices.length > 1 ? "s" : ""} émise${issuedInvoices.length > 1 ? "s" : ""}`),
+                            icon: 'fa-chart-line',
+                            tone: 'emerald',
+                            onOuvrir: () => { setInvoiceStatusFilter(facturesEnRetard.length ? 'overdue' : 'all'); setActiveView('invoices'); },
+                        })}
                     </section>
                 )}
 
@@ -22665,45 +23856,47 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-neutral-500">Taux de conversion :</span>
+                                {/* Audit UX 220 (C084) — sans devis, « 0% accepté » se lisait comme une mesure. */}
                                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-mono">
-                                    {conversionRate}% accepté{conversionRate > 1 ? 's' : ''}
+                                    {filteredQuotes.length === 0 ? 'pas encore de devis' : `${conversionRate} % acceptés`}
                                 </span>
                             </div>
                         </div>
 
                         {/* Grille continue des 4 étapes */}
                         <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-neutral-200/70 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-neutral-200/70 bg-neutral-50/40">
-                            <div className="p-3.5 flex flex-col justify-between bg-white/60">
+                            {/* Audit UX 220 (C083) — chaque étape ouvre la liste des devis concernés. */}
+                            <button type="button" onClick={() => ouvrirDevisFiltres('draft')} className="text-left p-3.5 flex flex-col justify-between bg-white/60 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500">
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">1. Brouillon</span>
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 bg-neutral-100 text-neutral-700 rounded-full">{draftQuotes.length}</span>
                                 </div>
                                 <p className="mt-2 text-sm sm:text-base font-bold text-neutral-800 tabular-nums truncate">{formatMoney(draftTotal, companyInfo.currency)}</p>
-                            </div>
+                            </button>
 
-                            <div className="p-3.5 flex flex-col justify-between bg-blue-50/20">
+                            <button type="button" onClick={() => ouvrirDevisFiltres('pret_ou_a_verifier')} className="text-left p-3.5 flex flex-col justify-between bg-blue-50/20 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500">
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">2. Prêt / Vérifié</span>
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded-full">{readyQuotes.length}</span>
                                 </div>
                                 <p className="mt-2 text-sm sm:text-base font-bold text-blue-900 tabular-nums truncate">{formatMoney(readyTotal, companyInfo.currency)}</p>
-                            </div>
+                            </button>
 
-                            <div className="p-3.5 flex flex-col justify-between bg-violet-50/20">
+                            <button type="button" onClick={() => ouvrirDevisFiltres('sent')} className="text-left p-3.5 flex flex-col justify-between bg-violet-50/20 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500">
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider">3. Envoyé Client</span>
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 bg-violet-100 text-violet-800 rounded-full">{sentQuotes.length}</span>
                                 </div>
                                 <p className="mt-2 text-sm sm:text-base font-bold text-violet-900 tabular-nums truncate">{formatMoney(sentTotal, companyInfo.currency)}</p>
-                            </div>
+                            </button>
 
-                            <div className="p-3.5 flex flex-col justify-between bg-emerald-50/30">
+                            <button type="button" onClick={() => ouvrirDevisFiltres('accepted')} className="text-left p-3.5 flex flex-col justify-between bg-emerald-50/30 hover:bg-emerald-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500">
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">4. Accepté / Gagné</span>
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">{acceptedQuotes.length}</span>
                                 </div>
                                 <p className="mt-2 text-sm sm:text-base font-bold text-emerald-900 tabular-nums truncate">{formatMoney(acceptedTotal, companyInfo.currency)}</p>
-                            </div>
+                            </button>
                         </div>
 
                         {/* Barre de répartition proportionnelle */}
@@ -22736,7 +23929,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
                                 <div className="divide-y divide-neutral-100 flex-1">
                                     {recentQuotes.length === 0 ? (
-                                        <div className="p-8 text-center text-xs text-neutral-400 italic">Aucun devis enregistré.</div>
+                                        <div className="p-8 text-center text-xs text-neutral-500 italic">{libellePeriode ? `Aucun devis ${libellePeriode}.` : 'Aucun devis enregistré.'}</div>
                                     ) : recentQuotes.map(q => {
                                         const [statusLabel, statusClass] = statutDevis(q.status);
                                         const quoteAmount = q.quoteData?.totalTTCConsomme || q.totalTTC || 0;
@@ -22751,7 +23944,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     revient sur une seule ligne comme avant (assez de place). */}
                                                 <div className="min-w-0 flex-1 basis-full sm:basis-0">
                                                     <p className="font-semibold text-sm text-neutral-900 group-hover:text-brand-600 transition-colors truncate">{q.clientName || 'Client non renseigné'}</p>
-                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Projet non renseigné'} · {q.number}</p>
+                                                    <p className="text-xs text-neutral-500 truncate mt-0.5">{q.projectRef || 'Chantier non renseigné'} · {q.number}</p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0 ml-auto">
                                                     <span className="font-bold text-xs text-neutral-900 tabular-nums">
@@ -22784,7 +23977,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     </div>
                                     <div className="divide-y divide-neutral-100">
                                         {activeProjects.length === 0 ? (
-                                            <div className="p-8 text-center text-xs text-neutral-400 italic">Aucun chantier actif.</div>
+                                            <div className="p-8 text-center text-xs text-neutral-500 italic">Aucun chantier actif.</div>
                                         ) : activeProjects.slice(0, 3).map(p => (
                                             <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setActiveView('projects'); }} className="w-full p-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-left hover:bg-neutral-50/80 transition-colors cursor-pointer group">
                                                 <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
@@ -22833,10 +24026,11 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                                     <span className="font-bold text-xs text-neutral-900 tabular-nums">
                                                         {formatMoney(f.totalTTC || f.totalTtc || f.total || 0, companyInfo.currency)}
                                                     </span>
+                                                    {/* Audit UX 220 (C086) — une facture échue impayée était listée « Émise », sans signal de retard. */}
                                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                                        f.statut === 'paid' ? 'bg-emerald-100 text-emerald-800' : f.statut === 'partially_paid' ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-600'
+                                                        f.statut === 'paid' || estFactureSoldee(f) ? 'bg-emerald-100 text-emerald-800' : estFactureEnRetardDue(invoices, f) ? 'bg-red-100 text-red-800' : f.statut === 'partially_paid' ? 'bg-blue-100 text-blue-800' : 'bg-neutral-100 text-neutral-600'
                                                     }`}>
-                                                        {f.statut === 'paid' ? 'Payée' : f.statut === 'partially_paid' ? 'Partielle' : 'Émise'}
+                                                        {f.statut === 'paid' || estFactureSoldee(f) ? 'Payée' : estFactureEnRetardDue(invoices, f) ? 'En retard' : f.statut === 'partially_paid' ? 'Partielle' : f.statut === 'draft' ? 'Brouillon' : f.statut === 'sent' ? 'Envoyée' : 'Émise'}
                                                     </span>
                                                 </div>
                                             </button>
@@ -22852,11 +24046,12 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     };
 
     const renderProjects = () => {
-        const filteredProjects = projects.filter(p =>
-            p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
-            p.code.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
-            (p.clientName && p.clientName.toLowerCase().includes(projectSearchQuery.toLowerCase()))
-        );
+        // Audit UX 220 (C071) — recherche insensible aux accents et à la
+        // casse (« renovation » trouve « Rénovation »), comme la recherche
+        // des ressources : sur téléphone, on tape rarement les accents.
+        const requeteChantier = normalizeSearchText(projectSearchQuery);
+        const filteredProjects = projects.filter(p => !requeteChantier
+            || [p.name, p.code, p.clientName, p.address, p.location].some(v => normalizeSearchText(v).includes(requeteChantier)));
         const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
         const selectedProjectQuotes = selectedProject ? savedQuotes.filter(q => q.projectRef === selectedProject.name || (q.projectId && q.projectId === selectedProject.id)) : [];
         const selectedProjectCA = selectedProjectQuotes.reduce((acc, q) => acc + (q.quoteData?.totalTTCConsomme || 0), 0);
@@ -22871,7 +24066,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                         <h1 className="text-lg font-bold text-neutral-800">Chantiers</h1>
                         <button
                             onClick={() => {
-                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
+                                setNewProjectForm({ name: '', clientId: clients.length === 1 ? clients[0].id : '', siteAddress: '', city: '', budgetEstimated: '' }); /* C182 — plus de premier client présélectionné au hasard */
                                 setIsNewProjectModalOpen(true);
                             }}
                             className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50"
@@ -22922,7 +24117,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     {clients.length > 0 && (
                                         <button
                                             onClick={() => {
-                                                setNewProjectForm({ name: '', clientId: clients[0]?.id || '', siteAddress: '', city: '', budgetEstimated: '' });
+                                                setNewProjectForm({ name: '', clientId: clients.length === 1 ? clients[0].id : '', siteAddress: '', city: '', budgetEstimated: '' }); /* C182 — plus de premier client présélectionné au hasard */
                                                 setIsNewProjectModalOpen(true);
                                             }}
                                             className="btn-primary mt-4 text-xs py-2 px-3.5"
@@ -22954,7 +24149,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="app-card flex flex-col">
                             <div className="p-5 sm:p-6 border-b border-neutral-100 flex flex-col sm:flex-row justify-between gap-4 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <span className="lg:hidden shrink-0"><button onClick={() => setSelectedProjectId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
+                                    <span className="lg:hidden shrink-0"><button onClick={() => { const nom = selectedProject?.name; setSelectedProjectId(null); if (nom) revenirSurLigne(`Sélectionner le chantier ${nom}`); }} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
                                     </button></span>
                                     <div className="min-w-0">
@@ -23205,11 +24400,14 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
     // VUE 2 : CRM CLIENTS BTP (7.1)
     // ═══════════════════════════════════════════════════════════════
     const renderClients = () => {
-        const filteredClients = clients.filter(c =>
-            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-            (c.email && c.email.toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
-            (c.phone && c.phone.includes(clientSearchQuery))
-        );
+        // Audit UX 220 (C071) — même règle que les chantiers : sans accents,
+        // et sur tout ce que la liste AFFICHE (le contact « Diop » visible
+        // sous le nom n'était pas cherchable). Téléphone : chiffres seuls.
+        const requeteClient = normalizeSearchText(clientSearchQuery);
+        const chiffresRequete = clientSearchQuery.replace(/\D/g, '');
+        const filteredClients = clients.filter(c => !requeteClient
+            || [c.name, c.email, c.contactPerson, c.nif, c.address, c.city].some(v => normalizeSearchText(v).includes(requeteClient))
+            || (chiffresRequete.length >= 3 && String(c.phone || '').replace(/\D/g, '').includes(chiffresRequete)));
         const selectedClient = clients.find(c => c.id === selectedClientId) || null;
         const selectedClientProjects = selectedClient ? projects.filter(p => p.clientId === selectedClient.id || p.clientName === selectedClient.name) : [];
         const selectedClientQuotes = selectedClient ? savedQuotes.filter(q => q.clientId === selectedClient.id || q.clientName === selectedClient.name) : [];
@@ -23308,7 +24506,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                             <div className="app-card flex flex-col">
                             <div className="p-4 sm:p-6 border-b border-neutral-100 bg-white">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <span className="lg:hidden shrink-0"><button onClick={() => setSelectedClientId(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
+                                    <span className="lg:hidden shrink-0"><button onClick={() => { const nom = selectedClient?.name; setSelectedClientId(null); if (nom) revenirSurLigne(`Sélectionner ${nom}`); }} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                         <i className="fa-solid fa-arrow-left"></i>
                                     </button></span>
                                     <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 font-bold text-sm flex items-center justify-center shrink-0">
@@ -23365,11 +24563,7 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                     >
                                         <i className="fa-solid fa-trash-can"></i>
                                     </button>
-                                    <button onClick={() => {
-                                        setCalcForm(cf => ({ ...cf, clientName: selectedClient.name, projectRef: `Projet ${selectedClient.name}` }));
-                                        setActiveView('calculator');
-                                        showToast(`Client ${selectedClient.name} sélectionné pour le devis !`);
-                                    }} className="btn-primary py-2 px-3 text-xs font-semibold" aria-label={`Créer un devis pour ${selectedClient.name}`}>
+                                    <button onClick={() => demarrerNouveauDevis({ client: selectedClient })} className="btn-primary py-2 px-3 text-xs font-semibold" aria-label={`Créer Devis pour ${selectedClient.name}`}>
                                         <i className="fa-solid fa-plus"></i> Créer Devis
                                     </button>
                                 </div>
@@ -23408,7 +24602,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Chantiers du client</h4>
+                                    {/* Audit UX 220 (C182) — depuis la fiche d'un client, rien ne
+                                        permettait d'ouvrir un chantier DÉJÀ rattaché à ce client :
+                                        il fallait passer par la liste et le rechoisir. */}
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Chantiers du client</h4>
+                                        <button type="button" disabled={isReadOnlyDueToDowngrade}
+                                            onClick={() => { setNewProjectForm({ name: '', clientId: selectedClient.id, siteAddress: '', city: '', budgetEstimated: '' }); setEditingProjectId(null); setIsNewProjectModalOpen(true); }}
+                                            className="text-[11px] font-semibold text-brand-700 hover:underline min-h-[32px] px-1 disabled:opacity-50">
+                                            <i className="fa-solid fa-plus mr-1" aria-hidden="true"></i>Nouveau chantier pour ce client
+                                        </button>
+                                    </div>
                                     {selectedClientProjects.length > 0 ? (
                                         <div className="space-y-1.5">
                                             {selectedClientProjects.map(p => (
@@ -23590,6 +24794,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return false;
         }
         setPdfEnCours(cle);
+        // Audit UX 220 (C148) — au-delà de 5 s, rien ne disait que la
+        // génération continuait : on le dit, une fois.
+        const minuteurLenteur = setTimeout(() => showToast('Génération du PDF en cours — un long devis peut demander quelques secondes de plus.', 'info'), 5000);
         try {
             await telechargerElementEnPdf(cible, nomFichier, optionsPdfDe(cible));
             // Audit UX (2026-09-02) — c'est LE moment où le manque se fait
@@ -23608,9 +24815,15 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return true;
         } catch (err) {
             console.warn('[PDF]', err);
-            showToast(`Génération impossible : ${String(err.message || "").replace(/\.\s*$/, "")}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
+            // Hors ligne, l'outil de génération (chargé à la demande) n'a pas pu
+            // être récupéré : on nomme la connexion plutôt qu'une erreur technique.
+            const horsLigne = typeof navigator !== 'undefined' && navigator.onLine === false;
+            showToast(horsLigne
+                ? 'PDF indisponible hors connexion : le générateur n’a pas pu être chargé. Utilisez « Imprimer » puis « Enregistrer en PDF », ou réessayez une fois connecté.'
+                : `Génération impossible : ${String(err.message || "").replace(/\.\s*$/, "")}. Utilisez « Imprimer » puis « Enregistrer en PDF ».`, "error");
             return false;
         } finally {
+            clearTimeout(minuteurLenteur);
             setPdfEnCours(null);
         }
     };
@@ -23954,8 +25167,10 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             return;
         }
 
-        const totalHT = lignes.reduce((s, l) => s + l.totalHT, 0);
-        const totalTva = totalHT * (tauxTva / 100);
+        // Même arrêt à la précision de la devise que la facture unique (UX-P2-02/03).
+        const deviseFacture = companyInfo.currency || 'FCFA';
+        const totalHT = arrondiDevise(lignes.reduce((s, l) => s + l.totalHT, 0), deviseFacture);
+        const totalTva = arrondiDevise(totalHT * (tauxTva / 100), deviseFacture);
         const brouillon = {
             id: `inv_${Date.now()}`,
             numero: null,
@@ -23973,9 +25188,9 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             tauxTva,
             totalHT,
             totalTva,
-            totalTTC: totalHT + totalTva,
+            totalTTC: arrondiDevise(totalHT + totalTva, deviseFacture),
             deduitTTC: 0,
-            netAPayerTTC: totalHT + totalTva,
+            netAPayerTTC: arrondiDevise(totalHT + totalTva, deviseFacture),
             montantRegle: 0,
             lignes,
             paymentSchedule: devis.paymentSchedule || devis.quoteDataSnapshot?.paymentSchedule || companyInfo.paymentSchedule || null,
@@ -24127,7 +25342,7 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo, con
     const handleDownload = async () => {
         setDownloading(true);
         try {
-            const nomFichier = `Facture_${facture.numero || facture.clientName || 'BTP'}.pdf`;
+            const nomFichier = nomFichierFacture(facture);
             const zone = (previewContainerRef.current && previewContainerRef.current.querySelector('[data-zone-impression]'))
                 || document.querySelector('[data-zone-impression="1"]');
             if (zone && onDownloadPdf) {
@@ -24154,7 +25369,7 @@ function InvoicePreviewModal({ facture, onClose, onDownloadPdf, companyInfo, con
                             Aperçu PDF — {facture.numero || 'Brouillon'}
                         </h3>
                         <p className="text-[11px] text-neutral-400 truncate max-w-xs sm:max-w-md">
-                            {facture.clientName} · {facture.projectRef}
+                            {facture.clientName}{facture.projectRef ? ` · ${facture.projectRef}` : ''}
                         </p>
                     </div>
                 </div>
@@ -24279,7 +25494,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
 
     // Initialisation des templates prédéfinis
     React.useEffect(() => {
-        const nomEntreprise = companyInfo?.name || 'Micro Office BTP';
+        const nomEntreprise = companyInfo?.name || 'notre entreprise';
         const numFacture = facture.numero || 'Brouillon';
         const client = facture.clientName || 'Client';
         const echeance = facture.echeance || 'à réception';
@@ -24363,7 +25578,7 @@ function InvoiceEmailComposerModal({ facture, onClose, onSend, companyInfo }) {
                                     onClick={() => setTemplateType(tpl.id)}
                                     className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 ${templateType === tpl.id ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 shadow-2xs' : 'border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600'}`}
                                 >
-                                    <i className={`fa-solid ${tpl.icon} text-sm ${templateType === tpl.id ? 'text-indigo-600' : 'text-neutral-400'}`}></i>
+                                    <i className={`fa-solid ${tpl.icon} text-sm ${templateType === tpl.id ? 'text-indigo-600' : 'text-neutral-500'}`}></i>
                                     <span>{tpl.label}</span>
                                 </button>
                             ))}
@@ -24504,12 +25719,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <p className="text-xs text-neutral-500 mt-0.5">{companyInfo.tagline}</p>
                                     )}
                                     <div className="mt-2 space-y-0.5 text-xs text-neutral-600">
-                                        {companyInfo.address && <p><i className="fa-solid fa-location-dot w-4 text-neutral-400 text-[11px]"></i>{companyInfo.address}</p>}
+                                        {companyInfo.address && <p><i className="fa-solid fa-location-dot w-4 text-neutral-500 text-[11px]"></i>{companyInfo.address}</p>}
                                         {(companyInfo.city || companyInfo.country) && (
                                             <p className="text-neutral-500 pl-4">{[companyInfo.city, companyInfo.country].filter(Boolean).join(', ')}</p>
                                         )}
-                                        {companyInfo.phone && <p><i className="fa-solid fa-phone w-4 text-neutral-400 text-[11px]"></i>{companyInfo.phone}</p>}
-                                        {companyInfo.email && <p><i className="fa-solid fa-envelope w-4 text-neutral-400 text-[11px]"></i>{companyInfo.email}</p>}
+                                        {companyInfo.phone && <p><i className="fa-solid fa-phone w-4 text-neutral-500 text-[11px]"></i>{companyInfo.phone}</p>}
+                                        {companyInfo.email && <p><i className="fa-solid fa-envelope w-4 text-neutral-500 text-[11px]"></i>{companyInfo.email}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -24530,7 +25745,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 )}
                                 <p><span className="text-neutral-500">Devise de tenue :</span> <strong className="font-mono text-neutral-800">{cur}</strong></p>
                                 {!companyInfo.nif && !companyInfo.rccm && !companyInfo.tva && (
-                                    <p className="text-neutral-400 italic text-[11px]">Aucun identifiant fiscal renseigné</p>
+                                    <p className="text-neutral-500 italic text-[11px]">Aucun identifiant fiscal renseigné</p>
                                 )}
                             </div>
                         </div>
@@ -24602,19 +25817,22 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         // 2026-09-10 — Compteurs dynamiques pour les pastilles de filtrage rapide
         const countBrouillons = invoices.filter(f => f.statut === 'draft').length;
         const countNonReglees = invoices.filter(f => f.statut !== 'draft' && f.statut !== 'cancelled' && f.type !== 'avoir' && (Number(f.montantRegle) || 0) === 0).length;
+        // Audit UX 2026-10 (UX-P2-03) — la fiche décide « Réglée » sur un solde
+        // arrondi à la devise ; ces compteurs comparaient les montants bruts, si
+        // bien qu'une facture réglée à 100 % (net 1 466 781,30 F, réglé 1 466 781 F)
+        // était comptée « partielle » et absente de « Soldées ». Une seule règle.
+        const resteFacture = resteFactureArrondi;
         const countPartielles = invoices.filter(f => {
             if (f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
-            const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
             const regle = Number(f.montantRegle) || 0;
-            return regle > 0 && regle < netTTC;
+            return regle > 0 && resteFacture(f) > 0;
         }).length;
         const countSoldees = invoices.filter(f => {
             if (f.statut === 'draft' || f.statut === 'cancelled' || f.type === 'avoir') return false;
             const netTTC = Number(f.netAPayerTTC != null ? f.netAPayerTTC : f.totalTTC) || 0;
-            const regle = Number(f.montantRegle) || 0;
-            return regle >= netTTC && netTTC > 0;
+            return netTTC > 0 && resteFacture(f) === 0;
         }).length;
-        const countEnRetard = invoices.filter(isInvoiceOverdue).length;
+        const countEnRetard = invoices.filter(f => estFactureEnRetardDue(invoices, f)).length;
         const countAvoirs = invoices.filter(f => f.type === 'avoir').length;
 
         const visibleInvoices = invoices
@@ -24635,13 +25853,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     return f.statut !== 'draft' && f.statut !== 'cancelled' && regle === 0;
                 }
                 if (invoiceStatusFilter === 'partially_paid') {
-                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle > 0 && regle < netTTC;
+                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle > 0 && resteFacture(f) > 0;
                 }
                 if (invoiceStatusFilter === 'paid') {
-                    return f.statut !== 'draft' && f.statut !== 'cancelled' && regle >= netTTC && netTTC > 0;
+                    return f.statut !== 'draft' && f.statut !== 'cancelled' && netTTC > 0 && resteFacture(f) === 0;
                 }
                 if (invoiceStatusFilter === 'overdue') {
-                    return isInvoiceOverdue(f);
+                    return estFactureEnRetardDue(invoices, f);
                 }
                 return f.statut === invoiceStatusFilter;
             })
@@ -24667,8 +25885,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             .slice()
             .sort((a, b) => {
                 if (invoiceSort === 'oldest') {
-                    const da = new Date(a.dateEmission || a.date || a.id || 0).getTime();
-                    const db = new Date(b.dateEmission || b.date || b.id || 0).getTime();
+                    const da = horodatageDocument(a.dateEmission || a.date || a.id || 0);
+                    const db = horodatageDocument(b.dateEmission || b.date || b.id || 0);
                     return da - db;
                 }
                 if (invoiceSort === 'amount_desc') {
@@ -24682,7 +25900,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     return va - vb;
                 }
                 if (invoiceSort === 'client_asc') {
-                    return String(a.clientName || '').localeCompare(String(b.clientName || ''), 'fr');
+                    // Audit UX 220 (C075) — une facture sans client se classe à la fin, pas en tête.
+                    const ca = String(a.clientName || '').trim(), cb = String(b.clientName || '').trim();
+                    if (!ca || !cb) return (!ca) - (!cb);
+                    return ca.localeCompare(cb, 'fr', { sensitivity: 'base' });
                 }
                 if (invoiceSort === 'due_desc') {
                     const ra = Math.max(0, (Number(a.netAPayerTTC != null ? a.netAPayerTTC : a.totalTTC) || 0) - (Number(a.montantRegle) || 0));
@@ -24690,8 +25911,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     return rb - ra;
                 }
                 // 'recent' par défaut :
-                const da = new Date(a.dateEmission || a.date || a.id || 0).getTime();
-                const db = new Date(b.dateEmission || b.date || b.id || 0).getTime();
+                const da = horodatageDocument(a.dateEmission || a.date || a.id || 0);
+                const db = horodatageDocument(b.dateEmission || b.date || b.id || 0);
                 return db - da;
             });
 
@@ -24709,7 +25930,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             return sum + (f.type === 'avoir' ? -Math.abs(val) : val);
         }, 0);
         const totalEncaisseTTC = facturesEmises.reduce((sum, f) => sum + (f.type === 'avoir' ? 0 : (Number(f.montantRegle) || 0)), 0);
-        const resteARecouvrerTTC = Math.max(0, totalFactureTTC - totalEncaisseTTC);
+        const resteARecouvrerTTC = resteARecouvrerGlobal(invoices); // règle partagée avec le tableau de bord
         const tauxRecouvrement = totalFactureTTC > 0 ? Math.min(100, Math.round((totalEncaisseTTC / totalFactureTTC) * 100)) : 0;
 
         // Opérations groupées & sélection multiple
@@ -24740,22 +25961,69 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             setSelectedInvoiceIds(new Set());
         };
 
+        // Audit UX 220 (C066/C070/C078) — seule une facture ÉMISE et sans
+        // règlement passe à « envoyée ». Un brouillon n'a pas de numéro légal
+        // (il faut l'émettre), et une facture réglée ou partiellement réglée
+        // garde son statut : l'écraser faisait disparaître le suivi des
+        // paiements. Le message dit ce qui a été écarté et pourquoi.
         const handleBatchMarkAsSent = async () => {
-            const cibles = invoices.filter(f => selectedInvoiceIds.has(f.id) && f.statut !== 'sent' && f.statut !== 'cancelled');
+            if (isReadOnlyDueToDowngrade) { showToast('Action bloquée en Lecture Seule', 'error'); return; }
+            const selection = invoices.filter(f => selectedInvoiceIds.has(f.id));
+            const cibles = selection.filter(f => f.statut === 'issued' && !(Number(f.montantRegle) > 0));
+            const ecartees = {
+                brouillon: selection.filter(f => f.statut === 'draft').length,
+                dejaEnvoyee: selection.filter(f => f.statut === 'sent').length,
+                reglee: selection.filter(f => f.statut === 'paid' || f.statut === 'partially_paid' || (f.statut === 'issued' && Number(f.montantRegle) > 0)).length,
+                annulee: selection.filter(f => f.statut === 'cancelled').length,
+            };
+            const motifs = [
+                ecartees.brouillon ? `${ecartees.brouillon} brouillon(s) à émettre d'abord` : '',
+                ecartees.dejaEnvoyee ? `${ecartees.dejaEnvoyee} déjà envoyée(s)` : '',
+                ecartees.reglee ? `${ecartees.reglee} déjà réglée(s), statut conservé` : '',
+                ecartees.annulee ? `${ecartees.annulee} annulée(s)` : '',
+            ].filter(Boolean).join(' · ');
             if (cibles.length === 0) {
-                showToast("Toutes les factures sélectionnées sont déjà envoyées ou annulées.", "info");
+                showToast(`Aucune facture marquée comme envoyée : ${motifs || 'aucune facture émise dans la sélection'}.`, "info");
                 return;
             }
             const dateEnvoi = new Date().toISOString();
-            const ciblesIds = new Set(cibles.map(c => c.id));
-            const maj = invoices.map(f => {
-                if (ciblesIds.has(f.id)) {
-                    return { ...f, statut: 'sent', dateEnvoi, sent_at: dateEnvoi };
+            const estCloud = !!(supabaseClient && sbUser && sbUser.id !== 'guest' && activeOrganizationId);
+            const echecs = [];
+            const changeesEntreTemps = [];
+            if (estCloud) {
+                for (const f of cibles) {
+                    if (!f.serverId) continue;
+                    // Conditionné au statut serveur : un collègue a pu enregistrer
+                    // un règlement depuis le chargement de cette liste.
+                    const { data, error } = await supabaseClient
+                        .from('invoices')
+                        .update({ status: 'sent', sent_at: dateEnvoi })
+                        .eq('id', f.serverId)
+                        .eq('organization_id', activeOrganizationId)
+                        .eq('status', 'issued')
+                        .select('id');
+                    if (error) echecs.push(f.id);
+                    else if (Array.isArray(data) && data.length === 0) changeesEntreTemps.push(f.id);
                 }
-                return f;
+            }
+            const ciblesIds = new Set(cibles.filter(c => !echecs.includes(c.id) && !changeesEntreTemps.includes(c.id)).map(c => c.id));
+            // Appliqué sur l'état COURANT : pendant les appels réseau, un
+            // règlement a pu être saisi (ici ou dans un autre onglet) ; repartir
+            // de la liste lue au clic l'aurait effacé.
+            setInvoices(courantes => {
+                const maj = courantes.map(f => ((ciblesIds.has(f.id) && f.statut === 'issued' && !(Number(f.montantRegle) > 0))
+                    ? { ...f, statut: 'sent', dateEnvoi, sent_at: dateEnvoi }
+                    : f));
+                LS.set('invoices', maj, currentUserId, activeOrganizationId);
+                return maj;
             });
-            updateInvoices(maj);
-            showToast(`${cibles.length} facture(s) marquée(s) comme envoyée(s)`, "success");
+            const bilan = [
+                `${ciblesIds.size} facture(s) marquée(s) comme envoyée(s)`,
+                echecs.length ? `${echecs.length} non synchronisée(s), réessayez` : '',
+                changeesEntreTemps.length ? `${changeesEntreTemps.length} modifiée(s) entre-temps (règlement ?), rechargez la liste` : '',
+                motifs ? `non traitées : ${motifs}` : '',
+            ].filter(Boolean).join(' — ');
+            showToast(bilan, echecs.length ? "warning" : "success");
             clearSelectedInvoices();
         };
 
@@ -24765,7 +26033,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             showToast(`Téléchargement de ${cibles.length} facture(s) en cours...`, "info");
             for (let i = 0; i < cibles.length; i++) {
                 const f = cibles[i];
-                const nomFichier = `Facture_${f.numero || f.clientName || 'BTP'}.pdf`;
+                const nomFichier = nomFichierFacture(f);
                 setViewingInvoice(f);
                 await new Promise(r => setTimeout(r, 600));
                 await telechargerElementPdf(zoneImpressionVisible(), nomFichier, f.id);
@@ -24826,14 +26094,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 const regle = Number(f.montantRegle) || 0;
                 const solde = Math.max(0, (Number(netTTC) || 0) - regle);
                 const pct = netTTC > 0 ? Math.min(100, Math.round((regle / netTTC) * 100)) : 0;
-                const retard = isInvoiceOverdue(f) ? 'OUI' : 'NON';
+                const retard = estFactureEnRetardDue(invoices, f) ? 'OUI' : 'NON';
                 const dernierReglement = f.payments && f.payments.length > 0
                     ? f.payments[f.payments.length - 1]
                     : (f.reglements && f.reglements.length > 0 ? f.reglements[f.reglements.length - 1] : null);
 
                 const typeLibelle = isAvoir ? 'Avoir' : 'Facture';
                 let statutLibelle = 'Brouillon';
-                if (f.statut === 'paid' || regle >= netTTC) statutLibelle = 'Soldée';
+                if (f.statut === 'paid' || estFactureSoldee(f)) statutLibelle = 'Soldée';
                 else if (f.statut === 'partially_paid' || regle > 0) statutLibelle = 'Partiellement réglée';
                 else if (f.statut === 'sent') statutLibelle = 'Envoyée';
                 else if (f.statut === 'issued') statutLibelle = 'Émise';
@@ -24897,7 +26165,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(totalFactureTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-neutral-400 block truncate">{facturesEmises.length} facture(s) émise(s)</span>
+                            <span className="text-[10px] text-neutral-500 block truncate">{facturesEmises.length} facture(s) émise(s)</span>
                         </div>
                     </div>
 
@@ -24911,7 +26179,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="text-sm font-black text-emerald-700 truncate tabular-nums font-mono">
                                 {formatMoney(totalEncaisseTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-neutral-400 block truncate">Règlements validés</span>
+                            <span className="text-[10px] text-neutral-500 block truncate">Règlements validés</span>
                         </div>
                     </div>
 
@@ -24925,7 +26193,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="text-sm font-black text-neutral-900 truncate tabular-nums font-mono">
                                 {formatMoney(resteARecouvrerTTC, cur)}
                             </div>
-                            <span className="text-[10px] text-neutral-400 block truncate">Reste à percevoir</span>
+                            <span className="text-[10px] text-neutral-500 block truncate">Reste à percevoir</span>
                         </div>
                     </div>
 
@@ -24951,7 +26219,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     style={{ width: `${tauxRecouvrement}%` }}
                                 ></div>
                             </div>
-                            <span className="text-[10px] text-neutral-400 block truncate mt-0.5">Efficacité trésorerie</span>
+                            <span className="text-[10px] text-neutral-500 block truncate mt-0.5">Efficacité trésorerie</span>
                         </div>
                     </div>
                 </div>
@@ -24982,10 +26250,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 onClick={() => setIsCreateInvoiceMenuOpen(o => !o)}
                                 disabled={isReadOnlyDueToDowngrade || devisFacturables.length === 0}
                                 className="btn-secondary py-1.5 px-3 text-xs text-brand-600 border-brand-200 hover:bg-brand-50 disabled:opacity-40"
-                                aria-label="Créer une facture depuis un devis"
+                                aria-haspopup="menu"
+                                aria-expanded={isCreateInvoiceMenuOpen}
                                 title={devisFacturables.length === 0 ? "Tous vos devis ont déjà une facture" : undefined}
                             >
-                                <i className="fa-solid fa-plus"></i> Nouveau
+                                <i className="fa-solid fa-plus"></i> Facturer un devis
                             </button>
                             {isCreateInvoiceMenuOpen && devisFacturables.length > 0 && (
                                 <>
@@ -24996,7 +26265,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             <button key={q.id} onClick={() => { setIsCreateInvoiceMenuOpen(false); ouvrirNouvelleSituation(q); }} className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-50 border-t border-neutral-100 flex items-center justify-between gap-2">
                                                 <span className="min-w-0">
                                                     <span className="block text-xs font-bold text-neutral-900 truncate">{q.clientName}</span>
-                                                    <span className="block text-[11px] text-neutral-500 truncate">{q.number} · {q.projectRef}</span>
+                                                    <span className="block text-[11px] text-neutral-500 truncate">{q.number}{q.projectRef ? ` · ${q.projectRef}` : ''}</span>
                                                 </span>
                                                 <span className="text-xs font-bold text-neutral-700 shrink-0">{formatMoney(q.quoteData?.totalTTCConsomme, cur)}</span>
                                             </button>
@@ -25011,7 +26280,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         {/* 1. Ligne Principale : Barre de recherche + Bouton Options Filtres & Tri */}
                         <div className="flex items-center gap-2">
                             <div className="relative flex-1 min-w-0">
-                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs"></i>
+                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs"></i>
                                 <input
                                     type="search"
                                     value={invoiceSearchQuery}
@@ -25024,7 +26293,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     <button
                                         type="button"
                                         onClick={() => setInvoiceSearchQuery('')}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs p-1"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 text-xs p-1"
                                         title="Effacer la recherche"
                                         aria-label="Effacer la recherche"
                                     >
@@ -25115,6 +26384,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pt-0.5 pb-0.5 -mx-0.5 px-0.5 text-[11px]">
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'all'}
                                 onClick={() => setInvoiceStatusFilter('all')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'all'
@@ -25127,6 +26397,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'unpaid'}
                                 onClick={() => setInvoiceStatusFilter('unpaid')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'unpaid'
@@ -25140,6 +26411,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'partially_paid'}
                                 onClick={() => setInvoiceStatusFilter('partially_paid')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'partially_paid'
@@ -25153,6 +26425,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'paid'}
                                 onClick={() => setInvoiceStatusFilter('paid')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'paid'
@@ -25167,6 +26440,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             {countEnRetard > 0 && (
                                 <button
                                     type="button"
+                                    aria-pressed={invoiceStatusFilter === 'overdue'}
                                     onClick={() => setInvoiceStatusFilter('overdue')}
                                     className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                         invoiceStatusFilter === 'overdue'
@@ -25181,6 +26455,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             )}
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'avoir'}
                                 onClick={() => setInvoiceStatusFilter('avoir')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'avoir'
@@ -25194,6 +26469,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={invoiceStatusFilter === 'draft'}
                                 onClick={() => setInvoiceStatusFilter('draft')}
                                 className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 font-medium ${
                                     invoiceStatusFilter === 'draft'
@@ -25255,11 +26531,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <div
                                             key={f.id}
                                             onClick={selectInvoice}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
+                                            onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
                                             tabIndex="0"
                                             role="button"
                                             aria-selected={isActive}
-                                            aria-label={`Voir la facture de ${f.clientName}`}
+                                            aria-label={`Voir la facture ${f.numero || 'brouillon'} de ${f.clientName || 'client non renseigné'}`}
+                                            data-retour-focus={`facture-${f.id}`}
                                             className={`group cursor-pointer rounded-xl p-3 border transition-all outline-none ${
                                                 isActive
                                                     ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
@@ -25287,7 +26564,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     {f.clientName || 'Société non renseignée'}
                                                 </span>
                                                 <div className="shrink-0 flex items-center gap-1">
-                                                    {isInvoiceOverdue(f) && (
+                                                    {estFactureEnRetardDue(invoices, f) && (
                                                         <span className="text-[10px] bg-rose-50 text-rose-800 font-semibold px-1.5 py-0.5 rounded shrink-0 border border-rose-200/60" title="Échéance de paiement dépassée">
                                                             <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
                                                         </span>
@@ -25304,8 +26581,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 return (
                                                     <div className="mt-1.5 space-y-1">
                                                         <div className="flex items-center justify-between text-[10px]">
-                                                            <span className={regle >= netTTC ? 'text-emerald-700 font-semibold' : regle > 0 ? 'text-amber-700 font-medium' : 'text-neutral-500'}>
-                                                                {regle >= netTTC ? 'Soldée' : regle > 0 ? `Réglé : ${formatMoney(regle, cur)}` : 'Non réglée'}
+                                                            <span className={estFactureSoldee(f) ? 'text-emerald-700 font-semibold' : regle > 0 ? 'text-amber-700 font-medium' : 'text-neutral-500'}>
+                                                                {estFactureSoldee(f) ? 'Soldée' : regle > 0 ? `Réglé : ${formatMoney(regle, cur)}` : 'Non réglée'}
                                                             </span>
                                                             <span className="font-mono text-neutral-500">{pct}%</span>
                                                         </div>
@@ -25319,7 +26596,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             {/* Ligne 3 : Chantier & Source / Actions */}
                                             <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
                                                 <span className="truncate flex items-center gap-1 min-w-0" title={f.projectRef || 'Chantier non renseigné'}>
-                                                    <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                    <i className="fa-solid fa-folder text-[10px] text-neutral-500 shrink-0"></i>
                                                     <span className="truncate">{f.projectRef || 'Chantier non renseigné'}</span>
                                                 </span>
                                                 <div className="flex items-center gap-2 shrink-0">
@@ -25348,7 +26625,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                 });
                                                             }}
                                                             onKeyDown={(e) => e.stopPropagation()}
-                                                            className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5"
+                                                            className="opacity-40 group-hover:opacity-100 text-neutral-500 hover:text-red-600 transition-opacity p-0.5"
                                                             aria-label={`Supprimer le brouillon de facture de ${f.clientName}`}
                                                             title="Supprimer ce brouillon"
                                                         >
@@ -25362,15 +26639,22 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 })}
                             </div>
                         ) : (
-                            /* Mode Pleine Largeur (100%) : Grand tableau spacieux et aéré */
-                            <div className="app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
-                                <table className="w-full text-left text-xs border-collapse">
+                            /* Mode Pleine Largeur (100%) : Grand tableau spacieux et aéré.
+                               Audit UX 220 (C080) — le cadre était en overflow:hidden :
+                               sous 1024 px les colonnes Statut et Actions étaient
+                               rognées sans aucun moyen de les faire défiler (à 390 px,
+                               montant, statut et « Consulter » invisibles). Le cadre
+                               défile désormais horizontalement. */
+                            <div className="app-card p-0 overflow-x-auto shrink-0 shadow-xs border border-neutral-200/80" tabIndex={0} role="region" aria-label="Tableau des factures (défilement horizontal possible)">
+                                <table className="w-full min-w-[760px] text-left text-xs border-collapse">
                                     <thead className="bg-neutral-50/90 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500 font-bold">
                                         <tr>
                                             <th className="px-3 py-3.5 w-10 text-center">
                                                 <input
                                                     type="checkbox"
                                                     className="rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                                    // Audit UX 220 (C077) — sélection partielle signalée (état mixte).
+                                                    ref={(el) => { if (el) el.indeterminate = visibleInvoices.some(f => selectedInvoiceIds.has(f.id)) && !visibleInvoices.every(f => selectedInvoiceIds.has(f.id)); }}
                                                     checked={visibleInvoices.length > 0 && visibleInvoices.every(f => selectedInvoiceIds.has(f.id))}
                                                     onChange={() => toggleSelectAllInvoices(visibleInvoices)}
                                                     title="Tout sélectionner / désélectionner"
@@ -25394,11 +26678,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <tr
                                                     key={f.id}
                                                     onClick={selectInvoice}
-                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
+                                                    onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectInvoice(); } }}
                                                     tabIndex="0"
                                                     role="button"
                                                     aria-selected={isActive}
-                                                    aria-label={`Voir la facture de ${f.clientName}`}
+                                                    aria-label={`Voir la facture ${f.numero || 'brouillon'} de ${f.clientName || 'client non renseigné'}`}
+                                                    data-retour-focus={`facture-${f.id}`}
                                                     className="group cursor-pointer hover:bg-neutral-50/80 focus-visible:bg-brand-50 transition-colors bg-white"
                                                 >
                                                     <td className="px-3 py-3.5 align-middle text-center" onClick={(e) => e.stopPropagation()}>
@@ -25417,7 +26702,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-neutral-600">
                                                         <span className="flex items-center gap-1.5 text-xs text-neutral-600">
-                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-500 shrink-0"></i>
                                                             <span className="truncate max-w-[240px]">{f.projectRef || 'Chantier non renseigné'}</span>
                                                         </span>
                                                     </td>
@@ -25440,14 +26725,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                 ) : Number(f.montantRegle) > 0 ? (
                                                                     <span className="text-amber-700 font-medium">Réglé : {formatMoney(f.montantRegle, cur)}</span>
                                                                 ) : (
-                                                                    <span className="text-neutral-400">Non réglée</span>
+                                                                    <span className="text-neutral-500">Non réglée</span>
                                                                 )}
                                                             </div>
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-center whitespace-nowrap">
                                                         <div className="flex items-center justify-center gap-1">
-                                                            {isInvoiceOverdue(f) && (
+                                                            {estFactureEnRetardDue(invoices, f) && (
                                                                 <span className="text-[10px] bg-rose-50 text-rose-800 font-semibold px-1.5 py-0.5 rounded shrink-0 border border-rose-200/60" title="Échéance de paiement dépassée">
                                                                     <i className="fa-solid fa-clock text-[9px] mr-0.5"></i>Retard
                                                                 </span>
@@ -25493,7 +26778,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                             }
                                                                         });
                                                                     }}
-                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                                                                     title="Supprimer ce brouillon"
                                                                 >
                                                                     <i className="fa-solid fa-trash-can text-[11px]"></i>
@@ -25519,6 +26804,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </span>
                                 <span className="text-xs font-medium text-neutral-200">
                                     {selectedInvoiceIds.size > 1 ? `${selectedInvoiceIds.size} factures sélectionnées` : '1 facture sélectionnée'}
+                                    {/* Audit UX 220 (C077) — une sélection masquée par le filtre restait active sans être visible. */}
+                                    {(() => {
+                                        const masquees = [...selectedInvoiceIds].filter(id => !visibleInvoices.some(f => f.id === id)).length;
+                                        return masquees > 0 ? ` (dont ${masquees} masquée${masquees > 1 ? 's' : ''} par le filtre)` : '';
+                                    })()}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -25576,7 +26866,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <p className="text-xs text-neutral-500 mt-1 max-w-[17rem] mx-auto leading-relaxed">
                                 {(invoiceQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent')
                                     ? 'Modifiez votre recherche ou vos filtres pour afficher d’autres factures.'
-                                    : 'Créez votre première facture depuis un devis enregistré avec le bouton « Nouveau » ci-dessus.'}
+                                    : 'Créez votre première facture depuis un devis enregistré avec le bouton « Facturer un devis » ci-dessus.'}
                             </p>
                             {(invoiceQuery || invoiceStatusFilter !== 'all' || invoicePeriodFilter !== 'all' || invoiceSort !== 'recent') && (
                                 <button
@@ -25608,8 +26898,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             const estBrouillon = activeInvoice.statut === 'draft';
                             const netTTC = Number(activeInvoice.netAPayerTTC != null ? activeInvoice.netAPayerTTC : activeInvoice.totalTTC) || 0;
                             const regle = Number(activeInvoice.montantRegle) || 0;
-                            const solde = Math.max(0, netTTC - regle);
-                            const estSoldee = regle >= netTTC && netTTC > 0;
+                            const solde = resteFactureArrondi(activeInvoice);
+                            const estSoldee = estFactureSoldee(activeInvoice);
                             const schedule = (activeInvoice.paymentSchedule && activeInvoice.paymentSchedule.length > 0)
                                 ? activeInvoice.paymentSchedule
                                 : ((activeInvoice.echeancier && activeInvoice.echeancier.length > 0)
@@ -25655,7 +26945,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     Avoir officiel
                                                 </span>
                                             )}
-                                            {isInvoiceOverdue(activeInvoice) && (
+                                            {estFactureEnRetardDue(invoices, activeInvoice) && (
                                                 <span className="text-[10px] bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full shrink-0 border border-red-200">
                                                     <i className="fa-solid fa-clock text-[9px] mr-1"></i>Retard
                                                 </span>
@@ -25663,7 +26953,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         </div>
                                         <button
                                             onClick={() => setViewingInvoice(null)}
-                                            className="btn-icon w-8 h-8 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors shrink-0"
+                                            className="btn-icon w-8 h-8 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors shrink-0"
                                             aria-label="Fermer le détail de la facture"
                                             title="Fermer"
                                         >
@@ -25678,7 +26968,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             <p className="text-xs text-neutral-500 truncate mt-0.5">{activeInvoice.projectRef}</p>
                                         </div>
                                         <div className="text-right shrink-0">
-                                            <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Montant TTC</span>
+                                            <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">Montant TTC</span>
                                             <span className="text-base sm:text-lg font-black text-neutral-900 tabular-nums font-mono">
                                                 {formatMoney(activeInvoice.totalTTC, cur)}
                                             </span>
@@ -25741,7 +27031,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 {/* Action secondaire 2 : Télécharger PDF */}
                                                 <button
                                                     onClick={() => telechargerDocument(
-                                                        `Brouillon facture ${activeInvoice.clientName}`,
+                                                        nomFichierFacture(activeInvoice),
                                                         'facture'
                                                     )}
                                                     disabled={pdfEnCours === 'facture'}
@@ -25786,7 +27076,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             if (await supprimerFacture(f)) showToast("Brouillon supprimé");
                                                         }
                                                     })}
-                                                    className="btn-icon text-neutral-400 hover:text-red-600 hover:bg-red-50 ml-auto"
+                                                    className="btn-icon text-neutral-500 hover:text-red-600 hover:bg-red-50 ml-auto"
                                                     title="Supprimer le brouillon"
                                                     aria-label={`Supprimer le brouillon de ${activeInvoice.clientName}`}
                                                 >
@@ -25840,7 +27130,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     {/* Action : Télécharger le PDF */}
                                                     <button
                                                         onClick={() => telechargerDocument(
-                                                            `Facture ${activeInvoice.numero} ${activeInvoice.clientName}`,
+                                                            nomFichierFacture(activeInvoice),
                                                             'facture'
                                                         )}
                                                         disabled={pdfEnCours === 'facture'}
@@ -25881,6 +27171,8 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             onClick={() => setIsInvoiceMoreActionsOpen(prev => !prev)}
                                                             className="btn-secondary py-1.5 px-2.5 text-xs font-bold flex items-center gap-1 text-neutral-700 hover:bg-neutral-100"
                                                             aria-label="Plus d'actions sur la facture"
+                                                            aria-haspopup="menu"
+                                                            aria-expanded={isInvoiceMoreActionsOpen}
                                                             title="Plus d'options"
                                                         >
                                                             <i className="fa-solid fa-ellipsis"></i>
@@ -25951,7 +27243,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                             <span>Revenir au statut Émise</span>
                                                                         </button>
                                                                     )}
-                                                                    <div className="pt-1 mt-1 border-t border-neutral-100 px-3.5 py-1 text-[10px] text-neutral-400 flex items-center gap-1.5">
+                                                                    <div className="pt-1 mt-1 border-t border-neutral-100 px-3.5 py-1 text-[10px] text-neutral-500 flex items-center gap-1.5">
                                                                         <i className="fa-solid fa-lock text-[9px]"></i>
                                                                         <span>{activeInvoice.type === 'avoir' ? "Avoir certifié inaltérable" : "Facture émise certifiée"}</span>
                                                                     </div>
@@ -26081,7 +27373,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         <div>
                                                             <h4 className="text-xs font-bold text-neutral-900">Suivi des encaissements & Règlements</h4>
                                                             <p className="text-[11px] text-neutral-500">
-                                                                {regle >= netTTC ? 'Facture intégralement soldée' : regle > 0 ? 'Facture partiellement payée' : 'En attente de paiement'}
+                                                                {estFactureSoldee(activeInvoice) ? 'Facture intégralement soldée' : regle > 0 ? 'Facture partiellement payée' : 'En attente de paiement'}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -26119,7 +27411,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     {/* Historique des paiements */}
                                                     {paymentsList.length > 0 ? (
                                                         <div className="mt-3 pt-3 border-t border-neutral-100">
-                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
                                                                 Historique des versements ({paymentsList.length})
                                                             </span>
                                                             <div className="space-y-2">
@@ -26166,7 +27458,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                                         confirmLabel: "Supprimer",
                                                                                         onConfirm: () => { closeConfirm(); supprimerReglementFacture(activeInvoice, p.id); }
                                                                                     })}
-                                                                                    className="btn-icon w-7 h-7 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                                                    className="btn-icon w-7 h-7 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded"
                                                                                     title="Supprimer ce versement"
                                                                                     aria-label="Supprimer ce versement"
                                                                                 >
@@ -26179,7 +27471,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="text-center py-2 text-xs text-neutral-400 italic">
+                                                        <div className="text-center py-2 text-xs text-neutral-500 italic">
                                                             Aucun versement enregistré pour l'instant.
                                                         </div>
                                                     )}
@@ -26253,7 +27545,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                             <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full border ${badgeClass}`}>
                                                                                 {regle >= seuilFin && <i className="fa-solid fa-circle-check text-[10px]"></i>}
                                                                                 {regle > seuilDebut && regle < seuilFin && <i className="fa-solid fa-clock text-[10px]"></i>}
-                                                                                {regle <= seuilDebut && <i className="fa-regular fa-circle text-[9px] text-neutral-400"></i>}
+                                                                                {regle <= seuilDebut && <i className="fa-regular fa-circle text-[9px] text-neutral-500"></i>}
                                                                                 <span>{statutTranche}</span>
                                                                             </span>
                                                                         </td>
@@ -26474,7 +27766,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     })()}
                                     <button
                                         onClick={closeQuotePreview}
-                                        className="btn-icon w-8 h-8 ml-auto text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                                        className="btn-icon w-8 h-8 ml-auto text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
                                         aria-label="Fermer la boîte de dialogue"
                                         title="Fermer le devis"
                                     >
@@ -26494,7 +27786,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     onClick={() => setIsEditingClientProject(prev => !prev)}
                                                     className="btn-secondary text-[11px] py-1 px-2.5 font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1.5 shrink-0 rounded-lg"
                                                     title="Choisir ou modifier le client et le chantier directement sans quitter l'aperçu"
-                                                    aria-label="Modifier le client et le chantier"
+                                                    aria-expanded={isEditingClientProject}
                                                 >
                                                     <i className={`fa-solid ${isEditingClientProject ? 'fa-chevron-up' : 'fa-pen-to-square'} text-[11px]`}></i>
                                                     <span>{isEditingClientProject ? 'Masquer sélecteur' : 'Modifier client / chantier'}</span>
@@ -26502,9 +27794,9 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             </div>
                                             <p className="text-xs text-neutral-500 mt-1 break-words">
                                                 {viewingSavedQuote.projectRef ? (
-                                                    <span><i className="fa-solid fa-folder text-[10px] mr-1 text-neutral-400"></i>{viewingSavedQuote.projectRef}</span>
+                                                    <span><i className="fa-solid fa-folder text-[10px] mr-1 text-neutral-500"></i>{viewingSavedQuote.projectRef}</span>
                                                 ) : (
-                                                    <span className="italic text-neutral-400">Projet non renseigné</span>
+                                                    <span className="italic text-neutral-500">Chantier non renseigné</span>
                                                 )} &bull; {viewingSavedQuote.date}
                                             </p>
                                         </div>
@@ -26701,7 +27993,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         disabled={pdfEnCours === 'devis'}
                                         className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 font-bold shadow-sm disabled:opacity-60"
                                         title="Télécharger au format PDF"
-                                        aria-label="Télécharger le devis en PDF"
+                                        aria-label="Télécharger le PDF du devis"
                                     >
                                         <i className={`fa-solid ${pdfEnCours === 'devis' ? 'fa-circle-notch fa-spin' : 'fa-download'}`}></i>
                                         <span>{pdfEnCours === 'devis' ? 'Génération…' : (<><span className="sm:hidden">PDF</span><span className="hidden sm:inline">Télécharger le PDF</span></>)}</span>
@@ -26712,6 +28004,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             onClick={() => setIsQuoteDetailMoreOpen(open => !open)}
                                             className="btn-secondary w-9 h-9 p-0 justify-center text-xs"
                                             aria-label="Plus d’actions sur le devis"
+                                            aria-haspopup="menu"
                                             aria-expanded={isQuoteDetailMoreOpen}
                                         >
                                             <i className="fa-solid fa-ellipsis-vertical"></i>
@@ -26825,7 +28118,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         aria-label={voirExistante ? `Ouvrir la facture du devis ${viewingSavedQuote.number}` : `Facturer le devis ${viewingSavedQuote.number}`}
                                     >
                                         <i className={`fa-solid ${voirExistante ? 'fa-file-invoice' : 'fa-arrow-right-arrow-left'} mr-1.5`}></i>
-                                        {voirExistante ? 'Voir la facture' : (facturesDuDevis.length > 0 ? 'Nouvelle situation' : 'Convertir en facture')}
+                                        {/* Audit UX 220 (C042/C092) — un seul verbe, « Facturer », sur les trois
+                                            points d'entrée (tableau de bord, Factures, fiche devis), et un libellé
+                                            visible contenu dans le nom accessible (« Facturer le devis DEV-… »). */}
+                                        {voirExistante ? 'Voir la facture' : (facturesDuDevis.length > 0 ? 'Nouvelle situation' : 'Facturer le devis')}
                                     </button>
                                 );
                             })()}
@@ -27030,7 +28326,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     configuration={configurationDocument}
                                 />
                             ) : (
-                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1">
+                                <div className="w-full max-w-none bg-white p-5 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm space-y-5 break-words print:border-0 print:p-0" data-zone-impression="1" data-document-cle={`etude:${viewingSavedQuote?.id ?? ""}`}>
                                     {(() => {
                                         // 2026-08-20 — La « Vue Interne (Étude) » était un tableau de bord de
                                         // cartes, PAS un document : elle n'avait pas d'data-zone-impression="1", donc
@@ -27083,7 +28379,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     <div>
                                                         <p className="text-xs font-bold text-neutral-800">{viewingSavedQuote.companyInfoSnapshot?.name || companyInfo.name}</p>
                                                         <p className="text-[11px] text-neutral-500">Client : <strong className="text-neutral-700">{viewingSavedQuote.clientName}</strong></p>
-                                                        <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>
+                                                        {viewingSavedQuote.projectRef && <p className="text-[11px] text-neutral-500">Chantier : {viewingSavedQuote.projectRef}</p>}
                                                     </div>
                                                     <div className="text-right">
                                                         <h2 className="text-lg font-bold text-neutral-900 uppercase tracking-tight">Étude de prix</h2>
@@ -27246,7 +28542,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
     // son propre `hasUnsavedChanges`, initialisé AU MONTAGE depuis
     // `initialDirty`. Sans remontage, le devis neuf hériterait de l'indicateur
     // du précédent — le mensonge que documente déjà `reprendreBrouillon`.
-    const demarrerNouveauDevis = () => {
+    // Audit UX 220 (C098/C099) — `pour` ({ client }) préremplit le client du
+    // nouveau devis. « Créer Devis » depuis une fiche client écrivait dans
+    // l'ancien formulaire (calcForm) que l'éditeur n'affiche plus : le champ
+    // client restait vide tandis que la notification annonçait le client —
+    // ou annonçait B alors que le chiffrage ouvert restait celui de A.
+    const demarrerNouveauDevis = (pour = null) => {
         // 2026-09-19 — Contrôle des quotas Starter (max 3 devis ou essai expiré)
         if (typeof window !== 'undefined' && window.SubscriptionService) {
             const quotaCheck = window.SubscriptionService.canCreateDevis(savedQuotes.length);
@@ -27258,11 +28559,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         }
         const lancer = () => {
             const numero = generateNextQuoteNumber(savedQuotes);
+            const clientChoisi = pour && pour.client ? pour.client : null;
             setHybridQuote({
                 id: Date.now(),
                 serverId: null,
                 number: numero,
-                clientId: null, clientName: '',
+                clientId: clientChoisi ? clientChoisi.id : null, clientName: clientChoisi ? clientChoisi.name : '',
                 projectId: null, projectRef: '',
                 status: 'draft',
                 vatRate: 18, overheadRate: 5, margin: 30, marginType: 'reel',
@@ -27273,7 +28575,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             setSeqRestauration(n => n + 1);
             setViewingSavedQuote(null);
             setActiveView('calculator');
-            showToast(`Nouveau devis vierge (${numero})`);
+            showToast(clientChoisi ? `Nouveau devis ${numero} pour ${clientChoisi.name}` : `Nouveau devis vierge (${numero})`);
         };
         // Le chiffrage ouvert peut porter des heures de saisie : on ne l'écrase
         // pas sans le dire, exactement comme `naviguerVers` le fait en sortie.
@@ -27305,15 +28607,23 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 if (savedQuoteStatusFilter === 'all') return true;
                 if (savedQuoteStatusFilter === 'invoiced') {
                     const factures = invoices.filter(f => String(f.devisId) === String(q.id) || String(f.devisId) === String(q.serverId));
-                    return q.status === 'invoiced' || factures.some(f => f.statut === 'issued' || f.statut === 'paid');
+                    return q.status === 'invoiced' || factures.some(estFactureEmise);
                 }
+                // Étape « Prêt / Vérifié » du pipeline : les deux statuts qu'elle compte.
+                if (savedQuoteStatusFilter === 'pret_ou_a_verifier') return ['to_verify', 'ready'].includes(normaliserStatutDevis(q.status));
                 return normaliserStatutDevis(q.status) === normaliserStatutDevis(savedQuoteStatusFilter);
             })
+            .filter(q => savedQuotePeriodFilter === 'all' || dateDansPeriode(q.date || q.createdAt || q.updatedAt, savedQuotePeriodFilter))
             .filter(q => !quoteQuery || [q.number, q.clientName, q.projectRef].filter(Boolean).some(v => normalizeSearchText(v).includes(quoteQuery)))
             .slice()
             .sort((a, b) => {
-                if (savedQuoteSort === 'amount_desc') return (b.quoteData?.totalTTCConsomme || 0) - (a.quoteData?.totalTTCConsomme || 0);
-                if (savedQuoteSort === 'client_asc') return String(a.clientName || '').localeCompare(String(b.clientName || ''), 'fr');
+                if (savedQuoteSort === 'amount_desc') return (Number(b.quoteData?.totalTTCConsomme) || 0) - (Number(a.quoteData?.totalTTCConsomme) || 0);
+                if (savedQuoteSort === 'client_asc') {
+                    // Audit UX 220 (C075) — devis sans client regroupés en fin de liste.
+                    const ca = String(a.clientName || '').trim(), cb = String(b.clientName || '').trim();
+                    if (!ca || !cb) return (!ca) - (!cb);
+                    return ca.localeCompare(cb, 'fr', { sensitivity: 'base' });
+                }
                 return (Number(b.id) || 0) - (Number(a.id) || 0);
             });
         // Liste+détail (2026-08-22, format table type Excel) : la colonne de
@@ -27345,6 +28655,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     key={sq.id}
                     onClick={selectQuote}
                     onKeyDown={(e) => {
+                        // Audit UX 220 (C128) — Entrée/Espace sur un bouton DANS la
+                        // ligne (« Supprimer le devis ») ouvraient la fiche au lieu
+                        // d'agir : seule la ligne elle-même réagit à ces touches.
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             selectQuote();
@@ -27354,6 +28668,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     role="button"
                     aria-selected={isActive}
                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                    data-retour-focus={`devis-${sq.id}`}
                     className={`group cursor-pointer border-b border-neutral-100 last:border-b-0 outline-none transition-colors ${isActive ? 'bg-brand-50' : 'bg-white hover:bg-neutral-50 focus-visible:bg-brand-50'}`}
                 >
                     <td className={`${hasActiveQuote ? 'px-2.5 py-3' : 'px-4 py-3.5'} min-w-0 align-top`}>
@@ -27375,7 +28690,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     const facturesDuDevis = invoices.filter(f =>
                                         String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                     );
-                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                    const aFactureEmise = facturesDuDevis.some(estFactureEmise);
                                     const estFacture = sq.status === 'invoiced' || aFactureEmise;
                                     
                                     if (estFacture) {
@@ -27461,6 +28776,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 { value: 'draft', label: 'Brouillons' },
                                 { value: 'to_verify', label: 'À vérifier' },
                                 { value: 'ready', label: 'Prêts' },
+                                { value: 'pret_ou_a_verifier', label: 'Prêts ou à vérifier' },
                                 { value: 'sent', label: 'Envoyés' },
                                 { value: 'accepted', label: 'Acceptés' },
                                 { value: 'invoiced', label: 'Facturés' }
@@ -27480,6 +28796,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     </div>
                 </div>
 
+                {savedQuotePeriodFilter !== 'all' && (
+                    <div className="app-card p-3 bg-brand-50/60 border-brand-100 flex items-center justify-between gap-3" role="status">
+                        <span className="text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0">
+                            <i className="fa-solid fa-calendar-days shrink-0" aria-hidden="true"></i>
+                            <span className="truncate">Période : {({ month: 'ce mois', quarter: 'ce trimestre', year: 'cette année' })[savedQuotePeriodFilter]} — {visibleQuotes.length} devis</span>
+                        </span>
+                        <button onClick={() => setSavedQuotePeriodFilter('all')} className="text-xs font-bold text-brand-700 hover:underline shrink-0">
+                            <i className="fa-solid fa-xmark mr-1" aria-hidden="true"></i> Toutes les périodes
+                        </button>
+                    </div>
+                )}
                 {quotesClientFilter && (
                     <div className="app-card p-3 bg-brand-50/60 border-brand-100 flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-brand-800 flex items-center gap-2 min-w-0">
@@ -27509,7 +28836,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             const facturesDuDevis = invoices.filter(f =>
                                                 String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                             );
-                                            const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                            const aFactureEmise = facturesDuDevis.some(estFactureEmise);
                                             const estFacture = sq.status === 'invoiced' || aFactureEmise;
                                             const badgeElem = estFacture
                                                 ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
@@ -27522,11 +28849,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <tr
                                                     key={sq.id}
                                                     onClick={selectQuote}
-                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                                    onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
                                                     tabIndex="0"
                                                     role="button"
                                                     aria-selected={isActive}
                                                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                    data-retour-focus={`devis-${sq.id}`}
                                                     className={`group cursor-pointer rounded-xl block p-3 border transition-all outline-none ${
                                                         isActive
                                                             ? 'bg-brand-50/70 border-brand-500 shadow-xs ring-1 ring-brand-500/20 border-l-4 border-l-brand-600'
@@ -27557,7 +28885,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                         {/* Ligne 3 : Chantier & Date / Actions */}
                                                         <div className="flex items-center justify-between gap-2 min-w-0 mt-1.5 pt-1.5 border-t border-neutral-100 text-[11px] text-neutral-500">
                                                             <span className="truncate flex items-center gap-1 min-w-0" title={sq.projectRef || 'Chantier non renseigné'}>
-                                                                <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                                <i className="fa-solid fa-folder text-[10px] text-neutral-500 shrink-0"></i>
                                                                 <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
                                                             </span>
                                                             <div className="flex items-center gap-2 shrink-0">
@@ -27580,7 +28908,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                         });
                                                                     }}
                                                                     onKeyDown={(e) => e.stopPropagation()}
-                                                                    className="opacity-40 group-hover:opacity-100 text-neutral-400 hover:text-red-600 transition-opacity p-0.5 disabled:opacity-0"
+                                                                    className="inline-flex items-center justify-center min-w-[32px] min-h-[32px] rounded-md text-neutral-500 hover:text-red-600 hover:bg-red-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-0"
                                                                     aria-label={`Supprimer le devis ${sq.number}`}
                                                                     title="Supprimer ce devis"
                                                                 >
@@ -27615,7 +28943,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                     const facturesDuDevis = invoices.filter(f =>
                                         String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                     );
-                                    const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                    const aFactureEmise = facturesDuDevis.some(estFactureEmise);
                                     const estFacture = sq.status === 'invoiced' || aFactureEmise;
                                     const badgeElem = estFacture
                                         ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
@@ -27627,10 +28955,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <div
                                             key={sq.id}
                                             onClick={selectQuote}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                            onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
                                             tabIndex="0"
                                             role="button"
                                             aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                    data-retour-focus={`devis-${sq.id}`}
                                             className="app-card p-3.5 space-y-2 cursor-pointer hover:bg-neutral-50/80 active:scale-[0.99] transition-all"
                                         >
                                             <div className="flex items-start justify-between gap-2 min-w-0">
@@ -27640,7 +28969,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <span className="shrink-0">{badgeElem}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-xs text-neutral-500 min-w-0">
-                                                <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                <i className="fa-solid fa-folder text-[10px] text-neutral-500 shrink-0"></i>
                                                 <span className="truncate">{sq.projectRef || 'Chantier non renseigné'}</span>
                                             </div>
                                             <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100 text-xs">
@@ -27668,7 +28997,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                             });
                                                         }}
                                                         onKeyDown={(e) => e.stopPropagation()}
-                                                        className="text-neutral-400 hover:text-red-600 transition-colors p-0.5 disabled:opacity-0"
+                                                        className="inline-flex items-center justify-center min-w-[32px] min-h-[32px] rounded-md text-neutral-500 hover:text-red-600 hover:bg-red-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-0"
                                                         aria-label={`Supprimer le devis ${sq.number}`}
                                                         title="Supprimer ce devis"
                                                     >
@@ -27681,9 +29010,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 })}
                             </div>
 
-                            {/* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré */}
-                            <div className="hidden md:block app-card p-0 overflow-hidden shrink-0 shadow-xs border border-neutral-200/80">
-                                <table className="w-full text-left text-xs border-collapse">
+                            {/* Mode Pleine Largeur (100%) : Grand tableau des devis spacieux et aéré.
+                                Audit UX 220 (C080) — à 768/1024 px la colonne Actions
+                                (Supprimer) était rognée par overflow:hidden : le cadre
+                                défile désormais horizontalement. */}
+                            <div className="hidden md:block app-card p-0 overflow-x-auto shrink-0 shadow-xs border border-neutral-200/80" tabIndex={0} role="region" aria-label="Tableau des devis (défilement horizontal possible)">
+                                <table className="w-full min-w-[720px] text-left text-xs border-collapse">
                                     <thead className="bg-neutral-50/90 border-b border-neutral-200 text-[10px] uppercase tracking-wider text-neutral-500 font-bold">
                                         <tr>
                                             <th className="px-4 py-3.5">Client & Entreprise</th>
@@ -27700,7 +29032,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             const facturesDuDevis = invoices.filter(f =>
                                                 String(f.devisId) === String(sq.id) || String(f.devisId) === String(sq.serverId)
                                             );
-                                            const aFactureEmise = facturesDuDevis.some(f => f.statut === 'issued' || f.statut === 'paid');
+                                            const aFactureEmise = facturesDuDevis.some(estFactureEmise);
                                             const estFacture = sq.status === 'invoiced' || aFactureEmise;
                                             const badgeElem = estFacture
                                                 ? <Badge colorClass="bg-emerald-100 text-emerald-800">Facturé</Badge>
@@ -27713,10 +29045,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 <tr
                                                     key={sq.id}
                                                     onClick={selectQuote}
-                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
+                                                    onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectQuote(); } }}
                                                     tabIndex="0"
                                                     role="button"
                                                     aria-label={`Afficher le devis ${sq.number} de ${sq.clientName || 'la société'}`}
+                    data-retour-focus={`devis-${sq.id}`}
                                                     className="group cursor-pointer hover:bg-neutral-50/80 focus-visible:bg-brand-50 transition-colors bg-white"
                                                 >
                                                     <td className="px-4 py-3.5 align-middle">
@@ -27726,7 +29059,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     </td>
                                                     <td className="px-4 py-3.5 align-middle text-neutral-600">
                                                         <span className="flex items-center gap-1.5 text-xs text-neutral-600">
-                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-400 shrink-0"></i>
+                                                            <i className="fa-solid fa-folder text-[10px] text-neutral-500 shrink-0"></i>
                                                             <span className="truncate max-w-[240px]">{sq.projectRef || 'Chantier non renseigné'}</span>
                                                         </span>
                                                     </td>
@@ -27758,7 +29091,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                         }
                                                                     });
                                                                 }}
-                                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-0"
+                                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-0"
                                                                 aria-label={`Supprimer le devis ${sq.number}`}
                                                                 title="Supprimer ce devis"
                                                             >
@@ -28142,7 +29475,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 mais au niveau du parent plutôt que de l'enfant. Le groupe de
                                 boutons juste en dessous s'en protège déjà avec w-full sm:w-auto. */}
                             <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                                <span className="lg:hidden shrink-0"><button onClick={() => setSelectedSolutionForEdit(null)} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste des ouvrages">
+                                <span className="lg:hidden shrink-0"><button onClick={() => { const nom = selectedSolutionForEdit?.name; setSelectedSolutionForEdit(null); if (nom) revenirSurLigne(`Sélectionner l'ouvrage ${nom}`); }} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste des ouvrages">
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </button></span>
                                 <div className="min-w-0">
@@ -28593,12 +29926,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 <div className="flex gap-2 bg-white p-2 rounded-xl border border-neutral-200">
                     <button onClick={() => { setResourceTab('materials'); setResourceSearchQuery(''); }}
                             className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'materials' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            aria-label="Voir la liste des matières premières">
+                            aria-pressed={resourceTab === 'materials'}>
                         <i className="fa-solid fa-box text-sm"></i> Matières ({materials.length})
                     </button>
                     <button onClick={() => { setResourceTab('labor'); setResourceSearchQuery(''); }}
                             className={`flex-1 px-3 py-2.5 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 ${resourceTab === 'labor' ? 'bg-brand-50 text-brand-600' : 'text-neutral-500 hover:text-neutral-800'}`}
-                            aria-label="Voir la liste de la main-d'œuvre">
+                            aria-pressed={resourceTab === 'labor'}>
                         <i className="fa-solid fa-user-gear text-sm"></i> Main-d'œuvre ({labor.length})
                     </button>
                 </div>
@@ -28613,19 +29946,31 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <i className="fa-solid fa-file-csv text-emerald-700"></i> Importer CSV
                         </button>
                         <button type="button" onClick={() => {
-                            const csvContent = "data:text/csv;charset=utf-8," +
-                                "ID;Nom;Catégorie;Unité Achat;Taille Unité;Unité Calcul;Prix Achat;Perte (%);Rendement (m²)\n" +
-                                materials.map(m => `"${m.id}";"${m.name}";"${m.category}";"${m.unitBuy}";"${m.unitSize}";"${m.unitCalc}";"${m.priceBuy}";"${m.waste}";"${m.yieldRate || 0}"`).join("\n");
-                            const encodedUri = encodeURI(csvContent);
+                            // Audit UX 220 (C167/C168) — l'export ignorait la
+                            // recherche affichée (on exportait tout en croyant
+                            // exporter la liste filtrée) et, sans marque UTF-8,
+                            // Excel affichait « BÃ©ton » au lieu de « Béton ».
+                            // Les guillemets internes sont doublés (norme CSV).
+                            const aExporter = resourceQuery ? visibleMaterials : materials;
+                            const cellule = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+                            const lignes = [
+                                'ID;Nom;Catégorie;Unité Achat;Taille Unité;Unité Calcul;Prix Achat;Perte (%);Rendement (m²)',
+                                ...aExporter.map(m => [m.id, m.name, m.category, m.unitBuy, m.unitSize, m.unitCalc, m.priceBuy, m.waste, m.yieldRate || 0].map(cellule).join(';'))
+                            ];
+                            const blob = new Blob(['\uFEFF' + lignes.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
                             const link = document.createElement("a");
-                            link.setAttribute("href", encodedUri);
-                            link.setAttribute("download", `ikadevis_matieres_${new Date().toISOString().slice(0,10)}.csv`);
+                            link.href = url;
+                            link.download = `ikadevis_matieres_${new Date().toISOString().slice(0,10)}${resourceQuery ? '_filtre' : ''}.csv`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
-                            showToast("Exportation CSV téléchargée !");
-                        }} className="btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5" title="Exporter en CSV" aria-label="Exporter au format CSV">
-                            <i className="fa-solid fa-file-arrow-down text-brand-600"></i> Export
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            showToast(resourceQuery
+                                ? `${aExporter.length} matière(s) exportée(s) — seulement celles qui correspondent à « ${resourceSearchQuery.trim()} ».`
+                                : `${aExporter.length} matière(s) exportée(s) au format CSV.`);
+                        }} className="btn-secondary flex-1 py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5" title={resourceQuery ? 'Exporter les matières affichées (recherche en cours) en CSV' : 'Exporter en CSV'} aria-label={resourceQuery ? 'Exporter au format CSV les matières affichées' : 'Exporter au format CSV'}>
+                            <i className="fa-solid fa-file-arrow-down text-brand-600" aria-hidden="true"></i> {resourceQuery ? `Export (${visibleMaterials.length})` : 'Export'}
                         </button>
                     </div>
                 )}
@@ -28696,7 +30041,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         <div className="app-card flex flex-col">
                         <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between gap-3 bg-white">
                             <div className="flex items-center gap-3 min-w-0">
-                                <span className="lg:hidden shrink-0"><button onClick={closeDetail} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
+                                <span className="lg:hidden shrink-0"><button onClick={() => { const nom = selectedItem?.name; closeDetail(); if (nom) revenirSurLigne(`Sélectionner ${nom}`); }} className="btn-icon text-neutral-500 hover:text-neutral-800" aria-label="Retour à la liste">
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </button></span>
                                 <h2 className="text-lg sm:text-xl font-bold text-neutral-800 truncate">
@@ -28906,7 +30251,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         )}
 
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
-                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la ressource"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                                         </div>
                                     </form>
@@ -29066,7 +30411,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             );
                                         })()}
                                         <div className="flex justify-end gap-3 pt-2 border-t border-neutral-100">
-                                            <button type="button" onClick={cancelEdit} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
+                                            <button type="button" onClick={cancelEdit} className="btn-secondary">Annuler</button>
                                             {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer la prestation"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                                         </div>
                                     </form>
@@ -29212,6 +30557,9 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
             const tag = e.target?.tagName?.toLowerCase();
             if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
             if (!e.altKey) return;
+            // Audit UX 220 (C033) — Alt+3 changeait l'écran SOUS une fenêtre
+            // restée ouverte par-dessus.
+            if (fenetreModaleOuverte()) return;
 
             if (e.key === '1' || e.key === '&') {
                 e.preventDefault();
@@ -29300,6 +30648,21 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
         );
     };
 
+    // Changement d'entreprise — partagé par le sélecteur de la barre du haut
+    // et le menu mobile (Audit UX 220, C018 : sous 640 px, le sélecteur était
+    // masqué et aucune autre entrée ne permettait de changer d'entreprise).
+    const changerOrganisation = (orgId) => {
+        if (orgId === activeOrganizationId) return;
+        if (devisNonEnregistre || sbSyncStatus === 'syncing' || sbSyncStatus === 'error') {
+            showToast('Enregistrez votre travail et terminez la synchronisation avant de changer d’entreprise.', 'warning');
+            return;
+        }
+        const found = userOrganizations.find(o => o.id === orgId);
+        if (!found) return;
+        localStorage.setItem(`ikadevis_active_org_${currentUserId}`, orgId);
+        window.location.reload();
+    };
+
     const SidebarCatalogGroup = ({ mobile = false }) => {
         const isChildActive = activeView === 'recipes' || activeView === 'materials';
         return (
@@ -29313,7 +30676,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 >
                     <img src={SIDEBAR_ICONS.recipes} alt="" aria-hidden="true" className="sidebar-item-icon sidebar-item-icon-img" />
                     <span className="sidebar-item-label">Ouvrages et ressources</span>
-                    <i className={`fa-solid fa-chevron-down sidebar-catalog-chevron transition-transform duration-200 ${isTechnicalCatalogOpen ? 'rotate-180 text-brand-600' : 'text-neutral-400'}`} aria-hidden="true"></i>
+                    <i className={`fa-solid fa-chevron-down sidebar-catalog-chevron transition-transform duration-200 ${isTechnicalCatalogOpen ? 'rotate-180 text-brand-600' : 'text-neutral-500'}`} aria-hidden="true"></i>
                 </button>
                 {isTechnicalCatalogOpen && (
                     <div id={mobile ? 'mobile-technical-catalog' : 'technical-catalog'} className="sidebar-catalog-children">
@@ -29426,8 +30789,20 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
     return (
         <div className="mobile-app-shell flex flex-col h-[100dvh] w-full bg-neutral-100 overflow-hidden font-sans">
             {/* SKIP LINK ACCESSIBLE POUR NAVIGATION CLAVIER / LECTEURS D'ÉCRAN */}
-            <a 
-                href="#main-content" 
+            {/* Audit UX 220 (C126) — le lien changeait l'adresse (#devis →
+                #main-content), ce que le routage par ancre lisait comme un
+                changement d'écran, et visait un <main> non focalisable. Il
+                place maintenant le focus sans toucher à l'adresse. */}
+            <a
+                href="#main-content"
+                onClick={(e) => {
+                    e.preventDefault();
+                    const cible = document.getElementById('main-content');
+                    if (!cible) return;
+                    const titre = [...cible.querySelectorAll('h1, h2')].find((h) => h.getClientRects().length > 0) || cible;
+                    if (!titre.hasAttribute('tabindex')) titre.setAttribute('tabindex', '-1');
+                    titre.focus();
+                }}
                 className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:bg-brand-600 focus:text-white focus:font-bold focus:px-4 focus:py-2.5 focus:rounded-xl focus:shadow-xl"
             >
                 Aller au contenu principal
@@ -29439,9 +30814,12 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 activeView={activeView}
                 setActiveView={setActiveView}
                 savedQuotes={savedQuotes}
-                onSelectQuote={(q) => { setViewingSavedQuote(q); setActiveView('savedQuotes'); }}
+                // Audit UX 220 (C018) — le logo appelle ces deux fonctions avec
+                // null pour refermer les fiches : sans le garde, la seconde
+                // basculait l'écran sur « Factures » au lieu du tableau de bord.
+                onSelectQuote={(q) => { setViewingSavedQuote(q); if (q) setActiveView('savedQuotes'); }}
                 invoices={invoices}
-                onSelectInvoice={(f) => { setViewingInvoice(f); setActiveView('invoices'); }}
+                onSelectInvoice={(f) => { setViewingInvoice(f); if (f) setActiveView('invoices'); }}
                 clients={clients}
                 onSelectClient={(c) => { setSelectedClientId(c.id); setActiveView('clients'); }}
                 projects={projects}
@@ -29449,18 +30827,19 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 userOrganizations={userOrganizations}
                 activeOrganizationId={activeOrganizationId}
                 activeOrganizationRole={activeOrganizationRole}
-                onSelectOrg={(orgId) => {
-                    if (orgId === activeOrganizationId) return;
-                    if (devisNonEnregistre || sbSyncStatus === 'syncing' || sbSyncStatus === 'error') {
-                        showToast('Enregistrez votre travail et terminez la synchronisation avant de changer d’entreprise.', 'warning');
+                onSelectOrg={changerOrganisation}
+                onOpenCreateOrg={() => {
+                    // Audit UX 220 (C107) — en démonstration, toutes les données
+                    // vivent dans un seul espace local : une « nouvelle
+                    // entreprise » y affichait les clients et devis de la
+                    // précédente sous un autre nom. Plutôt qu'une fausse
+                    // séparation, on dit la limite et la sortie.
+                    if (!sbUser || sbUser.id === 'guest') {
+                        showToast('En démonstration, une seule entreprise fictive est disponible. Créez un compte pour gérer plusieurs entreprises, chacune avec ses propres données.', 'info');
                         return;
                     }
-                    const found = userOrganizations.find(o => o.id === orgId);
-                    if (!found) return;
-                    localStorage.setItem(`ikadevis_active_org_${currentUserId}`, orgId);
-                    window.location.reload();
+                    setIsCreateOrgModalOpen(true);
                 }}
-                onOpenCreateOrg={() => setIsCreateOrgModalOpen(true)}
                 isGuest={!sbUser || sbUser.id === 'guest'}
                 companyInfo={companyInfo}
                 sbUser={sbUser}
@@ -29537,10 +30916,17 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         {/* Carte Statut Abonnement SaaS : Uniquement pour les comptes en essai Starter (aucun encombrement pour les comptes payants / entreprise / admin) */}
                         {(!currentSubscription || currentSubscription.planId === 'starter' || currentSubscription.status === 'trial') && !currentSubscription?.isAdminAccess && (
                             <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setIsSubscriptionModalOpen(true)}
-                                className="p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 text-neutral-800 cursor-pointer hover:border-brand-300 transition-all group shadow-2xs"
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsSubscriptionModalOpen(true); } }}
+                                aria-label={`Formule Starter · Voir offres — ${savedQuotes.length} devis sur 3`}
+                                className="p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 text-neutral-800 cursor-pointer hover:border-brand-300 transition-all group shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                 title="Gérer votre formule ou découvrir les formules illimitées"
                             >
+                                {/* Audit UX 2026-10 (UX-P2-08) — carte cliquable à la souris mais
+                                    ni focalisable ni activable au clavier : la seule entrée
+                                    visible vers les formules était hors d'atteinte sans souris. */}
                                 <div className="flex items-center justify-between text-[11px] font-bold">
                                     <span className="flex items-center gap-1.5 text-brand-700">
                                         <i className="fa-solid fa-crown text-amber-500 text-[10px]"></i>
@@ -29557,7 +30943,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </div>
                         )}
                         <button onClick={() => openAccountSettings('entreprise')} className="sidebar-settings-btn w-full btn-secondary text-xs py-2 px-3 text-neutral-700 hover:bg-neutral-50 flex items-center justify-center gap-2" aria-label="Paramètres du compte">
-                            <i className="fa-solid fa-gear text-neutral-400"></i> Paramètres
+                            <i className="fa-solid fa-gear text-neutral-500"></i> Paramètres
                         </button>
                     </div>
                 </aside>
@@ -29748,7 +31134,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         title={`Temps de chargement et de rendu de la vue : ${pageLoadTimeMs} ms`}
                                     >
                                         <i className="fa-solid fa-bolt-lightning text-amber-500 text-[10px]"></i>
-                                        <span className="text-neutral-400 text-[10px] font-sans font-medium hidden sm:inline">Rendu :</span>
+                                        <span className="text-neutral-500 text-[10px] font-sans font-medium hidden sm:inline">Rendu :</span>
                                         <span className={`${pageLoadTimeMs < 150 ? 'text-emerald-600' : pageLoadTimeMs < 400 ? 'text-brand-600' : 'text-amber-600'}`}>
                                             {pageLoadTimeMs} ms
                                         </span>
@@ -29760,23 +31146,32 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         {/* Le gabarit suit la vue AFFICHÉE, pas la vue demandée :
                             sinon les marges changeraient dès le clic, faisant sauter
                             la mise en page pendant que l'ancien contenu est encore là. */}
-                        <div className={`${vueAffichee === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px]'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
+                        {/* Audit UX 220 (C029/C080) — sous 768 px, la barre d'onglets
+                            (position absolue, ~68 px + zone de sécurité) recouvrait la
+                            dernière ligne des listes : impossible de la faire remonter.
+                            Les écrans hors chiffrage (qui gère sa propre barre de
+                            totaux) réservent maintenant cette hauteur. */}
+                        <div className={`${vueAffichee === 'calculator' ? 'p-2 sm:p-3 lg:px-4 lg:py-2.5 max-w-[1800px]' : 'p-3 sm:p-4 lg:px-6 lg:py-3.5 max-w-[1600px] pb-[calc(4.75rem_+_env(safe-area-inset-bottom,0px))] md:pb-4 lg:pb-3.5'} w-full mx-auto flex-1 min-h-0 flex flex-col`}>
                             {transitionPage ? (
                                 /* Pendant la transition : barre de progression, sablier discret
                                    et chronomètre temps réel en millisecondes. */
-                                <div className="w-full flex-1 min-h-0 flex flex-col" role="status" aria-live="polite">
+                                /* Audit UX 220 (C127) — la région live contenait le
+                                   chronomètre : un lecteur d'écran recevait 22 mises à
+                                   jour en 323 ms. Seul « Chargement de la page… » est
+                                   annoncé ; le compteur visuel est masqué aux aides. */
+                                <div className="w-full flex-1 min-h-0 flex flex-col" role="status">
                                     <div className="h-0.5 w-full bg-brand-100 rounded-full overflow-hidden shrink-0" aria-hidden="true">
                                         <div className="h-full w-1/3 bg-brand-500 animate-page-progress"></div>
                                     </div>
-                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3">
-                                        <span className="w-8 h-8 rounded-full border-2 border-neutral-200 border-t-brand-500 animate-page-spin" aria-hidden="true"></span>
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3" aria-hidden="true">
+                                        <span className="w-8 h-8 rounded-full border-2 border-neutral-200 border-t-brand-500 animate-page-spin"></span>
                                         <div className="flex items-center gap-2 text-xs font-semibold text-neutral-600 bg-white px-3.5 py-1.5 rounded-full border border-neutral-200 shadow-2xs">
-                                            <i className="fa-solid fa-bolt-lightning text-amber-500 animate-pulse text-xs"></i>
+                                            <i className="fa-solid fa-bolt-lightning text-amber-500 animate-pulse motion-reduce:animate-none text-xs"></i>
                                             <span>Chargement en cours…</span>
                                             <span className="font-mono text-brand-600 font-bold">{elapsedTransitionMs} ms</span>
                                         </div>
                                     </div>
-                                    <span className="sr-only">Chargement de la page… ({elapsedTransitionMs} ms)</span>
+                                    <span className="sr-only">Chargement de la page…</span>
                                 </div>
                             ) : (
                             <div className="animate-page-enter w-full flex-1 min-h-0 flex flex-col">
@@ -29838,7 +31233,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                         {/* Menu burger / Menu */}
                         <button
                             onClick={() => setIsMobilePlusMenuOpen(true)}
-                            className={`flex flex-col items-center justify-center gap-1 min-w-[3rem] min-h-[2.75rem] px-2 rounded-xl transition-all active:scale-90 ${isMobilePlusMenuOpen ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'}`}
+                            className={`flex flex-col items-center justify-center gap-1 min-w-[3rem] min-h-[2.75rem] px-2 rounded-xl transition-all active:scale-90 ${isMobilePlusMenuOpen ? 'text-brand-600' : 'text-neutral-500 hover:text-neutral-700'}`}
                             aria-label="Ouvrir le menu de navigation"
                             title="Menu"
                             aria-expanded={isMobilePlusMenuOpen}
@@ -29892,13 +31287,28 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                         {/* Contenu complet avec défilement */}
                         <div className="p-4 space-y-4 overflow-y-auto custom-scroll flex-1">
-                            {/* Bannière Abonnement SaaS Mobile (2026-09-19) */}
-                            <div
+                            {userOrganizations.length > 1 && (
+                                <section aria-label="Changer d’entreprise" className="space-y-1.5">
+                                    <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Entreprise</p>
+                                    {userOrganizations.map(org => (
+                                        <button key={org.id} type="button" aria-pressed={org.id === activeOrganizationId}
+                                            onClick={() => { setIsMobilePlusMenuOpen(false); changerOrganisation(org.id); }}
+                                            className={`w-full text-left min-h-[44px] px-3 rounded-xl border text-sm font-semibold flex items-center justify-between gap-2 ${org.id === activeOrganizationId ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-neutral-200 text-neutral-800'}`}>
+                                            <span className="truncate">{org.name}</span>
+                                            {org.id === activeOrganizationId && <i className="fa-solid fa-check text-brand-600 text-xs" aria-hidden="true"></i>}
+                                        </button>
+                                    ))}
+                                </section>
+                            )}
+                            {/* Bannière Abonnement SaaS Mobile (2026-09-19)
+                                Audit UX 220 — <div> cliquable rendu bouton (clavier). */}
+                            <button
+                                type="button"
                                 onClick={() => {
                                     setIsMobilePlusMenuOpen(false);
                                     setIsSubscriptionModalOpen(true);
                                 }}
-                                className="p-3.5 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white cursor-pointer active:scale-98 transition-all flex items-center justify-between border border-neutral-700 shadow-xs"
+                                className="w-full text-left p-3.5 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-indigo-950 text-white cursor-pointer active:scale-98 transition-all flex items-center justify-between border border-neutral-700 shadow-xs"
                             >
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center text-sm shrink-0">
@@ -29919,11 +31329,11 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 <span className="text-xs text-brand-300 font-bold flex items-center gap-1">
                                     Gérer <i className="fa-solid fa-chevron-right text-[10px]"></i>
                                 </span>
-                            </div>
+                            </button>
 
                             {/* Section 1 : Exploitation & Modules métier */}
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Exploitation & Données</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 px-1 mb-2">Exploitation & Données</p>
                                 <div className="grid grid-cols-2 gap-2.5">
                                     {[
                                         { id: 'projects',  label: 'Chantiers & Projets' },
@@ -29956,7 +31366,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
 
                             {/* Section 2 : Look & Paramètres */}
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-1 mb-2">Personnalisation</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 px-1 mb-2">Personnalisation</p>
                                 <div className="grid grid-cols-2 gap-2.5">
                                     <button
                                         onClick={() => {
@@ -29970,7 +31380,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         </div>
                                         <div className="min-w-0">
                                             <span className="block text-xs font-bold leading-tight">Modèles de documents</span>
-                                            <span className="block text-[10px] text-neutral-400">PDF & en-tête</span>
+                                            <span className="block text-[10px] text-neutral-500">PDF & en-tête</span>
                                         </div>
                                     </button>
 
@@ -29986,7 +31396,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         </div>
                                         <div className="min-w-0">
                                             <span className="block text-xs font-bold leading-tight">Paramètres</span>
-                                            <span className="block text-[10px] text-neutral-400">Entreprise & compte</span>
+                                            <span className="block text-[10px] text-neutral-500">Entreprise & compte</span>
                                         </div>
                                     </button>
                                 </div>
@@ -30083,13 +31493,15 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 if (!name) { showToast("Le nom du chantier est requis.", "error"); return; }
                                 const selectedClient = clients.find(c => c.id === newProjectForm.clientId);
                                 if (!selectedClient) { showToast("Sélectionnez un client pour ce chantier.", "error"); return; }
-                                
+
                                 const previousProject = projects.find(p => p.id === editingProjectId);
                                 const becomesActive = !['completed', 'cancelled'].includes(newProjectForm.status || 'prospect');
                                 if (becomesActive && (!editingProjectId || ['completed', 'cancelled'].includes(previousProject?.status))) {
                                     const quota = window.SubscriptionService?.canCreateProject(projects.filter(p => p.id !== editingProjectId && !['completed', 'cancelled'].includes(p.status)).length);
                                     if (quota && !quota.allowed) { showToast(quota.message, 'error'); setIsSubscriptionModalOpen(true); return; }
                                 }
+                                // Après le contrôle de quota : un refus garde la saisie en brouillon.
+                                brouillonChantier.marquerEnregistre();
                                 if (editingProjectId) {
                                     const existing = projects.find(p => p.id === editingProjectId);
                                     const updated = {
@@ -30140,6 +31552,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 setEditingProjectId(null);
                                 setNewProjectOriginModal(null);
                             }} className="space-y-4">
+                                <AvisBrouillonRestaure brouillon={brouillonChantier} />
                                 <div>
                                     <label htmlFor="newProjectForm-name" className="app-label">Nom du chantier</label>
                                     <input id="newProjectForm-name" required type="text" className="app-input font-bold" placeholder="Ex: Construction Villa R+1" value={newProjectForm.name} onChange={e => setNewProjectForm({ ...newProjectForm, name: e.target.value })} />
@@ -30242,10 +31655,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <button onClick={() => { setIsNewClientModalOpen(false); setEditingClientId(null); setNewClientOriginModal(null); }} className="btn-icon w-8 h-8" aria-label="Fermer la boîte de dialogue"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scroll bg-neutral-50/50">
-                            <form id="newClientForm" onSubmit={(e) => {
+                            <form id="newClientForm"
+                                // Audit UX 220 (C065) — un e-mail invalide dans la section
+                                // repliée bloquait l'envoi sans qu'on voie le champ fautif :
+                                // la section s'ouvre et le champ reçoit le focus.
+                                onInvalidCapture={(e) => { const d = e.target.closest && e.target.closest('details'); if (d && !d.open) { d.open = true; setTimeout(() => e.target.focus(), 0); } }}
+                                onSubmit={(e) => {
                                 e.preventDefault();
                                 const name = newClientForm.name.trim();
                                 if (!name) { showToast("Le nom du client est requis.", "error"); return; }
+                                brouillonClient.marquerEnregistre();
                                 const payload = {
                                     name,
                                     contactPerson: newClientForm.contactPerson.trim(),
@@ -30282,37 +31701,43 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 setEditingClientId(null);
                                 setNewClientOriginModal(null);
                             }} className="space-y-4">
+                                <AvisBrouillonRestaure brouillon={brouillonClient} />
+                                {/* Audit UX 220 (C056) — ces champs décrivent un TIERS : le
+                                    remplissage automatique du navigateur y proposait
+                                    l'identité, le téléphone et l'adresse de l'utilisateur.
+                                    autoComplete="off" sur chaque champ ; le collage reste
+                                    libre (aucun gestionnaire ne le bloque). */}
                                 <div>
                                     <label htmlFor="newClientForm-name" className="app-label">Nom du client / raison sociale</label>
-                                    <input id="newClientForm-name" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                                    <input id="newClientForm-name" autoComplete="off" required type="text" className="app-input font-bold" placeholder="Ex: SARL COMATEX" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
                                 </div>
                                 <details open={Boolean(editingClientId)} className="space-y-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700">Informations complémentaires (facultatif)</summary>
                                 <div>
                                     <label htmlFor="newClientForm-contactPerson" className="app-label">Contact principal</label>
-                                    <input id="newClientForm-contactPerson" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                                    <input id="newClientForm-contactPerson" autoComplete="off" type="text" className="app-input" placeholder="Ex: M. Amadou DIOP (Directeur Général)" value={newClientForm.contactPerson} onChange={e => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="newClientForm-taxId" className="app-label">NIF / RCCM</label>
-                                    <input id="newClientForm-taxId" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
+                                    <input id="newClientForm-taxId" autoComplete="off" type="text" className="app-input font-mono" placeholder="Ex: NIF-00482910-A" value={newClientForm.taxId} onChange={e => setNewClientForm({ ...newClientForm, taxId: e.target.value })} />
                                     </div>
                                     <div>
                                         <label htmlFor="newClientForm-phone" className="app-label">Téléphone</label>
-                                    <input id="newClientForm-phone" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                                    <input id="newClientForm-phone" autoComplete="off" type="tel" className="app-input" placeholder="Ex: +221 77 654 32 10" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
                                     </div>
                                 </div>
                                 <div>
                                     <label htmlFor="newClientForm-email" className="app-label">Email</label>
-                                    <input id="newClientForm-email" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                                    <input id="newClientForm-email" autoComplete="off" type="email" className="app-input" placeholder="Ex: contact@entreprise.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="newClientForm-address" className="app-label">Adresse</label>
-                                    <input id="newClientForm-address" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
+                                    <input id="newClientForm-address" autoComplete="off" type="text" className="app-input" placeholder="Ex: Boulevard de la République" value={newClientForm.address} onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })} />
                                     </div>
                                     <div>
                                         <label htmlFor="newClientForm-city" className="app-label">Ville</label>
-                                    <input id="newClientForm-city" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
+                                    <input id="newClientForm-city" autoComplete="off" type="text" className="app-input" value={newClientForm.city} onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })} />
                                     </div>
                                 </div>
                             </details>
@@ -30331,9 +31756,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                     isOpen={isMatCsvModalOpen}
                     onClose={() => setIsMatCsvModalOpen(false)}
                     existingMaterials={materials}
-                    onImportMaterials={(newMats) => {
-                        updateMaterials(newMats);
-                        showToast(`${newMats.length} matières enregistrées dans le catalogue !`, "success");
+                    materiauxUtilises={new Set(recipes.filter(r => r.type === 'material').map(r => String(r.refId)))}
+                    onImportMaterials={(newMats, bilan) => {
+                        if (updateMaterials(newMats) === false) return;
+                        showToast(bilan || `${newMats.length} matières dans le catalogue.`, "success");
                     }}
                 />
             )}
@@ -30566,7 +31992,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                     Régler en-tête, polices, tableau et marges
                                                 </span>
                                             </span>
-                                            <i className="fa-solid fa-arrow-right text-neutral-400 text-xs shrink-0"></i>
+                                            <i className="fa-solid fa-arrow-right text-neutral-500 text-xs shrink-0"></i>
                                         </button>
                                         <button
                                             type="button"
@@ -31000,9 +32426,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             gardent seulement un retour clair vers l'application. */}
                         {accountSettingsTab !== 'entreprise' && (
                             <div className="px-4 sm:px-6 py-3 border-t border-neutral-200/90 bg-white/95 backdrop-blur-xs shadow-2xs flex items-center justify-between gap-3 shrink-0">
+                                {/* Audit UX 220 (C204) — « Synchronisation en temps réel »
+                                    ne disait pas si les champs s'enregistrent seuls ou au
+                                    bouton, et c'était faux en démonstration. Seules les
+                                    rubriques Documents et Facturation s'enregistrent au fil
+                                    de la saisie ; les autres ont leurs propres boutons. */}
                                 <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-500">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span>Synchronisation en temps réel</span>
+                                    {(accountSettingsTab === 'documents' || accountSettingsTab === 'facturation') && <>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                                        <span>{estModeDemo ? 'Chaque modification est enregistrée sur cet appareil' : 'Chaque modification est enregistrée automatiquement'}</span>
+                                    </>}
                                 </div>
                                 <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
                                     <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
@@ -31062,7 +32495,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 )}
                                 <div>
                                     <label htmlFor="company_name" className="app-label">Raison Sociale / Nom Entreprise</label>
-                                    <input id="company_name" disabled={isReadOnlyDueToDowngrade} required type="text" className="app-input font-bold" value={companyInfo.name} onChange={e => updateCompanyInfo({...companyInfo, name: e.target.value})} placeholder="Ex : Entreprise BTP SARL" />
+                                    <input id="company_name" autoComplete="organization" disabled={isReadOnlyDueToDowngrade} required type="text"className="app-input font-bold" value={companyInfo.name} onChange={e => updateCompanyInfo({...companyInfo, name: e.target.value})} placeholder="Ex : Entreprise BTP SARL" />
                                 </div>
                                 <div>
                                     <label htmlFor="company_tagline" className="app-label">Slogan / Activités principales</label>
@@ -31087,16 +32520,16 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="company_phone" className="app-label">Téléphone / WhatsApp</label>
-                                        <input id="company_phone" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.phone} onChange={e => updateCompanyInfo({...companyInfo, phone: e.target.value})} placeholder="+223 XX XX XX XX" />
+                                        <input id="company_phone" autoComplete="tel" inputMode="tel" disabled={isReadOnlyDueToDowngrade} type="text"className="app-input font-bold" value={companyInfo.phone} onChange={e => updateCompanyInfo({...companyInfo, phone: e.target.value})} placeholder="+223 XX XX XX XX" />
                                     </div>
                                     <div>
                                         <label htmlFor="company_email" className="app-label">Email professionnel</label>
-                                        <input id="company_email" disabled={isReadOnlyDueToDowngrade} type="email" className="app-input font-bold" value={companyInfo.email} onChange={e => updateCompanyInfo({...companyInfo, email: e.target.value})} placeholder="contact@entreprise.com" />
+                                        <input id="company_email" autoComplete="email" disabled={isReadOnlyDueToDowngrade} type="email"className="app-input font-bold" value={companyInfo.email} onChange={e => updateCompanyInfo({...companyInfo, email: e.target.value})} placeholder="contact@entreprise.com" />
                                     </div>
                                 </div>
                                 <div>
                                     <label htmlFor="company_address" className="app-label">Adresse Géographique</label>
-                                    <input id="company_address" disabled={isReadOnlyDueToDowngrade} type="text" className="app-input font-bold" value={companyInfo.address} onChange={e => updateCompanyInfo({...companyInfo, address: e.target.value})} placeholder="Bamako, Mali" />
+                                    <input id="company_address" autoComplete="street-address" disabled={isReadOnlyDueToDowngrade} type="text"className="app-input font-bold" value={companyInfo.address} onChange={e => updateCompanyInfo({...companyInfo, address: e.target.value})} placeholder="Bamako, Mali" />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -31169,7 +32602,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 />
                                                 <span className="text-xs text-neutral-500 shrink-0">%</span>
                                                 {!isReadOnlyDueToDowngrade && (
-                                                    <button type="button" onClick={() => removePaymentStage(idx)} className="btn-icon w-8 h-8 text-red-500 shrink-0" aria-label={`Retirer l'étape ${idx + 1}`}>
+                                                    <button type="button" onClick={() => removePaymentStage(idx)} className="btn-icon w-8 h-8 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0" aria-label={`Retirer l'étape ${idx + 1}`}>
                                                         <i className="fa-solid fa-trash-can"></i>
                                                     </button>
                                                 )}
@@ -31187,9 +32620,13 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                             </div>
                             <div className="px-4 sm:px-6 py-3 border-t border-neutral-200/90 bg-white/95 backdrop-blur-xs shadow-2xs flex items-center justify-between gap-3 shrink-0">
+                                {/* Audit UX 220 (C204) — « Synchronisation en temps réel »
+                                    ne disait pas si les champs s'enregistrent seuls ou au
+                                    bouton (ils s'enregistrent seuls), et c'était faux en
+                                    démonstration, où rien n'est synchronisé. */}
                                 <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-500">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span>Synchronisation en temps réel</span>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                                    <span>{estModeDemo ? 'Chaque modification est enregistrée sur cet appareil' : 'Chaque modification est enregistrée automatiquement'}</span>
                                 </div>
                                 <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
                                     <button type="button" onClick={leaveAccountSettings} className="btn-secondary text-xs sm:text-sm py-2 sm:py-2.5 px-3.5 sm:px-4 shadow-2xs hover:bg-neutral-50" aria-label="Retourner à l'application">
@@ -31680,7 +33117,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             </form>
                         </div>
                         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-3 bg-white shrink-0">
-                            <button type="button" onClick={() => setIsRecipeModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
+                            <button type="button" onClick={() => setIsRecipeModalOpen(false)} className="btn-secondary">Annuler</button>
                             {!isReadOnlyDueToDowngrade && <button type="submit" form="recipeForm" className="btn-primary" aria-label="Enregistrer le composant"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                         </div>
                     </div>
@@ -31698,6 +33135,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             e.preventDefault(); 
                             if (isReadOnlyDueToDowngrade) return;
                             if(solutionModalForm.name.trim()){
+                                brouillonOuvrage.marquerEnregistre();
                                 const modesToSave = solutionModalForm.allowedModes && solutionModalForm.allowedModes.length > 0 ? solutionModalForm.allowedModes : ['rectangle'];
                                 if (solutionModalForm.id) {
                                     const nextSols = solutions.map(s => s.id === solutionModalForm.id ? { ...s, name: solutionModalForm.name.trim(), allowedModes: modesToSave } : s);
@@ -31722,6 +33160,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             }
                         }}>
                             <div className="p-6 bg-neutral-50/50 space-y-4">
+                                <AvisBrouillonRestaure brouillon={brouillonOuvrage} />
                                 <div>
                                     <label htmlFor="ouvrage_modal_name" className="app-label">Nom de l'ouvrage dans le catalogue</label>
                                     <input id="ouvrage_modal_name" disabled={isReadOnlyDueToDowngrade} autoFocus required type="text" className="app-input font-bold" value={solutionModalForm.name} onChange={e => setSolutionModalForm({...solutionModalForm, name: e.target.value})} placeholder="Ex: Semelle Béton Armé" />
@@ -31752,7 +33191,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 </div>
                             </div>
                             <div className="px-6 py-4 border-t border-neutral-100 bg-white flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsSolutionModalOpen(false)} className="btn-secondary" aria-label="Annuler la modification (Cmd+Z / Ctrl+Z)" title="Annuler — Cmd+Z (Ctrl+Z)">Annuler</button>
+                                <button type="button" onClick={() => setIsSolutionModalOpen(false)} className="btn-secondary">Annuler</button>
                                 {!isReadOnlyDueToDowngrade && <button type="submit" className="btn-primary" aria-label="Enregistrer l'ouvrage"><i className="fa-solid fa-check mr-1"></i> Enregistrer</button>}
                             </div>
                         </form>
@@ -31874,8 +33313,10 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <thead>
                                             <tr className="text-left text-neutral-500 border-b border-neutral-200">
                                                 <th className="py-2 pr-2 font-bold">Lot</th>
-                                                <th className="py-2 px-2 font-bold text-right">Montant total</th>
-                                                <th className="py-2 px-2 font-bold text-right">Déjà facturé</th>
+                                                {/* Audit UX 220 (C113) — à 390 px, ces deux colonnes sortaient
+                                                    du cadre : elles passent sous le nom du lot sur téléphone. */}
+                                                <th className="hidden sm:table-cell py-2 px-2 font-bold text-right">Montant total</th>
+                                                <th className="hidden sm:table-cell py-2 px-2 font-bold text-right">Déjà facturé</th>
                                                 <th className="py-2 px-2 font-bold text-right w-28">% cumulé</th>
                                                 <th className="py-2 pl-2 font-bold text-right">Cette facture</th>
                                             </tr>
@@ -31883,19 +33324,30 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                         <tbody>
                                             {lignesCalculees.map((lot, idx) => (
                                                 <tr key={lot.lotCode} className="border-b border-neutral-100">
-                                                    <td className="py-2 pr-2 font-semibold text-neutral-800 whitespace-nowrap">{lot.lotName}</td>
-                                                    <td className="py-2 px-2 text-right text-neutral-600 whitespace-nowrap">{formatMoney(lot.totalHT, devise)}</td>
-                                                    <td className="py-2 px-2 text-right text-neutral-500 whitespace-nowrap">{formatMoney(lot.dejaFactureHT, devise)}</td>
+                                                    <td className="py-2 pr-2 font-semibold text-neutral-800 sm:whitespace-nowrap">
+                                                        {lot.lotName}
+                                                        <span className="sm:hidden block text-[11px] font-normal text-neutral-600 mt-0.5">Total {formatMoney(lot.totalHT, devise)} · déjà facturé {formatMoney(lot.dejaFactureHT, devise)}</span>
+                                                    </td>
+                                                    <td className="hidden sm:table-cell py-2 px-2 text-right text-neutral-600 whitespace-nowrap">{formatMoney(lot.totalHT, devise)}</td>
+                                                    <td className="hidden sm:table-cell py-2 px-2 text-right text-neutral-500 whitespace-nowrap">{formatMoney(lot.dejaFactureHT, devise)}</td>
                                                     <td className="py-2 px-2 text-right">
+                                                        {/* Audit UX 220 (C058) — la valeur était bornée À CHAQUE
+                                                            frappe : effacer donnait « 0 » (ou le minimum), puis
+                                                            taper 4 et 0 affichait « 040 ». La saisie reste libre
+                                                            pendant la frappe (le total suit la valeur bornée) et
+                                                            n'est ramenée dans [minimum, 100] qu'à la sortie du champ. */}
                                                         <input
-                                                            type="number" min={lot.pctCumuleMin} max="100" step="1"
+                                                            type="number" min={lot.pctCumuleMin} max="100" step="1" inputMode="numeric"
+                                                            aria-label={`% cumulé facturé — ${lot.lotName}`}
                                                             className="app-input text-right py-1.5 px-2 text-xs font-bold w-20"
-                                                            value={lot.pctCumule}
+                                                            value={lot.pctSaisie ?? String(lot.pctCumule)}
                                                             onChange={e => {
-                                                                const brut = Number(e.target.value);
+                                                                const saisie = e.target.value;
+                                                                const brut = saisie.trim() === '' ? NaN : Number(saisie);
                                                                 const val = Number.isFinite(brut) ? Math.max(lot.pctCumuleMin, Math.min(100, brut)) : lot.pctCumuleMin;
-                                                                setSituationModal(s => ({ ...s, lots: s.lots.map((l, i) => i === idx ? { ...l, pctCumule: val } : l) }));
+                                                                setSituationModal(s => ({ ...s, lots: s.lots.map((l, i) => i === idx ? { ...l, pctCumule: val, pctSaisie: saisie } : l) }));
                                                             }}
+                                                            onBlur={() => setSituationModal(s => ({ ...s, lots: s.lots.map((l, i) => i === idx ? { ...l, pctSaisie: undefined } : l) }))}
                                                         />
                                                     </td>
                                                     <td className="py-2 pl-2 text-right font-bold text-neutral-900 whitespace-nowrap">{formatMoney(lot.montantSituation, devise)}</td>
@@ -32118,7 +33570,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                 : 'bg-white/60 hover:bg-white border-neutral-200 text-neutral-600 hover:text-neutral-900 font-semibold'
                                         }`}
                                     >
-                                        <i className={`fa-solid ${onglet.icone} ${actif ? 'text-brand-600' : 'text-neutral-400'}`}></i>
+                                        <i className={`fa-solid ${onglet.icone} ${actif ? 'text-brand-600' : 'text-neutral-500'}`}></i>
                                         {onglet.libelle}
                                     </button>
                                 );
@@ -32396,7 +33848,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                             <div className="mx-auto max-w-5xl space-y-8">
                                 {!documentVignette && (
                                     <p className="app-card p-4 text-[11px] text-neutral-600 leading-relaxed">
-                                        <i className="fa-solid fa-circle-info mr-1.5 text-neutral-400"></i>
+                                        <i className="fa-solid fa-circle-info mr-1.5 text-neutral-500"></i>
                                         Les aperçus montreront {estFactureCat ? 'votre propre facture dès qu’une première sera émise' : 'votre propre devis dès qu’un premier sera enregistré'}.
                                         En attendant, chaque modèle est décrit par ce qu’il change.
                                     </p>
@@ -32692,7 +34144,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             </p>
                                         </div>
 
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-1">Police et couleurs</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 pt-1">Police et couleurs</p>
                                         <div className="py-2">
                                             <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Police du document</span>
                                             <div className="grid grid-cols-2 gap-2">
@@ -32862,7 +34314,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                             </p>
                                         </div>
 
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 pt-4 mt-3 border-t border-neutral-100">Mise en page</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 pt-4 mt-3 border-t border-neutral-100">Mise en page</p>
                                         <label className="block py-2">
                                             <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
                                                 <span>Arrondi des angles</span>
@@ -33093,7 +34545,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                                                         className="w-4 h-4 accent-brand-600 shrink-0"
                                                                     />
                                                                 ) : (
-                                                                    <i className="fa-solid fa-lock text-[10px] text-neutral-400 w-4 text-center shrink-0"
+                                                                    <i className="fa-solid fa-lock text-[10px] text-neutral-500 w-4 text-center shrink-0"
                                                                        title="Colonne toujours affichée"></i>
                                                                 )}
                                                                 <input
@@ -33229,7 +34681,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                                 <div className="mx-auto" style={{ maxWidth: '820px' }}>
                                     <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
                                         Aperçu {documentApercu ? `— ${(editeEstFacture ? documentApercu.numero : documentApercu.number) || ''} ` : ' '}
-                                        <span className="ml-2 font-semibold normal-case tracking-normal text-neutral-400">
+                                        <span className="ml-2 font-semibold normal-case tracking-normal text-neutral-500">
                                             {c.general.formatPapier || 'A4'} {(c.general.orientation || 'portrait') === 'paysage' ? 'paysage' : 'portrait'}
                                         </span>
                                     </p>
@@ -33449,6 +34901,14 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 </div>
             )}
 
+            {/* Audit UX 220 (C127) — régions d'annonce PERMANENTES. Une région
+                live créée en même temps que son texte n'est pas annoncée de façon
+                fiable par les lecteurs d'écran : elles existent désormais dès le
+                premier rendu et seul leur contenu change. La notification
+                visible est donc masquée aux technologies d'assistance pour ne pas
+                être lue deux fois. */}
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{toast && toast.type !== 'error' ? toast.message : ''}</div>
+            <div className="sr-only" role="alert" aria-live="assertive" aria-atomic="true">{toast && toast.type === 'error' ? toast.message : ''}</div>
             {toast && (() => {
                 // Audit UX (2026-08-31) — position. La notification était ancrée en
                 // bas (bottom-32 / lg:bottom-52) et se posait donc exactement sur la
@@ -33505,7 +34965,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                    rendre traversante suffit — ce bloc ne contient aucun élément
                    interactif, seulement une icône et un texte, donc rien à
                    réactiver en `pointer-events-auto`. */
-                <div key={toast.id} role={estErreur ? 'alert' : 'status'} aria-live={estErreur ? 'assertive' : 'polite'} className="pointer-events-none fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[140] max-w-sm border border-neutral-700 animate-slide-up">
+                <div key={toast.id} aria-hidden="true" data-toast={toast.type || 'success'} className="pointer-events-none fixed bottom-52 md:bottom-auto md:top-4 left-0 md:left-1/2 right-0 md:right-auto md:-translate-x-1/2 mx-4 md:mx-0 bg-neutral-900 text-white px-5 py-4 rounded-xl shadow-floating flex items-center gap-4 z-[230] max-w-sm border border-neutral-700 animate-slide-up">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${pastille}`}>
                         <i className={`fa-solid ${icone}`}></i>
                     </div>
@@ -33524,6 +34984,10 @@ function AppShell() {
     const [session, setSession] = useState(null);
     const [initialAuthMode, setInitialAuthMode] = useState('login');
     const [authLoading, setAuthLoading] = useState(true);
+    // Audit UX 220 (C103) — distinguer la déconnexion demandée de celle subie
+    // (jeton expiré, déconnexion depuis un autre appareil) pour l'expliquer.
+    const deconnexionDemandee = useRef(false);
+    const [avisFinSession, setAvisFinSession] = useState(null);
 
     const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
     const [newPasswordInput, setNewPasswordInput] = useState('');
@@ -33562,6 +35026,16 @@ function AppShell() {
                 setSession(current => event === 'INITIAL_SESSION' && current?.user?.id === 'guest' && !s ? current : s);
                 if (event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);
+                }
+                if (event === 'SIGNED_OUT') {
+                    // Le contexte de stockage gardait l'utilisateur et
+                    // l'organisation de la session close : un écran suivant
+                    // (connexion, démonstration) pouvait relire ses données.
+                    LS.setContext('guest', null);
+                    if (!deconnexionDemandee.current) {
+                        setAvisFinSession('Votre session a pris fin (expiration ou déconnexion depuis un autre appareil). Reconnectez-vous : vos données enregistrées sont conservées.');
+                    }
+                    deconnexionDemandee.current = false;
                 }
             }
         });
@@ -33614,7 +35088,7 @@ function AppShell() {
                 <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
                     <h2 className="text-2xl font-bold text-neutral-900 mb-2">Nouveau mot de passe</h2>
                     <p className="text-neutral-500 text-sm mb-6">Saisissez votre nouveau mot de passe pour votre compte ikadevis.</p>
-                    {recoveryError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold mb-4">{recoveryError}</div>}
+                    {recoveryError && <div role="alert" className="bg-red-50 text-red-700 p-3 rounded-xl text-xs font-bold mb-4">{recoveryError}</div>}
                     {recoverySuccess ? (
                         <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl text-sm font-bold text-center">
                             <i className="fa-solid fa-circle-check text-2xl mb-2 block text-emerald-500"></i>
@@ -33622,12 +35096,21 @@ function AppShell() {
                         </div>
                     ) : (
                         <form onSubmit={handleUpdatePassword} className="space-y-4">
-                            <input type="password" value={newPasswordInput} onChange={e=>setNewPasswordInput(e.target.value)} required minLength={8} placeholder="Minimum 8 caractères" className="w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+                            {/* Audit UX 220 (C102/C110) — champ libellé à l'écran, et une sortie : sans elle,
+                                qui avait ouvert le lien par erreur restait bloqué sur cet écran. */}
+                            <label htmlFor="recovery-password" className="app-label">Nouveau mot de passe (8 caractères minimum)</label>
+                            <input id="recovery-password" type="password" autoComplete="new-password" value={newPasswordInput} onChange={e=>setNewPasswordInput(e.target.value)} required minLength={8} placeholder="Minimum 8 caractères" className="w-full border border-neutral-400 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
                             <button type="submit" disabled={recoverySaving} className="btn-primary w-full py-3.5 disabled:opacity-60">
                                 {recoverySaving ? (
                                     <><i className="fa-solid fa-circle-notch fa-spin mr-2"></i>Enregistrement…</>
                                 ) : 'Enregistrer le mot de passe'}
                             </button>
+                            <button type="button" disabled={recoverySaving} className="btn-secondary w-full py-3" onClick={() => {
+                                deconnexionDemandee.current = true;
+                                if (sb) sb.auth.signOut();
+                                setIsPasswordRecovery(false);
+                                setSession(null);
+                            }}>Annuler et revenir à la connexion</button>
                         </form>
                     )}
                 </div>
@@ -33636,12 +35119,14 @@ function AppShell() {
     }
 
     if (!session) {
-        return <AuthScreen initialMode={initialAuthMode} onAuthSuccess={(s) => setSession(s)} />;
+        return <AuthScreen initialMode={initialAuthMode} avisInitial={avisFinSession} onAuthSuccess={(s) => { setAvisFinSession(null); setSession(s); }} />;
     }
 
     return <UserSchemaGate supabaseSession={session} supabaseClient={sb} onSignOut={(signup) => {
         setInitialAuthMode(signup === true ? 'signup' : 'login');
-        if (sb && session?.user?.id !== 'guest') sb.auth.signOut();
+        setAvisFinSession(null);
+        if (sb && session?.user?.id !== 'guest') { deconnexionDemandee.current = true; sb.auth.signOut(); }
+        LS.setContext('guest', null);
         setSession(null);
     }} />;
 }

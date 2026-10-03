@@ -52,7 +52,7 @@ export async function run() {
                 });
             }).observe(document.body, { childList: true, subtree: true, characterData: true });
             const b = [...document.querySelectorAll('button')]
-                .find((x) => /Télécharger le devis en PDF/.test(x.getAttribute('aria-label') || ''));
+                .find((x) => /Télécharger le (devis en PDF|PDF du devis)/.test(x.getAttribute('aria-label') || ''));
             if (!b) return { erreur: 'bouton introuvable' };
             b.click();
             await new Promise((r) => setTimeout(r, 15000));

@@ -1,0 +1,850 @@
+{
+  "date": "2026-10-03T01:56:14.525Z",
+  "captures": [
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C118_menu_plus_reste_ouvert_390.png"
+  ],
+  "mesures": {
+    "C112": {
+      "inventaire": {
+        "1440#dashboard": [
+          "Tout",
+          "Ce mois",
+          "Trimestre",
+          "Année",
+          "Modifier et personnaliser le tableau de bord",
+          "Créer mon premier devis",
+          "Nouveau devis Chiffrer un projet",
+          "Nouveau chantier Ouvrir un dossier",
+          "Ajouter un client Répertoire & NIF",
+          "Créer facture Facturer un acompte",
+          "Voir tous",
+          "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
+          "Construction Siège NBB Société Immobilière NBB En cours",
+          "Rénovation Façades ACM & Enseignes LED Résidence Les Almadie"
+        ],
+        "1440#chantiers": [
+          "Créer un nouveau chantier",
+          "Rechercher un chantier",
+          "Sélectionner le chantier Construction Siège NBB",
+          "Sélectionner le chantier Rénovation Façades ACM & Enseignes "
+        ],
+        "1440#clients": [
+          "Créer un nouveau client",
+          "Rechercher un client",
+          "Sélectionner Société Immobilière NBB",
+          "Sélectionner Résidence Les Almadies"
+        ],
+        "1440#chiffrage": [
+          "Annuler la modification (Cmd+Z / Ctrl+Z)",
+          "Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)",
+          "Statut du devis",
+          "Nouveau devis",
+          "Aperçu Client & PDF",
+          "Enregistrer",
+          "Plus d'actions sur le devis",
+          "Client du devis",
+          "Chantier du devis",
+          "Importer Excel / CSV",
+          "Ajouter mon premier ouvrage",
+          "01 Lot 01 — Travaux 0 FCFA",
+          "Ajouter un lot au devis",
+          "Synthèse des lots",
+          "Options du lot",
+          "Renommer le lot Lot 01 — Travaux",
+          "Rechercher un ouvrage à ajouter",
+          "Choisir dans le Catalogue complet",
+          "Ajouter une ligne libre",
+          "COEFF K",
+          "Taux de TVA du devis"
+        ],
+        "1440#devis": [
+          "Nouveau devis",
+          "Rechercher dans les devis",
+          "Filtrer les devis par statut",
+          "Trier les devis",
+          "Afficher le devis DEV-2026-001 de Société Immobilière NBB",
+          "Supprimer le devis DEV-2026-001"
+        ],
+        "1440#factures": [
+          "Exporter les factures en CSV",
+          "Nouveau — créer une facture depuis un devis",
+          "Rechercher dans les factures",
+          "Filtres avancés",
+          "Toutes 0",
+          "Non réglées 0",
+          "Partielles 0",
+          "Soldées 0",
+          "Avoirs 0",
+          "Brouillons 0"
+        ],
+        "1440#depenses": [
+          "Nouvelle dépense",
+          "Rentabilité du chantier · prévu et dépenses réelles",
+          "Chantier à analyser",
+          "Devis de référence",
+          "Ajouter un compte",
+          "Toutes",
+          "À payer",
+          "Payées",
+          "Avances à rembourser",
+          "Rechercher une dépense"
+        ],
+        "1440#ouvrages": [
+          "Créer un nouvel ouvrage au catalogue",
+          "Rechercher un ouvrage dans le catalogue",
+          "Sélectionner l'ouvrage Fouilles en Pleine Masse & Terrasseme",
+          "Modifier Fouilles en Pleine Masse & Terrassement BTP",
+          "Dupliquer Fouilles en Pleine Masse & Terrassement BTP",
+          "Supprimer Fouilles en Pleine Masse & Terrassement BTP",
+          "Sélectionner l'ouvrage Béton Armé pour Fondations, Poteaux &",
+          "Modifier Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Dupliquer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Supprimer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Sélectionner l'ouvrage Maçonnerie en Murs d’Agglos de 15",
+          "Modifier Maçonnerie en Murs d’Agglos de 15",
+          "Dupliquer Maçonnerie en Murs d’Agglos de 15",
+          "Supprimer Maçonnerie en Murs d’Agglos de 15",
+          "Sélectionner l'ouvrage Revêtement Sol en Carrelage Grès Céra",
+          "Modifier Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Dupliquer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Supprimer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Sélectionner l'ouvrage Cloison de Distribution Placostil BA1",
+          "Modifier Cloison de Distribution Placostil BA13 72/48 avec L",
+          "Dupliquer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Supprimer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Sélectionner l'ouvrage Faux-Plafond Suspendu BA13 sur Ossatu",
+          "Modifier Faux-Plafond Suspendu BA13 sur Ossature Métallique ",
+          "Dupliquer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Supprimer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Sélectionner l'ouvrage Installation Électrique Basse Tension",
+          "Modifier Installation Électrique Basse Tension & Tableaux",
+          "Dupliquer Installation Électrique Basse Tension & Tableaux",
+          "Supprimer Installation Électrique Basse Tension & Tableaux",
+          "Sélectionner l'ouvrage Réseau Plomberie Sanitaire Multicouch",
+          "Modifier Réseau Plomberie Sanitaire Multicouche & Évacuation",
+          "Dupliquer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Supprimer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Sélectionner l'ouvrage Peinture Murale Satinée BTP",
+          "Modifier Peinture Murale Satinée BTP",
+          "Dupliquer Peinture Murale Satinée BTP",
+          "Supprimer Peinture Murale Satinée BTP",
+          "Sélectionner l'ouvrage Enduit Ciment Hydrofuge 2 Passes Exté",
+          "Modifier Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérieu",
+          "Dupliquer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Supprimer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Sélectionner l'ouvrage Habillage Façade en Panneaux Alucobon",
+          "Modifier Habillage Façade en Panneaux Alucobond / ACM",
+          "Dupliquer Habillage Façade en Panneaux Alucobond / ACM",
+          "Supprimer Habillage Façade en Panneaux Alucobond / ACM",
+          "Sélectionner l'ouvrage Menuiserie Aluminium & Baie Vitrée Co",
+          "Modifier Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Dupliquer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Supprimer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Sélectionner l'ouvrage Garde-Corps Métallerie (Plan de Débit",
+          "Modifier Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Dupliquer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Supprimer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Sélectionner l'ouvrage Dressing Menuiserie sur Mesure (Caiss",
+          "Modifier Dressing Menuiserie sur Mesure (Caissons)",
+          "Dupliquer Dressing Menuiserie sur Mesure (Caissons)",
+          "Supprimer Dressing Menuiserie sur Mesure (Caissons)",
+          "Sélectionner l'ouvrage Panneau avec cadre métallique et auto",
+          "Modifier Panneau avec cadre métallique et autocollant",
+          "Dupliquer Panneau avec cadre métallique et autocollant",
+          "Supprimer Panneau avec cadre métallique et autocollant",
+          "Sélectionner l'ouvrage Caisson Enseigne Lumineuse LED Double",
+          "Modifier Caisson Enseigne Lumineuse LED Double Face",
+          "Dupliquer Caisson Enseigne Lumineuse LED Double Face",
+          "Supprimer Caisson Enseigne Lumineuse LED Double Face",
+          "Sélectionner l'ouvrage Lettres Reliefs Découpées Plexiglas R",
+          "Modifier Lettres Reliefs Découpées Plexiglas Rétroéclairées ",
+          "Dupliquer Lettres Reliefs Découpées Plexiglas Rétroéclairées",
+          "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
+        ],
+        "1440#materiaux": [
+          "Voir la liste des matières premières",
+          "Voir la liste de la main-d'œuvre",
+          "Importer un fichier CSV",
+          "Exporter au format CSV",
+          "Ajouter une nouvelle matière",
+          "Rechercher dans les ressources",
+          "Sélectionner Tube carré acier 25x25 (Cadres & Renforts)",
+          "Sélectionner Autocollant imprimé VINYL HD Lamination",
+          "Sélectionner Plaque de fond tôle galvanisée 10/10e",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur",
+          "Sélectionner Peinture Murale Satinée Lessivable",
+          "Sélectionner Béton prêt à l’emploi B25 dosé 350 kg/m³",
+          "Sélectionner Aciers Haute Adhérence FeE500 (HA 8 à 16)",
+          "Sélectionner Agglos creux de 15x20x40 standard",
+          "Sélectionner Ciment CPJ 42.5 pour mortier de pose",
+          "Sélectionner Carrelage Grès Cérame 60x60 Poli Rectifié",
+          "Sélectionner Colle carrelage C2TE & Joint hydrofuge",
+          "Sélectionner Profilé Aluminium thermolaqué noir/blanc",
+          "Sélectionner Vitrage feuilleté de sécurité 44.2",
+          "Sélectionner Modules LED étanches IP67 1.2W Grand Angle",
+          "Sélectionner Alimentation étanche LED MeanWell 12V 200W",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm",
+          "Sélectionner Bâche PVC 510g M1 Anti-reflet HD",
+          "Sélectionner Tube carré galvanisé 40x40 Ossature Façade",
+          "Sélectionner Chevilles chimiques & Fixations M10",
+          "Sélectionner Plaque de plâtre BA13 standard 2.50m x 1.20m",
+          "Sélectionner Ossature métallique Rails R48 & Montants M48",
+          "Sélectionner Laine de verre acoustique et thermique 45mm",
+          "Sélectionner Enduit à joint et bande microperforée",
+          "Sélectionner Tube multicouche gainé Ø16/20 pour eau chaude/f",
+          "Sélectionner Tube PVC évacuation sanitaire Ø40/Ø100",
+          "Sélectionner Câble cuivre d’alimentation R2V 3G2.5mm²",
+          "Sélectionner Disjoncteur divisionnaire 16A/20A Phase+Neutre",
+          "Sélectionner Mortier d’enduit ciment hydrofuge prêt à gâcher",
+          "Sélectionner Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²)",
+          "Sélectionner Tube carré acier 25x25 (Débit précis, Barre 6m)",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur (Calepinage",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm (Calep"
+        ],
+        "1440#abonnement": [
+          "Retourner au tableau de bord",
+          "Mensuel",
+          "Annuel −20 %",
+          "Votre formule actuelle",
+          "Choisir Standard",
+          "Choisir Entreprise",
+          "Retourner à l'application"
+        ],
+        "1440#settings/entreprise": [
+          "Retourner au tableau de bord",
+          "Ex : Entreprise BTP SARL",
+          "Ex : Travaux Publics & Bâtiment",
+          "+223 XX XX XX XX",
+          "contact@entreprise.com",
+          "Bamako, Mali",
+          "Ex : 084123456A",
+          "Ex : MA.BKO.2024.B.1234",
+          "Devise principale",
+          "30 jours",
+          "Intitulé de l'étape 1",
+          "Pourcentage de l'étape 1",
+          "Retirer l'étape 1",
+          "Intitulé de l'étape 2",
+          "Pourcentage de l'étape 2",
+          "Retirer l'étape 2",
+          "Intitulé de l'étape 3",
+          "Pourcentage de l'étape 3",
+          "Retirer l'étape 3",
+          "Intitulé de l'étape 4",
+          "Pourcentage de l'étape 4",
+          "Retirer l'étape 4",
+          "Ajouter une étape",
+          "Retourner à l'application",
+          "Enregistrer les paramètres de l'entreprise"
+        ],
+        "1440|entete": [
+          "ikadevis - Tableau de bord",
+          "Recherche globale dans ikadevis",
+          "État de connexion : Démonstration",
+          "IKADEVIS BTP — changer d'organisation",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ],
+        "390#dashboard": [
+          "Tout",
+          "Ce mois",
+          "Trimestre",
+          "Année",
+          "Modifier et personnaliser le tableau de bord",
+          "Créer mon premier devis",
+          "Nouveau devis Chiffrer un projet",
+          "Nouveau chantier Ouvrir un dossier",
+          "Ajouter un client Répertoire & NIF",
+          "Créer facture Facturer un acompte",
+          "Voir tous",
+          "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
+          "Construction Siège NBB Société Immobilière NBB En cours",
+          "Rénovation Façades ACM & Enseignes LED Résidence Les Almadie"
+        ],
+        "390#chantiers": [
+          "Créer un nouveau chantier",
+          "Rechercher un chantier",
+          "Sélectionner le chantier Construction Siège NBB",
+          "Sélectionner le chantier Rénovation Façades ACM & Enseignes "
+        ],
+        "390#clients": [
+          "Créer un nouveau client",
+          "Rechercher un client",
+          "Sélectionner Société Immobilière NBB",
+          "Sélectionner Résidence Les Almadies"
+        ],
+        "390#chiffrage": [
+          "Statut du devis",
+          "Plus d'actions sur le devis",
+          "Client du devis",
+          "Chantier du devis",
+          "Importer Excel / CSV",
+          "Ajouter mon premier ouvrage",
+          "Afficher le détail du chiffrage (déboursé, coefficient K, ma",
+          "Aperçu PDF",
+          "Enregistrer"
+        ],
+        "390#devis": [
+          "Nouveau devis",
+          "Rechercher dans les devis",
+          "Filtrer les devis par statut",
+          "Trier les devis",
+          "Afficher le devis DEV-2026-001 de Société Immobilière NBB",
+          "Supprimer le devis DEV-2026-001"
+        ],
+        "390#factures": [
+          "Exporter les factures en CSV",
+          "Nouveau — créer une facture depuis un devis",
+          "Rechercher dans les factures",
+          "Filtres avancés",
+          "Toutes 0",
+          "Non réglées 0",
+          "Partielles 0",
+          "Soldées 0",
+          "Avoirs 0",
+          "Brouillons 0"
+        ],
+        "390#depenses": [
+          "Nouvelle dépense",
+          "Rentabilité du chantier · prévu et dépenses réelles",
+          "Chantier à analyser",
+          "Devis de référence",
+          "Ajouter un compte",
+          "Toutes",
+          "À payer",
+          "Payées",
+          "Avances à rembourser",
+          "Rechercher une dépense"
+        ],
+        "390#ouvrages": [
+          "Créer un nouvel ouvrage au catalogue",
+          "Rechercher un ouvrage dans le catalogue",
+          "Sélectionner l'ouvrage Fouilles en Pleine Masse & Terrasseme",
+          "Modifier Fouilles en Pleine Masse & Terrassement BTP",
+          "Dupliquer Fouilles en Pleine Masse & Terrassement BTP",
+          "Supprimer Fouilles en Pleine Masse & Terrassement BTP",
+          "Sélectionner l'ouvrage Béton Armé pour Fondations, Poteaux &",
+          "Modifier Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Dupliquer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Supprimer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Sélectionner l'ouvrage Maçonnerie en Murs d’Agglos de 15",
+          "Modifier Maçonnerie en Murs d’Agglos de 15",
+          "Dupliquer Maçonnerie en Murs d’Agglos de 15",
+          "Supprimer Maçonnerie en Murs d’Agglos de 15",
+          "Sélectionner l'ouvrage Revêtement Sol en Carrelage Grès Céra",
+          "Modifier Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Dupliquer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Supprimer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Sélectionner l'ouvrage Cloison de Distribution Placostil BA1",
+          "Modifier Cloison de Distribution Placostil BA13 72/48 avec L",
+          "Dupliquer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Supprimer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Sélectionner l'ouvrage Faux-Plafond Suspendu BA13 sur Ossatu",
+          "Modifier Faux-Plafond Suspendu BA13 sur Ossature Métallique ",
+          "Dupliquer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Supprimer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Sélectionner l'ouvrage Installation Électrique Basse Tension",
+          "Modifier Installation Électrique Basse Tension & Tableaux",
+          "Dupliquer Installation Électrique Basse Tension & Tableaux",
+          "Supprimer Installation Électrique Basse Tension & Tableaux",
+          "Sélectionner l'ouvrage Réseau Plomberie Sanitaire Multicouch",
+          "Modifier Réseau Plomberie Sanitaire Multicouche & Évacuation",
+          "Dupliquer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Supprimer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Sélectionner l'ouvrage Peinture Murale Satinée BTP",
+          "Modifier Peinture Murale Satinée BTP",
+          "Dupliquer Peinture Murale Satinée BTP",
+          "Supprimer Peinture Murale Satinée BTP",
+          "Sélectionner l'ouvrage Enduit Ciment Hydrofuge 2 Passes Exté",
+          "Modifier Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérieu",
+          "Dupliquer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Supprimer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Sélectionner l'ouvrage Habillage Façade en Panneaux Alucobon",
+          "Modifier Habillage Façade en Panneaux Alucobond / ACM",
+          "Dupliquer Habillage Façade en Panneaux Alucobond / ACM",
+          "Supprimer Habillage Façade en Panneaux Alucobond / ACM",
+          "Sélectionner l'ouvrage Menuiserie Aluminium & Baie Vitrée Co",
+          "Modifier Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Dupliquer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Supprimer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Sélectionner l'ouvrage Garde-Corps Métallerie (Plan de Débit",
+          "Modifier Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Dupliquer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Supprimer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Sélectionner l'ouvrage Dressing Menuiserie sur Mesure (Caiss",
+          "Modifier Dressing Menuiserie sur Mesure (Caissons)",
+          "Dupliquer Dressing Menuiserie sur Mesure (Caissons)",
+          "Supprimer Dressing Menuiserie sur Mesure (Caissons)",
+          "Sélectionner l'ouvrage Panneau avec cadre métallique et auto",
+          "Modifier Panneau avec cadre métallique et autocollant",
+          "Dupliquer Panneau avec cadre métallique et autocollant",
+          "Supprimer Panneau avec cadre métallique et autocollant",
+          "Sélectionner l'ouvrage Caisson Enseigne Lumineuse LED Double",
+          "Modifier Caisson Enseigne Lumineuse LED Double Face",
+          "Dupliquer Caisson Enseigne Lumineuse LED Double Face",
+          "Supprimer Caisson Enseigne Lumineuse LED Double Face",
+          "Sélectionner l'ouvrage Lettres Reliefs Découpées Plexiglas R",
+          "Modifier Lettres Reliefs Découpées Plexiglas Rétroéclairées ",
+          "Dupliquer Lettres Reliefs Découpées Plexiglas Rétroéclairées",
+          "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
+        ],
+        "390#materiaux": [
+          "Voir la liste des matières premières",
+          "Voir la liste de la main-d'œuvre",
+          "Importer un fichier CSV",
+          "Exporter au format CSV",
+          "Ajouter une nouvelle matière",
+          "Rechercher dans les ressources",
+          "Sélectionner Tube carré acier 25x25 (Cadres & Renforts)",
+          "Sélectionner Autocollant imprimé VINYL HD Lamination",
+          "Sélectionner Plaque de fond tôle galvanisée 10/10e",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur",
+          "Sélectionner Peinture Murale Satinée Lessivable",
+          "Sélectionner Béton prêt à l’emploi B25 dosé 350 kg/m³",
+          "Sélectionner Aciers Haute Adhérence FeE500 (HA 8 à 16)",
+          "Sélectionner Agglos creux de 15x20x40 standard",
+          "Sélectionner Ciment CPJ 42.5 pour mortier de pose",
+          "Sélectionner Carrelage Grès Cérame 60x60 Poli Rectifié",
+          "Sélectionner Colle carrelage C2TE & Joint hydrofuge",
+          "Sélectionner Profilé Aluminium thermolaqué noir/blanc",
+          "Sélectionner Vitrage feuilleté de sécurité 44.2",
+          "Sélectionner Modules LED étanches IP67 1.2W Grand Angle",
+          "Sélectionner Alimentation étanche LED MeanWell 12V 200W",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm",
+          "Sélectionner Bâche PVC 510g M1 Anti-reflet HD",
+          "Sélectionner Tube carré galvanisé 40x40 Ossature Façade",
+          "Sélectionner Chevilles chimiques & Fixations M10",
+          "Sélectionner Plaque de plâtre BA13 standard 2.50m x 1.20m",
+          "Sélectionner Ossature métallique Rails R48 & Montants M48",
+          "Sélectionner Laine de verre acoustique et thermique 45mm",
+          "Sélectionner Enduit à joint et bande microperforée",
+          "Sélectionner Tube multicouche gainé Ø16/20 pour eau chaude/f",
+          "Sélectionner Tube PVC évacuation sanitaire Ø40/Ø100",
+          "Sélectionner Câble cuivre d’alimentation R2V 3G2.5mm²",
+          "Sélectionner Disjoncteur divisionnaire 16A/20A Phase+Neutre",
+          "Sélectionner Mortier d’enduit ciment hydrofuge prêt à gâcher",
+          "Sélectionner Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²)",
+          "Sélectionner Tube carré acier 25x25 (Débit précis, Barre 6m)",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur (Calepinage",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm (Calep"
+        ],
+        "390#abonnement": [
+          "Retourner au tableau de bord",
+          "Section des paramètres",
+          "Mensuel",
+          "Annuel −20 %",
+          "Votre formule actuelle",
+          "Choisir Standard",
+          "Choisir Entreprise",
+          "Retourner à l'application"
+        ],
+        "390#settings/entreprise": [
+          "Retourner au tableau de bord",
+          "Section des paramètres",
+          "Ex : Entreprise BTP SARL",
+          "Ex : Travaux Publics & Bâtiment",
+          "+223 XX XX XX XX",
+          "contact@entreprise.com",
+          "Bamako, Mali",
+          "Ex : 084123456A",
+          "Ex : MA.BKO.2024.B.1234",
+          "Devise principale",
+          "30 jours",
+          "Intitulé de l'étape 1",
+          "Pourcentage de l'étape 1",
+          "Retirer l'étape 1",
+          "Intitulé de l'étape 2",
+          "Pourcentage de l'étape 2",
+          "Retirer l'étape 2",
+          "Intitulé de l'étape 3",
+          "Pourcentage de l'étape 3",
+          "Retirer l'étape 3",
+          "Intitulé de l'étape 4",
+          "Pourcentage de l'étape 4",
+          "Retirer l'étape 4",
+          "Ajouter une étape",
+          "Retourner à l'application",
+          "Enregistrer les paramètres de l'entreprise"
+        ],
+        "390|entete": [
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ]
+      },
+      "absentsA390": {
+        "#dashboard": [],
+        "#chantiers": [],
+        "#clients": [],
+        "#chiffrage": [
+          "Annuler la modification (Cmd+Z / Ctrl+Z)",
+          "Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)",
+          "Nouveau devis",
+          "Aperçu Client & PDF",
+          "01 Lot 01 — Travaux 0 FCFA",
+          "Ajouter un lot au devis",
+          "Synthèse des lots",
+          "Options du lot",
+          "Renommer le lot Lot 01 — Travaux",
+          "Rechercher un ouvrage à ajouter",
+          "Choisir dans le Catalogue complet",
+          "Ajouter une ligne libre",
+          "COEFF K",
+          "Taux de TVA du devis"
+        ],
+        "#devis": [],
+        "#factures": [],
+        "#depenses": [],
+        "#ouvrages": [],
+        "#materiaux": [],
+        "#abonnement": [],
+        "#settings/entreprise": []
+      },
+      "editeur390": {
+        "editeur": {
+          "Client du devis": true,
+          "Chantier du devis": true,
+          "Ajouter un lot": true,
+          "Importer Excel / CSV": true,
+          "Taux de TVA": true,
+          "Aperçu PDF": true,
+          "Enregistrer": true,
+          "Ajouter un ouvrage": true,
+          "Ligne libre": true,
+          "Options du lot": true,
+          "Renommer le lot": true,
+          "Synthèse des lots": true,
+          "Annuler / Rétablir (historique)": false
+        },
+        "annulerRetablir": [
+          {
+            "nom": "Annuler la modification (Cmd+Z",
+            "visible": false,
+            "affichage": "none"
+          },
+          {
+            "nom": "Rétablir la modification (Cmd+",
+            "visible": false,
+            "affichage": "none"
+          }
+        ]
+      },
+      "surfaces390": {
+        "entete": [
+          "Aller au contenu principal",
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ],
+        "menuProfil": [
+          "Aller au contenu principal",
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur",
+          "Formule & Facturation Starter",
+          "Mon Profil & Compte",
+          "Paramètres Entreprise",
+          "Se déconnecter"
+        ],
+        "menuMobile": [
+          "Fermer le menu",
+          "Formule STARTER 14j restants 1/3 devis créés • Pas",
+          "Chantiers & Projets",
+          "Clients & CRM",
+          "Dépenses & fournisseurs",
+          "Ouvrages",
+          "Prix des Matériaux",
+          "Modèles de documents PDF & en-tête",
+          "Paramètres Entreprise & compte",
+          "Installer l'application sur mobile",
+          "Se déconnecter"
+        ]
+      },
+      "essai": 1,
+      "dureeS": 107
+    },
+    "C118": {
+      "fermetures": {
+        "bouton « Fermer le menu »": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 248
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "toucher le voile au-dessus du panneau": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 252
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "touche Échap": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 254
+          },
+          "fondPendant": 0,
+          "navOk": true
+        },
+        "choix d’une destination (Clients & CRM)": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 253
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "profil toucher à l’extérieur": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 250
+          }
+        },
+        "profil touche Échap": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 253
+          }
+        }
+      },
+      "base": {
+        "defileur": true,
+        "pt": {
+          "x": 195,
+          "y": 288
+        },
+        "scrollTop": 0,
+        "max": 1316,
+        "body": "hidden",
+        "html": "visible",
+        "voile": null,
+        "molette": 300,
+        "doigt": 257
+      },
+      "menuPlus": {
+        "ouvert": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresToucherExterieur": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "defilementFiche": {
+          "avant": 0,
+          "apres": 299
+        },
+        "apresDefilement": {
+          "haut": -62,
+          "bas": 60,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresEchap": null,
+        "ficheApresEchap": false,
+        "pointExterieur": {
+          "x": 26,
+          "y": 75.59375
+        }
+      },
+      "picker": {
+        "picker": {
+          "plein": 772
+        },
+        "retour": "Retour au devis",
+        "apresPicker": {
+          "ouvert": false,
+          "entete": "sticky"
+        },
+        "navApres": true
+      },
+      "essai": 1,
+      "dureeS": 65
+    }
+  },
+  "resultats": [
+    {
+      "label": "C112 · Écrans de liste (8) : toute action visible à 1440 existe aussi à 390",
+      "pass": true,
+      "detail": "aucune action de contenu perdue"
+    },
+    {
+      "label": "C112 · Réglages : les 10 sections du menu latéral restent accessibles à 390 (liste déroulante « Section des paramètres »)",
+      "pass": true,
+      "detail": "absents à 390 : 0 entrées de menu ; remplacées par : Section des paramètres"
+    },
+    {
+      "label": "C112 · 390 px : les 10 destinations principales s’atteignent au doigt (barre du bas ou menu)",
+      "pass": true,
+      "detail": "10/10 atteintes (Accueil, Mes devis, Chantiers, Factures, Clients, Dépenses, Ouvrages, Ressources, Nouveau devis, Paramètres)"
+    },
+    {
+      "label": "C112 · 390 px : formule / abonnement accessible depuis le menu",
+      "pass": true,
+      "detail": "bannière « Formule STARTER 14j restants 1/3 devis créés • Pas »"
+    },
+    {
+      "label": "C112 · Éditeur de devis à 390 : client, chantier, lots, ouvrages, TVA, aperçu, enregistrement, annuler/rétablir",
+      "pass": false,
+      "detail": "absents : Annuler / Rétablir (historique) — boutons d’historique présents dans le DOM mais masqués ([{\"nom\":\"Annuler la modification (Cmd+Z\",\"visible\":false,\"affichage\":\"none\"},{\"nom\":\"Rétablir la modification (Cmd+\",\"visible\":false,\"affichage\":\"none\"}])"
+    },
+    {
+      "label": "C112 · 390 px : changement d’organisation (présent dans la barre du haut à 1440) reste accessible",
+      "pass": false,
+      "detail": "barre du haut 1440 : « IKADEVIS BTP — changer d'organisation » ; à 390 cherché dans barre du haut, menu du profil, menu mobile : absent (menu profil : Aller au contenu principal · Formule & Facturation Starter · Mon Profil & Compte · Paramètres Entreprise · Se déconnecter)"
+    },
+    {
+      "label": "C112 · 390 px : recherche globale (présente à 1440) ou équivalent",
+      "pass": false,
+      "detail": "à 1440 : « Recherche globale dans ikadevis » ; à 390 : absente (seules les recherches propres à chaque liste existent)"
+    },
+    {
+      "label": "C112 · Fiche devis à 390 : statut, client/chantier, envoyer, PDF, facturer, modifier, partager, signer, imprimer",
+      "pass": true,
+      "detail": "10/10 présentes"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par bouton « Fermer le menu » : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 248 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par toucher le voile au-dessus du panneau : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 252 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par touche Échap : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 254 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok, fond défilé pendant l’ouverture : 0 px"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par choix d’une destination (Clients & CRM) : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par toucher à l’extérieur, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 250 px, voile aucun"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par touche Échap, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 253 px, voile aucun"
+    },
+    {
+      "label": "C118 · Fenêtre « Nouveau client » fermée par Échap : aucun verrou de défilement ne subsiste (écran suivant défilable)",
+      "pass": true,
+      "detail": "fermée true, molette 300, doigt 252, body hidden"
+    },
+    {
+      "label": "C118 · Menu ⋮ « Plus d’actions » (fiche devis, 390) : se ferme au toucher extérieur",
+      "pass": false,
+      "detail": "ouvert {\"haut\":237,\"bas\":359,\"classe\":\"saved-quote-mobile-more-menu absolute le\"} ; après toucher sur le texte « Société Immobilière NBB » : TOUJOURS OUVERT ; après glisser au doigt (fiche 0 → 299 px) : toujours ouvert (-62–60 px)"
+    },
+    {
+      "label": "C118 · Menu ⋮ « Plus d’actions » : Échap ferme le menu sans fermer la fiche devis",
+      "pass": false,
+      "detail": "après Échap : menu fermé, fiche devis FERMÉE (retour à la liste)"
+    },
+    {
+      "label": "C118 · Sélecteur plein écran « Client du devis » : se ferme par son bouton retour, l’en-tête retrouve sa position, la navigation répond",
+      "pass": true,
+      "detail": "{\"picker\":{\"plein\":772},\"retour\":\"Retour au devis\",\"apresPicker\":{\"ouvert\":false,\"entete\":\"sticky\"},\"navApres\":true}"
+    },
+    {
+      "label": "Isolement · aucune requête tentée hors 127.0.0.1",
+      "pass": true,
+      "detail": "aucune tentative"
+    },
+    {
+      "label": "Console · aucune erreur JavaScript ni dialogue natif pendant la sonde",
+      "pass": true,
+      "detail": "aucune"
+    }
+  ]
+}

@@ -1,0 +1,651 @@
+[
+  {
+    "largeur": "desktop-1440",
+    "route": "(atterrissage)",
+    "h1": "Espace IKADEVIS BTP",
+    "hash": "",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      },
+      {
+        "texte": "•",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 31
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#dashboard",
+    "h1": "Espace IKADEVIS BTP",
+    "hash": "#dashboard",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      },
+      {
+        "texte": "•",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 31
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#chantiers",
+    "h1": "Chantiers",
+    "hash": "#chantiers",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 20
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#clients",
+    "h1": "Clients",
+    "hash": "#clients",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 20
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#chiffrage",
+    "h1": "Chiffrage",
+    "hash": "#chiffrage",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      },
+      {
+        "balise": "div",
+        "texte": "Lot 01 — Travaux",
+        "classe": "flex items-center gap-1.5 group cursor-pointer min-w-0"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 39
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#devis",
+    "h1": "Mes devis",
+    "hash": "#devis",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 22
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#factures",
+    "h1": "Factures",
+    "hash": "#factures",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 27
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#depenses",
+    "h1": "Dépenses & fournisseurs",
+    "hash": "#depenses",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      },
+      {
+        "texte": "Enregistré sur cet appareil.",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.56,
+        "seuil": 4.5,
+        "px": 11
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 26
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#ouvrages",
+    "h1": "Catalogue des Ouvrages",
+    "hash": "#ouvrages",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 88
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#materiaux",
+    "h1": "Ressources & Prix",
+    "hash": "#materiaux",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 56
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#abonnement",
+    "h1": "Paramètres du compte",
+    "hash": "#abonnement",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      },
+      {
+        "texte": "Actuelle",
+        "couleur": "rgb(100, 118, 129)",
+        "ratio": 4.23,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 34
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "#settings/entreprise",
+    "h1": "Paramètres du compte",
+    "hash": "#settings/entreprise",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [
+      {
+        "balise": "div",
+        "texte": "Formule Starter Voir offres 14j restants 1/3 devis",
+        "classe": "p-2.5 rounded-xl bg-brand-50/70 border border-brand-200/80 t"
+      }
+    ],
+    "contrastes": [
+      {
+        "texte": "⌘K",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 52
+  },
+  {
+    "largeur": "desktop-1440",
+    "route": "(bilan)",
+    "requetesExternesBloquees": [],
+    "consoleErreurs": []
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "(atterrissage)",
+    "h1": "Espace IKADEVIS BTP",
+    "hash": "",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "•",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      },
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 25
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#dashboard",
+    "h1": "Espace IKADEVIS BTP",
+    "hash": "#dashboard",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "•",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      },
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 25
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#chantiers",
+    "h1": "Chantiers",
+    "hash": "#chantiers",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 14
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#clients",
+    "h1": "Clients",
+    "hash": "#clients",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 14
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#chiffrage",
+    "h1": "Chiffrage",
+    "hash": "#chiffrage",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 21
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#devis",
+    "h1": "Mes devis",
+    "hash": "#devis",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 16
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#factures",
+    "h1": "Factures",
+    "hash": "#factures",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 21
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#depenses",
+    "h1": "Dépenses & fournisseurs",
+    "hash": "#depenses",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Enregistré sur cet appareil.",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.56,
+        "seuil": 4.5,
+        "px": 11
+      },
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 20
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#ouvrages",
+    "h1": "Catalogue des Ouvrages",
+    "hash": "#ouvrages",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 80
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#materiaux",
+    "h1": "Ressources & Prix",
+    "hash": "#materiaux",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 48
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#abonnement",
+    "h1": "Paramètres du compte",
+    "hash": "#abonnement",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      },
+      {
+        "texte": "Actuelle",
+        "couleur": "rgb(100, 118, 129)",
+        "ratio": 4.23,
+        "seuil": 4.5,
+        "px": 9
+      }
+    ],
+    "nbContrastes": 2,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 18
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "#settings/entreprise",
+    "h1": "Paramètres du compte",
+    "hash": "#settings/entreprise",
+    "debordementHorizontal": 0,
+    "cliquablesNonFocalisables": [],
+    "contrastes": [
+      {
+        "texte": "Menu",
+        "couleur": "rgb(143, 156, 168)",
+        "ratio": 2.8,
+        "seuil": 4.5,
+        "px": 10
+      }
+    ],
+    "nbContrastes": 1,
+    "idsEnDouble": [],
+    "imagesSansAlt": 0,
+    "nbInteractions": 36
+  },
+  {
+    "largeur": "mobile-390",
+    "route": "(bilan)",
+    "requetesExternesBloquees": [],
+    "consoleErreurs": []
+  }
+]

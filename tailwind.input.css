@@ -36,7 +36,7 @@
 .ik-sub-plan-featured:before { content:''; position:absolute; height:3px; background:var(--sub-blue); left:20px; right:20px; top:-1px; }
 .ik-sub-plan-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:24px; }
 .ik-sub-plan h3 { font-size:17px; font-weight:650; letter-spacing:-.3px; margin:0; }
-.ik-sub-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:4px; color:var(--sub-muted); background:#f0f3f5; white-space:nowrap; }
+.ik-sub-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:4px; color:#44515e; background:#f0f3f5; white-space:nowrap; } /* audit UX 2026-10 : var(--sub-muted) donnait 4,23:1 sur ce fond */
 .ik-sub-tag-blue { color:#245aa5; background:#e7effb; }
 .ik-sub-plan-description { color:var(--sub-muted); font-size:12px; line-height:1.6; margin:10px 0 16px; min-height:39px; }
 .ik-sub-price { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:7px; row-gap:2px; }
@@ -145,3 +145,25 @@
 @media(prefers-reduced-motion:reduce) { .ik-sub * { transition:none !important; scroll-behavior:auto !important; } }
 
 @media(min-width:1000px) { .ik-sub-method-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+/* Audit UX 220 (C124/C132, WCAG 2.4.7 / 2.4.13) — au clavier, une partie des
+   commandes n'avait AUCUN indicateur de focus (logo « Tableau de bord »,
+   « Filtrer les devis par statut », « Statut du devis »…) : elles portaient
+   outline-none sans anneau de remplacement. Indicateur par défaut, contrasté
+   (≥ 3:1), pour tout élément interactif qui ne déclare pas son propre anneau
+   de focus — ceux qui en ont un gardent le leur. */
+:where(button, a[href], summary, select, [role="button"], [role="tab"], [role="option"], [tabindex]:not([tabindex="-1"])):focus-visible:not([class*="focus:ring"]):not([class*="focus-visible:ring"]):not([class*="focus-visible:outline"]) {
+    outline: 2px solid #0064e0;
+    outline-offset: 2px;
+}
+
+/* Titres et zones focalisés PAR PROGRAMME (tabindex="-1" : après un changement
+   d'écran, le lien d'évitement…) : ce ne sont pas des commandes, le cadre par
+   défaut du navigateur y ressemblait à une sélection. */
+[tabindex="-1"]:focus { outline: none; }
+
+/* Animation décorative du tableau de bord (pastille « en direct ») : arrêtée
+   quand l'utilisateur demande moins de mouvement (C086, WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+    .animate-pulse, .animate-page-spin, .animate-page-progress { animation: none !important; }
+}

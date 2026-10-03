@@ -44,8 +44,20 @@
                 const k = this.getKey(resourceKey, userId, orgId);
                 let raw = this.storage.getItem(k);
 
-                // Rétrocompatibilité : si la nouvelle clé est vide, rechercher dans les clés historiques
-                if (raw === null || raw === '[]' || raw === '{}') {
+                // Audit UX 2026-10 (UX-P0-01) — clients, chantiers, factures,
+                // finances et dépenses étaient écrits sous `costcalc:<org>:<org>:<clé>`
+                // (identifiant d'organisation passé en paramètre utilisateur). Les
+                // appels sont corrigés. Ces anciennes clés ne sont PAS relues : leur
+                // propriétaire ne peut pas être établi (démonstration ou compte réel
+                // resté hors ligne sur `org_default` écrivaient la même clé), et deux
+                // revues ont montré que les relire faisait passer des données d'un
+                // espace à l'autre — jusqu'au serveur d'une vraie organisation. Elles
+                // restent intactes sur l'appareil (cf. detectLegacyData / quarantaine).
+                //
+                // Rétrocompatibilité des formats plus anciens — seulement si RIEN
+                // n'est stocké : un « [] » est un choix de l'utilisateur (liste
+                // vidée), pas une absence à combler.
+                if (raw === null) {
                     const uid = userId || this.userId;
                     const oid = orgId || this.activeOrgId;
 
@@ -56,11 +68,14 @@
                         candidateKeys.push(`costcalc:org_default:${resourceKey}`);
                         candidateKeys.push(`costcalc:${resourceKey}`);
                     } else {
+                        // Compte réel : jamais les clés de démonstration ni celles
+                        // d'une organisation provisoire (`org_default`, `org_local_*`) —
+                        // un compte à sa première connexion en héritait, puis les
+                        // poussait dans sa vraie organisation (synchroniserReferentiel).
                         candidateKeys.push(`costcalc:${uid}:${resourceKey}`);
-                        if (oid && oid !== 'guest') {
+                        if (oid && oid !== 'guest' && oid !== 'org_default' && !String(oid).startsWith('org_local_')) {
                             candidateKeys.push(`costcalc:${oid}:${resourceKey}`);
                         }
-                        candidateKeys.push(`costcalc:org_default:${resourceKey}`);
                     }
 
                     for (const candidateKey of candidateKeys) {

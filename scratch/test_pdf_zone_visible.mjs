@@ -87,9 +87,18 @@ export async function run() {
         // présente mais de taille nulle — pour éprouver réellement le correctif
         // plutôt que de compter sur un ordre favorable.
         if (retenue.nbZones > 1) {
+            // Audit UX 220 — ce montage masquait la PREMIÈRE zone… qui est la
+            // zone visible (ordre réel : [653×1328, 0×0]) : plus aucune zone
+            // rendue, l'échec était donc légitime. Le test passait seulement
+            // parce que la notification d'échec disparaissait à 3,5 s, avant
+            // la lecture à 6 s. On reproduit maintenant le piège décrit
+            // ci-dessus : une zone vide placée AVANT la zone visible.
             await page.evaluate(() => {
-                const premiere = document.querySelector('[data-zone-impression]');
-                if (premiere) { premiere.dataset.testMasque = '1'; premiere.style.display = 'none'; }
+                const leurre = document.createElement('div');
+                leurre.setAttribute('data-zone-impression', 'leurre');
+                leurre.dataset.testMasque = '1';
+                leurre.style.display = 'none';
+                document.body.prepend(leurre);
             });
             await wait(300);
             const forcee = await page.evaluate(async () => {
@@ -105,7 +114,7 @@ export async function run() {
                 `message=« ${forcee.slice(0, 90)} »`);
             await page.evaluate(() => {
                 const e = document.querySelector('[data-test-masque="1"]');
-                if (e) { e.style.display = ''; delete e.dataset.testMasque; }
+                if (e) e.remove();
             });
             await wait(300);
         }

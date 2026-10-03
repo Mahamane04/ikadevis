@@ -102,7 +102,17 @@
     }
     async function readFile(file){
         if(file.size>MAX_BYTES)throw new Error('Maximum 5 Mo par fichier.');
-        if(/\.(csv|tsv|txt)$/i.test(file.name))return [{name:file.name,rows:parseText(await file.text())}];
+        // Audit UX 220 (C164) — un CSV enregistré par Excel sous Windows est en
+        // Windows-1252 : lu en UTF-8, « Désignation » devenait « D�signation »
+        // et entrait tel quel dans le devis. UTF-8 strict d'abord, sinon
+        // Windows-1252, et la feuille porte l'information pour l'afficher.
+        if(/\.(csv|tsv|txt)$/i.test(file.name)){
+            const octets=await file.arrayBuffer();
+            let texte,encodage='utf-8';
+            try{texte=new TextDecoder('utf-8',{fatal:true}).decode(octets);}
+            catch(_){texte=new TextDecoder('windows-1252').decode(octets);encodage='windows-1252';}
+            return [{name:file.name,rows:parseText(texte.replace(/^﻿/,'')),encodage}];
+        }
         if(!/\.(xlsx|xls)$/i.test(file.name))throw new Error('Choisissez un fichier Excel (.xlsx, .xls) ou CSV.');
         const XLSX=await loadXlsx();
         const book=XLSX.read(await file.arrayBuffer(),{type:'array',cellHTML:false,cellFormula:false,sheetRows:MAX_ROWS+101});

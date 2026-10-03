@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=a52ce8aee5">
+    <link rel="stylesheet" href="tailwind.css?v=85afd81a70">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -51,11 +51,14 @@
             overflow: hidden;
         }
 
+        /* Audit UX 220 (C132, WCAG 1.4.11) — la bordure #e4e9ee faisait 1,2:1
+           sur fond blanc : la limite d'un champ vide était presque invisible.
+           #7f8c9a : 3,4:1 sur blanc, 3,1:1 sur le gris de fond. */
         .app-input, .app-select {
             width: 100%;
             padding: 0.75rem 1rem;
             background-color: #ffffff;
-            border: 1px solid #e4e9ee;
+            border: 1px solid #7f8c9a;
             border-radius: 0.75rem;
             font-size: 0.875rem;
             color: #1c2b33;
@@ -64,9 +67,9 @@
         }
         .app-input:focus, .app-select:focus {
             background-color: #ffffff;
-            border-color: #0082fb;
+            border-color: #0064e0;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 130, 251, 0.16);
+            box-shadow: 0 0 0 3px rgba(0, 100, 224, 0.4);
         }
 
         /* Les utilitaires de padding Tailwind perdaient contre la règle
@@ -189,10 +192,15 @@
         .btn-icon {
             width: 2.5rem; height: 2.5rem;
             display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 0.5rem; color: #8f9ca8;
+            border-radius: 0.5rem; color: #64748b; /* était #8f9ca8 : 2,8:1, sous le seuil de 3:1 d'une icône (1.4.11) */
             transition: all 0.15s ease;
         }
-        .btn-icon:hover { background-color: #fee2e2; color: #dc2626; }
+        /* Audit UX 220 (C050) — ce survol était ROUGE pour toutes les icônes-
+           boutons : « Paramètres du compte », « Fermer »… prenaient la couleur
+           de la suppression. Survol neutre par défaut, en :where() (spécificité
+           nulle) pour que les boutons destructeurs gardent leur rouge
+           explicite (hover:bg-red-50 hover:text-red-600). */
+        :where(.btn-icon):hover { background-color: #f1f5f8; color: #1c2b33; }
 
         .app-card {
             background-color: white;
@@ -660,9 +668,27 @@
            Cette feuille est chargée APRÈS tailwind.css : à spécificité égale
            elle gagne, donc `p-2` posé sur le même élément ne réécrase pas ce
            padding-bottom. Piège documenté au § 37.3. */
-        .clear-totals-bar { padding-bottom: 15rem; }
+        /* Switch to cards when the actual work area is narrow (including the split inspector). */
+        .quote-items-container { container-type: inline-size; }
+        @container (max-width: 680px) {
+            [data-testid="quote-items-mobile"] { display: block; }
+            [data-testid="quote-items-desktop"] { display: none; }
+        }
+        /* Pricing controls: usable hit areas and persistent keyboard focus. */
+        .quote-vat-select { min-height: 36px; max-width: 100%; padding: 6px 8px; border: 1px solid #94a3b8; border-radius: 8px; background: #fff; color: #334155; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .quote-margin-edit { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 32px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; white-space: normal; }
+        .quote-margin-edit:hover { background: #eff6ff; border-color: #2563eb; }
+        .quote-vat-select:focus-visible, .quote-margin-edit:focus-visible { outline: 2px solid #005fcc; outline-offset: 2px; }
+        @media (max-width: 767px) {
+            .quote-vat-select, .quote-margin-edit { min-height: 44px; }
+            .quote-vat-control > div { flex-wrap: wrap; }
+            .quote-mobile-metrics > div { overflow-wrap: anywhere; }
+            .quote-mobile-metrics > div:last-child { grid-column: 1 / -1; justify-content: space-between; }
+            .quote-totals-bascule { min-width: 44px; min-height: 44px; }
+        }
+        .clear-totals-bar { padding-bottom: calc(var(--quote-totals-height, 144px) + 6rem); }
         @media (min-width: 768px) {
-            .clear-totals-bar { padding-bottom: 6rem; }
+            .clear-totals-bar { padding-bottom: calc(var(--quote-totals-height, 72px) + 1.5rem); }
         }
 
         /* PWA MOBILE — cette couche ne s'applique qu'aux écrans de téléphone.
@@ -1126,6 +1152,34 @@
                 background: white !important;
             }
             @page { size: A4; margin: 1cm; }
+            /* Audit UX 220 (C169) — un devis de 151 lignes n'imprimait que sa
+               première page : les ANCÊTRES de la zone (coque de 100dvh en
+               overflow:hidden, fenêtre de détail en position:fixed et
+               overflow:auto, animations à transform) la rognaient à la
+               hauteur de l'écran. À l'impression seulement, ces ancêtres —
+               et eux seuls — redeviennent des boîtes ordinaires. */
+            html, body, *:has([data-zone-impression]) {
+                height: auto !important; max-height: none !important; min-height: 0 !important;
+                overflow: visible !important; position: static !important;
+                transform: none !important; animation: none !important;
+            }
+            /* Le reste de l'application, seulement INVISIBLE, gardait sa
+               hauteur une fois ses ancêtres libérés : pages blanches en fin
+               d'impression. Ce qui n'est ni une zone, ni dans une zone, ni un
+               ancêtre de zone sort du flux. */
+            body *:not([data-zone-impression]):not([data-zone-impression] *):not(:has([data-zone-impression])) {
+                display: none !important;
+            }
+            /* Revue 2 (E3) — quittance ouverte par-dessus la facture : deux
+               zones affichées. `beforeprint` ÉCARTE les documents que
+               l'utilisateur ne regarde pas (voir zoneImpressionCible) : la
+               zone, et tout ce qui ne contient que des zones écartées. On ne
+               désigne pas la zone gardée : à la largeur de la feuille, c'est
+               parfois sa copie jumelle qui s'affiche. */
+            [data-impression-exclue],
+            body *:has([data-impression-exclue]):not(:has([data-zone-impression]:not([data-impression-exclue]))) {
+                display: none !important;
+            }
         }
         /* Audit UI/UX septembre 2026 : priorité au travail en cours. */
         [data-testid="quote-items-desktop"] input[data-col="price"] { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -1201,18 +1255,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/payment-data-safety.js?v=d3a7b1b6cf"></script>
-    <script src="js/catalog-persistence.js?v=d3a7b1b6cf"></script>
-    <script src="js/tenant-persistence.js?v=000ddd755e"></script>
-    <script src="js/finance-core.js?v=d3a7b1b6cf"></script>
-    <script src="js/quote-import.js?v=d3a7b1b6cf"></script>
-    <script src="js/project-profitability.js?v=d3a7b1b6cf"></script>
-    <script src="js/calc-engine.js?v=d3a7b1b6cf"></script>
-    <script src="js/utils.js?v=d3a7b1b6cf"></script>
-    <script src="js/quote-templates.js?v=d3a7b1b6cf"></script>
-    <script src="js/saspay-service.js?v=d3a7b1b6cf"></script>
-    <script src="js/subscription-service.js?v=d3a7b1b6cf"></script>
-    <script src="app.compiled.js?v=d3a7b1b6cf"></script>
+    <script src="js/payment-data-safety.js?v=d0b6781e24"></script>
+    <script src="js/catalog-persistence.js?v=d0b6781e24"></script>
+    <script src="js/tenant-persistence.js?v=d0b6781e24"></script>
+    <script src="js/finance-core.js?v=d0b6781e24"></script>
+    <script src="js/quote-import.js?v=d0b6781e24"></script>
+    <script src="js/project-profitability.js?v=d0b6781e24"></script>
+    <script src="js/calc-engine.js?v=d0b6781e24"></script>
+    <script src="js/utils.js?v=d0b6781e24"></script>
+    <script src="js/quote-templates.js?v=d0b6781e24"></script>
+    <script src="js/saspay-service.js?v=d0b6781e24"></script>
+    <script src="js/subscription-service.js?v=d0b6781e24"></script>
+    <script src="app.compiled.js?v=d0b6781e24"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
@@ -1229,12 +1283,18 @@
                     console.warn('[PWA] service worker non enregistré :', err && err.message);
                 });
             });
-            var refreshing = false;
+            // Audit UX 220 (C143) — à la PREMIÈRE visite, la prise de contrôle
+            // du service worker (clients.claim) déclenchait un rechargement :
+            // la page repartait à zéro pendant que l'utilisateur saisissait,
+            // alors qu'elle venait du réseau et n'avait rien de périmé.
+            // Pour une MISE À JOUR, aucun rechargement d'office non plus (un
+            // rechargement différé au masquage de l'onglet perdait encore une
+            // fenêtre en cours de saisie) : l'application l'annonce, et la
+            // nouvelle version s'applique au chargement suivant.
+            var avaitUnControleur = !!navigator.serviceWorker.controller;
             navigator.serviceWorker.addEventListener('controllerchange', function () {
-                if (!refreshing) {
-                    refreshing = true;
-                    window.location.reload();
-                }
+                if (!avaitUnControleur) { avaitUnControleur = true; return; }
+                try { window.dispatchEvent(new CustomEvent('ikadevis:nouvelle-version')); } catch (_) { /* navigateur ancien : rien */ }
             });
         }
     </script>

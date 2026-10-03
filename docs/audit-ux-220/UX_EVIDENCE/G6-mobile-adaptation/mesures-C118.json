@@ -1,0 +1,234 @@
+{
+  "date": "2026-10-03T01:52:48.687Z",
+  "captures": [
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C118_menu_plus_reste_ouvert_390.png"
+  ],
+  "mesures": {
+    "C118": {
+      "fermetures": {
+        "bouton « Fermer le menu »": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 247
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "toucher le voile au-dessus du panneau": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 256
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "touche Échap": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 253
+          },
+          "fondPendant": 0,
+          "navOk": true
+        },
+        "choix d’une destination (Clients & CRM)": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 253
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "profil toucher à l’extérieur": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 253
+          }
+        },
+        "profil touche Échap": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 252
+          }
+        }
+      },
+      "base": {
+        "defileur": true,
+        "pt": {
+          "x": 195,
+          "y": 288
+        },
+        "scrollTop": 0,
+        "max": 1316,
+        "body": "hidden",
+        "html": "visible",
+        "voile": null,
+        "molette": 300,
+        "doigt": 252
+      },
+      "menuPlus": {
+        "ouvert": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresToucherExterieur": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresEchap": null,
+        "apresDefilement": null,
+        "pointExterieur": {
+          "x": 26,
+          "y": 75.59375
+        }
+      },
+      "picker": {
+        "picker": {
+          "plein": 772
+        },
+        "retour": "Retour au devis",
+        "apresPicker": {
+          "ouvert": false,
+          "entete": "sticky"
+        },
+        "navApres": true
+      },
+      "essai": 1,
+      "dureeS": 65
+    }
+  },
+  "resultats": [
+    {
+      "label": "C118 · Menu mobile fermé par bouton « Fermer le menu » : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 247 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par toucher le voile au-dessus du panneau : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 256 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par touche Échap : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok, fond défilé pendant l’ouverture : 0 px"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par choix d’une destination (Clients & CRM) : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 253 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par toucher à l’extérieur, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 253 px, voile aucun"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par touche Échap, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 252 px, voile aucun"
+    },
+    {
+      "label": "C118 · Fenêtre « Nouveau client » fermée par Échap : aucun verrou de défilement ne subsiste (écran suivant défilable)",
+      "pass": true,
+      "detail": "fermée true, molette 300, doigt 253, body hidden"
+    },
+    {
+      "label": "C118 · Menu ⋮ « Plus d’actions » (fiche devis, 390) : se ferme au toucher extérieur ou à Échap",
+      "pass": false,
+      "detail": "ouvert {\"haut\":237,\"bas\":359,\"classe\":\"saved-quote-mobile-more-menu absolute le\"} ; après toucher extérieur TOUJOURS OUVERT ; après Échap fermé ; après glisser au doigt fermé"
+    },
+    {
+      "label": "C118 · Sélecteur plein écran « Client du devis » : se ferme par son bouton retour, l’en-tête retrouve sa position, la navigation répond",
+      "pass": true,
+      "detail": "{\"picker\":{\"plein\":772},\"retour\":\"Retour au devis\",\"apresPicker\":{\"ouvert\":false,\"entete\":\"sticky\"},\"navApres\":true}"
+    },
+    {
+      "label": "Isolement · aucune requête tentée hors 127.0.0.1",
+      "pass": true,
+      "detail": "aucune tentative"
+    },
+    {
+      "label": "Console · aucune erreur JavaScript ni dialogue natif pendant la sonde",
+      "pass": true,
+      "detail": "aucune"
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "date": "2026-10-03T01:47:33.032Z",
+  "captures": [
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_liste_devis_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_liste_devis_768.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_document_lecture_mobile_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_document_papier_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_facturer_tableau_390_avant.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_facturer_tableau_390_apres_glisser.png"
+  ],
+  "mesures": {
+    "C113": {
+      "listeDevis": {
+        "390x844": {
+          "mode": "cartes",
+          "debordementDoc": 0,
+          "dansEcran": true,
+          "contenu": {
+            "client": true,
+            "chantier": true,
+            "numero": true,
+            "date": true,
+            "montant": true,
+            "statut": true,
+            "supprimer": true
+          }
+        },
+        "768x1024": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [
+            "ACTIONS"
+          ],
+          "defilementH": 0,
+          "debordementDoc": 0
+        },
+        "1024x768": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [],
+          "defilementH": 0,
+          "debordementDoc": 0
+        },
+        "1440x900": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [],
+          "defilementH": 0,
+          "debordementDoc": 0
+        }
+      },
+      "documentLecture": {
+        "mode": "lecture mobile",
+        "largeur": 366,
+        "gauche": 12,
+        "droite": 378,
+        "vw": 390,
+        "debordementDoc": 0,
+        "cellules": 25,
+        "etiquetees": 12,
+        "lignes": 4,
+        "defileurH": null,
+        "policeMinPx": 13.1,
+        "aide": false,
+        "metaViewport": "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content"
+      },
+      "documentPapier": {
+        "mode": "papier",
+        "largeur": 740,
+        "gauche": 12,
+        "droite": 752,
+        "vw": 390,
+        "debordementDoc": 0,
+        "cellules": 25,
+        "etiquetees": 0,
+        "lignes": 4,
+        "defileurH": {
+          "clientWidth": 390,
+          "scrollWidth": 764,
+          "overflowX": "auto"
+        },
+        "policeMinPx": 10.9,
+        "aide": true,
+        "metaViewport": "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content"
+      },
+      "facturer390": {
+        "avant": {
+          "overflowX": "auto",
+          "clientWidth": 310,
+          "scrollWidth": 564,
+          "scrollLeft": 0,
+          "zone": {
+            "gauche": 40,
+            "droite": 350
+          },
+          "ths": [
+            {
+              "t": "Lot",
+              "visible": 1
+            },
+            {
+              "t": "Montant total",
+              "visible": 0.67
+            },
+            {
+              "t": "Déjà facturé",
+              "visible": 0
+            },
+            {
+              "t": "% cumulé",
+              "visible": 0
+            },
+            {
+              "t": "Cette facture",
+              "visible": 0
+            }
+          ],
+          "champs": [
+            {
+              "visible": 0,
+              "gauche": 453
+            },
+            {
+              "visible": 0,
+              "gauche": 453
+            },
+            {
+              "visible": 0,
+              "gauche": 453
+            }
+          ],
+          "premiereColonneFigee": false,
+          "indiceDefilement": false
+        },
+        "apres": {
+          "overflowX": "auto",
+          "clientWidth": 310,
+          "scrollWidth": 564,
+          "scrollLeft": 254,
+          "zone": {
+            "gauche": 40,
+            "droite": 350
+          },
+          "ths": [
+            {
+              "t": "Lot",
+              "visible": 0
+            },
+            {
+              "t": "Montant total",
+              "visible": 0.87
+            },
+            {
+              "t": "Déjà facturé",
+              "visible": 1
+            },
+            {
+              "t": "% cumulé",
+              "visible": 1
+            },
+            {
+              "t": "Cette facture",
+              "visible": 1
+            }
+          ],
+          "champs": [
+            {
+              "visible": 1,
+              "gauche": 199
+            },
+            {
+              "visible": 1,
+              "gauche": 199
+            },
+            {
+              "visible": 1,
+              "gauche": 199
+            }
+          ],
+          "premiereColonneFigee": false,
+          "indiceDefilement": false
+        }
+      },
+      "essai": 1,
+      "dureeS": 34
+    }
+  },
+  "resultats": [
+    {
+      "label": "C113 · Liste des devis 390×844 : cartes reprenant les 6 colonnes du tableau",
+      "pass": true,
+      "detail": "{\"mode\":\"cartes\",\"debordementDoc\":0,\"dansEcran\":true,\"contenu\":{\"client\":true,\"chantier\":true,\"numero\":true,\"date\":true,\"montant\":true,\"statut\":true,\"supprimer\":true}}"
+    },
+    {
+      "label": "C113 · Liste des devis 768×1024 : tableau 6 colonnes entièrement lisible",
+      "pass": false,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[\"ACTIONS\"],\"defilementH\":0,\"debordementDoc\":0}"
+    },
+    {
+      "label": "C113 · Liste des devis 1024×768 : tableau 6 colonnes entièrement lisible",
+      "pass": true,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[],\"defilementH\":0,\"debordementDoc\":0}"
+    },
+    {
+      "label": "C113 · Liste des devis 1440×900 : tableau 6 colonnes entièrement lisible",
+      "pass": true,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[],\"defilementH\":0,\"debordementDoc\":0}"
+    },
+    {
+      "label": "C113 · Fiche devis 390 (lecture mobile) : chaque ligne du tableau devient une carte étiquetée, sans défilement horizontal",
+      "pass": true,
+      "detail": "{\"mode\":\"lecture mobile\",\"largeur\":366,\"gauche\":12,\"droite\":378,\"vw\":390,\"debordementDoc\":0,\"cellules\":25,\"etiquetees\":12,\"lignes\":4,\"defileurH\":null,\"policeMinPx\":13.1,\"aide\":false,\"metaViewport\":\"width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content\"}"
+    },
+    {
+      "label": "C113 · Fiche devis 390 (mise en page imprimable) : document A4 dans une zone à défilement horizontal propre, consigne affichée, zoom non bloqué",
+      "pass": true,
+      "detail": "{\"mode\":\"papier\",\"largeur\":740,\"gauche\":12,\"droite\":752,\"vw\":390,\"debordementDoc\":0,\"cellules\":25,\"etiquetees\":0,\"lignes\":4,\"defileurH\":{\"clientWidth\":390,\"scrollWidth\":764,\"overflowX\":\"auto\"},\"policeMinPx\":10.9,\"aide\":true,\"metaViewport\":\"width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content\"} · glisser au doigt : scrollLeft {\"avant\":0,\"apres\":216}"
+    },
+    {
+      "label": "C113 · « Facturer DEV-… » à 390 : le tableau des lots (5 colonnes) reste dans une zone défilante horizontalement",
+      "pass": true,
+      "detail": "zone 310 px pour 564 px ; glisser au doigt → scrollLeft 254"
+    },
+    {
+      "label": "C113 · « Facturer DEV-… » à 390 : colonnes utiles visibles sans geste caché, et la colonne « Lot » reste lisible pendant le défilement",
+      "pass": false,
+      "detail": "au repos : colonnes masquées Montant total (67 %), Déjà facturé (0 %), % cumulé (0 %), Cette facture (0 %) ; champs « % cumulé » visibles 0/3 ; indice de défilement affiché : non ; après glisser : « Lot » visible à 0 %, colonne figée : non"
+    },
+    {
+      "label": "Isolement · aucune requête tentée hors 127.0.0.1",
+      "pass": true,
+      "detail": "aucune tentative"
+    },
+    {
+      "label": "Console · aucune erreur JavaScript ni dialogue natif pendant la sonde",
+      "pass": true,
+      "detail": "aucune"
+    }
+  ]
+}

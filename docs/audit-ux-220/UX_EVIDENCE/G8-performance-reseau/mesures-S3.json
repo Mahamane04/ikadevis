@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-03T01:52:21.596Z",
+  "seuils": {
+    "lcpBonMs": 2500,
+    "lcpMauvaisMs": 4000,
+    "inpMs": 200,
+    "retourVisibleMs": 100,
+    "ecranMs": 1000,
+    "cls": 0.1,
+    "figementMs": 200,
+    "ecartRepetabilite": 0.3,
+    "ecartRepetabiliteAbsMs": 120
+  },
+  "conditions": {
+    "navigateur": "Chrome/152.0.7977.42",
+    "moteur": "Chromium headless (Puppeteer 25.7.0)",
+    "serveur": "scratch/lib/server.mjs + relais local gzip (HTTP/1.1, pas de HTTP/2)",
+    "machine": "darwin arm64, autres agents en parallèle (charge non maîtrisée)",
+    "vues": {
+      "BUREAU": {
+        "nom": "1440x900@1x",
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "MOBILE": {
+        "nom": "390x844@3x",
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 3,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    "cpuMobile": "4× (emulateCPUThrottling)",
+    "serviceWorker": "bloqué (404) sauf scénario S12",
+    "donnees": "démo vierge (localStorage vidé par contexte neuf)"
+  },
+  "scenarios": {
+    "S3_1440x900@1x": {
+      "vp": "1440x900@1x",
+      "cpu": 1,
+      "navigation": {
+        "retourMs": 4,
+        "ecranMs": 371,
+        "inpMax": 16,
+        "interactionsMesurees": 1,
+        "attenteMax": 4,
+        "longues": [],
+        "cls": 0,
+        "toasts": []
+      },
+      "rechercheClient": {
+        "inpMax": 16,
+        "interactionsMesurees": 2,
+        "attenteMax": 1,
+        "longues": [],
+        "cls": 0,
+        "toasts": [],
+        "avant": {
+          "champ": [
+            283,
+            136,
+            380,
+            34
+          ],
+          "bouton": [
+            488,
+            78,
+            171,
+            42
+          ]
+        },
+        "pendant": {
+          "champ": [
+            283,
+            136,
+            380,
+            34
+          ],
+          "bouton": [
+            488,
+            78,
+            171,
+            42
+          ]
+        },
+        "vide": {
+          "champ": [
+            283,
+            136,
+            380,
+            34
+          ],
+          "bouton": [
+            488,
+            78,
+            171,
+            42
+          ]
+        }
+      },
+      "nouveauClient": {
+        "dialogueMs": 9,
+        "retourMs": 5,
+        "inpMax": 24,
+        "interactionsMesurees": 5,
+        "attenteMax": 1,
+        "longues": [],
+        "cls": 0,
+        "toasts": []
+      },
+      "ajoutOuvrage": {
+        "bureau": true,
+        "suggestionsMs": 95,
+        "ajoutMs": 22,
+        "ajoutOk": true,
+        "inpMax": 24,
+        "interactionsMesurees": 1,
+        "attenteMax": 1,
+        "longues": [],
+        "cls": 0,
+        "toasts": [
+          {
+            "t": 9423.5,
+            "role": "status",
+            "texte": "« Peinture Murale Satinée BTP » ajouté au Lot 01 !"
+          }
+        ]
+      },
+      "metre": {
+        "totalApresDerniereToucheMs": 6,
+        "htAvant": 0,
+        "htApres": 1841400000,
+        "enregAvant": [
+          1235,
+          117,
+          135,
+          40
+        ],
+        "enreg120": [
+          1235,
+          117,
+          135,
+          40
+        ],
+        "enregGrand": [
+          1235,
+          117,
+          135,
+          40
+        ],
+        "inpMax": 16,
+        "interactionsMesurees": 2,
+        "attenteMax": 2,
+        "longues": [],
+        "cls": 0,
+        "toasts": []
+      },
+      "enregistrer": {
+        "toastMs": 7,
+        "retourMs": 6,
+        "inpMax": 0,
+        "interactionsMesurees": 0,
+        "attenteMax": 0,
+        "longues": [],
+        "cls": 0,
+        "toasts": [
+          {
+            "t": 12778.800000011921,
+            "role": "status",
+            "texte": "Devis DEV-2026-002 enregistré en local"
+          }
+        ]
+      },
+      "toastPosition": "fixed"
+    },
+    "S3_390x844@3x": {
+      "erreur": "TimeoutError: Waiting for selector `input[placeholder^=\"Rechercher un ouvrage par nom, matériau\"]` failed",
+      "etape": "S3 chiffrage",
+      "premiereErreur": "TimeoutError: Waiting for selector `input[placeholder^=\"Rechercher un ouvrage par nom, matériau\"]` failed"
+    }
+  },
+  "resultats": [
+    {
+      "label": "C142 · 1440x900@1x cpu×1 — durée d'interaction max (Event Timing) ≤ 200 ms sur 6 gestes",
+      "pass": true,
+      "detail": "{\"navigation\":16,\"recherche\":16,\"nouveauClient\":24,\"ajoutOuvrage\":24,\"metre\":16,\"enregistrer\":0}"
+    },
+    {
+      "label": "C142 · 1440x900@1x cpu×1 — premier changement visible ≤ 100 ms après le geste (nav, fenêtre, enregistrer)",
+      "pass": true,
+      "detail": "{\"retours\":[4,5,6],\"ecranNav\":371,\"dialogue\":9,\"toastEnregistrer\":7}"
+    },
+    {
+      "label": "C142 · 1440x900@1x cpu×1 — totaux recalculés ≤ 200 ms après la dernière touche du métré",
+      "pass": true,
+      "detail": "{\"ms\":6,\"ht\":[0,1841400000],\"suggestionsMs\":95,\"ajoutMs\":22}"
+    },
+    {
+      "label": "C143 · 1440x900@1x — le champ de recherche et « Nouveau client » ne bougent pas pendant la frappe",
+      "pass": true,
+      "detail": "{\"avant\":{\"champ\":[283,136,380,34],\"bouton\":[488,78,171,42]},\"pendant\":{\"champ\":[283,136,380,34],\"bouton\":[488,78,171,42]},\"vide\":{\"champ\":[283,136,380,34],\"bouton\":[488,78,171,42]}}"
+    },
+    {
+      "label": "C143 · 1440x900@1x — « Enregistrer » reste en place quand les montants s'allongent (0 → 120 → 1 200 000 m²)",
+      "pass": true,
+      "detail": "{\"avant\":[1235,117,135,40],\"a120\":[1235,117,135,40],\"grand\":[1235,117,135,40]}"
+    },
+    {
+      "label": "C143 · 1440x900@1x — notification superposée (position fixe), aucun décalage pendant la saisie",
+      "pass": true,
+      "detail": "{\"toast\":\"fixed\",\"clsMetre\":0,\"clsRecherche\":0}"
+    },
+    {
+      "label": "S3_390x844@3x · scénario BLOQUÉ",
+      "pass": false,
+      "detail": "[étape : S3 chiffrage] TimeoutError: Waiting for selector `input[placeholder^=\"Rechercher un ouvrage par nom, matériau\"]` failed"
+    }
+  ]
+}

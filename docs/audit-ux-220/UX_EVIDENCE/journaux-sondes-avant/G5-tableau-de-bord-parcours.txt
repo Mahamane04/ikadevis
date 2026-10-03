@@ -1,0 +1,116 @@
+  ✅ C081 · Rôle connecté identifiable en démo (propriétaire) — barre haute : | Démonstration | IKADEVIS BTP | | | Tout | Ce mois | Trimestre | Année | Personnaliser ; cartes : TOTAL DES DEVIS TTC / DEVIS À SUIVRE / CHANTIERS ACTIFS / TOTAL FACTURÉ
+  ✅ C081 · Décision « quels devis relancer » : un indicateur existe — TOTAL DES DEVIS TTC / DEVIS À SUIVRE / CHANTIERS ACTIFS / TOTAL FACTURÉ
+  ✅ C081 · Décision « chantiers en cours » : un indicateur existe
+  ✅ C082 · Unité monétaire affichée sur chaque total en argent — TOTAL DES DEVIS TTC=20 589 256 FCFA ; DEVIS À SUIVRE=0 ; CHANTIERS ACTIFS=2 ; TOTAL FACTURÉ=0 FCFA
+  ❌ C082 · Chaque total en argent précise TTC ou HT — sans mention : TOTAL FACTURÉ ; pipeline sans mention TTC/HT : true
+  ❌ C082 · « Ce mois » inclut le devis daté d'aujourd'hui (03/10/2026) — stocké 03/10/2026 ; Ce mois → 0 FCFA (0 devis chiffré) ; Trimestre → 0 FCFA ; Année → 20 589 256 FCFA ; Tout → 20 589 256 FCFA
+  ❌ C082 · « Trimestre » inclut le devis daté d'aujourd'hui — Trimestre → 0 FCFA (0 devis chiffré)
+  ❌ C082 · Sur « Ce mois », la liste « Devis récents » et la carte « Total des devis » portent le même périmètre — carte : 0 devis chiffré ; liste : DEV-2026-001
+  ❌ C082 · La période active est rappelée dans les libellés des indicateurs — TOTAL DES DEVIS TTC 0 devis chiffré | DEVIS À SUIVRE En attente : 0 FCFA | CHANTIERS ACTIFS Tous en cours | TOTAL FACTURÉ Aucune facture émise
+  ❌ C082 · « Chantiers actifs » signale qu'il ignore la période (même valeur sur toutes les périodes, sans mention) — Ce mois:2 Trimestre:2 Année:2 Tout:2
+  ❌ C082/C088 · Bouton de période sélectionné exposé aux technologies d'assistance (aria-pressed/current/selected) — {"pressed":null,"current":null,"selected":null,"fond":"rgb(255, 255, 255)"}
+  ❌ C082 · Périmètre cohérent : l'appel « premier devis » et les compteurs comptent les mêmes devis — bouton : « Créer mon premier devis » ; carte : « 1 devis chiffré » ; formule : « 1/3 devis »
+  ❌ C083 · Une carte indicateur ouvre le détail de ce qui la compose — TOTAL DES DEVIS TTC: clic→rien, curseur auto, title non, focusable false ; DEVIS À SUIVRE: clic→rien, curseur auto, title non, focusable false ; CHANTIERS ACTIFS: clic→rien, curseur auto, title non, focusable false ; TOTAL FACTURÉ: clic→rien, curseur auto, title non, focusable false
+  ✅ C083 · Une carte non interactive ne simule pas l'interactivité au survol — TOTAL DES DEVIS TTC: ombre au survol fixe ; DEVIS À SUIVRE: ombre au survol fixe ; CHANTIERS ACTIFS: ombre au survol fixe ; TOTAL FACTURÉ: ombre au survol fixe
+  ❌ C083 · Les étapes du pipeline mènent à la liste des devis concernés — 0 élément(s) interactif(s) dans le pipeline
+  ✅ C084 · Absence de facture dite explicitement (pas un simple 0) — 0 FCFA / Aucune facture émise
+  ✅ C085 · Le graphique du pipeline a un équivalent textuel (nombre et montant par étape) — segments : Acceptés : 1=100% ; texte : 1. BROUILLON 0 0 FCFA | 2. PRÊT / VÉRIFIÉ 0 0 FCFA | 3. ENVOYÉ CLIENT 0 0 FCFA | 4. ACCEPTÉ / GAGNÉ 1 20 589 256 FCFA
+  ✅ C086 · Avertissement « démonstration locale » visible sans défilement à 1440, contraste ≥ 4,5:1 — y=316-332, 12px, contraste 6.92:1
+  ✅ C086 · Aucune animation décorative permanente sur le tableau de bord par défaut — aucune animation en boucle
+  ✅ C090 · « Devis récents » → fiche du même devis, même montant TTC — carte 20 589 256 FCFA → fiche 20 589 256 FCFA
+  ❌ C090 · La destination a une adresse propre (#devis/<id>), comme depuis la liste — adresse après clic : « #dashboard » (cf. UX-P2-06)
+  ✅ C092 · Devis accepté (1440) : l'action suivante (facturer) est visible sans défilement — « Convertir en facture » ; boutons mis en avant : Nouveau devis / Télécharger le PDF / Créer mon compte et conserver ce devis
+  ❌ C092 · Les actions de la fiche devis ont un nom accessible qui contient leur libellé visible (WCAG 2.5.3) — « Modifier client / chantier » → nom « Modifier le client et le chantier » [mots communs, ordre/forme différents] ; « Télécharger le PDF » → nom « Télécharger le devis en PDF » [mots communs, ordre/forme différents] ; « Convertir en facture » → nom « Facturer le devis DEV-2026-001 » [mots communs, ordre/forme différents]
+  ✅ C099 · Facturer reprend client, chantier et devis d'origine sans ressaisie
+  ✅ C092 · Brouillon de facture (1440) : « Émettre la facture » mis en avant et visible
+  ✅ C093 · Le brouillon explique l'étape suivante et son effet (numéro légal)
+  ✅ C093 · L'étape irréversible annonce l'absence de retour et le moyen de corriger (avoir) — Émettre la facture Une fois émise, cette facture reçoit son numéro définitif et ne peut plus être modifiée ni supprimée. Seul un avoir permettra de la corriger.
+  ✅ C098 · La notification d'émission désigne la facture émise (numéro stocké) — stocké FACT-2026-001 ; notifications : Brouillon de facture créé depuis DEV-2026-001 ‖ Facture FACT-2026-001 émise — elle ne peut plus être modifiée.
+  ✅ C092 · Facture émise (1440) : « Enregistrer un règlement » mis en avant et visible
+  ❌ C095 · La date d'émission est affichée au format de la fiche (jj/mm/aaaa), pas en horodatage brut — document facture : « Émise le 2026-10-03T03:53:27.706Z »
+  ✅ C095 · La quittance affiche la date d'émission de la facture au format jj/mm/aaaa — Émise le : 03/10/2026
+  ❌ C095 · La quittance est éditée au nom de l'entreprise active (IKADEVIS BTP), sans autre marque — Édité électroniquement par Micro Office BTP
+  ✅ C085 · La jauge de règlement de la facture a un équivalent textuel (pourcentage, réglé, reste) — Avancement 24% ; 
+  ✅ C095 · Après règlement partiel, le tableau de bord montre l'état courant de la facture (Partielle) — Facturation récente Dernières factures émises Voir toutes Société Immobilière NBB FACT-2026-001 20 589 256 FCFA Partielle
+  ✅ C095 · « Total facturé » du tableau de bord = « Total facturé émis » de l'écran Factures — tableau 20 589 256 FCFA / factures 20 589 256 FCFA
+  ❌ C081 · Décision « que me doit-on ? » : le tableau de bord affiche le reste à encaisser — écran Factures : créances 15 589 256 FCFA ; tableau de bord : absent
+  ✅ C090 · « Facturation récente » → fiche de la même facture, même montant — ligne 20 589 256 FCFA → fiche « MONTANT TTC 20 589 256 FCFA » ; adresse #dashboard
+  ✅ C090 · « Chantiers en cours » → fiche du même chantier — adresse #dashboard
+  ✅ C090 · « Voir tous » de « Devis récents » ouvre la liste correspondante — → Mes devis
+  ✅ C090 · « Voir tous » de « Chantiers en cours » ouvre la liste correspondante — → Chantiers
+  ✅ C090 · « Voir tous » de « Facturation récente » ouvre la liste correspondante — → Factures
+  ❌ C090 · Raccourci « Créer facture — Facturer un acompte » mène à la création d'un acompte — carte « Créer facture Facturer un acompte » → écran « Factures », fenêtre ouverte : non
+  ✅ C095 · Client renommé : nouveau nom repris dans Chantiers et sur le tableau de bord — nom stocké « Résidence Les Almadies Rénovée » ; Chantiers 2 occurrence(s), tableau de bord 1
+  ❌ C099 · « Créer Devis » depuis la fiche client préremplit le client du devis — champ client : «  » ; chantier : «  »
+  ❌ C098 · La notification affichée correspond à l'état réel de l'objet ouvert — notification : « Client Société Immobilière NBB sélectionné pour le devis ! » ; champ client réel : «  »
+  ❌ C093 · La progression du devis (Travaux → Quantités → Prix → Vérification) indique l'étape en cours et évolue — avant : 1. Travaux:400/rgb(68, 81, 94)/null | 2. Quantités:400/rgb(68, 81, 94)/null | 3. Prix et marge:400/rgb(68, 81, 94)/null | 4. Vérification:400/rgb(68, 81, 94)/null ; après ouvrage + quantités confirmées : identique
+  ❌ C098 · Message de sortie cohérent : « modifications perdues » ne coexiste pas avec une reprise proposée du même chiffrage — fenêtre : « Enregistrer le devis en cours ? Ce chiffrage contient des modifications qui ne sont pas encore enregistrées. Si vous qui » ; puis tableau de bord : Reprendre mon devis / Reprendre mon devis DEV-2026-002
+  ❌ C098/C099 · « Créer un devis pour B » pendant un chiffrage pour A ouvre un devis au nom de B — champ client : « SARL Alpha G5 » ; notification : « Client Résidence Les Almadies Rénovée sélectionné pour le devis ! »
+  ✅ C098 · « Reprendre mon devis » rouvre le chiffrage en cours dans son dernier état — DEV-2026-002 client « SARL Alpha G5 » ; sous-total HT avant sortie 1 243 035 → repris 1 243 035
+  ✅ C098 · La notification d'enregistrement désigne le devis enregistré — stocké DEV-2026-002 (draft) ; notifications : Devis DEV-2026-002 enregistré en local
+  ✅ C095 · Le devis enregistré est reflété dans « Total des devis » et le pipeline (Brouillon) — 20 589 256 FCFA → 22 056 037 FCFA (+1466781) ; Pipeline Commercial des Devis Répartition des propositions et conversion par étape du cycle de vente Taux de conversion 
+  ❌ C082 · « Devis à suivre » ne compte pas un brouillon jamais envoyé — Devis à suivre = 1 (En attente : 1 466 781 FCFA) pour 1 brouillon et 0 envoyé
+  ✅ C095 · Statut passé à « Envoyé » : le pipeline du tableau de bord suit — Pipeline Commercial des Devis Répartition des propositions et conversion par étape du cycle de vente Taux de conversion : 50% acceptés 1. BROUILLON 0 0 FCFA 2. PRÊT / VÉRIFIÉ 0 0 FCFA 3. ENVOYÉ CLIENT
+  ✅ C088 · Ctrl+K place le curseur dans la recherche globale — Rechercher dans ikadevis...
+  ✅ C088 · Recherche globale au clavier : Ctrl+K, saisie, Tab, Entrée ouvrent le devis — 2 tabulation(s) ; flèche ↓ dans la recherche → focus INPUT «  » (aria-activedescendant null)
+  ❌ C088 · Tri « Montant décroissant » de la liste des devis — 20589256 ≥ 1466781 ≥ 9750 ≥ 9 ≥ 14110527 ≥ 635 ≥ 2693505 ≥ 5 ≥ 644490
+  ❌ SESSION A · BLOQUÉ à l'étape « parcours principal » — lignesListe is not defined
+  ✅ C095 · Chantier supprimé : « Chantiers actifs » et la fiche client suivent — carte 2 → 1 ; fiche client « 0 chantier(s) »
+  ✅ C095 · Supprimer un chantier qui porte un devis : l'avertissement le dit, ou le devis ne garde pas un chantier inexistant — fenêtre : « Supprimer ce chantier ? « Construction Siège NBB » porte 1 devis. Ces devis ne sont PAS supprimés : ils conservent le nom du chantier, mais perdent le lien vers sa fiche. Annuler S » ; ligne du devis ensuite : « Société Immobilière NBB Construction Siège NBB DEV-2026-001 03/10/2026 20 589 256 FCFA Accepté  »
+  ❌ C084 · Sans aucun devis, le taux de conversion n'affiche pas « 0 % » comme une mesure — stockage devis : [] ; affiché : « 0% accepté »
+  ✅ C084 · Sans aucun devis, la liste dit « aucun devis » (absence) 
+  ❌ C084 · Sans aucun chantier, la carte ne dit pas « Tous en cours » — stockage chantiers : [] ; carte : 0 « Tous en cours »
+  ✅ C084 · Mode Démo : aucun état de chargement résiduel affiché à la place des données — {"busy":0,"squelettes":0}
+  ❌ C089 · Les 7 interrupteurs de widgets sont atteignables au clavier (Tab) — WCAG 2.1.1 — 7 interrupteurs (div cliquables, tabIndex -1, role , état ) ; parcours Tab : INPUT:0 → SELECT:Tout l’historique Ce mois-ci C → BUTTON:Rétablir par défaut → BUTTON:Annuler → BUTTON:Appliquer & Enregistrer → BUTTON:Fermer la personnalisation
+  ✅ C085 · La jauge d'objectif a un équivalent textuel (réalisé, cible, pourcentage) — texte « OBJECTIF MENSUEL DE FACTURATION TTC Octobre 0 FCFA facturés sur 5 000 000 FCFA visés ce mois-ci Il reste 5 000 000 FCFA pour atteindre la cible de octobre. Progression 0% Modifier l'objectif » ; barre 2% pour 0% annoncé
+  ❌ C086 · Les animations décoratives s'arrêtent quand l'utilisateur demande moins de mouvement — 1 animation(s) : w-2 h-2 rounded-full bg-emerald-500 animate-pulse ×infinite ; avec prefers-reduced-motion : 1
+  ✅ C089 · Préférences conservées après rechargement (pipeline masqué, objectif, période « Ce mois ») — avant : {"pipeline":false,"objectif":true,"periode":"Tout","cle":["ikadevis_dashboard_config"]} ; après : {"pipeline":false,"objectif":true,"periode":"Ce mois","cle":["ikadevis_dashboard_config"]}
+  ✅ C089 · « Rétablir par défaut » remet l'affichage d'origine (pipeline, pas d'objectif) — {"pipeline":true,"objectif":false,"periode":"Ce mois","cle":["ikadevis_dashboard_config"]}
+  ✅ C089 · La période par défaut revient à « Tout » après réinitialisation et rechargement — {"pipeline":true,"objectif":false,"periode":"Tout","cle":["ikadevis_dashboard_config"]}
+  ❌ HYP-C089 · Préférences rangées par utilisateur/organisation (clé de stockage dédiée) — clé(s) : ikadevis_dashboard_config
+  ❌ C093 · L'assistant d'organisation annonce un nombre d'étapes conforme au parcours réel — annonce « ÉTAPE 1 SUR 6 », 6 étapes listées, 2 marquées actives (Informations générales + Devise & fiscalité) ; après « Créer l'organisation » : fenêtre fermée — parcours en 1 étape
+  ❌ C086 · 1440px : une facture échue impayée est signalée sur le tableau de bord — tableau de bord : facture listée « Client Fictif Échu FACT-2026-007 1 180 000 FCFA Émise » ; mention de retard : non
+  ✅ C086 · 1440px : l'écran Factures signale le retard sans défilement — {"t":"⚠️ En retard 1","top":293,"bottom":320,"vh":900}
+  ❌ C086 · 390px : une facture échue impayée est signalée sur le tableau de bord — tableau de bord : facture listée « Client Fictif Échu FACT-2026-007 1 180 000 FCFA Émise » ; mention de retard : non
+  ✅ C086 · 390px : l'écran Factures signale le retard sans défilement — {"t":"⚠️ En retard 1","top":390,"bottom":417,"vh":844}
+  ✅ C087 · 320px : pas de défilement horizontal de la page — 320/320px
+  ❌ C087 · 320px : aucune commande de la barre haute coupée par le bord de l'écran — Menu du profil utilisateur (291→346px)
+  ❌ C087 · 320px : aucun montant d'indicateur tronqué — 20 589 256 FCFA (96/105px)
+  ❌ C087 · 320px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=840px pour 571px utiles ; contenu 2182px = 3.9 écran(s)
+  ✅ C087 · 320px : « Devis récents » atteint à la molette (crans de 100 px) — 13 cran(s) de molette ; titre à y=479px
+  ✅ C087 · 360px : pas de défilement horizontal de la page — 360/360px
+  ✅ C087 · 360px : aucune commande de la barre haute coupée par le bord de l'écran — aucune
+  ✅ C087 · 360px : aucun montant d'indicateur tronqué — aucun
+  ❌ C087 · 360px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=808px pour 711px utiles ; contenu 2123px = 3 écran(s)
+  ✅ C087 · 360px : « Devis récents » atteint à la molette (crans de 100 px) — 11 cran(s) de molette ; titre à y=636px
+  ✅ C087 · 390px : pas de défilement horizontal de la page — 390/390px
+  ✅ C087 · 390px : aucune commande de la barre haute coupée par le bord de l'écran — aucune
+  ✅ C087 · 390px : aucun montant d'indicateur tronqué — aucun
+  ❌ C087 · 390px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=776px pour 775px utiles ; contenu 2080px = 2.7 écran(s)
+  ✅ C092 · 390px : l'appel à l'action principal du tableau de bord est visible sans défilement — bas du bouton y=545px / 775px utiles
+  ✅ C086 · 390px : l'avertissement « démonstration locale » est visible sans défilement — y=484px / 775px utiles
+  ✅ C087 · 390px : « Devis récents » atteint à la molette (crans de 100 px) — 10 cran(s) de molette ; titre à y=693px
+  ✅ C092 · 390px : sur la fiche d'un devis accepté, « Convertir en facture » est visible sans défilement — {"libelle":"Convertir en facture","top":299,"bottom":343,"utile":775}
+  ✅ C092 · 390px : brouillon de facture — « Émettre la facture » visible sans défilement — {"top":316,"bottom":356,"utile":775}
+  ✅ C092 · 390px : facture émise — « Enregistrer un règlement » visible sans défilement — {"top":252,"bottom":292,"utile":775}
+  ✅ C087 · 768px : pas de défilement horizontal de la page — 768/768px
+  ✅ C087 · 768px : aucune commande de la barre haute coupée par le bord de l'écran — aucune
+  ✅ C087 · 768px : aucun montant d'indicateur tronqué — aucun
+  ✅ C087 · 768px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=679px pour 1024px utiles ; contenu 1571px = 1.7 écran(s)
+  ✅ C087 · 768px : « Devis récents » atteint à la molette (crans de 100 px) — 3 cran(s) de molette ; titre à y=955px
+  ✅ C087 · 1024px : pas de défilement horizontal de la page — 1024/1024px
+  ✅ C087 · 1024px : aucune commande de la barre haute coupée par le bord de l'écran — aucune
+  ✅ C087 · 1024px : aucun montant d'indicateur tronqué — aucun
+  ✅ C087 · 1024px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=575px pour 768px utiles ; contenu 1442px = 2.1 écran(s)
+  ✅ C087 · 1024px : « Devis récents » atteint à la molette (crans de 100 px) — 5 cran(s) de molette ; titre à y=624px
+  ✅ C087 · 1440px : pas de défilement horizontal de la page — 1440/1440px
+  ✅ C087 · 1440px : aucune commande de la barre haute coupée par le bord de l'écran — aucune
+  ✅ C087 · 1440px : aucun montant d'indicateur tronqué — aucun
+  ✅ C087 · 1440px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=459px pour 900px utiles ; contenu 1004px = 1.2 écran(s)
+  ✅ C087 · 1440×900 : les 4 indicateurs sont entièrement visibles sans défilement — dernière carte bas=597px / 900
+  ✅ C092 · 1440px : l'appel à l'action principal du tableau de bord est visible sans défilement — bas du bouton y=316px / 900px utiles
+  ✅ C086 · 1440px : l'avertissement « démonstration locale » est visible sans défilement — y=332px / 900px utiles
+  ✅ C087 · 1440px : « Devis récents » atteint à la molette (crans de 100 px) — 1 cran(s) de molette ; titre à y=757px
+  ✅ Hygiène · Aucune requête vers un service externe (toutes bloquées) — aucune
+
+Synthèse : C081 3/4 · C082 1/9 · C082/C088 0/1 · C083 1/3 · C084 3/5 · C085 3/3 · C086 6/9 · C090 6/8 · C092 8/9 · C099 1/2 · C093 2/4 · C098 3/5 · C095 8/10 · C098/C099 0/1 · C088 2/3 · SESSION A 0/1 · C089 3/4 · ? 0/1 · C087 26/31 · Hygiène 1/1

@@ -293,7 +293,7 @@
                     reason: 'quota_reached',
                     limit: plan.maxDevis,
                     current: currentCount,
-                    message: `Vous avez atteint la limite de ${plan.maxDevis} devis de l’offre Starter gratuite. Passez à l'offre Standard ou Pro pour créer des devis illimités.`,
+                    message: `Vous avez atteint la limite de ${plan.maxDevis} devis de l’offre Starter gratuite. Passez à l'offre Standard ou Entreprise pour créer des devis illimités.`,
                     plan,
                     sub
                 };

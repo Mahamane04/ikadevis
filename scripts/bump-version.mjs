@@ -36,6 +36,11 @@ const FICHIERS_JS = [
     'js/quote-templates.js',
     'js/payment-data-safety.js',
     'js/catalog-persistence.js',
+    // Audit UX 2026-10 — absent de cette liste depuis sa création : son jeton
+    // restait figé à `000ddd755e`, si bien qu'aucune correction de la couche
+    // de persistance (lot 2 compris) n'était garantie d'atteindre un navigateur
+    // qui l'avait déjà en cache.
+    'js/tenant-persistence.js',
     'js/saspay-service.js',
     'js/subscription-service.js',
     'app.compiled.js'

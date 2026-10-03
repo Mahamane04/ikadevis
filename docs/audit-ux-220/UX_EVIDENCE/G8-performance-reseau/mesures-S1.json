@@ -1,0 +1,881 @@
+{
+  "date": "2026-10-03T01:40:06.790Z",
+  "seuils": {
+    "lcpBonMs": 2500,
+    "lcpMauvaisMs": 4000,
+    "inpMs": 200,
+    "retourVisibleMs": 100,
+    "ecranMs": 1000,
+    "cls": 0.1,
+    "figementMs": 200,
+    "ecartRepetabilite": 0.3,
+    "ecartRepetabiliteAbsMs": 120
+  },
+  "conditions": {
+    "navigateur": "Chrome/152.0.7977.42",
+    "moteur": "Chromium headless (Puppeteer 25.7.0)",
+    "serveur": "scratch/lib/server.mjs + relais local gzip (HTTP/1.1, pas de HTTP/2)",
+    "machine": "darwin arm64, autres agents en parallèle (charge non maîtrisée)",
+    "vues": {
+      "BUREAU": {
+        "nom": "1440x900@1x",
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "MOBILE": {
+        "nom": "390x844@3x",
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 3,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    "cpuMobile": "4× (emulateCPUThrottling)",
+    "serviceWorker": "bloqué (404) sauf scénario S12",
+    "donnees": "démo vierge (localStorage vidé par contexte neuf)"
+  },
+  "scenarios": {
+    "S1_bureau_1": {
+      "erreur": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    "S1_mobile_1": {
+      "vp": "390x844@3x",
+      "cpu": 4,
+      "rep": 1,
+      "boot": {
+        "fcp": 152,
+        "lcp": 180,
+        "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
+        "ecranAcces": 149,
+        "dcl": 88,
+        "load": 89,
+        "tbt": 0,
+        "longues": [],
+        "cls": 0,
+        "octetsTransferes": 693711,
+        "octetsDecodes": 2207677,
+        "bloquantsTete": [
+          "tailwind.css",
+          "react.production.min.js",
+          "react-dom.production.min.js",
+          "supabase.min.js",
+          "all.min.css"
+        ]
+      },
+      "entreeDemoMs": 231,
+      "routes": [
+        {
+          "route": "#dashboard",
+          "ms": 708,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Espace IKADEVIS BTP"
+        },
+        {
+          "route": "#chantiers",
+          "ms": 377,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 38 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 374,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 37 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 114 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 445,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [
+            50
+          ],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 384,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 36 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 390,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 29 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 370,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 384,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Catalogue des Ouvrages"
+        },
+        {
+          "route": "#materiaux",
+          "ms": 382,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 28 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Ressources & Prix"
+        },
+        {
+          "route": "#abonnement",
+          "ms": 398,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 24 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 128 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        },
+        {
+          "route": "#settings/entreprise",
+          "ms": 704,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        }
+      ],
+      "libsPdfDemandees": [],
+      "externes": [],
+      "erreurs": []
+    },
+    "S1_bureau_2": {
+      "erreur": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    "S1_mobile_2": {
+      "vp": "390x844@3x",
+      "cpu": 4,
+      "rep": 2,
+      "boot": {
+        "fcp": 168,
+        "lcp": 220,
+        "lcpEl": "p.auth-footnote.text-center.text-neutral-500 «Vos devis restent les vôtres · Aucune ca»",
+        "ecranAcces": 180,
+        "dcl": 168,
+        "load": 184,
+        "tbt": 0,
+        "longues": [],
+        "cls": 0,
+        "octetsTransferes": 693711,
+        "octetsDecodes": 2207677,
+        "bloquantsTete": [
+          "tailwind.css",
+          "react.production.min.js",
+          "all.min.css",
+          "react-dom.production.min.js",
+          "supabase.min.js"
+        ]
+      },
+      "entreeDemoMs": 227,
+      "routes": [
+        {
+          "route": "#dashboard",
+          "ms": 703,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Espace IKADEVIS BTP"
+        },
+        {
+          "route": "#chantiers",
+          "ms": 381,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 38 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 371,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 22 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 391,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 19 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 382,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 38 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 385,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 43 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 391,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 386,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Catalogue des Ouvrages"
+        },
+        {
+          "route": "#materiaux",
+          "ms": 392,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 31 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Ressources & Prix"
+        },
+        {
+          "route": "#abonnement",
+          "ms": 467,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 65 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [
+            77
+          ],
+          "h1": "Paramètres du compte"
+        },
+        {
+          "route": "#settings/entreprise",
+          "ms": 707,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        }
+      ],
+      "libsPdfDemandees": [],
+      "externes": [],
+      "erreurs": []
+    },
+    "S1_bureau_3": {
+      "erreur": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    "S1_mobile_3": {
+      "vp": "390x844@3x",
+      "cpu": 4,
+      "rep": 3,
+      "boot": {
+        "fcp": 212,
+        "lcp": 212,
+        "lcpEl": "p.text-neutral-900.font-bold.text-base «Le devis BTP juste, en quelques minutes.»",
+        "ecranAcces": 156,
+        "dcl": 142,
+        "load": 207,
+        "tbt": 0,
+        "longues": [],
+        "cls": 0,
+        "octetsTransferes": 693711,
+        "octetsDecodes": 2207677,
+        "bloquantsTete": [
+          "tailwind.css",
+          "react.production.min.js",
+          "react-dom.production.min.js",
+          "supabase.min.js",
+          "all.min.css"
+        ]
+      },
+      "entreeDemoMs": 243,
+      "routes": [
+        {
+          "route": "#dashboard",
+          "ms": 711,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Espace IKADEVIS BTP"
+        },
+        {
+          "route": "#chantiers",
+          "ms": 380,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 37 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Chantiers"
+        },
+        {
+          "route": "#clients",
+          "ms": 369,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 24 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 115 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Clients"
+        },
+        {
+          "route": "#chiffrage",
+          "ms": 451,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [
+            53
+          ],
+          "h1": "Chiffrage"
+        },
+        {
+          "route": "#devis",
+          "ms": 380,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 34 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Mes devis"
+        },
+        {
+          "route": "#factures",
+          "ms": 392,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Factures"
+        },
+        {
+          "route": "#depenses",
+          "ms": 388,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 21 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Dépenses & fournisseurs"
+        },
+        {
+          "route": "#ouvrages",
+          "ms": 379,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 113 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Catalogue des Ouvrages"
+        },
+        {
+          "route": "#materiaux",
+          "ms": 382,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 32 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Ressources & Prix"
+        },
+        {
+          "route": "#abonnement",
+          "ms": 397,
+          "spinner": true,
+          "cls": 0.0002,
+          "decalages": [
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 33 ms»"
+              ]
+            },
+            {
+              "v": 0.0001,
+              "src": [
+                "div.flex.items-center.gap-2 «Chargement en cours… 112 ms»"
+              ]
+            }
+          ],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        },
+        {
+          "route": "#settings/entreprise",
+          "ms": 714,
+          "spinner": false,
+          "cls": 0,
+          "decalages": [],
+          "longues": [],
+          "h1": "Paramètres du compte"
+        }
+      ],
+      "libsPdfDemandees": [],
+      "externes": [],
+      "erreurs": []
+    },
+    "S1_mobile_synthese": {
+      "tbtAvantEcranAcces": {
+        "min": 0,
+        "mediane": 0,
+        "max": 0
+      },
+      "longuesBoot": [
+        [],
+        [],
+        []
+      ],
+      "longuesRoutes": [
+        "#dashboard:",
+        "#chantiers:",
+        "#clients:",
+        "#chiffrage:50",
+        "#devis:",
+        "#factures:",
+        "#depenses:",
+        "#ouvrages:",
+        "#materiaux:",
+        "#abonnement:",
+        "#settings/entreprise:"
+      ]
+    }
+  },
+  "resultats": [
+    {
+      "label": "S1_bureau_1 · scénario BLOQUÉ",
+      "pass": false,
+      "detail": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    {
+      "label": "S1_bureau_2 · scénario BLOQUÉ",
+      "pass": false,
+      "detail": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    {
+      "label": "S1_bureau_3 · scénario BLOQUÉ",
+      "pass": false,
+      "detail": "TimeoutError: Waiting failed: 30000ms exceeded"
+    },
+    {
+      "label": "C141 · mobile — écran d'accès affiché (LCP) ≤ 2500 ms (local, 3 essais)",
+      "pass": true,
+      "detail": "{\"lcp\":{\"min\":180,\"mediane\":212,\"max\":220},\"ecranAcces\":{\"min\":149,\"mediane\":156,\"max\":180},\"fcp\":{\"min\":152,\"mediane\":168,\"max\":212},\"octetsTransferes\":693711,\"octetsDecodes\":2207677,\"bloquantsTete\":[\"tailwind.css\",\"react.production.min.js\",\"react-dom.production.min.js\",\"supabase.min.js\",\"all.min.css\"]}"
+    },
+    {
+      "label": "C141 · mobile — entrée en démo → tableau de bord ≤ 1000 ms",
+      "pass": true,
+      "detail": "{\"min\":227,\"mediane\":231,\"max\":243}"
+    },
+    {
+      "label": "C141 · mobile — 11 écrans affichés ≤ 1000 ms après navigation (350 ms voulus inclus, UX-DEC-01)",
+      "pass": true,
+      "detail": "{\"min\":369,\"mediane\":388,\"max\":714,\"parEcran\":[\"#dashboard:708\",\"#chantiers:377\",\"#clients:374\",\"#chiffrage:445\",\"#devis:384\",\"#factures:390\",\"#depenses:370\",\"#ouvrages:384\",\"#materiaux:382\",\"#abonnement:398\",\"#settings/entreprise:704\"]}"
+    },
+    {
+      "label": "C143 · mobile — décalage de mise en page (CLS) ≤ 0.1 au démarrage et sur 11 écrans",
+      "pass": true,
+      "detail": "{\"clsMax\":0.0002,\"pires\":[],\"demarrage\":[0,0,0]}"
+    },
+    {
+      "label": "C146 · mobile — bibliothèques PDF (jsPDF + html2canvas) jamais chargées au démarrage ni en navigation",
+      "pass": true,
+      "detail": "[[],[],[]]"
+    },
+    {
+      "label": "C146 · mobile — temps de blocage avant l'écran d'accès (TBT) ≤ 300 ms",
+      "pass": true,
+      "detail": "{\"tbt\":{\"min\":0,\"mediane\":0,\"max\":0},\"longues\":[]}"
+    },
+    {
+      "label": "C150 · mobile — 3 mesures, conditions identiques consignées, écart ≤ max(120 ms, 30 %)",
+      "pass": true,
+      "detail": "{\"ecranAcces\":[149,180,156],\"entree\":[231,227,243],\"routesNonRepetables\":[]}"
+    },
+    {
+      "label": "C150 · mobile — aucune requête externe, aucune erreur console",
+      "pass": true,
+      "detail": "[{\"ext\":[],\"err\":[]},{\"ext\":[],\"err\":[]},{\"ext\":[],\"err\":[]}]"
+    }
+  ]
+}

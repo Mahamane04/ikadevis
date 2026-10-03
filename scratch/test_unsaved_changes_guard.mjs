@@ -104,7 +104,11 @@ export async function run() {
         // Confirmer la suppression et vérifier qu'elle a bien lieu.
         const confirmed = await clickVisibleButton(page, 'Supprimer', true);
         await wait(200);
-        const itemGone = await page.evaluate(() => !document.body.innerText.includes('Peinture Murale'));
+        // Audit UX 220 (C069) — le bandeau d'annulation nomme désormais
+        // l'ouvrage supprimé (« Ouvrage « Peinture Murale… » supprimé du
+        // lot ») : on vérifie la liste des ouvrages du lot, pas toute la page.
+        const itemGone = await page.evaluate(() => ![...document.querySelectorAll('[data-testid="quote-items-desktop"], [data-testid="quote-items-mobile"]')]
+            .some((liste) => liste.innerText.includes('Peinture Murale')));
         ok('La confirmation supprime effectivement l\'ouvrage', confirmed && itemGone);
     } finally {
         await close();

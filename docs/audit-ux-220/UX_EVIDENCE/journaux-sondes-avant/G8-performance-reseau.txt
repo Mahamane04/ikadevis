@@ -1,0 +1,122 @@
+PASS  C141 · bureau — écran d'accès affiché (LCP) ≤ 2500 ms (local, 3 essais)
+      {"lcp":{"min":84,"mediane":84,"max":128},"ecranAcces":{"min":52,"mediane":57,"max":90},"fcp":{"min":84,"mediane":84,"max":128},"octetsTransferes":693711,"octetsDecodes":2207677,"bloquantsTete":["tailwind.css","react.production.min.js","react-dom.production.min.js","all.min.css","supabase.min.js"]}
+PASS  C141 · bureau — entrée en démo → tableau de bord ≤ 1000 ms
+      {"min":48,"mediane":49,"max":51}
+PASS  C141 · bureau — 11 écrans affichés ≤ 1000 ms après navigation (350 ms voulus inclus, UX-DEC-01)
+      {"min":360,"mediane":366,"max":714,"parEcran":["#dashboard:705","#chantiers:363","#clients:362","#chiffrage:400","#devis:362","#factures:364","#depenses:374","#ouvrages:364","#materiaux:361","#abonnement:366","#settings/entreprise:712"]}
+PASS  C143 · bureau — décalage de mise en page (CLS) ≤ 0.1 au démarrage et sur 11 écrans
+      {"clsMax":0.0004,"pires":[],"demarrage":[0.0004,0.0004,0.0004]}
+PASS  C146 · bureau — bibliothèques PDF (jsPDF + html2canvas) jamais chargées au démarrage ni en navigation
+      [[],[],[]]
+PASS  C146 · bureau — temps de blocage avant l'écran d'accès (TBT / LoAF) ≤ 300 ms
+      {"tbt":{"min":0,"mediane":0,"max":0},"longues":[[],[],[]],"loaf":[[],[],[]]}
+FAIL  C150 · bureau — un seul document chargé par essai (aucun rechargement parasite pendant la mesure)
+      [12,12,12]
+PASS  C150 · bureau — 3 mesures, conditions identiques consignées, écart ≤ max(120 ms, 30 %)
+      {"ecranAcces":[90,52,57],"entree":[49,51,48],"routesNonRepetables":[]}
+PASS  C150 · bureau — aucune requête externe, aucune erreur console
+      [{"ext":[],"err":[]},{"ext":[],"err":[]},{"ext":[],"err":[]}]
+PASS  C141 · mobile — écran d'accès affiché (LCP) ≤ 2500 ms (local, 3 essais)
+      {"lcp":{"min":180,"mediane":180,"max":188},"ecranAcces":{"min":148,"mediane":154,"max":155},"fcp":{"min":136,"mediane":144,"max":152},"octetsTransferes":693711,"octetsDecodes":2207677,"bloquantsTete":["tailwind.css","react.production.min.js","supabase.min.js","react-dom.production.min.js","all.min.css"]}
+PASS  C141 · mobile — entrée en démo → tableau de bord ≤ 1000 ms
+      {"min":207,"mediane":219,"max":219}
+PASS  C141 · mobile — 11 écrans affichés ≤ 1000 ms après navigation (350 ms voulus inclus, UX-DEC-01)
+      {"min":370,"mediane":383,"max":712,"parEcran":["#dashboard:712","#chantiers:376","#clients:371","#chiffrage:433","#devis:379","#factures:378","#depenses:388","#ouvrages:378","#materiaux:379","#abonnement:396","#settings/entreprise:707"]}
+PASS  C143 · mobile — décalage de mise en page (CLS) ≤ 0.1 au démarrage et sur 11 écrans
+      {"clsMax":0.0002,"pires":[],"demarrage":[0,0,0]}
+PASS  C146 · mobile — bibliothèques PDF (jsPDF + html2canvas) jamais chargées au démarrage ni en navigation
+      [[],[],[]]
+PASS  C146 · mobile — temps de blocage avant l'écran d'accès (TBT / LoAF) ≤ 300 ms
+      {"tbt":{"min":0,"mediane":0,"max":0},"longues":[[],[],[]],"loaf":[["60/0"],[],["58/0"]]}
+FAIL  C150 · mobile — un seul document chargé par essai (aucun rechargement parasite pendant la mesure)
+      [12,12,12]
+PASS  C150 · mobile — 3 mesures, conditions identiques consignées, écart ≤ max(120 ms, 30 %)
+      {"ecranAcces":[154,155,148],"entree":[219,207,219],"routesNonRepetables":[]}
+PASS  C150 · mobile — aucune requête externe, aucune erreur console
+      [{"ext":[],"err":[]},{"ext":[],"err":[]},{"ext":[],"err":[]}]
+PASS  C143 · 1024x768@2x — CLS ≤ 0.1 sur l'écran d'accès et 11 écrans
+      {"clsMax":0.0009,"pires":[]}
+PASS  C143 · 768x1024@2x — CLS ≤ 0.1 sur l'écran d'accès et 11 écrans
+      {"clsMax":0.0015,"pires":[]}
+PASS  C143 · 360x740@3x — CLS ≤ 0.1 sur l'écran d'accès et 11 écrans
+      {"clsMax":0.0003,"pires":[]}
+PASS  C143 · 320x640@2x — CLS ≤ 0.1 sur l'écran d'accès et 11 écrans
+      {"clsMax":0.0004,"pires":[]}
+PASS  C142 · 1440x900@1x cpu×1 — durée d'interaction max (Event Timing) ≤ 200 ms sur 6 gestes
+      {"navigation":16,"recherche":16,"nouveauClient":32,"ajoutOuvrage":16,"metre":24,"enregistrer":0}
+PASS  C142 · 1440x900@1x cpu×1 — premier changement visible ≤ 100 ms après le geste (nav, fenêtre, enregistrer)
+      {"retours":[5,5,5],"ecranNav":365,"dialogue":9,"toastEnregistrer":6}
+PASS  C142 · 1440x900@1x cpu×1 — totaux recalculés ≤ 200 ms après la dernière touche du métré
+      {"ms":7,"ht":[0,1841400000],"suggestionsMs":96,"ajoutMs":25}
+PASS  C143 · 1440x900@1x — le champ de recherche et « Nouveau client » ne bougent pas pendant la frappe
+      {"avant":{"champ":[283,136,380,34],"bouton":[488,78,171,42]},"pendant":{"champ":[283,136,380,34],"bouton":[488,78,171,42]},"vide":{"champ":[283,136,380,34],"bouton":[488,78,171,42]}}
+PASS  C143 · 1440x900@1x — « Enregistrer » reste en place quand les montants s'allongent (0 → 120 → 1 200 000 m²)
+      {"avant":[1235,117,135,40],"a120":[1235,117,135,40],"grand":[1235,117,135,40]}
+PASS  C143 · 1440x900@1x — notification superposée (position fixe), aucun décalage pendant la saisie
+      {"toast":"fixed","clsMetre":0,"clsRecherche":0}
+FAIL  S3_390x844@3x · scénario BLOQUÉ
+      [étape : S3 chiffrage] TimeoutError: Waiting for selector `input[placeholder^="Rechercher un ouvrage par nom, matériau"]` failed
+FAIL  S4_1440x900@1x · scénario BLOQUÉ
+      [étape : S3 chiffrage] QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'costcalc:guest:savedQuotes' exceeded the quota.
+FAIL  S4_390x844@3x · scénario BLOQUÉ
+      [étape : S3 chiffrage] QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'costcalc:guest:savedQuotes' exceeded the quota.
+FAIL  C145 · 1440x900@2x — images affichées : pas plus de 2× les pixels utiles, ≤ 200 Ko chacune
+      [{"e":"dashboard","src":"dashboard.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":206,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"projet.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":613,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"client.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":395,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"devis.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":927,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"facture.svg","naturel":[512,512],"affiche":[19,19],"dpr":2,"surdimension":13.47,"octets":341,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"depenses.svg","naturel":[512,512],"affiche":[19,19],"dpr":2,"surdimension":13.47,"octets":367,"attrDimensions":false,"loading":"","alt":""},{"e":"dashboard","src":"categorie-ouvrage.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":673,"attrDimensions":false,"loading":"","alt":""},{"e":"parametres","src":"dashboard.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":206,"attrDimensions":false,"loading":"","alt":""},{"e":"parametres","src":"projet.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":613,"attrDimensions":false,"loading":"","alt":""},{"e":"parametres","src":"client.svg","naturel":[150,150],"affiche":[19,19],"dpr":2,"surdimension":3.95,"octets":395,"attrDimens
+FAIL  C145 · 1440x900@2x — logo déposé en 4000×3000 : réduit à l'usage (≤ 480 px de large, ≤ 100 Ko) avant stockage
+      {"depot":{"ok":false},"stocke":null}
+FAIL  S5_390x844@3x · scénario BLOQUÉ
+      [étape : S3 chiffrage] Error: Élément introuvable : (b) => b.tagName === 'TR' && /DEV-2026-001/.test(b.innerText) 
+PASS  C146 · PDF — bibliothèques chargées au clic seulement
+      {"avant":0,"apres":["/vendor/html2canvas.min.js","/vendor/jspdf.umd.min.js"]}
+PASS  C146 · PDF en cours — un clic sur « Factures » est traité sans attendre > 200 ms, aucune tâche > 500 ms
+      {"attenteClic":4,"clic":[{"n":"pointerout","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerleave","d":16,"attente":1},{"n":"pointerover","d":16,"attente":1},{"n":"pointerenter","d":16,"attente":1},{"n":"pointerenter","d":16,"attente":1},{"n":"pointerenter","d":16,"attente":1},{"n":"pointerenter","d":16,"attente":1},{"n":"mouseout","d":16,"attente":1},{"n":"mouseover","d":16,"attente":1},{"n":"pointerdown","d":16,"attente":1},{"n":"mousedown","d":16,"attente":1},{"n":"pointerup","d":16,"attente":1},{"n":"mouseup","d":16,"attente":1},{"n":"click","d":16,"attente":1},{"n":"pointerover","d":16,"attente":4},{"n":"mouseover","d":16,"attente":4}],"longues":[70],"ecartImageMax":100,"ecranFacturesMs":364,"dureePdfMs":802,"toast":["PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."]}
+PASS  C148 · PDF lent (bibliothèques à 8 s) — attente signalée sur le bouton pendant le chargement
+      {"a1s":{"libelle":"Génération…","desactive":true,"ariaBusy":null,"statut":[]},"a5s":{"libelle":"Génération…","desactive":true,"ariaBusy":null,"statut":[]},"toasts":["PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."]}
+FAIL  C148 · PDF lent — au-delà de 5 s, un message distingue la lenteur de l'attente normale
+      {"libelle":"Génération…","desactive":true,"ariaBusy":null,"statut":[]}
+PASS  C152 · Hors ligne — « Télécharger le PDF » ne produit pas de faux succès
+      {"toastCoupure":["Connexion perdue : bascule en Mode Chantier (Hors-Ligne)"],"toastsPdf":[{"t":4303.300000011921,"role":"alert","texte":"Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."}]}
+FAIL  C148 · Hors ligne — l'échec du PDF est signalé en erreur et nomme la cause (connexion)
+      ["Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."]
+PASS  C156 · Retour du réseau — le PDF refonctionne au clic suivant
+      {"toastRetour":["Connexion rétablie : synchronisation automatique active !"],"puceConnexion":"État de connexion : Données sur cet appareil","toastsPdf":["PDF téléchargé — il porte le filigrane « démonstration ». Créez un compte pour l’envoyer à votre client."]}
+FAIL  C156 · Retour du réseau en démo — le message ne promet pas une synchronisation inexistante
+      {"toast":["Connexion rétablie : synchronisation automatique active !"],"puce":"État de connexion : Données sur cet appareil"}
+FAIL  S7 · scénario BLOQUÉ
+      [étape : S3 chiffrage] Error: Unknown value for options.waitUntil: commit
+PASS  C152 · 1440x900@1x — hors ligne : client et devis réellement conservés là où le message l'annonce (cet appareil)
+      {"client":{"toasts":["Fiche client créée !"],"stocke":true},"devis":{"toasts":["Nouveau devis vierge (DEV-2026-002)","« Peinture Murale Satinée BTP » ajouté au Lot 01 !","Devis DEV-2026-002 enregistré en local"],"avant":["DEV-2026-001"],"apres":["DEV-2026-002","DEV-2026-001"],"nouveau":["DEV-2026-002"]},"apresRechargement":{"client":true,"devis":["DEV-2026-002","DEV-2026-001"]}}
+FAIL  C160 · 1440x900@1x — démo hors ligne : aucune promesse de synchronisation (rien n'est synchronisé en démo)
+      {"coupure":["Connexion perdue : bascule en Mode Chantier (Hors-Ligne)"],"retour":["Connexion rétablie : synchronisation automatique active !"],"diagnostic":"Connexion au cloud Vous travaillez hors connexion, la synchronisation reprendra au retour du réseau. HORS LIGNE Sauvegarde sur cet appareil Vos données reste","puce":[{"libelle":"Démonstration","titre":"État de connexion : Données sur cet appareil"},{"libelle":"Démonstration","titre":"État de connexion : Données sur cet appareil"}]}
+FAIL  C160 · 1440x900@1x — le « Mode Chantier (Hors-Ligne) » annoncé existe ailleurs dans l'interface
+      ["Connexion perdue : bascule en Mode Chantier (Hors-Ligne)"]
+FAIL  C156 · 1440x900@1x — retour du réseau : message cohérent avec l'état affiché (démonstration, données locales)
+      {"toast":["Connexion rétablie : synchronisation automatique active !"],"puce":{"libelle":"Démonstration","titre":"État de connexion : Données sur cet appareil"}}
+FAIL  S8_390x844@3x · scénario BLOQUÉ
+      [étape : S3 chiffrage] TimeoutError: Waiting for selector `input[placeholder^="Rechercher un ouvrage par nom, matériau"]` failed
+FAIL  S9 · scénario BLOQUÉ
+      [étape : S3 chiffrage] Error: Élément introuvable : (b) => /^Enregistrer/.test((b.innerText || '').trim()) && !/règlement/i.test(b.innerText) 
+PASS  C154 · 1440x900@1x — double clic « Créer le client » et Entrée ×3 : une seule fiche
+      {"doubleClic":1,"entree":1}
+PASS  C154 · 1440x900@1x — triple activation « Enregistrer » d'un nouveau devis : un seul devis, numéro unique
+      {"avant":1,"apres":2,"numeros":["DEV-2026-002","DEV-2026-001"],"doublons":[]}
+FAIL  S10_390x844@3x · scénario BLOQUÉ
+      [étape : S3 chiffrage] TimeoutError: Waiting for selector `input[placeholder^="Rechercher un ouvrage par nom, matériau"]` failed
+FAIL  C158 · Deux onglets — le client créé dans l'onglet A survit à la création d'un client dans l'onglet B
+      {"apresA":["Client Onglet A","Société Immobilière NBB","Résidence Les Almadies"],"apresB":["Client Onglet B","Société Immobilière NBB","Résidence Les Almadies"]}
+PASS  C158 · Deux onglets — un écrasement est au moins signalé
+      ["Fiche client créée !"]
+FAIL  C158 · Deux onglets — deux devis créés : tous deux conservés, numéros distincts
+      {"apresA":["DEV-2026-002","DEV-2026-001"],"apresB":["DEV-2026-002","DEV-2026-001"]}
+FAIL  C158 · Onglet A rechargé — retrouve son client
+      ["Client Onglet B","Société Immobilière NBB","Résidence Les Almadies"]
+FAIL  C143 · 1re visite — l'activation du service worker ne recharge pas la page pendant une saisie
+      {"navigations":[{"ms":10,"url":"/index.html"},{"ms":1159,"url":"/index.html#clients"}],"saisieTermineeA":4433,"champEncorePresent":"Saisie en cours de mon client","ecran":"Clients","controle":false}
+PASS  C160 · Hors ligne après une 1re visite — l'application démarre (écran d'accès)
+      {"ecranAcces":true,"ms":81,"fichiersEnCache":41,"libsPdfEnCache":[],"clientCree":true,"iconesChargees":true,"pdf":["Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."],"rechargementSansRetardMs":[8,181]}
+PASS  C160 · Hors ligne — démo utilisable : client créé, icônes affichées
+      {"ecranAcces":true,"ms":81,"fichiersEnCache":41,"libsPdfEnCache":[],"clientCree":true,"iconesChargees":true,"pdf":["Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."]}
+PASS  C160 · Hors ligne — le PDF (non mis en cache) échoue franchement, sans faux succès
+      ["Génération impossible : Chargement impossible : vendor/html2canvas.min.js. Utilisez « Imprimer » puis « Enregistrer en PDF »."]
+
+38/60 vérifications réussies.

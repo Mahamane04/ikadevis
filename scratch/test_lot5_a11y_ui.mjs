@@ -4,7 +4,10 @@
  *
  * Contrôles :
  * 1. Ratio de contraste WCAG AA (.btn-primary >= 4.5:1 sur blanc)
- * 2. Suppression des délais artificiels (DUREE_TRANSITION_PAGE_MS === 0 et DUREE_TRANSITION_DETAIL_MS === 0)
+ * 2. Transitions de 350 ms (DUREE_TRANSITION_PAGE_MS et DUREE_TRANSITION_DETAIL_MS === 350).
+ *    Décision produit (commit ff40ffe, confirmée par l'audit UX 220, R5) : la
+ *    suppression des délais de l'audit du 25/09 a été annulée ; cet en-tête
+ *    annonçait encore « suppression des délais » alors que le test vérifie 350.
  * 3. Support de la touche Escape et focus sur les modales de facturation/paiement/avoirs
  * 4. Présence des attributs d'accessibilité ARIA (role="dialog", aria-modal="true")
  * 5. Typage sémantique et annonce du Toast (info, warning, error, success)
@@ -114,7 +117,11 @@ assert(hasSkyPastille, "Toast 'info' dispose d'une pastille visuelle dédiée (b
 const hasInfoIcon = indexJsx.includes("estInfo ? 'fa-circle-info'");
 assert(hasInfoIcon, "Toast 'info' utilise l'icône fa-circle-info");
 
-const hasAriaPolite = indexJsx.includes("role={estErreur ? 'alert' : 'status'}") && indexJsx.includes("aria-live={estErreur ? 'assertive' : 'polite'}");
+// Audit UX 220 (C127) — l'annonce passe désormais par deux régions live
+// PERMANENTES (présentes avant le texte), l'une polie, l'autre assertive
+// réservée aux erreurs ; la notification visible est masquée aux aides.
+const hasAriaPolite = indexJsx.includes(`role="status" aria-live="polite" aria-atomic="true">{toast && toast.type !== 'error' ? toast.message : ''}`)
+    && indexJsx.includes(`role="alert" aria-live="assertive" aria-atomic="true">{toast && toast.type === 'error' ? toast.message : ''}`);
 assert(hasAriaPolite, "Toast différencie les erreurs (alert/assertive) et les notifications normales (status/polite)");
 
 console.log(`\n========================================`);
