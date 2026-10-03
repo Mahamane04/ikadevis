@@ -1,190 +1,190 @@
 ﻿contrôle;section;statut;suivi;cas prévus / exécutés;preuve ou constat
 C001;A;PASSÉ;;12 écrans × 2 largeurs : titre et tâche identifiables;inventaire (h1 par écran)
-C002;A;NON TESTÉ;;—;UX-HYP-01 : trois appels « nouveau devis » concurrents — étude utilisateur requise
-C003;A;ÉCHEC;"ÉCHEC → corrigé (chantier fictif) ; reste ouvert";"devis sans chantier ; libellés Projet/Chantier";"UX-P2-01 corrigé ; « Projet non renseigné » (fiche devis) vs « Chantier non renseigné » (listes) subsiste"
+C002;A;PASSÉ;testé par sondes;"sondes G1 : avant 4 ✓ / 0 ✗ ; après 4 ✓ / 0 ✗";UX-HYP-01 : trois appels « nouveau devis » concurrents — étude utilisateur requise
+C003;A;PASSÉ;"ÉCHEC → corrigé (chantier fictif au lot 1 ; libellé unique au lot 6), retesté";"devis sans chantier : « Chantier non renseigné » sur la fiche et au tableau de bord, jamais « Projet »";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
 C004;A;PASSÉ;;"devis brouillon→enregistré ; facture brouillon→émise→réglée";parcours P3 joué
-C005;A;ÉCHEC;ouvert;enregistrer sans quantités confirmées;refus expliqué, mais le bouton « Confirmer » n’est plus à l’écran après navigation (UX-P2-12)
+C005;A;ÉCHEC;"partiellement corrigé (R6) : l’échec mène à l’ouvrage et à son bouton ; le prérequis n’est pas visible AVANT la tentative";enregistrer sans quantités confirmées;"UX-P2-12 ; index_jsx.js confirmPendingQuantities"
 C006;A;PASSÉ;;facture « depuis DEV-… », client et chantier repris;parcours P3
-C007;A;NON TESTÉ;;—;non exécuté dans cette session
+C007;A;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G1 : avant 4 ✓ / 1 ✗ ; après 4 ✓ / 1 ✗ / 1 non joué(s)";"❌ [C007] 1440 px — la garde de sortie annonce une perte ; après « Ne pas enregistrer », le travail est-il réellement abandonné ? — message : « Enregistrer le devis en cours ? Ce chiffrage contient des modifications qui n"
 C008;A;PASSÉ;;émission, avoir, règlement accessibles depuis la fiche facture;parcours P3
 C009;A;PASSÉ;;décisions produit documentées respectées;UX-P2-09, UX-DEC-01 signalés sans être modifiés
-C010;A;NON TESTÉ;;—;non exécuté dans cette session
-C011;B;NON TESTÉ;;—;non exécuté dans cette session
+C010;A;BLOQUÉ;"corrigé au lot 4 (entrée en double « Mon Profil & Compte » retirée) ; la sonde cherche encore cette entrée — non rejoué";menu du profil : entrées redondantes;G1 : « élément introuvable : Mon Profil & Compte »
+C011;B;PASSÉ;testé par sondes;"sondes G1 : avant 6 ✓ / 0 ✗ ; après 6 ✓ / 0 ✗";non exécuté dans cette session
 C012;B;PASSÉ;;12 écrans;élément de menu actif + titre
 C013;B;PASSÉ;;12 écrans;libellé de menu = titre d’écran (Chantiers, Clients, Mes devis, Factures…)
 C014;B;PASSÉ;;12 routes;toutes atteignables par menu et par adresse
-C015;B;ÉCHEC;ouvert;"« Créer mon premier devis » ; ouverture de fiche";"UX-P2-06 : éditeur sans adresse ; fiches devis OK (#devis/<id>)"
-C016;B;ÉCHEC;ouvert;Facturer depuis #devis/<id>;UX-P2-06 : écran Factures, adresse restée #devis/<id>
-C017;B;NON TESTÉ;;—;non exécuté dans cette session
-C018;B;NON TESTÉ;;—;non exécuté dans cette session
-C019;B;NON TESTÉ;;—;non exécuté dans cette session
-C020;B;NON TESTÉ;;—;non exécuté dans cette session
+C015;B;PASSÉ;"ÉCHEC → corrigé (UX-P2-06), retesté";"lien direct #devis/<id> ouvert avant l’entrée : la fiche s’ouvre ; chiffrage : adresse #chiffrage (banc lot 6)";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
+C016;B;PASSÉ;"ÉCHEC → corrigé (UX-P2-06, E10), retesté";"Facturer → #factures ; Précédent → fiche devis ; Suivant → factures ; Retour sur chiffrage non enregistré → question (banc lot 6)";"tests/ux/test_audit220_rejeu_corriges.mjs 11/11 ; tests/ux/test_audit220_lot6.mjs 15/15"
+C017;B;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G1 : avant 4 ✓ / 3 ✗ ; après 6 ✓ / 1 ✗";"❌ [C017] 390 px — Mes devis : le bouton Retour du navigateur referme la fiche et rend la liste filtrée — après Retour : {'statut':'','tri':'','hash':'#dashboard','detailOuvert':0}"
+C018;B;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G1 : avant 3 ✓ / 7 ✗ ; après 6 ✓ / 4 ✗";"❌ [C018] m390 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : false · entrée équivalente ailleurs : false | ❌ [C018] m360 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : false · entrée équivalente ailleurs : false | ❌ [C018] m320 px — « changer d'entreprise » est atteignable "
+C019;B;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G1 : avant 7 ✓ / 3 ✗ ; après 10 ✓ / 0 ✗";non exécuté dans cette session
+C020;B;BLOQUÉ;"défaut corrigé (banc lot 6) ; cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G1 : avant 8 ✓ / 3 ✗ ; après 7 ✓ / 2 ✗ / 1 non joué(s)";❌ [C020] 390 px — sortie par barre basse « Devis » : la sonde n'a pas pu jouer le geste — élément introuvable : [role='dialog'] button /^Ajouter$/ | ❌ [C020] 390 px — sortie par tiroir « Menu » → « Clients & CRM » : la sonde n'a pas pu jouer le geste — élément introuvable : [role='dialog'] button /^Ajouter$/
 C021;C;PASSÉ;;Enregistrer, Facturer, Créer le brouillon, Émettre, Valider le règlement;effet métier vérifié dans le stockage
-C022;C;NON TESTÉ;;—;non exécuté dans cette session
-C023;C;NON TESTÉ;;—;non exécuté dans cette session
-C024;C;NON TESTÉ;;—;non exécuté dans cette session
+C022;C;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G2 : avant 5 ✓ / 3 ✗ ; après 7 ✓ / 1 ✗";"❌ [C022] balayage par clic réel : 285 boutons cliqués (1440 + 390), chacun produit un effet observable — 1440 #dashboard « Tout » ‖ 1440 #chiffrage « 01 Lot 01 — Travaux 0 FCFA » ‖ 1440-chrome #dashboard « Tableau de bor"
+C023;C;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G2 : avant 2 ✓ / 6 ✗ ; après 2 ✓ / 6 ✗";"❌ [C023] 1440 — entrées du menu principal = liens de navigation (8 entrées) — button«Nouveau devis», button«Tableau de bord», button«Chantiers», button«Clients», button«Mes devis», button«Factures», button«Dépenses», but | ❌ [C023] 1440 — Meta+clic sur « Mes devis » ouvre un nouvel onglet sans quitter l'écran — onglets créés 0 ; écran « Espace IKADEVIS BTP » → « Mes devis » | ❌ [C023] 1440 — clic "
+C024;C;PASSÉ;testé par sondes;"sondes G2 : avant 11 ✓ / 0 ✗ ; après 11 ✓ / 0 ✗";non exécuté dans cette session
 C025;C;PASSÉ;;« Confirmer mes quantités » désactivé;raison écrite à côté (« Renseignez votre métré »)
-C026;C;NON TESTÉ;;—;UX-HYP-01
+C026;C;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G2 : avant 17 ✓ / 11 ✗ ; après 17 ✓ / 11 ✗";"❌ [C026] 1440 px #chantiers — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) /  | ❌ [C026] 1440 px #clients — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue "
 C027;C;PASSÉ;;"Émettre (irréversible) ; Supprimer";confirmation explicite, focus sur « Annuler »
 C028;C;PASSÉ;;double clic : Enregistrer, Créer le brouillon, Émettre;une seule création à chaque fois
-C029;C;NON TESTÉ;;—;non exécuté dans cette session
+C029;C;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G2 : avant 8 ✓ / 10 ✗ ; après 14 ✓ / 4 ✗";"❌ [C029] 390 px — aucune paire de cibles non imbriquées ne se chevauche (12 écrans) — #materiaux : button«Sélectionner Béton prêt à l’emploi» ∩ button«Accueil» 76×17 px ; button«Sélectionner Béton prêt à l’emploi» ∩ butt | ❌ [C029] 390 px #chiffrage — après défilement, « Ajouter mon premier ouvrage » n'est pas sous la barre de totaux — appel 690–738 px ; barre de totaux 703–772 ; centre → button«A"
 C030;C;PASSÉ;;après succès et après erreur d’enregistrement;contrôles restés utilisables
 C031;D;PASSÉ;ÉCHEC → corrigé, retesté;Nouveau Client, Facturer DEV-…, Émettre, Règlement;"UX-P2-04 ; test_accessibilite_navigation_fenetres"
 C032;D;PASSÉ;ÉCHEC → corrigé, retesté;ouverture/fermeture Nouveau Client;focus rendu au déclencheur après Échap
-C033;D;NON TESTÉ;;—;non exécuté dans cette session
-C034;D;NON TESTÉ;;—;non exécuté dans cette session
+C033;D;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G2 : avant 15 ✓ / 12 ✗ ; après 23 ✓ / 4 ✗";"❌ [C033] 390 px « Nouveau Chantier » — fenêtre non ouverte — [{'nom':'Nouveau Client','z':'100','role':'dialog'}] | ❌ [C033] 390 px « Nouvel Ouvrage » — fenêtre non ouverte — [{'nom':'Nouveau Client','z':'100','role':'dialog'}] | ❌ [C033] 390 px « Personnaliser » — fenêtre non ouverte — [{'nom':'Nouveau Client','z':'100','role':'dialog'}]"
+C034;D;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G2 : avant 17 ✓ / 13 ✗ ; après 24 ✓ / 6 ✗";"❌ [C034] 1440 px « Nouveau Client » — fermer par Échap après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture) | ❌ [C034] 1440 px « Nouveau Chantier » — fermer par Échap après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture) | ❌ [C034] 1440 px « Nouvel Ouvrage » — ferm"
 C035;D;PASSÉ;ÉCHEC → corrigé, retesté;Échap sur Nouveau Client;"UX-P2-11 ; vraie touche"
 C036;D;PASSÉ;;sélecteur de TVA (bas d’écran);test_quote_pricing_ui 34/34 (lot du 28/09)
-C037;D;NON TESTÉ;;—;non exécuté dans cette session
-C038;D;NON TESTÉ;;—;non exécuté dans cette session
-C039;D;NON TESTÉ;;—;non exécuté dans cette session
-C040;D;NON TESTÉ;;—;non exécuté dans cette session
-C041;E;NON TESTÉ;;—;non exécuté dans cette session
-C042;E;NON TESTÉ;;—;non exécuté dans cette session
+C037;D;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G2 : avant 8 ✓ / 19 ✗ ; après 12 ✓ / 15 ✗";"❌ [C037] 1440 px Dépenses — le contenu affiché change avec l'onglet — empreinte 48131592|865 → 48131592|865 | ❌ [C037] 1440 px Dépenses — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/4 ; role=tabpanel visibles 0 | ❌ [C037] 1440 px Dépenses — flèche droite passe à l'onglet suivant ; un seul arrêt de tabulation — focus button[tab]«À payer» → button[tab]«Pay"
+C038;D;PASSÉ;testé par sondes;"sondes G2 : avant 7 ✓ / 0 ✗ ; après 7 ✓ / 0 ✗";non exécuté dans cette session
+C039;D;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G2 : avant 0 ✓ / 6 ✗ ; après 0 ✓ / 6 ✗";"❌ [C039] 1440 — informations portées uniquement par un title (survol) : 64 relevées sur 11 écrans — #dashboard button « État de connexion : Données sur cet appareil » ; #dashboard button « Paramètres de l'espace de trava | ❌ [C039] 1440 chiffrage — « Coeff K » atteint au clavier : l'explication devient visible — atteint en 28 Tab : true ; texte « Coefficient de vente… » visible : false ; infobulle"
+C040;D;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G2 : avant 9 ✓ / 3 ✗ ; après 11 ✓ / 1 ✗";"❌ [C040] 390 px chiffrage — barre de totaux / catalogue — barre visible : true ; catalogue ouvert : false ; calques []"
+C041;E;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G3 : avant 0 ✓ / 3 ✗ ; après 0 ✓ / 3 ✗";❌ [C041] Libellés d'action vagues sur 14 écrans × 2 largeurs (846 actions relevées) — #factures : « Options » (nom accessible « Filtres avancés ») | #settings/documents : « OK » | ❌ [C041] 1440 px — carte « Créer facture » du tableau de bord — NON EXÉCUTÉ — carte absente à cette largeur | ❌ [C041] 390 px — carte « Créer facture » du tableau de bord — NON EXÉCUTÉ — carte absente à cette largeur
+C042;E;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G3 : avant 0 ✓ / 7 ✗ ; après 2 ✓ / 1 ✗";"❌ [C042] Le raccourci annoncé par ce bouton (Cmd/Ctrl+Z) produit la même action que le bouton — après Cmd+Z puis Ctrl+Z (focus hors champ) : fiche toujours ouverte, nom « Matière test G3 » ; après clic sur le bouton : fi"
 C043;E;PASSÉ;;Partager, Signer, Imprimer, Envoyer;libellés visibles
 C044;E;PASSÉ;;enregistrement refusé, client manquant;messages métier en français
-C045;E;NON TESTÉ;;—;non exécuté dans cette session
-C046;E;NON TESTÉ;;—;non exécuté dans cette session
+C045;E;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G3 : avant 0 ✓ / 1 ✗ ; après 0 ✓ / 1 ✗";"❌ [C045] Un seul h1 par écran, aucun saut de niveau, taille décroissante avec le niveau (14 écrans × 2 largeurs) — 1440#chiffrage : h2 « Lot 01 — Travaux » (18px) plus grand que h1 « Chiffrage » (14px) | 1440#chiffrage :"
+C046;E;BLOQUÉ;"corrigé au lot 4 ; section de sonde interrompue par un sélecteur périmé — non rejoué";"couleurs de statut entre devis, factures, dépenses (G3 bloc D)";G3 bloc D interrompu (« Convertir en facture » renommé)
 C047;E;PASSÉ;;listes devis/factures à 1440 et 390;montants entiers, aucun débordement
-C048;E;NON TESTÉ;;—;non exécuté dans cette session
-C049;E;NON TESTÉ;;—;non exécuté dans cette session
-C050;E;NON TESTÉ;;—;non exécuté dans cette session
+C048;E;NON APPLICABLE;"produit monolingue (français) : aucun sélecteur de langue, html lang='fr'";adaptation à une autre langue (allongement des libellés);G3 : mesure indicative +40 % seulement
+C049;E;ÉCHEC;"partiellement corrigé ; écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G3 : avant 2 ✓ / 4 ✗ ; après 3 ✓ / 3 ✗";"❌ [C049] Pastille de statut chantier « En cours » identique entre tableau de bord et liste des chantiers — 1440#dashboard : 10px none fond rgb(236, 253, 245) | 1440#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8) | ❌ [C049] Bouton de l'action principale de l'écran : même apparence au repos et au survol sur 5 écrans — #settings/entreprise « Enregistrer les paramètres de l'entreprise » (.btn"
+C050;E;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G3 : avant 2 ✓ / 1 ✗ ; après 3 ✓ / 0 ✗";non exécuté dans cette session
 C051;F;PASSÉ;;fenêtre Nouveau client (7 champs);label[for] associés
 C052;F;PASSÉ;;fenêtre Nouveau client, règlement;astérisque + « (facultatif) »
-C053;F;NON TESTÉ;;—;non exécuté dans cette session
+C053;F;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G3 : avant 1 ✓ / 3 ✗ ; après 1 ✓ / 3 ✗";"❌ [C053] Nouvelle dépense : les champs cités par l'erreur avaient un exemple ou une unité avant l'envoi — erreur affichée « 3 points à corriger : Décrivez la dépense (ex. « Ciment 50 sacs »). Le montant doit être supérie | ❌ [C053] Champs à format (e-mail, téléphone, NIF/RCCM, RIB/IBAN, montants, taux, dates) : exemple, unité ou aide visible avant toute erreur — 41 champs dans 10 formulaires — Nou"
 C054;F;PASSÉ;;téléphone, e-mail, montant;type=tel / email / number
 C055;F;PASSÉ;ÉCHEC → corrigé, retesté;montant de règlement prérempli;UX-P2-02 : « 1466781.3 » → « 1466781 »
-C056;F;ÉCHEC;ouvert;fenêtre Nouveau client;aucun attribut autocomplete (P3)
-C057;F;NON TESTÉ;;—;non exécuté dans cette session
-C058;F;NON TESTÉ;;—;non exécuté dans cette session
-C059;F;NON TESTÉ;;—;non exécuté dans cette session
+C056;F;PASSÉ;"ÉCHEC → corrigé (lot 6), retesté";"fiche Nouveau client (tiers) : remplissage automatique coupé sur 7 champs ; collage non bloqué";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
+C057;F;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G3 : avant 8 ✓ / 1 ✗ ; après 7 ✓ / 0 ✗";non exécuté dans cette session
+C058;F;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G3 : avant 6 ✓ / 2 ✗ ; après 3 ✓ / 0 ✗";non exécuté dans cette session
+C059;F;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G3 : avant 1 ✓ / 4 ✗ ; après 1 ✓ / 4 ✗";"❌ [C059] Nouvelle dépense : 13 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 13 champs ; fieldset : 0 | ❌ [C059] Paramètres › Entreprise : 18 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 18 champs ; fieldset : 0 | ❌ [C059] Nouveau compte : 11 champs regro"
 C060;F;PASSÉ;;nom du client saisi dans le devis;repris dans la fenêtre de création
-C061;G;NON TESTÉ;;—;non exécuté dans cette session
+C061;G;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 3 ✓ / 2 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
 C062;G;PASSÉ;;quantités non confirmées;le message dit quoi faire
-C063;G;NON TESTÉ;;—;non exécuté dans cette session
+C063;G;PASSÉ;testé par sondes;"sondes G4 : avant 6 ✓ / 0 ✗ ; après 6 ✓ / 0 ✗";non exécuté dans cette session
 C064;G;PASSÉ;ÉCHEC → corrigé, retesté;rechargement après saisie;"UX-P0-01 ; test_persistance_rechargement 6/6"
-C065;G;NON TESTÉ;;—;non exécuté dans cette session
-C066;G;NON TESTÉ;;—;non exécuté dans cette session
+C065;G;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 2 ✓ / 4 ✗ ; après 6 ✓ / 0 ✗";non exécuté dans cette session
+C066;G;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 3 ✓ / 1 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
 C067;G;PASSÉ;ÉCHEC → corrigé, retesté;« Enregistré localement » vs données perdues;UX-P0-01
 C068;G;PASSÉ;;toasts d’enregistrement et d’émission;correspondent à l’état stocké
-C069;G;NON TESTÉ;;—;non exécuté dans cette session
-C070;G;NON TESTÉ;;—;non exécuté dans cette session
-C071;H;NON TESTÉ;;—;non exécuté dans cette session
-C072;H;NON TESTÉ;;—;non exécuté dans cette session
+C069;G;BLOQUÉ;"corrigé au lot 4 ; section de sonde interrompue par un sélecteur périmé — non rejoué";"suppression d’un ouvrage puis « Annuler », Ctrl+Z (G4 section annulation)";"G4 section « annulation » interrompue ; confirmation de suppression : scratch/test_unsaved_changes_guard 6/6"
+C070;G;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 2 ✓ / 1 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C071;H;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G4 : avant 15 ✓ / 6 ✗ ; après 13 ✓ / 3 ✗";"❌ C071 · [1440] Chantiers : « Rénovation » (nom avec accent) trouve 1 chantier — 8 trouvé(s) : Rénovation école Kalaban, Rénovation école Kalaban, Rénovation école Kalaban, Rénovation école Kalaban, Rénovation école Kala | ❌ C071 · [1440] Chantiers : « renovation » (nom sans accent) trouve 1 chantier — 8 trouvé(s) : Rénovation école Kalaban, Rénovation école Kalaban, Rénovation école Kalaban, Réno"
+C072;H;PASSÉ;testé par sondes;"sondes G4 : avant 3 ✓ / 0 ✗ ; après 3 ✓ / 0 ✗";non exécuté dans cette session
 C073;H;PASSÉ;;filtre « Soldées » sans résultat;« Aucune facture correspondante » distinct de la base vide
 C074;H;PASSÉ;ÉCHEC → corrigé, retesté;compteurs Toutes/Non réglées/Partielles/Soldées;UX-P2-03
-C075;H;NON TESTÉ;;—;non exécuté dans cette session
-C076;H;NON TESTÉ;;—;non exécuté dans cette session
-C077;H;NON TESTÉ;;—;non exécuté dans cette session
-C078;H;NON TESTÉ;;—;non exécuté dans cette session
-C079;H;NON TESTÉ;;—;non exécuté dans cette session
-C080;H;NON TESTÉ;;—;non exécuté dans cette session
-C081;I;NON TESTÉ;;—;non exécuté dans cette session
-C082;I;NON TESTÉ;;—;non exécuté dans cette session
-C083;I;NON TESTÉ;;—;non exécuté dans cette session
-C084;I;NON TESTÉ;;—;non exécuté dans cette session
-C085;I;NON TESTÉ;;—;non exécuté dans cette session
-C086;I;NON TESTÉ;;—;non exécuté dans cette session
-C087;I;NON TESTÉ;;—;non exécuté dans cette session
-C088;I;NON TESTÉ;;—;non exécuté dans cette session
-C089;I;NON TESTÉ;;—;non exécuté dans cette session
-C090;I;NON TESTÉ;;—;non exécuté dans cette session
+C075;H;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 3 ✓ / 3 ✗ ; après 4 ✓ / 0 ✗";non exécuté dans cette session
+C076;H;PASSÉ;testé par sondes;"sondes G4 : avant 1 ✓ / 0 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C077;H;BLOQUÉ;"corrigé au lot 4 ; section de sonde interrompue par un sélecteur périmé — non rejoué";"sélection partielle, sélection masquée par un filtre (G4 section factures)";G4 section « factures » interrompue
+C078;H;PASSÉ;"ÉCHEC → corrigé (lot 4), retesté par banc ; cas « Exporter CSV de la sélection » non rejoué";"« Marquer envoyées » : nombre traité annoncé, brouillon et réglée écartés et nommés";tests/ux/test_audit220_lot5.mjs 20/20
+C079;H;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 3 ✓ / 3 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
+C080;H;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G4 : avant 2 ✓ / 10 ✗ ; après 6 ✓ / 0 ✗";non exécuté dans cette session
+C081;I;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 3 ✓ / 1 ✗ ; après 4 ✓ / 0 ✗";non exécuté dans cette session
+C082;I;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G5 : avant 1 ✓ / 9 ✗ ; après 7 ✓ / 2 ✗";"❌ C082 · Chaque total en argent précise TTC ou HT — sans mention : — ; pipeline sans mention TTC/HT : true | ❌ C082 · Périmètre cohérent : l'appel « premier devis » et les compteurs comptent les mêmes devis — bouton : « Créer mon premier devis » ; carte : « 1 devis chiffré » ; formule : « 1/3 devis »"
+C083;I;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G5 : avant 1 ✓ / 2 ✗ ; après 2 ✓ / 1 ✗";❌ C083 · Une carte indicateur ouvre le détail de ce qui la compose
+C084;I;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 3 ✓ / 2 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
+C085;I;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G5 : avant 3 ✓ / 0 ✗ ; après 1 ✓ / 1 ✗";"❌ C085 · Le graphique du pipeline a un équivalent textuel (nombre et montant par étape) — segments : Acceptés : 1=100% ; texte :"
+C086;I;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 6 ✓ / 3 ✗ ; après 8 ✓ / 0 ✗";non exécuté dans cette session
+C087;I;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G5 : avant 26 ✓ / 5 ✗ ; après 26 ✓ / 5 ✗";"❌ C087 · 320px : aucune commande de la barre haute coupée par le bord de l'écran — Menu du profil utilisateur (291→346px) | ❌ C087 · 320px : aucun montant d'indicateur tronqué — 20 589 256 FCFA (96/105px) | ❌ C087 · 320px : le premier indicateur chiffré apparaît dans le premier écran — 1re carte à y=857px pour 571px utiles ; contenu 2199px = 4.4 écran(s)"
+C088;I;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 2 ✓ / 2 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C089;I;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G5 : avant 3 ✓ / 2 ✗ ; après 0 ✓ / 1 ✗";"❌ C089 · Les 7 interrupteurs de widgets sont atteignables au clavier (Tab) — WCAG 2.1.1 — 0 interrupteurs (div cliquables, tabIndex , role , état ) ; parcours Tab : INPUT:0 → SELECT:Tout l’historique Ce mois-ci C → BUTTO"
+C090;I;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G5 : avant 6 ✓ / 2 ✗ ; après 6 ✓ / 1 ✗";"❌ C090 · La destination a une adresse propre (#devis/<id>), comme depuis la liste — adresse après clic : « #devis » (cf. UX-P2-06)"
 C091;J;PASSÉ;;"P2 chiffrage→PDF ; P3 devis→facture→paiement";parcours joués de bout en bout en démo
-C092;J;NON TESTÉ;;—;non exécuté dans cette session
-C093;J;NON TESTÉ;;—;non exécuté dans cette session
+C092;J;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 8 ✓ / 1 ✗ ; après 9 ✓ / 0 ✗";non exécuté dans cette session
+C093;J;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 2 ✓ / 2 ✗ ; après 2 ✓ / 0 ✗";non exécuté dans cette session
 C094;J;PASSÉ;ÉCHEC → corrigé, retesté;"compteurs après règlement ; listes après création";UX-P2-03, UX-P0-01
-C095;J;NON TESTÉ;;—;non exécuté dans cette session
+C095;J;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 8 ✓ / 2 ✗ ; après 7 ✓ / 0 ✗";non exécuté dans cette session
 C096;J;PASSÉ;ÉCHEC → corrigé, retesté;facture réglée écrasée par refacturation;UX-P0-01
 C097;J;PASSÉ;ÉCHEC → corrigé, retesté;rechargement en cours de démo;"UX-P0-01 (reprise des données) ; UX-P2-10 (message) ouvert"
-C098;J;NON TESTÉ;;—;non exécuté dans cette session
-C099;J;NON TESTÉ;;—;non exécuté dans cette session
+C098;J;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 3 ✓ / 3 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C099;J;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G5 : avant 1 ✓ / 2 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
 C100;J;PASSÉ;;émission de facture;toast + facture listée
-C101;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C102;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C103;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C104;K;NON TESTÉ;;—;UX-HYP-01 / UX-P2-10
-C105;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C101;K;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G1 : avant 6 ✓ / 2 ✗ ; après 8 ✓ / 0 ✗";compte réel requis (connexion, invitation, session expirée)
+C102;K;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G1 : avant 3 ✓ / 3 ✗ ; après 4 ✓ / 2 ✗";"❌ [C102] 1440 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — réinitialisation — écran : « Connexion » · alertes : [] · explication trouvée : false | ❌ [C102] 390 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — réinitialisation — écran : « Connexion » · "
+C103;K;BLOQUÉ;"cas joués : tous passent ; 1 cas non joué(s) (sonde à réparer)";"sondes G1 : avant 1 ✓ / 1 ✗ ; après 1 ✓ / 0 ✗ / 1 non joué(s)";compte réel requis (connexion, invitation, session expirée)
+C104;K;PASSÉ;testé par sondes;"sondes G1 : avant 4 ✓ / 0 ✗ ; après 4 ✓ / 0 ✗";UX-HYP-01 / UX-P2-10
+C105;K;PASSÉ;testé par sondes;"sondes G1 : avant 5 ✓ / 0 ✗ ; après 5 ✓ / 0 ✗";compte réel requis (connexion, invitation, session expirée)
 C106;K;PASSÉ;;démo;badge « Démonstration » + entreprise active affichés
-C107;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C108;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C109;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C110;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
-C111;L;NON TESTÉ;partiel;"390 et 1440 passés ; 320/360/768/1024 non exécutés";inventaire 24 combinaisons sans débordement
-C112;L;NON TESTÉ;;—;non exécuté dans cette session
-C113;L;NON TESTÉ;;—;non exécuté dans cette session
-C114;L;NON TESTÉ;;—;non exécuté dans cette session
-C115;L;NON TESTÉ;;—;non exécuté dans cette session
-C116;L;NON TESTÉ;;—;non exécuté dans cette session
-C117;L;NON TESTÉ;;—;non exécuté dans cette session
-C118;L;NON TESTÉ;;—;non exécuté dans cette session
-C119;L;NON TESTÉ;;—;non exécuté dans cette session
-C120;L;NON TESTÉ;;—;"aucun appareil mobile réel ; émulation Chromium seulement"
+C107;K;BLOQUÉ;"cas joués : tous passent ; 1 cas non joué(s) (sonde à réparer)";"sondes G1 : avant 5 ✓ / 1 ✗ ; après 5 ✓ / 0 ✗ / 1 non joué(s)";compte réel requis (connexion, invitation, session expirée)
+C108;K;BLOQUÉ;sonde bloquée (sélecteur « Dupliquer le devis » périmé) — non rejoué;restriction de formule expliquée;"G1 ; limite Starter : tests/ux/test_audit220_rejeu_corriges.mjs (C202)"
+C109;K;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G1 : avant 1 ✓ / 2 ✗ ; après 0 ✓ / 2 ✗";"❌ [C109] 1440 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — invitation — écran : « Connexion » · alertes : [] · explication trouvée : false · l'a | ❌ [C109] 390 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — invitation — écran : « Connexion » · alerte"
+C110;K;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G1 : avant 4 ✓ / 5 ✗ ; après 9 ✓ / 0 ✗";compte réel requis (connexion, invitation, session expirée)
+C111;L;ÉCHEC;"écart restant assumé (décision ou point laissé ouvert, UX_REDESIGN_PLAN / UX-P3-07)";"sondes G6 : avant 0 ✓ / 13 ✗ ; après 0 ✓ / 13 ✗";"❌ C111 · 320×568 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation) — #dashboard: débord 0, échappés 0, collisions 0, rognées 1 [{'nom':'Menu du profil | ❌ C111 · 360×740 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation) — #depenses: débord 0, échappés 0, colli"
+C112;L;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G6 : avant 5 ✓ / 3 ✗ ; après 0 ✓ / 1 ✗";"❌ C112 · ERREUR DE SONDE — Error: recouvert, impossible à toucher : Afficher le détail du chiffrage (déboursé, coefficient K, marge, TVA)"
+C113;L;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G6 : avant 6 ✓ / 2 ✗ ; après 5 ✓ / 3 ✗";"❌ C113 · Liste des devis 768×1024 : tableau 6 colonnes entièrement lisible — {'mode':'tableau','colonnes':['CLIENT & ENTREPRISE','CHANTIER / PROJET','DEVIS & DATE','MONTANT TTC','STATUT','ACTIONS'],'horsZone':['ACTIONS'] | ❌ C113 · « Facturer DEV-… » à 390 : le tableau des lots (5 colonnes) reste dans une zone défilante horizontalement — zone 310 px pour 310 px ; glisser au doigt → scrollLeft 0 | "
+C114;L;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G6 : avant 0 ✓ / 1 ✗ ; après 0 ✓ / 1 ✗";❌ C114 · ERREUR DE SONDE — Error: introuvable : /^Nom du client/
+C115;L;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G6 : avant 0 ✓ / 1 ✗ ; après 0 ✓ / 1 ✗";❌ C115 · ERREUR DE SONDE — ProtocolError: Protocol error (Input.synthesizeScrollGesture): Position out of bounds
+C116;L;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G6 : avant 0 ✓ / 1 ✗ ; après 0 ✓ / 1 ✗";❌ C116 · ERREUR DE SONDE — Error: introuvable : /^Nom du client/
+C117;L;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G6 : avant 1 ✓ / 3 ✗ ; après 0 ✓ / 1 ✗";❌ C117 · ERREUR DE SONDE — Error: introuvable : /^Afficher le devis DEV-2026-001/
+C118;L;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G6 : avant 8 ✓ / 2 ✗ ; après 8 ✓ / 2 ✗";"❌ C118 · Menu ⋮ « Plus d’actions » (fiche devis, 390) : se ferme au toucher extérieur — ouvert {'haut':237,'bas':359,'classe':'saved-quote-mobile-more-menu absolute le'} ; après toucher sur le texte « Société Immobilière | ❌ C118 · Menu ⋮ « Plus d’actions » : Échap ferme le menu sans fermer la fiche devis — après Échap : menu fermé, fiche devis FERMÉE (retour à la liste)"
+C119;L;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G6 : avant 0 ✓ / 1 ✗ ; après 0 ✓ / 1 ✗";"❌ C119 · ERREUR DE SONDE — Error: recouvert, impossible à toucher : Ouvrir le menu de navigation"
+C120;L;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G6 : avant 0 ✓ / 2 ✗ ; après 0 ✓ / 2 ✗";"❌ C120 · Chromium 152 (émulation Android 412×915, toucher) : créer un client, chiffrer et enregistrer un devis, le facturer — ✓ Menu → Clients & CRM · ✗ Créer un nouveau client (introuvable : /^Nom du client/) · ✗ Devis  | ❌ C120 · Mêmes tâches sur Safari iOS / WebKit, Firefox Android, appareil physique — NON TESTÉ — aucun moteur WebKit ni Gecko pilotable par la sonde (Puppeteer : Chrome seul en c"
 C121;M;PASSÉ;ÉCHEC → corrigé, retesté (périmètre inventaire);12 écrans × 2 largeurs;13 cliquables non focalisables → 0
 C122;M;PASSÉ;ÉCHEC → corrigé, retesté;navigation latérale, « Créer mon premier devis »;focus sur le titre du nouvel écran
-C123;M;NON TESTÉ;;—;non exécuté dans cette session
-C124;M;NON TESTÉ;;—;non exécuté dans cette session
+C123;M;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 27 ✓ / 1 ✗ ; après 27 ✓ / 1 ✗";"❌ C123 · Plus d'actions sur le devis (chiffrage) — Échap referme et rend le focus au déclencheur — après Échap : focus BUTTON «Plus d'actions sur le devis», aria-expanded=true"
+C124;M;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 7 ✓ / 16 ✗ ; après 16 ✓ / 7 ✗";"❌ C124 · Ajout d'un ouvrage au clavier (Entrée) : le focus reste utilisable (BODY) — UX-P2-05 couvrait ce cas ; le correctif ne traite que la navigation entre écrans | ❌ C124 · « Confirmer mes quantités » au clavier : le focus reste utilisable (BUTTON «Confirmer mes quantités» → BODY) — bouton retiré du DOM après usage | ❌ C124 · 1440 #clients — focus jamais entièrement masqué (2.4.11) : 1 — BUTTO"
 C125;M;PASSÉ;ÉCHEC → corrigé, retesté;fenêtres;noms accessibles reliés au titre
-C126;M;NON TESTÉ;;—;pas de lecteur d’écran disponible
-C127;M;NON TESTÉ;;—;pas de lecteur d’écran disponible
-C128;M;NON TESTÉ;;—;non exécuté dans cette session
+C126;M;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 44 ✓ / 3 ✗ ; après 45 ✓ / 2 ✗";"❌ C126 · 1440 #abonnement — le contenu de l'écran (h1) est dans le repère « main » — main#main-content vide (0 car.) ; contenu dans une région hors main | ❌ C126 · 1440 #settings/entreprise — le contenu de l'écran (h1) est dans le repère « main » — main#main-content vide (0 car.) ; contenu dans une région hors main"
+C127;M;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G7 : avant 2 ✓ / 3 ✗ ; après 1 ✓ / 4 ✗";"❌ C127 · Changement d'écran : la région live polie change 22 fois en 329 ms (chronomètre) — « ment en cours…0 msChargement de la page… » → « ent en cours…19 msChargement de la page… » → « ent en cours…34 msChargement de  | ❌ C127 · Saisie « 125 » dans Surface directe : 4 mise(s) à jour de région live (pas de rafale par touche) — status « Quantités à confirmerRenseignez votre mé » ; status « » ; st"
+C128;M;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 14 ✓ / 6 ✗ ; après 18 ✓ / 2 ✗";"❌ C128 · Combobox « Rechercher un ouvrage » — Flèche bas : option active exposée (aria-activedescendant=∅, 0/2 options avec id) — aria-selected des options : false,true ; aria-expanded=true | ❌ C128 · Alt+Flèche bas dans INPUT «Prix unitaire pour Peinture Murale Satinée BTP» : le focus reste dans le champ — focus après : BODY ; lot actif 0 → 1"
 C129;M;PASSÉ;ÉCHEC → corrigé (2 cas);organisation, « Nouveau » facture;reste à revoir sur les écrans non inventoriés
-C130;M;NON TESTÉ;;—;non exécuté dans cette session
+C130;M;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 2 ✓ / 3 ✗ ; après 3 ✓ / 2 ✗";"❌ C130 · 1440 — le trait de signature suit le pointeur (écart max 8 px) — geste x 583→857, y 450 ; trait dessiné x 582→857, y 458 ; toile 440×180 affichée 458×176 ; UX_EVIDENCE/G7-clavier-accessibilite/c130-signature-144 | ❌ C130 · 390 — le trait de signature suit le doigt (écart max 999 px) — geste x 104→286, y 416 ; trait dessiné x aucun ; toile 440×180 affichée 304×176 ; UX_EVIDENCE/G7-clavier-"
 C131;N;PASSÉ;ÉCHEC → corrigé, retesté (périmètre inventaire);12 écrans × 2 largeurs;"32 → 0 textes sous le seuil ; 127 usages de neutral-400 hors périmètre à revoir"
-C132;N;NON TESTÉ;;—;non exécuté dans cette session
-C133;N;NON TESTÉ;;—;non exécuté dans cette session
-C134;N;NON TESTÉ;;—;non exécuté dans cette session
-C135;N;NON TESTÉ;;—;non exécuté dans cette session
-C136;N;NON TESTÉ;partiel;"Supprimer devis mobile corrigé (32 px) ; « Options du lot » 21 px non traité";inventaire
-C137;N;NON TESTÉ;;—;non exécuté dans cette session
-C138;N;NON TESTÉ;;—;non exécuté dans cette session
-C139;N;NON TESTÉ;;—;non exécuté dans cette session
-C140;N;NON TESTÉ;;—;matrice WCAG complète non réalisée
-C141;O;NON TESTÉ;;—;non exécuté dans cette session
-C142;O;NON TESTÉ;;—;non exécuté dans cette session
-C143;O;NON TESTÉ;;—;non exécuté dans cette session
-C144;O;NON TESTÉ;;—;non exécuté dans cette session
-C145;O;NON TESTÉ;;—;non exécuté dans cette session
-C146;O;NON TESTÉ;;—;non exécuté dans cette session
-C147;O;NON TESTÉ;;—;non exécuté dans cette session
-C148;O;NON TESTÉ;;—;non exécuté dans cette session
-C149;O;ÉCHEC;décision à arbitrer;transition de page et de fiche;UX-DEC-01 : 350 ms ajoutées volontairement, test modifié pour rester vert
-C150;O;NON TESTÉ;;—;non exécuté dans cette session
-C151;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C152;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C153;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C154;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C132;N;ÉCHEC;"partiellement corrigé ; 10 cas en échec au rejeu, non triés";"sondes G7 : avant 1 ✓ / 11 ✗ ; après 2 ✓ / 10 ✗";"❌ C132 · 1440 — champs de saisie dont la limite visible est < 3:1 : 16 sur 11 écrans — 9× rgba(228, 233, 238, 0.9) sur rgb(255,255,255) (champ rgb(248,250,252)) 1.2:1 ; 3× rgb(228, 233, 238) sur rgb(241,245,248) (champ r | ❌ C132 · 1440 #dashboard — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 7 faible(s) — INPUT «Recherche globale dans ikadevis» (892 px à ≥ 3:1 / périmètre 956) ; BUTT"
+C133;N;ÉCHEC;"1 cas en échec au rejeu, non triés";"sondes G7 : avant 4 ✓ / 1 ✗ ; après 4 ✓ / 1 ✗ / 1 non joué(s)";"❌ C133 · filtre de période du tableau de bord — l'élément actif (« Tout ») se distingue autrement que par la teinte — indices de forme : aucun ; écart de luminance fond 1.09:1, texte 2.82:1"
+C134;N;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 1 ✓ / 5 ✗ ; après 1 ✓ / 5 ✗";"❌ C134 · 1440 — espacement du texte WCAG 1.4.12 : aucun texte nouvellement coupé (6 écrans) — #dashboard (2) : span « Ouvrages et ressources », p « Rénovation Façades ACM & Ensei » ; #chiffrage (1) : span « Ouvrages et r | ❌ C134 · 1440 — espacement du texte : boutons visibles toujours cliquables (non recouverts) — #factures: BUTTON «Filtrer les factures par statut» | ❌ C134 · 390 — espacement du "
+C135;N;PASSÉ;testé par sondes;"sondes G7 : avant 12 ✓ / 0 ✗ ; après 12 ✓ / 0 ✗";non exécuté dans cette session
+C136;N;PASSÉ;testé par sondes;"sondes G7 : avant 2 ✓ / 0 ✗ ; après 2 ✓ / 0 ✗";inventaire
+C137;N;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G7 : avant 4 ✓ / 1 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
+C138;N;PASSÉ;testé par sondes;"sondes G7 : avant 5 ✓ / 0 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
+C139;N;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 3 ✓ / 2 ✗ ; après 3 ✓ / 2 ✗";"❌ C139 · Message « enregistré » visible 0 s quand il est seul — minuterie prévue : 3,5 s | ❌ C139 · Second message émis 2,6 s après un premier : visible 0 s (« ») — minuterie de 3,5 s non liée au message qu'elle efface"
+C140;N;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G7 : avant 20 ✓ / 5 ✗ ; après 24 ✓ / 1 ✗";"❌ C140 · Champs dont le seul libellé visible est le texte indicatif (3.3.2) : 2 — #chiffrage INPUT[combobox] «Client du devis» ; #chiffrage INPUT[combobox] «Chantier du devis»"
+C141;O;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G8 : avant 6 ✓ / 0 ✗ ; après 6 ✓ / 3 ✗";FAIL C141 · Slow 4G (390x844@3x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP) | FAIL C141 · Slow 3G (390x844@3x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP) | FAIL C141 · Slow 4G (1440x900@1x) — écran d'accès ≤ 4000 ms (seuil « mauvais » LCP)
+C142;O;PASSÉ;testé par sondes;"sondes G8 : avant 3 ✓ / 0 ✗ ; après 3 ✓ / 0 ✗";non exécuté dans cette session
+C143;O;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G8 : avant 9 ✓ / 1 ✗ ; après 8 ✓ / 1 ✗";"FAIL C143 · 1440x900@1x — notification superposée (position fixe), aucun décalage pendant la saisie"
+C144;O;BLOQUÉ;"scénarios G8 S3/S4 bloqués (sélecteur de sonde ; quota de stockage atteint par le jeu de données de la sonde)";"liste de 60 devis défilée sans blocage (G4) ; volume > 60 non mesuré";UX_EVIDENCE/G8-performance-reseau/mesures.json (S3/S4)
+C145;O;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G8 : avant 0 ✓ / 2 ✗ ; après 0 ✓ / 2 ✗";"FAIL C145 · 1440x900@2x — images affichées : pas plus de 2× les pixels utiles, ≤ 200 Ko chacune | FAIL C145 · 1440x900@2x — logo déposé en 4000×3000 : réduit à l'usage (≤ 480 px de large, ≤ 100 Ko) avant stockage"
+C146;O;PASSÉ;testé par sondes;"sondes G8 : avant 6 ✓ / 0 ✗ ; après 4 ✓ / 0 ✗";non exécuté dans cette session
+C147;O;PASSÉ;méthode : lecture de code;"recherches devis, factures, clients, chantiers, ressources, recherche globale";"filtrage local en mémoire (normalizeSearchText), aucune requête réseau par frappe"
+C148;O;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G8 : avant 1 ✓ / 2 ✗ ; après 4 ✓ / 1 ✗";FAIL C148 · Bundle introuvable — l'échec est annoncé avec une action (réessayer)
+C149;O;ÉCHEC;décision produit R5 : 350 ms conservés (en-tête du test corrigé);transition de page et de fiche;UX-DEC-01
+C150;O;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G8 : avant 4 ✓ / 2 ✗ ; après 4 ✓ / 2 ✗";FAIL C150 · bureau — un seul document chargé par essai (aucun rechargement parasite pendant la mesure) | FAIL C150 · mobile — un seul document chargé par essai (aucun rechargement parasite pendant la mesure)
+C151;P;BLOQUÉ;scénarios G8 S8/S10 bloqués (sélecteur de sonde à 390 px);connexion lente émulée (paramètres consignés dans mesures.json);UX_EVIDENCE/G8-performance-reseau/mesures.json
+C152;P;ÉCHEC;"défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G8 : avant 2 ✓ / 0 ✗ ; après 0 ✓ / 1 ✗";FAIL C152 · 1440x900@1x — hors ligne : client et devis réellement conservés là où le message l'annonce (cet appareil)
+C153;P;NON TESTÉ;mode connecté requis (compte réel);coupure après soumission;"en démo, aucune soumission ne passe par le réseau"
+C154;P;PASSÉ;testé par sondes;"sondes G8 : avant 2 ✓ / 0 ✗ ; après 2 ✓ / 0 ✗";réseau réel / compte connecté requis
 C155;P;PASSÉ;ÉCHEC → corrigé, retesté;démo : données locales présentées comme conservées;UX-P0-01
-C156;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C157;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C158;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C156;P;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G8 : avant 1 ✓ / 2 ✗ ; après 1 ✓ / 0 ✗";réseau réel / compte connecté requis
+C157;P;PASSÉ;méthode : lecture de code;"sélection rapide de fiches, réponses tardives";jetons de transition (invoiceTransitionSeqRef…) et neutralisation des réponses tardives (TenantPersistence.pendingRequests)
+C158;P;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G8 : avant 1 ✓ / 3 ✗ ; après 4 ✓ / 0 ✗";réseau réel / compte connecté requis
 C159;P;PASSÉ;ÉCHEC → corrigé;jeton de cache de tenant-persistence.js figé;ajouté à FICHIERS_JS
-C160;P;NON TESTÉ;;—;réseau réel / compte connecté requis
-C161;Q;NON TESTÉ;;—;non exécuté dans cette session
-C162;Q;NON TESTÉ;;—;non exécuté dans cette session
-C163;Q;NON TESTÉ;;—;non exécuté dans cette session
-C164;Q;NON TESTÉ;;—;non exécuté dans cette session
-C165;Q;NON TESTÉ;;—;non exécuté dans cette session
-C166;Q;NON TESTÉ;;—;non exécuté dans cette session
-C167;Q;NON TESTÉ;;—;non exécuté dans cette session
-C168;Q;NON TESTÉ;;—;non exécuté dans cette session
-C169;Q;NON TESTÉ;;—;non exécuté dans cette session
-C170;Q;NON TESTÉ;;—;non exécuté dans cette session
+C160;P;ÉCHEC;"partiellement corrigé ; défaut(s) restant(s), non corrigé(s) — UX_AUDIT § Défauts restants";"sondes G8 : avant 3 ✓ / 2 ✗ ; après 1 ✓ / 1 ✗";FAIL C160 · 1440x900@1x — démo hors ligne : aucune promesse de synchronisation (rien n'est synchronisé en démo)
+C161;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 5 ✓ / 2 ✗ ; après 6 ✓ / 0 ✗";non exécuté dans cette session
+C162;Q;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G9 : avant 6 ✓ / 0 ✗ ; après 2 ✓ / 2 ✗";"❌ [C162] Annulation pendant la lecture : fenêtre fermée, aucun résultat tardif, réouverture vierge — après fermeture {'ouvert':false,'alertes':['']} · pied à la réouverture « 0 ligne(s) · 0 FCFA HT Ajout au devis en cour | ❌ [C162] PDF en échec (bibliothèque indisponible) : message qui propose une alternative, bouton rendu, nouvelle tentative réussie — 1er essai : {'messages':[],'bouton':[{'texte'"
+C163;Q;PASSÉ;testé par sondes;"sondes G9 : avant 1 ✓ / 0 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C164;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 4 ✓ / 4 ✗ ; après 5 ✓ / 0 ✗";non exécuté dans cette session
+C165;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 1 ✓ / 3 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C166;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 1 ✓ / 1 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
+C167;Q;BLOQUÉ;"corrigé au lot 4 ; section de sonde interrompue par un sélecteur périmé — non rejoué";"export CSV : périmètre affiché, BOM (G9 section materiaux)";G9 section « materiaux » interrompue
+C168;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 3 ✓ / 4 ✗ ; après 3 ✓ / 0 ✗";non exécuté dans cette session
+C169;Q;BLOQUÉ;"corrigé au lot 4 ; long devis multi-pages non rejoué (section de sonde interrompue)";"impression A4 : un seul document, le bon (devis, facture, quittance) — rejoué ; pagination d’un devis de 151 lignes — non rejoué";"tests/ux/test_audit220_lot6.mjs (impression à 794 px) ; G9 section « bordereau » interrompue"
+C170;Q;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 1 ✓ / 1 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
 C171;R;PASSÉ;;devis et facture;brouillon / émise / réglée distingués
 C172;R;PASSÉ;;ligne de devis;120 m² × 10 359 = 1 243 035 (tableau = document)
-C173;R;NON TESTÉ;;—;non exécuté dans cette session
+C173;R;PASSÉ;testé par sondes;"sondes G9 : avant 1 ✓ / 0 ✗ ; après 1 ✓ / 0 ✗";non exécuté dans cette session
 C174;R;PASSÉ;ÉCHEC → corrigé, retesté;devis → facture → règlement;"TTC arrondi à la devise ; UX-P2-02/03"
-C175;R;NON TESTÉ;;—;non exécuté dans cette session
-C176;R;NON TESTÉ;;—;UX-HYP-02 : facture « 1 lot » au lieu du détail — à valider
+C175;R;BLOQUÉ;"cas en échec imputés à la sonde (sélecteur ou lecture périmés) — non rejoués ; comportement relu dans le code";"sondes G9 : avant 2 ✓ / 2 ✗ ; après 0 ✓ / 2 ✗";"❌ [C175] Règlement partiel : réglé et reste affichés sur la fiche, la liste et les compteurs — prérempli « 6176777 » · liste « » · reste attendu 4 176 777 | ❌ [C175] Le document de la facture (PDF/aperçu) indique le déjà-réglé et le reste à payer — document : aucune mention du règlement — seul « NET À PAYER » 6 176 777 FCFA"
+C176;R;PASSÉ;testé par sondes;"sondes G9 : avant 1 ✓ / 0 ✗ ; après 1 ✓ / 0 ✗";UX-HYP-02 : facture « 1 lot » au lieu du détail — à valider
 C177;R;PASSÉ;;facture émise;« Figée », modification refusée, avoir proposé
 C178;R;PASSÉ;;émission;document, conséquence et effet nommés
-C179;R;NON TESTÉ;;—;non exécuté dans cette session
-C180;R;NON TESTÉ;;—;non exécuté dans cette session
+C179;R;NON TESTÉ;journal d'audit : mode connecté et rôle administrateur requis;historique des actions;"révisions de devis (-V2) visibles en démo ; journal serveur non accessible"
+C180;R;PASSÉ;"ÉCHEC → corrigé, retesté par rejeu des sondes";"sondes G9 : avant 0 ✓ / 2 ✗ ; après 2 ✓ / 0 ✗";non exécuté dans cette session
 C181;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
-C182;S;NON TESTÉ;;—;non exécuté dans cette session
+C182;S;PASSÉ;"ÉCHEC → corrigé (lot 4), retesté (tests/ux/test_audit220_rejeu_corriges.mjs)";"client → chantier prérempli ; liste à 2 clients : aucun présélectionné ; client → devis au nom du client";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
 C183;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
 C184;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
 C185;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
-C186;S;NON TESTÉ;;—;non exécuté dans cette session
+C186;S;NON APPLICABLE;aucune gestion de tâches dans le produit;—;inventaire (UX_INTERACTION_INVENTORY.csv)
 C187;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
 C188;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
 C189;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
@@ -199,21 +199,21 @@ C197;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans i
 C198;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
 C199;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
 C200;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
-C201;U;NON TESTÉ;;—;non exécuté dans cette session
-C202;U;NON TESTÉ;;—;non exécuté dans cette session
-C203;U;NON TESTÉ;;—;non exécuté dans cette session
-C204;U;NON TESTÉ;;—;non exécuté dans cette session
-C205;U;NON TESTÉ;;—;non exécuté dans cette session
-C206;U;NON TESTÉ;;—;non exécuté dans cette session
-C207;U;NON TESTÉ;;—;non exécuté dans cette session
-C208;U;NON TESTÉ;;—;non exécuté dans cette session
-C209;U;NON TESTÉ;;—;non exécuté dans cette session
-C210;U;NON TESTÉ;;—;non exécuté dans cette session
-C211;V;NON TESTÉ;partiel;"vide (démo) et unique testés ; volume non testé";—
-C212;V;NON TESTÉ;;—;non exécuté dans cette session
-C213;V;NON TESTÉ;;—;non exécuté dans cette session
-C214;V;NON TESTÉ;;—;non exécuté dans cette session
-C215;V;NON TESTÉ;;—;non exécuté dans cette session
+C201;U;PASSÉ;méthode : lecture de code + écran Abonnement;"prix mensuel / annuel, limites (devis, utilisateurs, chantiers), activation après paiement confirmé";"SubscriptionModal : planDetails, récapitulatif « À régler aujourd'hui »"
+C202;U;PASSÉ;"ÉCHEC → corrigé (lot 4), retesté (tests/ux/test_audit220_rejeu_corriges.mjs)";"4e devis en Starter : « Standard ou Entreprise », plus d'offre « Pro »";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
+C203;U;ÉCHEC;"ouvert — R9 : renouvellement et arrêt non expliqués ; politique commerciale à fournir";"offres, récapitulatif de paiement";SubscriptionModal : aucune mention de renouvellement ni d'arrêt
+C204;U;PASSÉ;"ÉCHEC → corrigé (lot 4), retesté (tests/ux/test_audit220_rejeu_corriges.mjs)";"Entreprise, Documents, Facturation : plus de « temps réel » ; « enregistrée sur cet appareil » en démo";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
+C205;U;NON APPLICABLE;aucun réglage de notifications : l'application n'envoie pas de notifications;—;inventaire
+C206;U;NON APPLICABLE;aucune automatisation dans le produit;—;inventaire
+C207;U;NON APPLICABLE;aucune automatisation dans le produit;—;inventaire
+C208;U;NON APPLICABLE;aucune fonction d'IA dans le produit;—;recherche dans le code : aucune
+C209;U;NON APPLICABLE;aucune fonction d'IA dans le produit;—;recherche dans le code : aucune
+C210;U;ÉCHEC;"ÉCHEC → corrigé (lot 4) pour les rôles (description tirée de ROLE_PERMISSIONS) ; effets TVA / numérotation sur l'équipe non revus";"invitation d'un membre ; taux de TVA ; numérotation";UX_FIX_LOG.md § Lot 4
+C211;V;PASSÉ;"environnement isolé 127.0.0.1, config.example.js";"vide (tableau de bord sans données, G5 C084), unique, volumineux (60 devis G4, 151 lignes G9)";"UX_EVIDENCE/G4-*, G5-*, G9-*"
+C212;V;PASSÉ;défauts d'affichage liés au contenu traités en C080 / C087;"nom de 95 caractères (tronqué, infobulle complète), accents (Société, Écoles, Rénovation), données absentes (« Société non renseignée »)";UX_EVIDENCE/G4-erreurs-recherche-tableaux
+C213;V;NON TESTÉ;"seul Chromium (Puppeteer) est disponible ; Firefox et WebKit non installés, téléchargement non autorisé dans cette session";parcours critiques P1–P3;UX_EVIDENCE/G8-performance-reseau/mesures.json (conditions)
+C214;V;PASSÉ;déclaration faite dans UX_AUDIT.md;"émulation Chromium (390×844@3, 360, 320, 768, 1024) ; aucun appareil physique";UX_AUDIT.md § Environnement
+C215;V;PASSÉ;"ÉCHEC → corrigé (lot 4), retesté (tests/ux/test_audit220_rejeu_corriges.mjs)";"système en thème sombre : les 9 éléments à classes « dark: » du panneau de métré gardent leurs couleurs, fond de page inchangé";tests/ux/test_audit220_rejeu_corriges.mjs 11/11
 C216;V;PASSÉ;;captures inventaire inspectées;—
 C217;V;PASSÉ;;3 bancs ajoutés;vérifient les effets stockés et le focus réel, pas la présence
 C218;V;PASSÉ;;chaque correction;retest ciblé + test:audit + suite générale comparée

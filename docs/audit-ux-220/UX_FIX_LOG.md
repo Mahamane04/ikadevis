@@ -276,19 +276,35 @@ Restent ouverts, antérieurs à l'audit et hors de son périmètre :
 du schéma (**non vérifié** : compte requis) ; d'autres replis sur
 `org_default` subsistent hors de la couche de persistance.
 
-### Vérification (étape, build JS `af7513dc8d`)
+### Dernière correction : premier ouvrage sur téléphone
 
-- Bancs `tests/ux` : accessibilité 6/6, lot 5 20/20, **lot 6 15/15**,
+Relevé au rejeu des sondes puis reproduit : sur téléphone, le bouton
+« Ajouter mon premier ouvrage » d'un devis vide restait sous la barre de
+totaux (390 px) ou sous la barre d'onglets (360 et 320 px) — un appui en son
+centre ouvrait « Aperçu PDF » ou changeait d'écran. Le lot 4 avait classé
+ces scénarios en « sonde périmée » : **à tort**. Le bouton réserve
+maintenant la hauteur des deux barres (`.clear-totals-bar`). Retest : appui
+réel au centre du bouton à 390×844 et 360×740 → la bibliothèque d'ouvrages
+s'ouvre (banc lot 6). **320×568 reste ouvert** : l'en-tête du chiffrage y
+occupe 345 px et la zone défilante n'a que 18 px visibles.
+
+### Vérification finale (build JS `510af75a66`)
+
+- Bancs `tests/ux` : accessibilité 6/6, lot 5 20/20, **lot 6 17/17**,
   **rejeu des contrôles corrigés 11/11**, **clés historiques 7/7**,
-  persistance 6/6, soldes 4/4. `npm run test:audit` vert.
+  persistance 6/6, soldes 4/4 — 71/71. `npm run test:audit` vert.
 - Suite complète `npm test` : **539/627, 26/58 suites, 7/7 étalons —
   identique à `main`** (0 échec nouveau, 0 disparu, comparaison nominative).
-- Sondes G1–G9 rejouées sur le build précédent (`27dc426429`, identique à
-  un libellé et des attributs `autocomplete` près) : **185 échecs bruts
-  contre 333** avant correction. Ce chiffre n'est pas encore un bilan :
-  plusieurs sections de sondes sont **interrompues par des sélecteurs
-  périmés** (libellés renommés par les corrections), donc des contrôles ne
-  sont pas réellement rejoués. Tri (défaut réel / artefact de sonde /
-  décision assumée) et réparation des sondes en cours.
-
-<!-- RÉSULTATS-FINAUX -->
+- Sondes G1–G9 rejouées sur le build `27dc426429` (le build final n'en
+  diffère que par un libellé, des attributs `autocomplete` et le dégagement
+  du bouton mobile) : 622 ✓ / 205 ✗ contre 571 ✓ / 355 ✗ avant correction.
+  **Ce n'est pas un rejeu complet** : plusieurs sections sont interrompues
+  par des sélecteurs que les corrections ont rendus périmés. La réparation
+  des sondes n'a pas été faite ; les contrôles concernés sont notés BLOQUÉ
+  dans la matrice, pas PASSÉ.
+- Tri des 205 échecs (un relecteur par lot, 10 constats contre-vérifiés) :
+  57 artefacts de sonde, 53 défauts réels, 16 décisions assumées, 1 non
+  vérifiable. Les défauts réels non corrigés sont listés, avec leur
+  correction proposée, dans `UX_AUDIT.md` § Défauts restants.
+- Matrice finale des 220 contrôles : **119 PASSÉ, 43 ÉCHEC, 30 BLOQUÉ,
+  25 NON APPLICABLE, 3 NON TESTÉ**.

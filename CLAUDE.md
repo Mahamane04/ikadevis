@@ -382,11 +382,20 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
 - **Audit UX/UI 220 contrôles (2026-10-03)** — branche `audit/ux-220-2026-10`,
   livrables dans `docs/audit-ux-220/` (carte produit, inventaire de 784
   interactions, matrice des 220 contrôles, constats, plan, journal), sondes
-  rejouables dans `tests/ux/controles/`, bancs dans `tests/ux/`. Corrigés :
-  perte de données au rechargement (P0), deux onglets, « Marquer envoyées »
-  en lot, import « Remplacer tout », dates jj/mm/aaaa, accessibilité clavier
-  et lecteur d'écran, documents de facture. **Non déployé.** Décisions
-  consignées dans `UX_REDESIGN_PLAN.md` (R1–R10).
+  rejouables dans `tests/ux/controles/`, bancs dans `tests/ux/` (71/71).
+  Corrigés : perte de données au rechargement (P0), deux onglets, « Marquer
+  envoyées » en lot, import « Remplacer tout », dates jj/mm/aaaa,
+  accessibilité clavier et lecteur d'écran, documents de facture,
+  impression, Retour du navigateur sur un chiffrage non enregistré.
+  Matrice : **119 PASSÉ, 43 ÉCHEC, 30 BLOQUÉ, 25 N/A, 3 non testés**.
+  **Non déployé.** Reste ouvert (`UX_AUDIT.md` § Défauts restants, 47
+  lignes avec correction proposée) : **signature impossible sous 1024 px**
+  (fenêtre sous la fiche devis), faux succès quand le stockage est plein,
+  320 px, focus perdu après ajout d'ouvrage… **Les sondes G1–G9 sont à
+  réparer avant tout rejeu** : plusieurs sélecteurs sont périmés (libellés
+  renommés) et leur capture des annonces guette des nœuds AJOUTÉS alors que
+  les régions d'annonce sont permanentes. Décisions : `UX_REDESIGN_PLAN.md`
+  (R1–R10).
 
 ---
 

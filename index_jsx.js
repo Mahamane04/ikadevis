@@ -8044,9 +8044,17 @@ function QuoteWorkspace({
                         currency={companyInfo.currency}
                     />
                     {(activeLot?.items || []).length === 0 && (
-                        <button type="button" className="lg:hidden btn-primary m-4 min-h-[48px]" onClick={() => { setMobileShowLotList(false); setIsPickerOpen(true); }}>
-                            <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter mon premier ouvrage
-                        </button>
+                        /* Audit UX 220 (C029/C134, rejeu) — sur téléphone cet appel
+                           restait SOUS la barre de totaux (390 px) ou sous la barre
+                           d'onglets (360 et 320 px) : un appui en son centre ouvrait
+                           « Aperçu PDF » ou changeait d'écran. Il réserve maintenant
+                           la hauteur des deux barres, comme toute colonne du
+                           chiffrage (.clear-totals-bar, index.html). */
+                        <div className="lg:hidden flex flex-col shrink-0 clear-totals-bar">
+                            <button type="button" className="btn-primary m-4 min-h-[48px]" onClick={() => { setMobileShowLotList(false); setIsPickerOpen(true); }}>
+                                <i className="fa-solid fa-plus" aria-hidden="true"></i> Ajouter mon premier ouvrage
+                            </button>
+                        </div>
                     )}
                 </div>
 

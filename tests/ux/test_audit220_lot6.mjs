@@ -251,6 +251,44 @@ export async function run() {
 
         const leve = await page.evaluate(() => !document.querySelector('[data-impression-cible], [data-impression-exclue]'));
         ok('Après impression, le marquage est levé', leve);
+
+        // ── Téléphone : « Ajouter mon premier ouvrage » (devis vide) se
+        //    touche vraiment. Constaté au rejeu des sondes : à 390 px le bouton
+        //    restait sous la barre de totaux, à 360 et 320 px sous la barre
+        //    d'onglets — un appui en son centre ouvrait « Aperçu PDF » ou
+        //    changeait d'écran.
+        //    320×568 n'est PAS vérifié ici : l'en-tête du chiffrage y occupe
+        //    345 px et la zone défilante n'a que 18 px visibles entre lui et
+        //    les deux barres fixes — défaut de mise en page consigné ouvert
+        //    (UX-P3-07, « 320 px »), pas un simple recouvrement.
+        for (const [largeur, hauteur] of [[390, 844], [360, 740]]) {
+            const mobile = await navigateur.newPage();
+            await mobile.setViewport({ width: largeur, height: hauteur, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+            await preparer(mobile, url);
+            await mobile.evaluate(() => { localStorage.clear(); localStorage.setItem('costcalc:guest:demoQuoteOpened', 'true'); });
+            await mobile.reload({ waitUntil: 'networkidle0' });
+            await cliquer(mobile, '^Essayer sans compte$');
+            await attendre(2500);
+            await mobile.evaluate(() => { location.hash = '#chiffrage'; });
+            await attendre(1800);
+            const cible = await mobile.evaluate(() => {
+                const b = [...document.querySelectorAll('button')].find((x) => /Ajouter mon premier ouvrage/.test(x.textContent) && x.getBoundingClientRect().width > 0);
+                if (!b) return null;
+                b.scrollIntoView({ block: 'center' });
+                const r = b.getBoundingClientRect();
+                const touche = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2, haut: Math.round(r.top), bas: Math.round(r.bottom), libre: !!touche && b.contains(touche), recouvertPar: touche && !b.contains(touche) ? (touche.closest('button')?.textContent.trim().slice(0, 30) || touche.tagName) : null };
+            });
+            let bibliotheque = false;
+            if (cible) {
+                await mobile.touchscreen.tap(cible.x, cible.y);
+                await attendre(1200);
+                bibliotheque = await mobile.evaluate(() => Boolean(document.querySelector('input[placeholder*="Rechercher un ouvrage"]')));
+            }
+            ok(`Téléphone ${largeur}×${hauteur} : « Ajouter mon premier ouvrage » n'est pas recouvert, l'appui ouvre la bibliothèque — ${JSON.stringify({ ...cible, bibliotheque })}`,
+                cible && cible.libre && bibliotheque);
+            await mobile.close();
+        }
     } finally {
         await navigateur.close();
         await fermerServeur();
