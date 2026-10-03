@@ -63,7 +63,7 @@ const manquants = [];
 for (const item of A_PUBLIER) {
     const src = path.join(root, item);
     if (!existsSync(src)) { manquants.push(item); continue; }
-    cpSync(src, path.join(dist, item), { recursive: true });
+    cpSync(src, path.join(dist, item), { recursive: true, filter: (entry) => path.basename(entry) !== '.DS_Store' });
 }
 
 if (manquants.length) {

@@ -31,12 +31,38 @@ export async function run() {
             button?.click();
         });
         await new Promise(resolve => setTimeout(resolve, 200));
-        const tableStillVisible = await page.evaluate(() => {
-            const table = document.querySelector('table');
-            return Boolean(table && table.getBoundingClientRect().width > 0 && table.getBoundingClientRect().height > 0);
+        // 2026-10-03 — Ce banc vérifiait qu'une balise <table> restait visible.
+        // Depuis CHIF-07 (2026-09-28), la liste passe VOLONTAIREMENT en cartes
+        // quand la zone de travail tombe sous 680 px — ce qui arrive à 1280 px
+        // dès que l'inspecteur s'ouvre (le tableau débordait et imposait un
+        // défilement horizontal). Le banc testait donc un détail de rendu, pas
+        // la promesse : les ouvrages restent lisibles À CÔTÉ de l'inspecteur.
+        // Il mesure désormais celle-ci, quelle que soit la forme de la liste.
+        const listeAuCote = await page.evaluate(() => {
+            const visible = (el) => {
+                if (!el) return false;
+                const r = el.getBoundingClientRect();
+                return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== 'none';
+            };
+            const tableau = document.querySelector('[data-testid="quote-items-desktop"]');
+            const cartes = document.querySelector('[data-testid="quote-items-mobile"]');
+            const zone = visible(tableau) ? tableau : visible(cartes) ? cartes : null;
+            const inspecteur = document.querySelector('button[aria-label="Ouvrage suivant"]')?.closest('aside');
+            // Les désignations sont des champs éditables : leur texte est dans
+            // `value`, que innerText ne restitue pas.
+            const texte = zone
+                ? zone.innerText + ' ' + [...zone.querySelectorAll('input, textarea')].map((c) => c.value).join(' ')
+                : '';
+            return {
+                forme: zone === tableau ? 'tableau' : zone ? 'cartes' : 'aucune',
+                deuxOuvrages: /Peinture/i.test(texte) && /Carrelage/i.test(texte),
+                cote: Boolean(zone && inspecteur && zone.getBoundingClientRect().right <= inspecteur.getBoundingClientRect().left + 2)
+            };
         });
         const hasInspectorNav = await page.$('button[aria-label="Ouvrage suivant"]') !== null;
-        ok('Le tableau reste visible à côté de l’inspecteur sur desktop', tableStillVisible);
+        ok('La liste des ouvrages reste visible à côté de l’inspecteur sur desktop',
+            listeAuCote.forme !== 'aucune' && listeAuCote.deuxOuvrages && listeAuCote.cote,
+            `forme=${listeAuCote.forme}, deux ouvrages=${listeAuCote.deuxOuvrages}, côte à côte=${listeAuCote.cote}`);
         ok('L’inspecteur propose la navigation entre les ouvrages', hasInspectorNav);
 
         await page.evaluate(() => document.querySelector('button[aria-label="Ouvrage suivant"]')?.click());
