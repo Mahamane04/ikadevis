@@ -1,0 +1,210 @@
+  ❌ C140 · Connexion — champs exposant leur finalité (1.3.5 / 3.3.8) : email:∅:EMAIL ; password:∅:MOT DE PASSE
+  ✅ C126 · 1440 #dashboard — un seul h1 (Espace IKADEVIS BTP), pas de saut de niveau — titres : h1 h2 h3 h3 h3
+  ✅ C126 · 1440 #dashboard — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #dashboard — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main region«Raccourcis rapides» region«Indicateurs clés»
+  ✅ C126 · 1440 #chantiers — un seul h1 (Chantiers), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #chantiers — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #chantiers — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #clients — un seul h1 (Clients), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #clients — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #clients — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #chiffrage — un seul h1 (Chiffrage), pas de saut de niveau — titres : h1 h2 h3
+  ✅ C126 · 1440 #chiffrage — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #chiffrage — repères : 1 main, navigations nommées et distinctes — navs : Menu principal | Progression du devis | Navigation des lots de travaux ; aside sans nom : 2 ; arbre : banner complementary navigation«Menu principal» main navigation«Progression du devis» complementary navigation«Navigation des lots de travaux» region«Ouvrages du lot sélectionné»
+  ✅ C126 · 1440 #devis — un seul h1 (Mes devis), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #devis — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #devis — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #factures — un seul h1 (Factures), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #factures — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #factures — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #depenses — un seul h1 (Dépenses & fournisseurs), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #depenses — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #depenses — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #ouvrages — un seul h1 (Catalogue des Ouvrages), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #ouvrages — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #ouvrages — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #materiaux — un seul h1 (Ressources & Prix), pas de saut de niveau — titres : h1
+  ✅ C126 · 1440 #materiaux — le contenu de l'écran (h1) est dans le repère « main »
+  ✅ C126 · 1440 #materiaux — repères : 1 main, navigations nommées et distinctes — navs : Menu principal ; aside sans nom : 1 ; arbre : banner complementary navigation«Menu principal» main
+  ✅ C126 · 1440 #abonnement — un seul h1 (Paramètres du compte), pas de saut de niveau — titres : h1 h2 h3 h3 h3
+  ❌ C126 · 1440 #abonnement — le contenu de l'écran (h1) est dans le repère « main » — main#main-content vide (0 car.) ; contenu dans une région hors main
+  ✅ C126 · 1440 #abonnement — repères : 1 main, navigations nommées et distinctes — navs :  ; aside sans nom : 0 ; arbre : main region«Paramètres du compte» complementary«Sections des paramètres»
+  ✅ C126 · 1440 #settings/entreprise — un seul h1 (Paramètres du compte), pas de saut de niveau — titres : h1
+  ❌ C126 · 1440 #settings/entreprise — le contenu de l'écran (h1) est dans le repère « main » — main#main-content vide (0 car.) ; contenu dans une région hors main
+  ✅ C126 · 1440 #settings/entreprise — repères : 1 main, navigations nommées et distinctes — navs :  ; aside sans nom : 0 ; arbre : main region«Paramètres du compte» complementary«Sections des paramètres» form
+  ✅ C126 · Lien d'évitement : 1er arrêt Tab = A «Aller au contenu principal», visible au focus — UX_EVIDENCE/G7-clavier-accessibilite/c126-lien-evitement-1440.png
+  ✅ C126 · Lien d'évitement : Entrée puis Tab → arrêt dans le contenu (BUTTON «Nouveau devis») — focus juste après Entrée : MAIN «Mes devis 1 résultat(s) · prochain DEV-2026-002 »
+  ❌ C126 · Lien d'évitement : l'adresse de l'écran est conservée (avant #devis, après #main-content) — le lien pointe vers #main-content, non focalisable
+  ✅ C123 · 1440 #dashboard — Tab fait le tour sans piège (38 arrêts / 34 tabulables)
+  ✅ C140 · 1440 #dashboard — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #chantiers — Tab fait le tour sans piège (27 arrêts / 27 tabulables)
+  ✅ C140 · 1440 #chantiers — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #clients — Tab fait le tour sans piège (27 arrêts / 27 tabulables)
+  ✅ C140 · 1440 #clients — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #chiffrage — Tab fait le tour sans piège (53 arrêts / 45 tabulables)
+  ✅ C140 · 1440 #chiffrage — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #devis — Tab fait le tour sans piège (29 arrêts / 29 tabulables)
+  ✅ C140 · 1440 #devis — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #factures — Tab fait le tour sans piège (34 arrêts / 34 tabulables)
+  ✅ C140 · 1440 #factures — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #depenses — Tab fait le tour sans piège (31 arrêts / 32 tabulables)
+  ✅ C140 · 1440 #depenses — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #ouvrages — Tab fait le tour sans piège (93 arrêts / 93 tabulables)
+  ✅ C140 · 1440 #ouvrages — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #materiaux — Tab fait le tour sans piège (61 arrêts / 61 tabulables)
+  ✅ C140 · 1440 #materiaux — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #abonnement — Tab fait le tour sans piège (16 arrêts / 16 tabulables)
+  ✅ C140 · 1440 #abonnement — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #settings/entreprise — Tab fait le tour sans piège (35 arrêts / 35 tabulables)
+  ✅ C140 · 1440 #settings/entreprise — parcourir au clavier ne change pas d'écran (3.2.1)
+  ✅ C123 · 1440 #dashboard — Maj+Tab fait le tour sans piège (38 arrêts)
+  ✅ C123 · 1440 #chiffrage — Maj+Tab fait le tour sans piège (45 arrêts)
+  ✅ C123 · 1440 #devis — Maj+Tab fait le tour sans piège (29 arrêts)
+  ✅ C123 · 1440 #settings/entreprise — Maj+Tab fait le tour sans piège (35 arrêts)
+  ✅ C137 · 1440 — images sans attribut alt : 0
+  ❌ C137 · 1440 — glyphes d'icônes (Font Awesome) absents des noms accessibles : 64 fuite(s) — #dashboard:StaticText «» ; #dashboard:button « Nouveau devis Chiffrer un projet» ; #dashboard:button « Nouveau chantier Ouvrir un dossier» ; #dashboard:button « Ajouter un client Répertoire & NIF»
+  ✅ C137 · 1440 — contrôles sans nom dans l'arbre d'accessibilité : 0
+  ✅ C137 · 1440 — images informatives avec alternative : 0 — aucune image informative visible (icônes de menu en alt="" + aria-hidden)
+  ✅ C137 · 1440 — SVG hors bouton ni masqués ni nommés : 0
+  ✅ C138 · 1440 — animations infinies visibles au repos (11 écrans) : 0
+  ✅ C138 · Médias (vidéo/audio/iframe) présents : 0 — 1.2.x et 1.4.2 sans objet si 0
+  ❌ C132 · 1440 — champs de saisie dont la limite visible est < 3:1 : 38 sur 11 écrans — 9× rgba(228, 233, 238, 0.9) sur rgb(255,255,255) (champ rgb(248,250,252)) 1.2:1 ; 5× rgb(228, 233, 238) sur rgb(241,245,248) (champ rgb(255,255,255)) 1.22:1 ; 2× rgb(228, 233, 238) sur rgb(255,255,255) (champ rgb(248,250,252)) 1.22:1 ; 5× rgb(228, 233, 238) sur rgb(255,255,255) (champ rgb(255,255,255)) 1.22:1 — ex. #dashboard INPUT «Recherche globale dans ikadevis» ; #chantiers INPUT «Recherche globale dans ikadevis» ; #chantiers INPUT «Rechercher un chantier»
+  ✅ C132 · 1440 — boutons-icônes < 3:1 hors teinte neutral-400 déjà connue (UX-P2-07 : 65) : 0
+  ✅ C136 · 1440 — cibles < 24 px sans espacement suffisant : 0
+  ✅ C139 · 1440 — informations portées UNIQUEMENT par une infobulle « title » non focalisable : 0 — DIV « Acceptés : 1 » (valeur aussi en texte)
+  ✅ C139 · 1440 — mécanisme d'aide présent et à la même place (3.2.6 si présent) — #dashboard:— ; #chantiers:— ; #clients:— ; #chiffrage:—
+  ❌ C140 · Titre de document propre à chaque écran (2.4.2) : 1 titre(s) distinct(s) pour 11 écrans — ikadevis — Calculateur de Devis BTP
+  ✅ C140 · Navigation principale : même ordre relatif sur les 9 écrans (3.2.3) — 3 variante(s) par ajout d'entrées — Nouveau>Tableau>Chantiers>Clients>Mes>Factures>Dépenses>Ouvrages ‖ Nouveau>Tableau>Chantiers>Clients>Chiffrage>Mes>Factures>Dépenses>Ouvrages ‖ Nouveau>Tableau>Chantiers>Clients>Mes>Factures>Dépenses>Ouvrages>Catalogue>Ressources
+  ❌ C140 · Champs dont le seul libellé visible est le texte indicatif (3.3.2) : 2 — #chiffrage INPUT[combobox] «Client du devis» ; #chiffrage INPUT[combobox] «Chantier du devis»
+  ✅ C140 · Touches seules n d f c ? / k s 1 hors champ : aucun effet (2.1.4) — #dashboard|Espace IKADEVIS BTP|0 → #dashboard|Espace IKADEVIS BTP|0
+  ❌ C127 · Changement d'écran : la région live polie change 22 fois en 323 ms (chronomètre) — «  cours…0 msChargement de la page… (0 ms) » → « ours…17 msChargement de la page… (17 ms) » → « ours…33 msChargement de la page… (33 ms) » → « ours…50 msChargement de la page… (50 ms) »
+  ✅ C127 · Changement d'écran : le focus est amené sur le titre du nouvel écran (H1 «Clients») — UX-P2-05 corrigé — non recompté
+  ✅ C133 · barre latérale — l'élément actif (« Tableau de bord ») se distingue autrement que par la teinte — indices de forme : fontWeight ; écart de luminance fond 1.13:1, texte 2.7:1
+  ✅ C140 · barre latérale — l'état actif est exposé aux technologies d'assistance (4.1.2) : page
+  ❌ C133 · filtre de période du tableau de bord — l'élément actif (« Tout ») se distingue autrement que par la teinte — indices de forme : aucun ; écart de luminance fond 1.09:1, texte 2.82:1
+  ❌ C140 · filtre de période du tableau de bord — l'état actif est exposé aux technologies d'assistance (4.1.2) : ∅ — « Tout » sans aria-pressed/selected/current
+  ✅ C133 · filtres de statut des factures — l'élément actif (« Toutes 0 ») se distingue autrement que par la teinte — indices de forme : aucun ; écart de luminance fond 13.4:1, texte 8.13:1
+  ❌ C140 · filtres de statut des factures — l'état actif est exposé aux technologies d'assistance (4.1.2) : ∅ — « Toutes 0 » sans aria-pressed/selected/current
+  ✅ C133 · filtre des dépenses — l'élément actif (« Toutes ») se distingue autrement que par la teinte — indices de forme : aucun ; écart de luminance fond 14.56:1, texte 8.13:1
+  ✅ C140 · filtre des dépenses — l'état actif est exposé aux technologies d'assistance (4.1.2) : true
+  ✅ C133 · rubriques Finances — l'élément actif (« Comptes 0 ») se distingue autrement que par la teinte — indices de forme : aucun ; écart de luminance fond 14.56:1, texte 8.13:1
+  ✅ C140 · rubriques Finances — l'état actif est exposé aux technologies d'assistance (4.1.2) : true
+  ❌ C133 · fiche devis : Synthèse / Détaillé — groupe non trouvé (0) — BLOQUÉ
+  ✅ Env · bureau — aucune requête externe (0), aucune erreur page (0)
+  ✅ C128 · Nouveau Client — fenêtre ouverte au clavier, nommée « Nouveau Client », focus placé dedans — focus : BUTTON «Fermer la boîte de dialogue» ; aria-modal=true
+  ✅ C128 · Nouveau Client — Tab ×22 reste dans la fenêtre (5 arrêts distincts) — 0 sortie(s)
+  ✅ C123 · Nouveau Client — Échap referme, focus rendu au déclencheur — après Échap : 0 fenêtre(s), focus BUTTON «Créer un nouveau client»
+  ✅ C128 · Personnaliser le tableau de bord — fenêtre ouverte au clavier, nommée « Personnaliser mon Tableau de Bord », focus placé dedans — focus : BUTTON «Fermer la personnalisation» ; aria-modal=true
+  ✅ C128 · Personnaliser le tableau de bord — Tab ×22 reste dans la fenêtre (6 arrêts distincts) — 0 sortie(s)
+  ✅ C123 · Personnaliser le tableau de bord — Échap referme, focus rendu au déclencheur — après Échap : 0 fenêtre(s), focus BUTTON «Modifier et personnaliser le tableau de bord»
+  ✅ C128 · Offres (Formule Starter) — fenêtre ouverte au clavier, nommée « Votre abonnement », focus placé dedans — focus : BUTTON «Fermer la boîte de dialogue» ; aria-modal=true
+  ✅ C128 · Offres (Formule Starter) — Tab ×22 reste dans la fenêtre (5 arrêts distincts) — 0 sortie(s)
+  ✅ C123 · Offres (Formule Starter) — Échap referme, focus rendu au déclencheur — après Échap : 0 fenêtre(s), focus DIV[button] «Formule Starter · Voir offres — 1 devis sur 3»
+  ✅ C128 · Signature du devis — fenêtre ouverte au clavier, nommée « Signature Électronique du Devis », focus placé dedans — focus : BUTTON «Fermer» ; aria-modal=true
+  ✅ C128 · Signature du devis — Tab ×22 reste dans la fenêtre (5 arrêts distincts) — 0 sortie(s)
+  ❌ C123 · Signature du devis — Échap referme, focus rendu au déclencheur — après Échap : 0 fenêtre(s), focus BODY
+  ✅ C128 · Menu du profil — Entrée ouvre le menu (4 commande(s) apparue(s)) et l'état est exposé (aria-expanded=true) — focus après ouverture : BUTTON «Menu du profil utilisateur»
+  ✅ C123 · Menu du profil — Échap referme et rend le focus au déclencheur — après Échap : focus BUTTON «Menu du profil utilisateur», aria-expanded=false
+  ✅ C128 · Changer d'organisation — Entrée ouvre le menu (2 commande(s) apparue(s)) et l'état est exposé (aria-expanded=true) — focus après ouverture : BUTTON «IKADEVIS BTP — changer d'organisation»
+  ✅ C123 · Changer d'organisation — Échap referme et rend le focus au déclencheur — après Échap : focus BUTTON «IKADEVIS BTP — changer d'organisation», aria-expanded=false
+  ❌ C128 · Plus d'actions sur le devis (chiffrage) — Entrée ouvre le menu (1 commande(s) apparue(s)) et l'état est exposé (aria-expanded=∅) — focus après ouverture : BUTTON «Plus d'actions sur le devis»
+  ✅ C123 · Plus d'actions sur le devis (chiffrage) — Échap referme et rend le focus au déclencheur — après Échap : focus BUTTON «Plus d'actions sur le devis», aria-expanded=∅
+  ✅ C128 · Statut du devis (chiffrage) — Entrée ouvre le menu (5 commande(s) apparue(s)) et l'état est exposé (aria-expanded=true) — focus après ouverture : BUTTON «Statut du devis»
+  ✅ C123 · Statut du devis (chiffrage) — Échap referme et rend le focus au déclencheur — après Échap : focus BUTTON «Statut du devis», aria-expanded=false
+  ✅ C140 · Nouveau Client vide — erreur identifiée en texte (3.3.1) : bulle native « Veuillez renseigner ce champ. » — champ INPUT «Ex: SARL COMATEX» required=true aria-invalid=∅
+  ✅ C139 · Nouveau Client vide — l'erreur reste consultable (validation native, champ focalisé, réaffichée à chaque essai) — focus : INPUT «Ex: SARL COMATEX»
+  ❌ C124 · Fiche devis ouverte au clavier depuis TR[button] «Afficher le devis DEV-2026-001 de Société Immobi» : le focus suit (#devis/101, focus BODY) — sous-cas « ouverture d'une fiche devis » de UX-P2-05, non couvert par le correctif (navigation seule)
+  ✅ C140 · Supprimer un devis (souris) : confirmation demandée (3.3.4) — « Supprimer ce devis ? », focus BUTTON «Annuler» — UX_EVIDENCE/G7-clavier-accessibilite/c128-suppression-devis-souris-1440.png
+  ❌ C128 · 1440 « Supprimer le devis DEV-2026-001 » (bouton dans une ligne cliquable) activé par Entrée : même effet qu'au clic (confirmation) — la ligne intercepte la touche : fiche ouverte (#devis/101, fiche affichée), aucune confirmation, focus BODY
+  ❌ C128 · 1440 « Supprimer le devis DEV-2026-001 » (bouton dans une ligne cliquable) activé par Espace : même effet qu'au clic (confirmation) — la ligne intercepte la touche : fiche ouverte (#devis/101, fiche affichée), aucune confirmation, focus BODY
+  ✅ Env · aucun devis supprimé pendant l'essai (1 résultat)
+  ❌ C128 · Combobox « Rechercher un ouvrage » — Flèche bas : option active exposée (aria-activedescendant=∅, 0/2 options avec id) — aria-selected des options : false,true ; aria-expanded=true
+  ✅ C128 · Combobox — Échap referme la liste et garde le focus dans le champ — aria-expanded=false, focus INPUT[combobox] «Rechercher un ouvrage à ajouter»
+  ❌ C124 · Ajout d'un ouvrage au clavier (Entrée) : le focus reste utilisable (BODY) — UX-P2-05 couvrait ce cas ; le correctif ne traite que la navigation entre écrans
+  ✅ C127 · Saisie « 125 » dans Surface directe : 2 mise(s) à jour de région live (pas de rafale par touche) — status « Quantités à confirmerRenseignez votre mé » ; status « « Peinture Murale Satinée BTP » ajouté a »
+  ❌ C124 · « Confirmer mes quantités » au clavier : le focus reste utilisable (BUTTON «Confirmer mes quantités» → BODY) — bouton retiré du DOM après usage
+  ❌ C127 · Enregistrer : message d'état exposé (aucun rôle/∅ «  ») — focus après : BUTTON «Enregistrer»
+  ❌ C127 · Message d'état : la région live existe avant que le texte n'y arrive — 1 insertion(s) du conteneur, 1 déjà remplie(s) — annonce non garantie selon le lecteur d'écran (à confirmer)
+  ❌ C139 · Message « enregistré » visible 0 s quand il est seul — minuterie prévue : 3,5 s
+  ❌ C139 · Second message émis 2,6 s après un premier : visible 0 s («  ») — minuterie de 3,5 s non liée au message qu'elle efface
+  ❌ C128 · Onglets des lots (2 onglets) — une flèche déplace le focus vers l'onglet voisin (modèle APG) — avant BUTTON[tab] «02 Lot 02 — Nouveau Lot 0 FCFA» → après BUTTON[tab] «02 Lot 02 — Nouveau Lot 0 FCFA» ; tabindex 0,0 ; aria-controls 0/2 ; tabpanel 0 ; autres enfants du tablist : 1
+  ❌ C128 · Alt+Flèche bas dans INPUT «Prix unitaire pour Peinture Murale Satinée BTP» : le focus reste dans le champ — focus après : BODY ; lot actif 0 → 1
+  ✅ C130 · Réordonner les lots sans glisser-déposer : « Options du lot » → « Descendre le lot » au clavier — 01 Lot 01 — Travaux 191  | 02 Lot 02 — Nouveau Lot  → 02 Lot 02 — Nouveau Lot  | 01 Lot 01 — Travaux 191  ; flèches de la liste des lots : display none,none (survol seulement)
+  ✅ C128 · Alt/Option+← dans « Désignation Ouvrage » (inspecteur, ouvrage #1) : édition du texte, pas de changement d'ouvrage — ouvrage #1 → #1 ; focus INPUT «Désignation Ouvrage» ; curseur 27 → 27 ; référence (recherche globale) : curseur 9 → 9
+  ✅ Env · chiffrage — aucune requête externe (0), aucune erreur page (0)
+  ❌ C124 · 1440 #dashboard — focus visible sur chaque arrêt (36 arrêts) : 1 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 270) — captures : c124-1440-dashboard-focus-invisible-1.png
+  ✅ C124 · 1440 #dashboard — focus jamais entièrement masqué (2.4.11) : 0
+  ❌ C132 · 1440 #dashboard — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 8 faible(s) — INPUT «Recherche globale dans ikadevis» (892 px à ≥ 3:1 / périmètre 956) ; BUTTON «Tableau de bord» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Mes devis» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Factures» (0 px à ≥ 3:1 / périmètre 506)
+  ❌ C124 · 1440 #clients — focus visible sur chaque arrêt (25 arrêts) : 1 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (1 px modifiés / périmètre 270) — captures : c124-1440-clients-focus-invisible-1.png
+  ❌ C124 · 1440 #clients — focus jamais entièrement masqué (2.4.11) : 1 — BUTTON «Créer un nouveau client» (recouvert par HEADER.global-top-bar.mobile-app-header.w-full) ; partiellement masqués : INPUT «Rechercher un client» 2/5 (HEADER.global-top-bar.mobile-app-header.w-full)
+  ❌ C132 · 1440 #clients — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 8 faible(s) — INPUT «Recherche globale dans ikadevis» (892 px à ≥ 3:1 / périmètre 956) ; BUTTON «Tableau de bord» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Mes devis» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Factures» (0 px à ≥ 3:1 / périmètre 506)
+  ❌ C124 · 1440 #devis — focus visible sur chaque arrêt (27 arrêts) : 3 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (1 px modifiés / périmètre 270) ; BUTTON «Filtrer les devis par statut» (0 px modifiés / périmètre 1171) ; BUTTON «Trier les devis» (0 px modifiés / périmètre 1171) — captures : c124-1440-devis-focus-invisible-1.png, c124-1440-devis-focus-invisible-2.png
+  ✅ C124 · 1440 #devis — focus jamais entièrement masqué (2.4.11) : 0
+  ❌ C132 · 1440 #devis — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 9 faible(s) — INPUT «Recherche globale dans ikadevis» (892 px à ≥ 3:1 / périmètre 956) ; BUTTON «Tableau de bord» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Mes devis» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Factures» (0 px à ≥ 3:1 / périmètre 506)
+  ❌ C124 · 1440 #factures — focus visible sur chaque arrêt (32 arrêts) : 1 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 270) — captures : c124-1440-factures-focus-invisible-1.png
+  ❌ C124 · 1440 #factures — focus jamais entièrement masqué (2.4.11) : 1 — BUTTON «Filtrer les factures par statut» (recouvert par SPAN.)
+  ❌ C132 · 1440 #factures — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 9 faible(s) — INPUT «Recherche globale dans ikadevis» (892 px à ≥ 3:1 / périmètre 956) ; BUTTON «Tableau de bord» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Mes devis» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Factures» (0 px à ≥ 3:1 / périmètre 506)
+  ❌ C124 · 1440 #chiffrage — focus visible sur chaque arrêt (68 arrêts) : 4 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 270) ; INPUT[combobox] «Client du devis» (16 px modifiés / périmètre 977) ; INPUT[combobox] «Chantier du devis» (16 px modifiés / périmètre 977) ; INPUT[combobox] «Rechercher un ouvrage à ajouter» (16 px modifiés / périmètre 725) — captures : c124-1440-chiffrage-focus-invisible-1.png, c124-1440-chiffrage-focus-invisible-2.png
+  ❌ C124 · 1440 #chiffrage — focus jamais entièrement masqué (2.4.11) : 10 — BUTTON «Annuler la modification (Cmd+Z / Ctrl+Z)» (recouvert par HEADER.global-top-bar.mobile-app-header.w-full) ; BUTTON «Statut du devis» (recouvert par HEADER.global-top-bar.mobile-app-header.w-full) ; BUTTON[option] «Panneau avec cadre métallique et autocollant Rec» (recouvert par DIV.quote-totals-bar.bg-white/95.backdrop-blur-md) ; BUTTON[option] «Habillage Façade en Panneaux Alucobond / ACM Rec» (recouvert par DIV.quote-totals-bar.bg-white/95.backdrop-blur-md)
+  ❌ C132 · 1440 #chiffrage — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 37 faible(s) — INPUT «Recherche globale dans ikadevis» (629 px à ≥ 3:1 / périmètre 956) ; BUTTON «Tableau de bord» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Mes devis» (0 px à ≥ 3:1 / périmètre 506) ; BUTTON «Factures» (0 px à ≥ 3:1 / périmètre 506)
+  ❌ C124 · 1440 #settings/entreprise — focus visible sur chaque arrêt (35 arrêts) : 1 sans indicateur perceptible — BUTTON «Devise principale» (0 px modifiés / périmètre 1170) — captures : c124-1440-settingsentreprise-focus-invisible-1.png
+  ✅ C124 · 1440 #settings/entreprise — focus jamais entièrement masqué (2.4.11) : 0
+  ❌ C132 · 1440 #settings/entreprise — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 19 faible(s) — BUTTON «Retourner au tableau de bord» (396 px à ≥ 3:1 / périmètre 503) ; BUTTON «Entreprise Identité et coordonnées» (478 px à ≥ 3:1 / périmètre 518) ; INPUT «IKADEVIS BTP» (1772 px à ≥ 3:1 / périmètre 2298) ; TEXTAREA «BTP - Fabrications - Aménagement - Signalétique» (2229 px à ≥ 3:1 / périmètre 2290)
+  ❌ C124 · 390 #dashboard — focus visible sur chaque arrêt (25 arrêts) : 1 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 236) — captures : c124-390-dashboard-focus-invisible-1.png
+  ✅ C124 · 390 #dashboard — focus jamais entièrement masqué (2.4.11) : 0 —  ; partiellement masqués : BUTTON «Rénovation Façades ACM & Enseignes LED Résidence» 2/5 (NAV.mobile-bottom-nav.md:hidden.absolute)
+  ❌ C132 · 390 #dashboard — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 3 faible(s) — BUTTON «Menu du profil utilisateur» (0 px à ≥ 3:1 / périmètre 190) ; BUTTON «Créer mon premier devis» (462 px à ≥ 3:1 / périmètre 506) ; BUTTON «Rénovation Façades ACM & Enseignes LED Résidence» (782 px à ≥ 3:1 / périmètre 900)
+  ❌ C124 · 390 #devis — focus visible sur chaque arrêt (16 arrêts) : 3 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 236) ; BUTTON «Filtrer les devis par statut» (0 px modifiés / périmètre 404) ; BUTTON «Trier les devis» (0 px modifiés / périmètre 404) — captures : c124-390-devis-focus-invisible-1.png, c124-390-devis-focus-invisible-2.png
+  ✅ C124 · 390 #devis — focus jamais entièrement masqué (2.4.11) : 0
+  ❌ C132 · 390 #devis — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 3 faible(s) — BUTTON «Menu du profil utilisateur» (0 px à ≥ 3:1 / périmètre 190) ; BUTTON «Nouveau devis» (366 px à ≥ 3:1 / périmètre 412) ; INPUT «Rechercher dans les devis» (726 px à ≥ 3:1 / périmètre 784)
+  ❌ C124 · 390 #chiffrage — focus visible sur chaque arrêt (21 arrêts) : 4 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 236) ; INPUT[combobox] «Client du devis» (22 px modifiés / périmètre 780) ; INPUT[combobox] «Chantier du devis» (22 px modifiés / périmètre 780) ; BUTTON «Ajouter mon premier ouvrage» (382 px modifiés / périmètre 780) — captures : c124-390-chiffrage-focus-invisible-1.png, c124-390-chiffrage-focus-invisible-2.png
+  ✅ C124 · 390 #chiffrage — focus jamais entièrement masqué (2.4.11) : 0 —  ; partiellement masqués : BUTTON «Ajouter mon premier ouvrage» 2/5 (DIV.quote-totals-bar.bg-white/95.backdrop-blur-md)
+  ❌ C132 · 390 #chiffrage — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 4 faible(s) — BUTTON «Menu du profil utilisateur» (0 px à ≥ 3:1 / périmètre 190) ; BUTTON «Statut du devis» (0 px à ≥ 3:1 / périmètre 265) ; DIV[button] «01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage» (802 px à ≥ 3:1 / périmètre 822) ; BUTTON «Enregistrer» (267 px à ≥ 3:1 / périmètre 304)
+  ❌ C124 · 390 #clients — focus visible sur chaque arrêt (14 arrêts) : 1 sans indicateur perceptible — BUTTON «ikadevis - Tableau de bord» (0 px modifiés / périmètre 236) — captures : c124-390-clients-focus-invisible-1.png
+  ✅ C124 · 390 #clients — focus jamais entièrement masqué (2.4.11) : 0
+  ❌ C132 · 390 #clients — indicateur de focus contrasté (≥ 3:1 sur un périmètre) : 2 faible(s) — BUTTON «Menu du profil utilisateur» (0 px à ≥ 3:1 / périmètre 190) ; INPUT «Rechercher un client» (754 px à ≥ 3:1 / périmètre 812)
+  ✅ C126 · 390 #dashboard — un seul h1, pas de saut, navigations nommées — h1 Espace IKADEVIS BTP ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #chantiers — un seul h1, pas de saut, navigations nommées — h1 Chantiers ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #clients — un seul h1, pas de saut, navigations nommées — h1 Clients ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #chiffrage — un seul h1, pas de saut, navigations nommées — h1 Chiffrage ; sauts 0 ; navs Progression du devis | Navigation des lots de travaux | Barre de navigation rapide
+  ✅ C126 · 390 #devis — un seul h1, pas de saut, navigations nommées — h1 Mes devis ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #factures — un seul h1, pas de saut, navigations nommées — h1 Factures ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #depenses — un seul h1, pas de saut, navigations nommées — h1 Dépenses & fournisseurs ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #ouvrages — un seul h1, pas de saut, navigations nommées — h1 Catalogue des Ouvrages ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #materiaux — un seul h1, pas de saut, navigations nommées — h1 Ressources & Prix ; sauts 0 ; navs Barre de navigation rapide
+  ✅ C126 · 390 #abonnement — un seul h1, pas de saut, navigations nommées — h1 Paramètres du compte ; sauts 0 ; navs 
+  ✅ C126 · 390 #settings/entreprise — un seul h1, pas de saut, navigations nommées — h1 Paramètres du compte ; sauts 0 ; navs 
+  ✅ C136 · 390 — cibles < 24 px sans espacement (hors « Options du lot », UX-P3-02 connu) : 0
+  ✅ C135 · 390 — aucun défilement horizontal de page (11 écrans)
+  ✅ C123 · 390 #dashboard — Tab fait le tour sans piège (25 arrêts / 25)
+  ✅ C123 · 390 #chiffrage — Tab fait le tour sans piège (21 arrêts / 21)
+  ✅ C123 · 390 #devis — Tab fait le tour sans piège (16 arrêts / 16)
+  ✅ C123 · 390 #settings/entreprise — Tab fait le tour sans piège (27 arrêts / 27)
+  ✅ C128 · Menu mobile — ouvert au clavier, nommé « Menu », focus dedans — focus BUTTON «Fermer le menu»
+  ✅ C123 · Menu mobile — Tab ×22 reste dans la feuille, Échap la ferme et rend le focus — 0 sortie(s) ; après Échap : 0 fenêtre(s), focus BUTTON «Ouvrir le menu de navigation»
+  ✅ C130 · Menu mobile — la poignée affichée suggère un glisser : le geste ferme-t-il la feuille ? (non) — bouton « Fermer le menu » disponible ; poignée décorative
+  ✅ C140 · Menu mobile — appui sur le fond : fermeture seulement au relâchement (2.5.2)
+  ✅ C140 · Paysage 844×390 : l'application s'affiche et s'utilise (1.3.4) — h1 « Mes devis », zone principale 326px — UX_EVIDENCE/G7-clavier-accessibilite/c140-paysage-844x390-devis.png ; manifeste orientation=any
+  ✅ Env · mobile — aucune requête externe (0), aucune erreur page (0)
+  ❌ C130 · 1440 — le trait de signature suit le pointeur (écart max 15 px) — geste x 583→857, y 466 ; trait dessiné x 584→872, y 463 ; toile 440×180 affichée 458×176 ; UX_EVIDENCE/G7-clavier-accessibilite/c130-signature-1440.png
+  ❌ C130 · « Valider & Signer » sans aucun tracé (toile effacée) : refusé ou signalé — bouton actif ; après validation : Signer
+  ❌ C130 · 390 — le trait de signature suit le doigt (écart max 999 px) — geste x 104→286, y 433 ; trait dessiné x aucun ; toile 440×180 affichée 304×176 ; UX_EVIDENCE/G7-clavier-accessibilite/c130-signature-390.png
+  ✅ C135 · 320×568 — pas de défilement horizontal de page
+  ✅ C135 · 320×568 — aucun contenu coupé hors de l'écran (hors zones à défilement propre)
+  ✅ C135 · 360×740 — pas de défilement horizontal de page
+  ✅ C135 · 360×740 — aucun contenu coupé hors de l'écran (hors zones à défilement propre)
+  ✅ C135 · 768×1024 — pas de défilement horizontal de page
+  ✅ C135 · 768×1024 — aucun contenu coupé hors de l'écran (hors zones à défilement propre)
+  ✅ C135 · 1024×768 — pas de défilement horizontal de page
+  ✅ C135 · 1024×768 — aucun contenu coupé hors de l'écran (hors zones à défilement propre)
+  ✅ C135 · 320×256 (400 %) — pas de défilement horizontal de page
+  ✅ C135 · 320×256 (400 %) — aucun contenu coupé hors de l'écran (hors zones à défilement propre)
+  ✅ C135 · 320×256 (400 %) — hauteur utile de la zone de contenu ≥ 120 px sur chaque écran (min 131px) — #dashboard:131px ; #chantiers:131px ; #clients:131px ; #chiffrage:131px ; #devis:131px ; #factures:131px ; #depenses:131px ; #ouvrages:131px ; #materiaux:131px ; #abonnement:200px ; #settings/entreprise:200px
+  ❌ C134 · 1440 — espacement du texte WCAG 1.4.12 : aucun texte nouvellement coupé (6 écrans) — #dashboard (2) : span « Ouvrages et ressources », p « Rénovation Façades ACM & Ensei » ; #chiffrage (1) : span « Ouvrages et ressources » ; #devis (1) : span « Ouvrages et ressources » ; #factures (1) : span « Ouvrages et ressources »
+  ❌ C134 · 1440 — espacement du texte : boutons visibles toujours cliquables (non recouverts) — #factures: BUTTON «Filtrer les factures par statut»
+  ❌ C134 · 390 — espacement du texte WCAG 1.4.12 : aucun texte nouvellement coupé (6 écrans) — #dashboard (2) : p « 20 589 256 FCFA », p « Rénovation Façades ACM & Ensei » ; #factures (1) : p « 0 résultat(s) · 0 brouillon(s) »
+  ❌ C134 · 390 — espacement du texte : boutons visibles toujours cliquables (non recouverts) — #chiffrage: BUTTON «Ajouter mon premier ouvrage» ; #factures: BUTTON «Filtrer les factures par statut»
+  ❌ C134 · Zoom 200 % (1440×900 → 720×450) : 11 écrans lisibles, navigation atteignable, sans défilement horizontal — #abonnement: débordement 0px, h1 1, navigation non ; #settings/entreprise: débordement 0px, h1 1, navigation non
+  ✅ C134 · Préférence « taille de police » du navigateur (16 → 32 px) : le texte suit (titre/corps 18/12 → 36/24 px) — agrandissement du texte seul, indépendant du zoom
+  ✅ C138 · Réduction des animations activée, 6,5 s après l'arrivée sur « Mes devis » : animations infinies visibles = 0
+  ✅ C138 · Réduction des animations : animations jouées pendant un changement d'écran = 0 décoratives — observées : aucune (sablier et barre de progression tolérés : porteurs d'information)
+  ✅ C138 · Aucune animation infinie de période < 333 ms (seuil des 3 flashs/s) : 0

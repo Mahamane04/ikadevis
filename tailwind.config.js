@@ -1,6 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     content: ['./index.html', './index_jsx.js'],
+    // Audit UX 220 (C215) — l'application n'a qu'un thème clair. Par défaut
+    // (« media »), les quelques classes dark: du panneau de métré
+    // s'activaient sous un système en thème sombre : un îlot sombre au milieu
+    // d'un écran clair. Elles ne s'activent plus que par une classe explicite.
+    darkMode: 'class',
     theme: {
         extend: {
             colors: {

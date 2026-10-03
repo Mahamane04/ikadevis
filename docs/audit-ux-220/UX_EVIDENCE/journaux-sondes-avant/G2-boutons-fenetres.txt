@@ -1,0 +1,1082 @@
+  C022 terminé en 648 s
+  C023 terminé en 54 s
+  C024 terminé en 55 s
+  C026 terminé en 93 s
+  C029 terminé en 153 s
+  C033 terminé en 99 s
+  C034 terminé en 214 s
+  C037 terminé en 62 s
+  C038 terminé en 80 s
+  C039 terminé en 50 s
+  C040 terminé en 58 s
+  ✅ [C022] 1440 px — aucun bouton visible sans nom accessible sur 11 écrans — 0 bouton sans nom
+  ✅ [C022] 1440 px — chaque bouton désactivé visible dit pourquoi (title, aria-describedby ou texte voisin) — 3 désactivé(s) : #chiffrage « Annuler la modification (Cmd+Z / Ctrl+Z) » title=« Annuler — Cmd+Z (Ctrl+Z) » ; #chiffrage « Rétablir la modification (Cmd+Maj+Z / Ctrl+Y) » title=« Rétablir — Cmd+Maj+Z (Ctrl+Y) » ; #abonnement « Votre formule actuelle »
+  ✅ [C022] 390 px — aucun bouton visible sans nom accessible sur 11 écrans — 0 bouton sans nom
+  ✅ [C022] 390 px — chaque bouton désactivé visible dit pourquoi (title, aria-describedby ou texte voisin) — 1 désactivé(s) : #abonnement « Votre formule actuelle »
+  ❌ [C022] balayage par clic réel : 209 boutons cliqués (1440 + 390), chacun produit un effet observable — 1440 #dashboard « Tout » ‖ 1440 #chiffrage « 01 Lot 01 — Travaux 0 FCFA » ‖ 1440 #factures « Toutes 0 » ‖ 1440 #depenses « Toutes » ‖ 1440 #materiaux « Voir la liste des matières premières » ‖ 1440 #abonnement « Tableau de bord » ‖ 1440 #abonnement « Mensuel » ‖ 1440 #settings/entreprise « Entreprise Identité et coordonnées » ‖ 390 #dashboard « Tout » ‖ 390 #factures « Toutes 0 » ‖ 390-chrome #dashboard « Accueil »
+  ✅ [C022] boutons non cliqués par prudence (destructifs, sortants, fichiers) : 31 — nommés par un verbe explicite — 1440 #chiffrage « Annuler la modification (Cmd+Z / Ctrl+Z) » (désactivé) ; 1440 #chiffrage « Rétablir la modification (Cmd+Maj+Z / Ct » (désactivé) ; 1440 #chiffrage « Importer Excel / CSV » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis « Supprimer le devis DEV-2026-002 » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Supprimer le devis DEV-2026-002 » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Partager le devis » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Signer le devis » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Imprimer le devis » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Envoyer le devis DEV-2026-001 par WhatsA » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Télécharger le devis en PDF » (non cliqué (destructif / sortant / fichier)) ; 1440 #devis/101 « Créer mon compte et conserver ce devis » (non cliqué (destructif / sortant / fichier)) ; 1440 #factures « Exporter les factures en CSV » (non cliqué (destructif / sortant / fichier)) ; 1440 #depenses « À payer » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Fouilles en Pleine Masse & Ter » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Béton Armé pour Fondations, Po » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Maçonnerie en Murs d’Agglos de » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Revêtement Sol en Carrelage Gr » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Cloison de Distribution Placos » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Faux-Plafond Suspendu BA13 sur » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Installation Électrique Basse  » (non cliqué (destructif / sortant / fichier)) ; 1440 #ouvrages « Supprimer Réseau Plomberie Sanitaire Mul » (non cliqué (destructif / sortant / fichier)) ; 1440 #materiaux « Importer un fichier CSV » (non cliqué (destructif / sortant / fichier)) ; 1440 #materiaux « Exporter au format CSV » (non cliqué (destructif / sortant / fichier)) ; 1440 #abonnement « État de connexion : Démonstration » (non cliqué (destructif / sortant / fichier)) ; 1440 #abonnement « Catalogue » (introuvable après réinitialisation) ; 1440 #abonnement « Ressources » (introuvable après réinitialisation) ; 1440 #settings/entreprise « État de connexion : Démonstration » (non cliqué (destructif / sortant / fichier)) ; 1440 #settings/entreprise « Retirer l'étape 1 » (non cliqué (destructif / sortant / fichier)) ; 390 #devis « Supprimer le devis DEV-2026-001 » (non cliqué (destructif / sortant / fichier)) ; 390 #factures « Exporter les factures en CSV » (non cliqué (destructif / sortant / fichier))
+  ❌ [C022] Nouvel ouvrage (fenêtre) — le nom annoncé de « Annuler » décrit ce que fait le bouton — texte visible « Annuler » ; nom accessible « Annuler la modification (Cmd+Z / Ctrl+Z) » ; title « Annuler — Cmd+Z (Ctrl+Z) » ; Meta+Z dans le champ → formulaire toujours ouvert (valeur « Témoin Annuler G2 ») ; clic → formulaire FERMÉ, saisie abandonnée
+  ❌ [C022] Nouvelle matière (panneau) — le nom annoncé de « Annuler » décrit ce que fait le bouton — texte visible « Annuler » ; nom accessible « Annuler la modification (Cmd+Z / Ctrl+Z) » ; title « Annuler — Cmd+Z (Ctrl+Z) » ; Meta+Z dans le champ → formulaire toujours ouvert (valeur « Témoin Annuler G2 ») ; clic → formulaire FERMÉ, saisie abandonnée
+  ✅ [C023] 1440 px — aucun lien employé comme bouton (href vide, « # », javascript:) sur 11 écrans — 1 lien(s) distinct(s) visibles : Aller au contenu principal→#main-content
+  ✅ [C023] 390 px — aucun lien employé comme bouton (href vide, « # », javascript:) sur 11 écrans — 1 lien(s) distinct(s) visibles : Aller au contenu principal→#main-content
+  ❌ [C023] 1440 — entrées du menu principal = liens de navigation (8 entrées) — button«Nouveau devis», button«Tableau de bord», button«Chantiers», button«Clients», button«Mes devis», button«Factures», button«Dépenses», button«Ouvrages et ressources» ; adresse inchangée après navigation : oui (sans fragment)
+  ❌ [C023] 1440 — Meta+clic sur « Mes devis » ouvre un nouvel onglet sans quitter l'écran — onglets créés 0 ; écran « Espace IKADEVIS BTP » → « Mes devis »
+  ❌ [C023] 1440 — clic milieu sur « Factures » ouvre un nouvel onglet — onglets créés 0 ; écran → « Mes devis »
+  ❌ [C023] 1440 — la ligne « DEV-2026-001 » mène à une adresse propre (#devis/<id>) : elle doit être un lien (nouvel onglet possible) — élément : tr[role=button] href=null ; Meta+clic → onglets créés 0, adresse courante #devis/101
+  ❌ [C023] 390 — barre de navigation mobile : entrées de navigation en liens (5) — button«Accueil», button«Devis», button«Chantiers», button«Factures», button«Ouvrir le menu de navigation»
+  ❌ [C023] boutons dont le clic change d'écran (navigation) : 70 relevés par le balayage C022 — 1440 #dashboard « Créer mon premier devis » écran « Espace IKADEVIS BTP »→« Chiffrage » ; 1440 #dashboard « Nouveau devis Chiffrer un projet » écran « Espace IKADEVIS BTP »→« Chiffrage » ; 1440 #dashboard « Créer facture Facturer un acompte » écran « Espace IKADEVIS BTP »→« Factures » ; 1440 #dashboard « Voir tous » écran « Espace IKADEVIS BTP »→« Mes devis » ; 1440 #dashboard « Société Immobilière NBB Construction Siè » écran « Espace IKADEVIS BTP »→« Mes devis » ; 1440 #dashboard « Construction Siège NBB Société Immobiliè » écran « Espace IKADEVIS BTP »→« Chantiers » ; 1440 #dashboard « Rénovation Façades ACM & Enseignes LED R » écran « Espace IKADEVIS BTP »→« Chantiers » ; 1440 #chantiers « Sélectionner le chantier Construction Si » adresse #chantiers→#chantiers/prj-001 ; 1440 #clients « Sélectionner Société Immobilière NBB » adresse #clients→#clients/cli-001 ; 1440 #clients « Sélectionner Résidence Les Almadies » adresse #clients→#clients/cli-002 ; 1440 #chiffrage « Aperçu Client & PDF » écran « Chiffrage »→« Mes devis » ; 1440 #devis « Afficher le devis DEV-2026-002 de la soc » adresse #devis→#devis/1790997254547 ; 1440 #devis/101 « Afficher le devis DEV-2026-002 de la soc » adresse #devis/101→#devis/1790997254547 ; 1440 #depenses « Ajouter un compte » adresse #depenses→#settings/finances écran « Dépenses & fournisseurs »→« Paramètres du compte »
+  ✅ [C024] Nouveau client — un seul bouton de soumission, explicite (« Créer le client »), 0 bouton(s) type=button — [submit→submit] Créer le client
+  ✅ [C024] Nouveau chantier — un seul bouton de soumission, explicite (« Créer le chantier »), 2 bouton(s) type=button — [button→button] Client du chantier | [button→button] Créer un nouveau client | [submit→submit] Créer le chantier
+  ✅ [C024] Nouvel ouvrage — un seul bouton de soumission, explicite (« Enregistrer l'ouvrage »), 1 bouton(s) type=button — [button→button] Annuler la modification (Cmd+Z / Ctrl+Z) | [submit→submit] Enregistrer l'ouvrage
+  ✅ [C024] Nouvelle dépense — un seul bouton de soumission, explicite (« Enregistrer »), 11 bouton(s) type=button — [button→button] Déjà payée Ticket, reçu, achat au compta | [button→button] À payer Facture fournisseur avec échéanc | [button→button] Taxe de la dépense | [button→button] Devise de la dépense | [button→button] Catégorie de la dépense | [button→button] Chantier de la dépense | [button→button] Payée par l’entreprise | [button→button] Avancée par quelqu’un (à rembourser) | [button→button] Ajouter un compte | [button→button] Moyen de paiement | [button→button] Annuler | [submit→submit] Enregistrer
+  ✅ [C024] Nouvelle matière — un seul bouton de soumission, explicite (« Enregistrer la ressource »), 5 bouton(s) type=button — [button→button] BTP | [button→button] Longueur · m | [button→button] Barre | [button→button] Conditionnement entier (barre, feuille,  | [button→button] Annuler la modification (Cmd+Z / Ctrl+Z) | [submit→submit] Enregistrer la ressource
+  ✅ [C024] Paramètres entreprise — un seul bouton de soumission, explicite (« Enregistrer les paramètres de l'entrepri »), 7 bouton(s) type=button — [button→button] Devise principale | [button→button] Retirer l'étape 1 | [button→button] Retirer l'étape 2 | [button→button] Retirer l'étape 3 | [button→button] Retirer l'étape 4 | [button→button] Ajouter une étape | [button→button] Retourner à l'application | [submit→submit] Enregistrer les paramètres de l'entrepri
+  ✅ [C024] Nouveau client — Entrée dans le nom vide : pas de création, la fenêtre reste ouverte avec un message — fenêtre ouverte : true ; message : « Veuillez renseigner ce champ. »
+  ✅ [C024] Nouveau client — Entrée avec un nom : soumission intentionnelle, client créé — client « Client Entrée G2 » dans la liste : true
+  ✅ [C024] Nouveau chantier — « + Créer un nouveau client » (type=button) n'envoie pas le formulaire — calques après clic : Nouveau Chantier + Nouveau Client ; chantier créé à tort : false
+  ✅ [C024] Nouvelle dépense — Entrée dans « Objet » sans montant : refus expliqué, rien d'enregistré ; « À payer » ne soumet pas — formulaire toujours ouvert : true/true ; champ refusé : Le montant doit être supérieur à zéro. Indiquez le compte d’où l’argent est sorti.
+  ✅ [C024] Nouvelle matière — ouvrir la liste « Catégorie » (type=button) n'enregistre pas la matière — matière créée à tort : false
+  ❌ [C026] 1440 px #chantiers — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ❌ [C026] 1440 px #clients — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 1440 px #devis — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation], « Nouveau devis » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ❌ [C026] 1440 px #factures — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 1440 px #depenses — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation], « Nouvelle dépense » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ❌ [C026] 1440 px #ouvrages — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation] ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 1440 px #materiaux — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation], « Ajouter une nouvelle matière » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ✅ [C026] 1440 px #chiffrage — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation], « Enregistrer » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ✅ [C026] 1440 px #settings/entreprise — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [navigation], « Enregistrer les paramètres de l'entreprise » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ✅ [C026] 1440 px #dashboard — relevé (cf. UX-HYP-01, déjà connu) — Nouveau devis (navigation, 9368 px²) ; Créer mon premier devis (écran, 9358 px²)
+  ❌ [C026] 1440 px fiche DEV-2026-001 (acceptée) — un seul bouton plein dans la fiche — pleins dans la fiche : « Télécharger le devis en PDF » 7495 px², « Créer mon compte et conserver ce devis » 12454 px² ; « Convertir en facture » fond rgb(255, 255, 255) ; ailleurs : Nouveau devis, Nouveau devis
+  ✅ [C026] 1440 px fenêtre ouverte depuis #clients — seul « Créer le client » est plein — Créer le client
+  ✅ [C026] 1440 px fenêtre ouverte depuis #chantiers — seul « Créer le chantier » est plein — Créer le chantier
+  ✅ [C026] 1440 px fenêtre ouverte depuis #ouvrages — seul « ^Enregistrer » est plein — Enregistrer l'ouvrage
+  ❌ [C026] 390 px #chantiers — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : aucun ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ❌ [C026] 390 px #clients — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : aucun ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 390 px #devis — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouveau devis » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ❌ [C026] 390 px #factures — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : aucun ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 390 px #depenses — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Nouvelle dépense » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ❌ [C026] 390 px #ouvrages — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : aucun ; action attendue : rgb(255, 255, 255) / rgb(28, 43, 51) / bord rgb(228, 233, 238)
+  ✅ [C026] 390 px #materiaux — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Ajouter une nouvelle matière » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ❌ [C026] 390 px #chiffrage — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Ajouter mon premier ouvrage » [écran], « Enregistrer » [écran] ; action attendue : introuvable
+  ✅ [C026] 390 px #settings/entreprise — l'action principale de l'écran est le seul bouton plein de son contexte — boutons pleins visibles : « Enregistrer les paramètres de l'entreprise » [écran] ; action attendue : rgb(0, 100, 224) / rgb(255, 255, 255) / bord rgb(229, 231, 235)
+  ✅ [C026] 390 px #dashboard — relevé (cf. UX-HYP-01, déjà connu) — Créer mon premier devis (écran, 9358 px²)
+  ❌ [C026] 390 px fiche DEV-2026-001 (acceptée) — un seul bouton plein dans la fiche — pleins dans la fiche : « Télécharger le devis en PDF » 3533 px², « Créer mon compte et conserver ce devis » 12454 px² ; « Convertir en facture » fond rgb(255, 255, 255) ; ailleurs : Nouveau devis
+  ✅ [C026] 390 px fenêtre ouverte depuis #clients — seul « Créer le client » est plein — Créer le client
+  ✅ [C026] 390 px fenêtre ouverte depuis #chantiers — seul « Créer le chantier » est plein — Créer le chantier
+  ✅ [C026] 390 px fenêtre ouverte depuis #ouvrages — seul « ^Enregistrer » est plein — Enregistrer l'ouvrage
+  ✅ [C029] 1440 px — aucune paire de cibles non imbriquées ne se chevauche (12 écrans) — 0 chevauchement
+  ✅ [C029] 1440 px — aucune cible recouverte par un autre élément en son centre — 0 recouvrement
+  ✅ [C029] 1440 px — toucher « Supprimer » (28×28 px) dans la ligne de devis n'ouvre QUE la confirmation — calques : dialog « Supprimer ce devis ? » ; adresse #devis → #devis
+  ✅ [C029] 1440 px — après « Annuler », le devis DEV-2026-001 est toujours là
+  ❌ [C029] 390 px — aucune paire de cibles non imbriquées ne se chevauche (12 écrans) — #ouvrages : button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Accueil» 64×34 px ; button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Devis» 84×34 px ; button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Chantiers» 59×34 px ‖ #materiaux : button«Sélectionner Béton prêt à l’emploi» ∩ button«Accueil» 76×17 px ; button«Sélectionner Béton prêt à l’emploi» ∩ button«Devis» 84×17 px ; button«Sélectionner Béton prêt à l’emploi» ∩ button«Chantiers» 84×17 px ‖ #devis/101 : button«Modifier le client et le chantier» ∩ button«Statut du devis» 14×25 px
+  ❌ [C029] 390 px — aucune cible recouverte par un autre élément en son centre — #ouvrages : button«Sélectionner l'ouvrage Réseau Plom» sous button.flex«Devis» ; button«Modifier Réseau Plomberie Sanitair» sous button.flex«Factures» ; button«Dupliquer Réseau Plomberie Sanitai» sous button.flex«Factures»
+  ✅ [C029] 390 px — toucher « Supprimer » (32×32 px) dans la ligne de devis n'ouvre QUE la confirmation — calques : dialog « Supprimer ce devis ? » ; adresse #devis → #devis
+  ✅ [C029] 390 px — après « Annuler », le devis DEV-2026-001 est toujours là
+  ❌ [C029] 390 px #ouvrages — en bas de liste (molette), la dernière cible est dégagée de la barre fixe — défilement 669/669 (butée atteinte) ; dernière « Modifier Lettres Reliefs Découpées Plexi » bas=820 ; barre fixe haut=775 ; centre → button«Factures»
+  ❌ [C029] 390 px #materiaux — en bas de liste (molette), la dernière cible est dégagée de la barre fixe — défilement 1953/1953 (butée atteinte) ; dernière « Sélectionner Plaque Plexiglas Acrylique  » bas=832 ; barre fixe haut=775 ; centre → button«Chantiers»
+  ❌ [C029] 390 px #chiffrage — après défilement, « Ajouter mon premier ouvrage » n'est pas sous la barre de totaux — appel 690–738 px ; barre de totaux 703–772 ; centre → button«Aperçu PDF»
+  ❌ [C029] 320 px — aucune paire de cibles non imbriquées ne se chevauche (12 écrans) — #depenses : input«Rechercher une dépense» ∩ button«Accueil» 42×49 px ; input«Rechercher une dépense» ∩ button«Devis» 66×49 px ; input«Rechercher une dépense» ∩ button«Chantiers» 66×49 px ‖ #ouvrages : button«Sélectionner l'ouvrage Cloison de » ∩ button«Accueil» 46×39 px ; button«Sélectionner l'ouvrage Cloison de » ∩ button«Devis» 66×39 px ; button«Sélectionner l'ouvrage Cloison de » ∩ button«Chantiers» 24×39 px ‖ #materiaux : button«Sélectionner Plaque de fond tôle g» ∩ button«Accueil» 58×23 px ; button«Sélectionner Plaque de fond tôle g» ∩ button«Devis» 66×23 px ; button«Sélectionner Plaque de fond tôle g» ∩ button«Chantiers» 66×23 px ‖ #devis/101 : button«Modifier le client et le chantier» ∩ button«Statut du devis» 84×5 px
+  ❌ [C029] 320 px — aucune cible recouverte par un autre élément en son centre — #depenses : input«Rechercher une dépense» sous button.flex«Chantiers» ‖ #ouvrages : button«Sélectionner l'ouvrage Cloison de » sous button.flex«Devis» ; button«Modifier Cloison de Distribution P» sous button.flex«Chantiers» ; button«Dupliquer Cloison de Distribution » sous button.flex«Factures»
+  ✅ [C029] 320 px — toucher « Supprimer » (32×32 px) dans la ligne de devis n'ouvre QUE la confirmation — calques : dialog « Supprimer ce devis ? » ; adresse #devis → #devis
+  ✅ [C029] 320 px — après « Annuler », le devis DEV-2026-001 est toujours là
+  ❌ [C029] 320 px #ouvrages — en bas de liste (molette), la dernière cible est dégagée de la barre fixe — défilement 873/873 (butée atteinte) ; dernière « Modifier Lettres Reliefs Découpées Plexi » bas=616 ; barre fixe haut=571 ; centre → button«Chantiers»
+  ❌ [C029] 320 px #materiaux — en bas de liste (molette), la dernière cible est dégagée de la barre fixe — défilement 2189/2189 (butée atteinte) ; dernière « Sélectionner Plaque Plexiglas Acrylique  » bas=628 ; barre fixe haut=571 ; centre → img«»
+  ❌ [C029] 320 px #chiffrage — après défilement, « Ajouter mon premier ouvrage » n'est pas sous la barre de totaux — appel 706–754 px ; barre de totaux 499–568 ; centre → ∅
+  ✅ [C033] 1440 px « Nouveau Client » — le focus reste dans la fenêtre (25 Tab + 25 Maj+Tab) — 0 sortie
+  ✅ [C033] 1440 px « Nouveau Client » — la molette sur le voile ne fait pas défiler l'arrière-plan — défilement fond null→null (max 0), document 0→0 — fond non défilable sur cet écran
+  ✅ [C033] 1440 px « Nouveau Client » — clic à l'emplacement de « Factures » (arrière-plan) n'y navigue pas — point (129,428) reçu par div[dialog]«Nouveau Client» ; écran « Clients » → « Clients » ; fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouveau Client » — Meta+K ne sort pas de la fenêtre (focus, saisie, Entrée) — focus → input«Recherche globale dans ikadevis» (HORS fenêtre, sous div[dialog]«Nouveau Client») ; « Factures » + Entrée : écran « Clients » → « Clients », fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouveau Client » — Alt+3 (raccourci « Factures ») ne change pas l'écran sous la fenêtre — écran « Clients » → « Factures » ; fenêtre toujours ouverte par-dessus
+  ✅ [C033] 1440 px « Nouveau Chantier » — le focus reste dans la fenêtre (25 Tab + 25 Maj+Tab) — 0 sortie
+  ✅ [C033] 1440 px « Nouveau Chantier » — la molette sur le voile ne fait pas défiler l'arrière-plan — défilement fond null→null (max 0), document 0→0 — fond non défilable sur cet écran
+  ✅ [C033] 1440 px « Nouveau Chantier » — clic à l'emplacement de « Factures » (arrière-plan) n'y navigue pas — point (129,428) reçu par div[dialog]«Nouveau Chantier» ; écran « Chantiers » → « Chantiers » ; fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouveau Chantier » — Meta+K ne sort pas de la fenêtre (focus, saisie, Entrée) — focus → input«Recherche globale dans ikadevis» (HORS fenêtre, sous div[dialog]«Nouveau Chantier») ; « Factures » + Entrée : écran « Chantiers » → « Chantiers », fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouveau Chantier » — Alt+3 (raccourci « Factures ») ne change pas l'écran sous la fenêtre — écran « Chantiers » → « Factures » ; fenêtre toujours ouverte par-dessus
+  ✅ [C033] 1440 px « Nouvel Ouvrage » — le focus reste dans la fenêtre (25 Tab + 25 Maj+Tab) — 0 sortie
+  ✅ [C033] 1440 px « Nouvel Ouvrage » — la molette sur le voile ne fait pas défiler l'arrière-plan — défilement fond 120→120 (max 619), document 0→0
+  ✅ [C033] 1440 px « Nouvel Ouvrage » — clic à l'emplacement de « Factures » (arrière-plan) n'y navigue pas — point (129,428) reçu par div[dialog]«Nouvel Ouvrage» ; écran « Catalogue des Ouvrages » → « Catalogue des Ouvrages » ; fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouvel Ouvrage » — Meta+K ne sort pas de la fenêtre (focus, saisie, Entrée) — focus → input«Recherche globale dans ikadevis» (HORS fenêtre, sous div[dialog]«Nouvel Ouvrage») ; « Factures » + Entrée : écran « Catalogue des Ouvrages » → « Catalogue des Ouvrages », fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Nouvel Ouvrage » — Alt+3 (raccourci « Factures ») ne change pas l'écran sous la fenêtre — écran « Catalogue des Ouvrages » → « Factures » ; fenêtre toujours ouverte par-dessus
+  ✅ [C033] 1440 px « Personnaliser » — le focus reste dans la fenêtre (25 Tab + 25 Maj+Tab) — 0 sortie
+  ✅ [C033] 1440 px « Personnaliser » — la molette sur le voile ne fait pas défiler l'arrière-plan — défilement fond 0→0 (max 196), document 0→0
+  ✅ [C033] 1440 px « Personnaliser » — clic à l'emplacement de « Factures » (arrière-plan) n'y navigue pas — point (129,428) reçu par div[dialog]«Personnaliser mon Tableau de Bord» ; écran « Espace IKADEVIS BTP » → « Espace IKADEVIS BTP » ; fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Personnaliser » — Meta+K ne sort pas de la fenêtre (focus, saisie, Entrée) — focus → input«Recherche globale dans ikadevis» (HORS fenêtre, sous div[dialog]«Personnaliser mon Tableau de Bord») ; « Factures » + Entrée : écran « Espace IKADEVIS BTP » → « Espace IKADEVIS BTP », fenêtre toujours ouverte
+  ❌ [C033] 1440 px « Personnaliser » — Alt+3 (raccourci « Factures ») ne change pas l'écran sous la fenêtre — écran « Espace IKADEVIS BTP » → « Factures » ; fenêtre toujours ouverte par-dessus
+  ✅ [C033] 390 px « Nouveau Client » — le focus reste dans la fenêtre (25 Tab + 25 Maj+Tab) — 0 sortie
+  ✅ [C033] 390 px « Nouveau Client » — la molette sur le voile ne fait pas défiler l'arrière-plan — défilement fond null→null (max 0), document 0→0 — fond non défilable sur cet écran
+  ✅ [C033] 390 px « Nouveau Client » — toucher à l'emplacement de « Factures » (arrière-plan) n'y navigue pas — point (296,808) reçu par div[dialog]«Nouveau Client» ; écran « Clients » → « Clients » ; fenêtre toujours ouverte
+  ❌ [C033] 390 px « Nouveau Chantier » — fenêtre non ouverte — [{"nom":"Nouveau Client","z":"100","role":"dialog"}]
+  ❌ [C033] 390 px « Nouvel Ouvrage » — fenêtre non ouverte — [{"nom":"Nouveau Client","z":"100","role":"dialog"}]
+  ❌ [C033] 390 px « Personnaliser » — fenêtre non ouverte — [{"nom":"Nouveau Client","z":"100","role":"dialog"}]
+  ❌ [C033] 390 px « Société Immobilière NBB » — fenêtre non ouverte — [{"nom":"Nouveau Client","z":"100","role":"dialog"}]
+  ❌ [C034] 1440 px « Nouveau Client » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Nouveau Client » — fermer par Échap après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 1440 px « Nouveau Client » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 1440 px « Nouveau Client » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Nouveau Chantier » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Nouveau Chantier » — fermer par Échap après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 1440 px « Nouveau Chantier » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 1440 px « Nouveau Chantier » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Nouvel Ouvrage » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Nouvel Ouvrage » — fermer par Échap après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 1440 px « Nouvel Ouvrage » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 1440 px « Nouvel Ouvrage » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 1440 px « Personnaliser » — fermer par la croix après modification — FERMÉE SANS AVERTISSEMENT, modification perdue
+  ❌ [C034] 1440 px « Personnaliser » — fermer par Échap après modification — FERMÉE SANS AVERTISSEMENT, modification perdue
+  ✅ [C034] 1440 px « Personnaliser » — fermer par un clic sur le voile après modification — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 1440 px « Personnaliser » — fermer par « Annuler » (abandon explicite) après modification — FERMÉE SANS AVERTISSEMENT, modification perdue
+  ✅ [C034] 1440 chiffrage modifié (« Ajouter une ligne libre ») puis « Factures » dans le menu — la perte est annoncée — calques : Enregistrer le devis en cours ? ; texte : « Enregistrer le devis en cours ? Ce chiffrage contient des modifications qui ne sont pas encore enregistrées. Si vous quittez sans enregistrer, elles seront perd » ; écran : Chiffrage
+  ❌ [C034] 390 px « Nouveau Client » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 390 px « Nouveau Client » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 390 px « Nouveau Client » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 390 px « Nouveau Chantier » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 390 px « Nouveau Chantier » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 390 px « Nouveau Chantier » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 390 px « Nouvel Ouvrage » — fermer par la croix après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ✅ [C034] 390 px « Nouvel Ouvrage » — fermer par un clic sur le voile après saisie « Témoin G2 non enregistré » — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 390 px « Nouvel Ouvrage » — fermer par « Annuler » (abandon explicite) après saisie « Témoin G2 non enregistré » — FERMÉE SANS AVERTISSEMENT, modification perdue (champ vide à la réouverture)
+  ❌ [C034] 390 px « Personnaliser » — fermer par la croix après modification — FERMÉE SANS AVERTISSEMENT, modification perdue
+  ✅ [C034] 390 px « Personnaliser » — fermer par un clic sur le voile après modification — fenêtre restée ouverte (rien perdu)
+  ✅ [C034] 390 px « Personnaliser » — fermer par « Annuler » (abandon explicite) après modification — FERMÉE SANS AVERTISSEMENT, modification perdue
+  ❌ [C034] 390 — geste Retour sur la fiche devis (ouverte depuis « Devis » de la barre mobile) : ferme la fiche sans quitter l'application — avant : /index.html#dashboard + fenêtre « Société Immobilière NBB » ; après Retour : /index.html#clients ; calques Société Immobilière NBB
+  ✅ [C037] 1440 px Dépenses — une seule sélection, visible (style distinct) et qui suit le clic (4 onglets) — avant « Toutes » → après clic « À payer » ; sélectionné rgb(28, 43, 51)|rgb(255, 255, 255)|rgb(28, 43, 51)|600|false vs rgb(255, 255, 255)|rgb(68, 81, 94)|rgb(228, 233, 238)|600|false
+  ❌ [C037] 1440 px Dépenses — le contenu affiché change avec l'onglet — empreinte 1177198043|844 → 1177198043|844
+  ❌ [C037] 1440 px Dépenses — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/4 ; role=tabpanel visibles 0
+  ❌ [C037] 1440 px Dépenses — flèche droite passe à l'onglet suivant ; un seul arrêt de tabulation — focus button[tab]«À payer» → button[tab]«À payer» ; arrêts Tab dans la liste : 4/4
+  ✅ [C037] 1440 px Paramètres › Finances — une seule sélection, visible (style distinct) et qui suit le clic (5 onglets) — avant « Comptes 0 » → après clic « Devises 1 » ; sélectionné rgb(28, 43, 51)|rgb(255, 255, 255)|rgb(28, 43, 51)|600|false vs rgb(255, 255, 255)|rgb(68, 81, 94)|rgb(228, 233, 238)|600|false
+  ✅ [C037] 1440 px Paramètres › Finances — le contenu affiché change avec l'onglet — empreinte -173221475|1310 → -2090413989|1659
+  ❌ [C037] 1440 px Paramètres › Finances — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/5 ; role=tabpanel visibles 0
+  ❌ [C037] 1440 px Paramètres › Finances — flèche droite passe à l'onglet suivant ; un seul arrêt de tabulation — focus button[tab]«Devises 1» → button[tab]«Devises 1» ; arrêts Tab dans la liste : 5/5
+  ✅ [C037] 1440 px Chiffrage (lots) — une seule sélection, visible (style distinct) et qui suit le clic (2 onglets) — avant « 02 Lot 02 — Nouveau Lot 0  » → après clic « 01 Lot 01 — Travaux 0 FCFA » ; sélectionné rgb(255, 255, 255)|rgb(28, 43, 51)|rgb(0, 130, 251)|700|true vs rgba(255, 255, 255, 0.6)|rgb(68, 81, 94)|rgb(228, 233, 238)|400|false
+  ✅ [C037] 1440 px Chiffrage (lots) — le contenu affiché change avec l'onglet — empreinte -1877215983|1155 → 1589947560|1151
+  ❌ [C037] 1440 px Chiffrage (lots) — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/2 ; role=tabpanel visibles 0
+  ❌ [C037] 1440 px Chiffrage (lots) — flèche droite passe à l'onglet suivant ; un seul arrêt de tabulation — focus button[tab]«01 Lot 01 — Travaux 0 FCFA» → button[tab]«01 Lot 01 — Travaux 0 FCFA» ; arrêts Tab dans la liste : 2/2
+  ❌ [C037] 1440 px Factures (filtres de statut) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Toutes 0 » aucun état ARIA [rgb(28, 43, 51)|rgb(255, 255, 255)|500] ; « Non réglées 0 » aucun état ARIA [rgba(241, 245, 248, 0.9)|rgb(68, 81, 94)|500] ; « Soldées 0 » aucun état ARIA [rgba(241, 245, 248, 0.9)|rgb(68, 81, 94)|500]
+  ❌ [C037] 1440 px Ressources (Matières / Main-d'œuvre) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Voir la liste des matières pre » aucun état ARIA [rgb(240, 247, 255)|rgb(0, 100, 224)|700] ; « Voir la liste de la main-d'œuv » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|700]
+  ❌ [C037] 1440 px Tableau de bord (période) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Tout » aucun état ARIA [rgb(255, 255, 255)|rgb(28, 43, 51)|600] ; « Ce mois » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600] ; « Trimestre » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600] ; « Année » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600]
+  ❌ [C037] 1440 px Paramètres (rubriques) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Entreprise Identité et coordon » aria-current=page [rgb(28, 43, 51)|rgb(255, 255, 255)|400] ; « Documents & PDF Logo, TVA et m » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(68, 81, 94)|400] ; « Finances Comptes, devises, tax » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(68, 81, 94)|400]
+  ✅ [C037] 390 px Dépenses — une seule sélection, visible (style distinct) et qui suit le clic (4 onglets) — avant « Toutes » → après clic « À payer » ; sélectionné rgb(28, 43, 51)|rgb(255, 255, 255)|rgb(28, 43, 51)|600|false vs rgb(255, 255, 255)|rgb(68, 81, 94)|rgb(228, 233, 238)|600|false
+  ❌ [C037] 390 px Dépenses — le contenu affiché change avec l'onglet — empreinte -1922008507|669 → -1922008507|669
+  ❌ [C037] 390 px Dépenses — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/4 ; role=tabpanel visibles 0
+  ✅ [C037] 390 px Paramètres › Finances — une seule sélection, visible (style distinct) et qui suit le clic (5 onglets) — avant « Comptes 0 » → après clic « Devises 1 » ; sélectionné rgb(28, 43, 51)|rgb(255, 255, 255)|rgb(28, 43, 51)|600|false vs rgb(255, 255, 255)|rgb(68, 81, 94)|rgb(228, 233, 238)|600|false
+  ✅ [C037] 390 px Paramètres › Finances — le contenu affiché change avec l'onglet — empreinte 1067528197|660 → 37538781|1009
+  ❌ [C037] 390 px Paramètres › Finances — chaque onglet est relié à son panneau (aria-controls → role=tabpanel) — aria-controls 0/5 ; role=tabpanel visibles 0
+  ❌ [C037] 390 px Chiffrage — bouton d'ajout de lot introuvable
+  ❌ [C037] 390 px Factures (filtres de statut) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Toutes 0 » aucun état ARIA [rgb(28, 43, 51)|rgb(255, 255, 255)|500] ; « Non réglées 0 » aucun état ARIA [rgba(241, 245, 248, 0.9)|rgb(68, 81, 94)|500] ; « Soldées 0 » aucun état ARIA [rgba(241, 245, 248, 0.9)|rgb(68, 81, 94)|500]
+  ❌ [C037] 390 px Ressources (Matières / Main-d'œuvre) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Voir la liste des matières pre » aucun état ARIA [rgb(240, 247, 255)|rgb(0, 100, 224)|700] ; « Voir la liste de la main-d'œuv » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|700]
+  ❌ [C037] 390 px Tableau de bord (période) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) — « Tout » aucun état ARIA [rgb(255, 255, 255)|rgb(28, 43, 51)|600] ; « Ce mois » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600] ; « Trimestre » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600] ; « Année » aucun état ARIA [rgba(0, 0, 0, 0)|rgb(95, 111, 126)|600]
+  ❌ [C037] 390 px Paramètres (rubriques) — sélection visible ET annoncée (aria-pressed / aria-selected / aria-current) —  ; absents : ^Entreprise, ^Documents & PDF, ^Finances
+  ✅ [C038] 1440 px dépense #dep_date — champ date natif, étiqueté, saisissable au clavier (15112026 → 2026-11-15) — type=date ; libellé « DATE * » ; valeur initiale 2026-10-03 → 2026-11-15
+  ✅ [C038] 1440 px dépense #dep_echeance — champ date natif, étiqueté, saisissable au clavier (15112026 → 2026-11-15) — type=date ; libellé « ÉCHÉANCE * » ; valeur initiale 2026-11-02 → 2026-11-15
+  ✅ [C038] 1440 px — #dep_date atteint par Tab depuis le champ précédent — focus : #dep_date
+  ✅ [C038] 1440 px — aucun calendrier personnalisé (souris seule) sur 11 écrans — aucun champ date affiché d'office
+  ✅ [C038] 390 px dépense #dep_date — champ date natif, étiqueté, saisissable au clavier (15112026 → 2026-11-15) — type=date ; libellé « DATE * » ; valeur initiale 2026-10-03 → 2026-11-15
+  ✅ [C038] 390 px dépense #dep_echeance — champ date natif, étiqueté, saisissable au clavier (15112026 → 2026-11-15) — type=date ; libellé « ÉCHÉANCE * » ; valeur initiale 2026-11-02 → 2026-11-15
+  ✅ [C038] 390 px — aucun calendrier personnalisé (souris seule) sur 11 écrans — aucun champ date affiché d'office
+  ❌ [C039] 1440 — informations portées uniquement par un title (survol) : 63 relevées sur 11 écrans — #dashboard button « État de connexion : Données sur cet appareil » ; #dashboard button « Paramètres de l'espace de travail » ; #dashboard button « Compte : invite (invite@local.app) » ; #dashboard button « Démarrer un devis vierge et ouvrir le chiffrage » ; #dashboard div « Gérer votre formule ou découvrir les formules illi » ; #chantiers button « État de connexion : Données sur cet appareil » ; #chantiers button « Paramètres de l'espace de travail » ; #chantiers button « Compte : invite (invite@local.app) » — dont 2 sur élément non focalisable
+  ❌ [C039] 1440 chiffrage — « Coeff K » atteint au clavier : l'explication devient visible — atteint en 28 Tab : true ; texte « Coefficient de vente… » visible : false ; infobulle visible : aucune ; l'explication n'existe que dans title=« Coefficient de vente : ce par quoi le déboursé sec est multi… »
+  ❌ [C039] 1440 chiffrage — « Marge prévue » : l'explication (« Marge calculée après frais… ») est accessible au clavier — bloc focalisable : false ; texte visible ailleurs : false
+  ❌ [C039] 390 chiffrage — « Coeff K » visible — non affiché à 390 px (barre de totaux repliée) — explication inaccessible au toucher sans dépli
+  ❌ [C039] 768 px rail replié — l'infobulle « Paramètres » (icône seule) s'affiche aussi au focus clavier — atteint en 20 Tab : true ; opacité au focus 0 ; au survol 1
+  ❌ [C039] 768 px rail replié — les 9 entrées affichent leur libellé complet sans survol — « Tableau de bord »→« Tableau de bord » ; « Chantiers »→« Chantiers » ; « Clients »→« Clients » ; « Mes devis »→« Mes devis » ; « Factures »→« Factures » ; « Dépenses »→« Dépenses » ; « Catalogue »→« Catalogue » ; « Ressources »→« Ressources » ; « Paramètres du compte »→« — »
+  ✅ [C040] 1440 px — « Nouveau client » ouvert depuis « Nouveau chantier » est au-dessus et reçoit le focus — pile : Nouveau Chantier@z100 / Nouveau Client@z100 ; centre de la fenêtre du haut touché : true ; focus dedans : true
+  ✅ [C040] 1440 px — Échap ferme seulement la fenêtre du haut ; « Nouveau chantier » garde sa saisie et le focus — restantes : Nouveau Chantier ; saisie « Chantier Pile G2 » ; focus button«Fermer la boîte de dialogue»
+  ✅ [C040] 1440 px — liste « Client » de la fenêtre chantier — select natif : rendu par le système, hors pile
+  ✅ [C040] 1440 px chiffrage — la fenêtre « Bibliothèque des Ouvrages Méti » recouvre la barre de totaux fixe — au point de la barre : div«Réseau Plomberie Sanitaire Multicouche & Évacuatio»
+  ❌ [C040] 1440 — Meta+K pendant « Nouveau client » : pas de panneau ouvert sous le voile avec le focus dedans — focus → input«Recherche globale dans ikadevis» ; panneau de recherche ouvert : true ; recouvert par la fenêtre : true
+  ✅ [C040] 1440 px — #factures → #devis/101 → Retour du navigateur : aucune fenêtre de la fiche ne reste par-dessus « Factures » — fiche en fenêtre à l'aller : Nouveau Client ; après Retour : adresse #factures, écran « Factures », calques Nouveau Client
+  ✅ [C040] 390 px — « Nouveau client » ouvert depuis « Nouveau chantier » est au-dessus et reçoit le focus — pile : Nouveau Chantier@z100 / Nouveau Client@z100 ; centre de la fenêtre du haut touché : true ; focus dedans : true
+  ✅ [C040] 390 px — « Annuler » ferme seulement la fenêtre du haut ; « Nouveau chantier » garde sa saisie et le focus — restantes : Nouveau Chantier ; saisie « Chantier Pile G2 » ; focus button«Fermer la boîte de dialogue»
+  ✅ [C040] 390 px — liste « Client » de la fenêtre chantier — select natif : rendu par le système, hors pile
+  ❌ [C040] 390 px chiffrage — barre de totaux / catalogue — barre visible : true ; catalogue ouvert : false ; calques []
+  ❌ [C040] 390 px — #factures → #devis/101 → Retour du navigateur : aucune fenêtre de la fiche ne reste par-dessus « Factures » — fiche en fenêtre à l'aller : Société Immobilière NBB ; après Retour : adresse #factures, écran « Factures », calques Société Immobilière NBB
+  ✅ [C040] 390 — le tiroir « Menu » se referme quand on choisit « Clients & CRM » — ouvert : Menu ; après choix : aucun ; écran « Clients »
+  ✅ [environnement] aucune requête hors 127.0.0.1 n'a abouti (toutes bloquées) — 0 tentative(s) bloquée(s) : aucune
+  ✅ [environnement] aucune erreur JavaScript pendant les parcours — aucune
+
+MESURES {
+ "C022.desactives.1440": [
+  {
+   "route": "#chiffrage",
+   "nom": "Annuler la modification (Cmd+Z / Ctrl+Z)",
+   "title": "Annuler — Cmd+Z (Ctrl+Z)",
+   "decrit": "",
+   "voisin": ""
+  },
+  {
+   "route": "#chiffrage",
+   "nom": "Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)",
+   "title": "Rétablir — Cmd+Maj+Z (Ctrl+Y)",
+   "decrit": "",
+   "voisin": ""
+  },
+  {
+   "route": "#abonnement",
+   "nom": "Votre formule actuelle",
+   "title": "",
+   "decrit": "",
+   "voisin": "Starter Actuelle Pour essayer sur vos premiers devis. 0 FCFA / mois Essai gratuit de 14 jo"
+  }
+ ],
+ "C022.desactives.390": [
+  {
+   "route": "#abonnement",
+   "nom": "Votre formule actuelle",
+   "title": "",
+   "decrit": "",
+   "voisin": "Starter Actuelle Pour essayer sur vos premiers devis. 0 FCFA / mois Essai gratuit de 14 jo"
+  }
+ ],
+ "C022.balayage": [
+  "1440 #dashboard « Tout » → SANS EFFET OBSERVABLE []",
+  "1440 #dashboard « Ce mois » → effet [état du bouton, contenu modifié, DOM 385→383]",
+  "1440 #dashboard « Trimestre » → effet [état du bouton]",
+  "1440 #dashboard « Année » → effet [état du bouton, contenu modifié, DOM 383→385]",
+  "1440 #dashboard « Modifier et personnaliser le tableau de bord » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→494]",
+  "1440 #dashboard « Créer mon premier devis » → effet [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432]",
+  "1440 #dashboard « Nouveau devis Chiffrer un projet » → effet [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436]",
+  "1440 #dashboard « Nouveau chantier Ouvrir un dossier » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→438]",
+  "1440 #dashboard « Ajouter un client Répertoire & NIF » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→422]",
+  "1440 #dashboard « Créer facture Facturer un acompte » → effet [écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355]",
+  "1440 #dashboard « Voir tous » → effet [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "1440 #dashboard « Société Immobilière NBB Construction Siège NBB · DEV-2026-001 20 589 2 » → effet [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→642]",
+  "1440 #dashboard « Construction Siège NBB Société Immobilière NBB En cours » → effet [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 385→285]",
+  "1440 #dashboard « Rénovation Façades ACM & Enseignes LED Résidence Les Almadies En cours » → effet [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 385→276]",
+  "1440 #chantiers « Créer un nouveau chantier » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 254→307]",
+  "1440 #chantiers « Sélectionner le chantier Construction Siège NBB » → effet [adresse #chantiers→#chantiers/prj-001, état du bouton, contenu modifié, DOM 254→285]",
+  "1440 #clients « Créer un nouveau client » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 252→289]",
+  "1440 #clients « Sélectionner Société Immobilière NBB » → effet [adresse #clients→#clients/cli-001, état du bouton, contenu modifié, DOM 252→306]",
+  "1440 #clients « Sélectionner Résidence Les Almadies » → effet [adresse #clients→#clients/cli-002, état du bouton, contenu modifié, DOM 252→297]",
+  "1440 #chiffrage « Annuler la modification (Cmd+Z / Ctrl+Z) » → désactivé",
+  "1440 #chiffrage « Rétablir la modification (Cmd+Maj+Z / Ctrl+Y) » → désactivé",
+  "1440 #chiffrage « Statut du devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 432→445]",
+  "1440 #chiffrage « Nouveau devis » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 432→461]",
+  "1440 #chiffrage « Aperçu Client & PDF » → effet [écran « Chiffrage »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 432→607]",
+  "1440 #chiffrage « Enregistrer » → effet [focus déplacé, contenu modifié, DOM 432→436]",
+  "1440 #chiffrage « Plus d'actions sur le devis » → effet [contenu modifié, DOM 436→441]",
+  "1440 #chiffrage « Importer Excel / CSV » → non cliqué (destructif / sortant / fichier)",
+  "1440 #chiffrage « Ajouter un nouveau lot » → effet [contenu modifié, DOM 441→454]",
+  "1440 #chiffrage « 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage » → effet [état du bouton, contenu modifié]",
+  "1440 #chiffrage « Ajouter mon premier ouvrage » → effet [focus déplacé]",
+  "1440 #chiffrage « 01 Lot 01 — Travaux 0 FCFA » → SANS EFFET OBSERVABLE []",
+  "1440 #chiffrage « Ajouter un lot au devis » → effet [contenu modifié, DOM 454→476]",
+  "1440 #chiffrage « Synthèse des lots » → effet [focus déplacé, contenu modifié, DOM 476→607]",
+  "1440 #chiffrage « Options du lot » → effet [focus déplacé, contenu modifié, DOM 607→603]",
+  "1440 #chiffrage « Renommer le lot Lot 01 — Travaux » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 472→471]",
+  "1440 #chiffrage « Choisir dans le Catalogue complet » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 472→759]",
+  "1440 #chiffrage « Ajouter une ligne libre » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 472→590]",
+  "1440 #devis « Nouveau devis » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 349→359]",
+  "1440 #devis « Filtrer les devis par statut » → effet [calques 0→1, état du bouton, contenu modifié, DOM 349→370]",
+  "1440 #devis « Trier les devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 349→362]",
+  "1440 #devis « Afficher le devis DEV-2026-002 de la société » → effet [adresse #devis→#devis/1790997254547, bouton remplacé, focus déplacé, contenu modifié, DOM 349→631]",
+  "1440 #devis « Supprimer le devis DEV-2026-002 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Nouveau devis » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 669→679]",
+  "1440 #devis/101 « Filtrer les devis par statut » → effet [calques 0→1, état du bouton, contenu modifié, DOM 669→690]",
+  "1440 #devis/101 « Trier les devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 349→362]",
+  "1440 #devis/101 « Afficher le devis DEV-2026-002 de la société » → effet [adresse #devis/101→#devis/1790997254547, bouton remplacé, focus déplacé, contenu modifié, DOM 349→631]",
+  "1440 #devis/101 « Supprimer le devis DEV-2026-002 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Fermer la boîte de dialogue » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 669→349]",
+  "1440 #devis/101 « Modifier le client et le chantier » → effet [contenu modifié, DOM 669→715]",
+  "1440 #devis/101 « Statut du devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 715→732]",
+  "1440 #devis/101 « Partager le devis » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Signer le devis » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Imprimer le devis » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Envoyer le devis DEV-2026-001 par WhatsApp ou e-mail » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Télécharger le devis en PDF » → non cliqué (destructif / sortant / fichier)",
+  "1440 #devis/101 « Facturer le devis DEV-2026-001 » → effet [écran « Mes devis »→« Factures », calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 715→423]",
+  "1440 #devis/101 « PLUS D’ACTIONS » → effet [état du bouton, contenu modifié]",
+  "1440 #devis/101 « Créer mon compte et conserver ce devis » → non cliqué (destructif / sortant / fichier)",
+  "1440 #factures « Exporter les factures en CSV » → non cliqué (destructif / sortant / fichier)",
+  "1440 #factures « Nouveau — créer une facture depuis un devis » → effet [contenu modifié, DOM 365→373]",
+  "1440 #factures « Filtres avancés » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 373→423]",
+  "1440 #factures « Filtrer les factures par statut » → effet [focus déplacé]",
+  "1440 #factures « Toutes 0 » → SANS EFFET OBSERVABLE []",
+  "1440 #factures « Non réglées 0 » → effet [état du bouton, contenu modifié, DOM 365→376]",
+  "1440 #factures « Partielles 0 » → effet [état du bouton, contenu modifié]",
+  "1440 #factures « Soldées 0 » → effet [état du bouton, contenu modifié]",
+  "1440 #factures « Avoirs 0 » → effet [état du bouton, contenu modifié]",
+  "1440 #factures « Brouillons 0 » → effet [état du bouton, contenu modifié]",
+  "1440 #depenses « Nouvelle dépense » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 284→397]",
+  "1440 #depenses « Ajouter un compte » → effet [adresse #depenses→#settings/finances, écran « Dépenses & fournisseurs »→« Paramètres du compte », bouton remplacé, focus déplacé, contenu modifié, DOM 397→333]",
+  "1440 #depenses « Toutes » → SANS EFFET OBSERVABLE []",
+  "1440 #depenses « À payer » → non cliqué (destructif / sortant / fichier)",
+  "1440 #depenses « Payées » → effet [état du bouton]",
+  "1440 #depenses « Avances à rembourser » → effet [état du bouton]",
+  "1440 #ouvrages « Créer un nouvel ouvrage au catalogue » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 475→503]",
+  "1440 #ouvrages « Sélectionner l'ouvrage Fouilles en Pleine Masse & Terrassement BTP » → effet [contenu modifié, DOM 475→528]",
+  "1440 #ouvrages « Modifier Fouilles en Pleine Masse & Terrassement BTP » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 528→556]",
+  "1440 #ouvrages « Dupliquer Fouilles en Pleine Masse & Terrassement BTP » → effet [contenu modifié, DOM 528→544]",
+  "1440 #ouvrages « Supprimer Fouilles en Pleine Masse & Terrassement BTP » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Béton Armé pour Fondations, Poteaux & Chaînages » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 544→572]",
+  "1440 #ouvrages « Dupliquer Béton Armé pour Fondations, Poteaux & Chaînages » → effet [contenu modifié, DOM 544→624]",
+  "1440 #ouvrages « Supprimer Béton Armé pour Fondations, Poteaux & Chaînages » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Maçonnerie en Murs d’Agglos de 15 » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 624→652]",
+  "1440 #ouvrages « Dupliquer Maçonnerie en Murs d’Agglos de 15 » → effet [contenu modifié, DOM 624→612]",
+  "1440 #ouvrages « Supprimer Maçonnerie en Murs d’Agglos de 15 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Revêtement Sol en Carrelage Grès Cérame 60x60 » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 612→640]",
+  "1440 #ouvrages « Dupliquer Revêtement Sol en Carrelage Grès Cérame 60x60 » → effet [contenu modifié, DOM 612→624]",
+  "1440 #ouvrages « Supprimer Revêtement Sol en Carrelage Grès Cérame 60x60 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Cloison de Distribution Placostil BA13 72/48 avec Laine de Ve » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 624→652]",
+  "1440 #ouvrages « Dupliquer Cloison de Distribution Placostil BA13 72/48 avec Laine de V » → effet [contenu modifié, DOM 624→684]",
+  "1440 #ouvrages « Supprimer Cloison de Distribution Placostil BA13 72/48 avec Laine de V » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Faux-Plafond Suspendu BA13 sur Ossature Métallique F530 » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 684→712]",
+  "1440 #ouvrages « Dupliquer Faux-Plafond Suspendu BA13 sur Ossature Métallique F530 » → effet [contenu modifié, DOM 684→672]",
+  "1440 #ouvrages « Supprimer Faux-Plafond Suspendu BA13 sur Ossature Métallique F530 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Installation Électrique Basse Tension & Tableaux » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 672→700]",
+  "1440 #ouvrages « Dupliquer Installation Électrique Basse Tension & Tableaux » → effet [contenu modifié, DOM 672→660]",
+  "1440 #ouvrages « Supprimer Installation Électrique Basse Tension & Tableaux » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Réseau Plomberie Sanitaire Multicouche & Évacuations PVC » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 660→688]",
+  "1440 #ouvrages « Dupliquer Réseau Plomberie Sanitaire Multicouche & Évacuations PVC » → effet [contenu modifié, DOM 660→672]",
+  "1440 #ouvrages « Supprimer Réseau Plomberie Sanitaire Multicouche & Évacuations PVC » → non cliqué (destructif / sortant / fichier)",
+  "1440 #ouvrages « Modifier Peinture Murale Satinée BTP » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 672→700]",
+  "1440 #ouvrages « Dupliquer Peinture Murale Satinée BTP » → effet [contenu modifié, DOM 672→660]",
+  "1440 #materiaux « Voir la liste des matières premières » → SANS EFFET OBSERVABLE []",
+  "1440 #materiaux « Importer un fichier CSV » → non cliqué (destructif / sortant / fichier)",
+  "1440 #materiaux « Exporter au format CSV » → non cliqué (destructif / sortant / fichier)",
+  "1440 #materiaux « Ajouter une nouvelle matière » → effet [contenu modifié, DOM 430→595]",
+  "1440 #materiaux « Sélectionner Tube carré acier 25x25 (Cadres & Renforts) » → effet [état du bouton, contenu modifié, DOM 595→462]",
+  "1440 #materiaux « Sélectionner Autocollant imprimé VINYL HD Lamination » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Plaque de fond tôle galvanisée 10/10e » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Peinture Murale Satinée Lessivable » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Béton prêt à l’emploi B25 dosé 350 kg/m³ » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Aciers Haute Adhérence FeE500 (HA 8 à 16) » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Agglos creux de 15x20x40 standard » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Ciment CPJ 42.5 pour mortier de pose » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Carrelage Grès Cérame 60x60 Poli Rectifié » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Colle carrelage C2TE & Joint hydrofuge » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Profilé Aluminium thermolaqué noir/blanc » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Vitrage feuilleté de sécurité 44.2 » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Modules LED étanches IP67 1.2W Grand Angle » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Alimentation étanche LED MeanWell 12V 200W » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Bâche PVC 510g M1 Anti-reflet HD » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Chevilles chimiques & Fixations M10 » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Ossature métallique Rails R48 & Montants M48 » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Laine de verre acoustique et thermique 45mm » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Enduit à joint et bande microperforée » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Câble cuivre d’alimentation R2V 3G2.5mm² » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Disjoncteur divisionnaire 16A/20A Phase+Neutre » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Mortier d’enduit ciment hydrofuge prêt à gâcher » → effet [état du bouton, contenu modifié]",
+  "1440 #materiaux « Sélectionner Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²) » → effet [état du bouton, contenu modifié]",
+  "1440 #abonnement « ikadevis - Tableau de bord » → effet [focus déplacé]",
+  "1440 #abonnement « État de connexion : Démonstration » → non cliqué (destructif / sortant / fichier)",
+  "1440 #abonnement « IKADEVIS BTP — changer d'organisation » → effet [écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 400→417]",
+  "1440 #abonnement « Paramètres du compte » → effet [adresse #abonnement→#settings/entreprise, écran « Espace IKADEVIS BTP »→« Paramètres du compte », état du bouton, focus déplacé, contenu modifié, DOM 417→390]",
+  "1440 #abonnement « Menu du profil utilisateur » → effet [écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 400→417]",
+  "1440 #abonnement « Nouveau devis » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 417→427]",
+  "1440 #abonnement « Tableau de bord » → SANS EFFET OBSERVABLE []",
+  "1440 #abonnement « Chantiers » → effet [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 417→304]",
+  "1440 #abonnement « Clients » → effet [écran « Chantiers »→« Clients », bouton remplacé, focus déplacé, contenu modifié, DOM 304→271]",
+  "1440 #abonnement « Chiffrage en cours » → effet [écran « Clients »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 271→595]",
+  "1440 #abonnement « Mes devis » → effet [calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 595→605]",
+  "1440 #abonnement « Factures » → effet [calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 595→605]",
+  "1440 #abonnement « Dépenses » → effet [calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 595→605]",
+  "1440 #abonnement « Ouvrages et ressources » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 595→586]",
+  "1440 #abonnement « Catalogue » → introuvable après réinitialisation",
+  "1440 #abonnement « Ressources » → introuvable après réinitialisation",
+  "1440 #abonnement « Formule Starter · Voir offres — 2 devis sur 3 » → effet [focus déplacé]",
+  "1440 #abonnement « Retourner au tableau de bord » → effet [écran « Paramètres du compte »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 391→408]",
+  "1440 #abonnement « Entreprise Identité et coordonnées » → effet [adresse #abonnement→#settings/entreprise, état du bouton, contenu modifié, DOM 391→381]",
+  "1440 #abonnement « Documents & PDF Logo, TVA et modèles » → effet [adresse #abonnement→#settings/documents, état du bouton, contenu modifié, DOM 391→406]",
+  "1440 #abonnement « Facturation & envoi Banque, acomptes et messages » → effet [adresse #abonnement→#settings/facturation, état du bouton, contenu modifié, DOM 391→392]",
+  "1440 #abonnement « Finances Comptes, devises, taxes » → effet [adresse #abonnement→#settings/finances, état du bouton, contenu modifié, DOM 391→333]",
+  "1440 #abonnement « Abonnement & Licence Formules, équipe et paiements » → effet [adresse #abonnement→#settings/abonnement]",
+  "1440 #abonnement « Équipe Membres et rôles » → effet [adresse #abonnement→#settings/equipe, état du bouton, contenu modifié, DOM 391→306]",
+  "1440 #abonnement « Audit & sécurité Historique des actions » → effet [adresse #abonnement→#settings/audit, état du bouton, contenu modifié, DOM 391→320]",
+  "1440 #abonnement « Diagnostic État du système & sync » → effet [adresse #abonnement→#settings/diagnostic, état du bouton, contenu modifié, DOM 391→331]",
+  "1440 #abonnement « Données locales Copie et réinitialisation » → effet [adresse #abonnement→#settings/donnees, état du bouton, contenu modifié, DOM 391→312]",
+  "1440 #abonnement « Mensuel » → SANS EFFET OBSERVABLE []",
+  "1440 #settings/entreprise « ikadevis - Tableau de bord » → effet [focus déplacé]",
+  "1440 #settings/entreprise « État de connexion : Démonstration » → non cliqué (destructif / sortant / fichier)",
+  "1440 #settings/entreprise « IKADEVIS BTP — changer d'organisation » → effet [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Paramètres du compte » → effet [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », état du bouton, focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Menu du profil utilisateur » → effet [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Nouveau devis » → effet [focus déplacé]",
+  "1440 #settings/entreprise « Tableau de bord » → effet [focus déplacé]",
+  "1440 #settings/entreprise « Chantiers » → effet [adresse #settings/entreprise→#settings/facturation, bouton remplacé, focus déplacé, contenu modifié, DOM 381→392]",
+  "1440 #settings/entreprise « Clients » → effet [adresse #settings/entreprise→#settings/finances, bouton remplacé, focus déplacé, contenu modifié, DOM 381→333]",
+  "1440 #settings/entreprise « Chiffrage en cours » → effet [adresse #settings/entreprise→#settings/abonnement, bouton remplacé, focus déplacé, contenu modifié, DOM 381→391]",
+  "1440 #settings/entreprise « Mes devis » → effet [adresse #settings/entreprise→#settings/equipe, bouton remplacé, focus déplacé, contenu modifié, DOM 381→306]",
+  "1440 #settings/entreprise « Factures » → effet [focus déplacé]",
+  "1440 #settings/entreprise « Dépenses » → effet [adresse #settings/entreprise→#settings/audit, bouton remplacé, focus déplacé, contenu modifié, DOM 381→320]",
+  "1440 #settings/entreprise « Ouvrages et ressources » → effet [adresse #settings/entreprise→#settings/donnees, bouton remplacé, focus déplacé, contenu modifié, DOM 381→312]",
+  "1440 #settings/entreprise « Formule Starter · Voir offres — 2 devis sur 3 » → effet [focus déplacé]",
+  "1440 #settings/entreprise « Retourner au tableau de bord » → effet [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Entreprise Identité et coordonnées » → SANS EFFET OBSERVABLE []",
+  "1440 #settings/entreprise « Documents & PDF Logo, TVA et modèles » → effet [adresse #settings/entreprise→#settings/documents, état du bouton, contenu modifié, DOM 381→406]",
+  "1440 #settings/entreprise « Facturation & envoi Banque, acomptes et messages » → effet [adresse #settings/entreprise→#settings/facturation, état du bouton, contenu modifié, DOM 381→392]",
+  "1440 #settings/entreprise « Finances Comptes, devises, taxes » → effet [adresse #settings/entreprise→#settings/finances, état du bouton, contenu modifié, DOM 381→333]",
+  "1440 #settings/entreprise « Abonnement & Licence Formules, équipe et paiements » → effet [adresse #settings/entreprise→#settings/abonnement, état du bouton, contenu modifié, DOM 381→391]",
+  "1440 #settings/entreprise « Équipe Membres et rôles » → effet [adresse #settings/entreprise→#settings/equipe, état du bouton, contenu modifié, DOM 381→306]",
+  "1440 #settings/entreprise « Audit & sécurité Historique des actions » → effet [adresse #settings/entreprise→#settings/audit, état du bouton, contenu modifié, DOM 381→320]",
+  "1440 #settings/entreprise « Diagnostic État du système & sync » → effet [adresse #settings/entreprise→#settings/diagnostic, état du bouton, contenu modifié, DOM 381→331]",
+  "1440 #settings/entreprise « Données locales Copie et réinitialisation » → effet [adresse #settings/entreprise→#settings/donnees, état du bouton, contenu modifié, DOM 381→312]",
+  "1440 #settings/entreprise « Devise principale » → effet [calques 0→1, état du bouton, contenu modifié, DOM 381→394]",
+  "1440 #settings/entreprise « Retirer l'étape 1 » → non cliqué (destructif / sortant / fichier)",
+  "1440 #settings/entreprise « Ajouter une étape » → effet [contenu modifié, DOM 381→387]",
+  "1440-chrome #dashboard « Nouveau devis » → effet [écran « Espace IKADEVIS BTP »→« Chiffrage », focus déplacé, contenu modifié, DOM 385→436]",
+  "1440-chrome #dashboard « Tableau de bord » → effet [écran « Chiffrage »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 436→389]",
+  "1440-chrome #dashboard « Chantiers » → effet [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 389→254]",
+  "1440-chrome #dashboard « Clients » → effet [écran « Chantiers »→« Clients », bouton remplacé, focus déplacé, contenu modifié, DOM 254→252]",
+  "1440-chrome #dashboard « Mes devis » → effet [écran « Clients »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 252→306]",
+  "1440-chrome #dashboard « Factures » → effet [écran « Mes devis »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 306→355]",
+  "1440-chrome #dashboard « Dépenses » → effet [écran « Factures »→« Dépenses & fournisseurs », bouton remplacé, focus déplacé, contenu modifié, DOM 355→274]",
+  "1440-chrome #dashboard « Ouvrages et ressources » → effet [bouton remplacé, focus déplacé, contenu modifié, DOM 274→283]",
+  "1440-chrome #dashboard « Formule Starter · Voir offres — 1 devis sur 3 » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 283→382]",
+  "1440-chrome #dashboard « Paramètres du compte » → effet [adresse #dashboard→#settings/entreprise, écran « Dépenses & fournisseurs »→« Paramètres du compte », focus déplacé, contenu modifié, DOM 283→381]",
+  "390 #dashboard « Tout » → SANS EFFET OBSERVABLE []",
+  "390 #dashboard « Ce mois » → effet [état du bouton, contenu modifié, DOM 385→383]",
+  "390 #dashboard « Trimestre » → effet [état du bouton]",
+  "390 #dashboard « Année » → effet [état du bouton, contenu modifié, DOM 383→385]",
+  "390 #dashboard « Modifier et personnaliser le tableau de bord » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→494]",
+  "390 #dashboard « Créer mon premier devis » → effet [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432]",
+  "390 #dashboard « Nouveau devis Chiffrer un projet » → effet [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436]",
+  "390 #dashboard « Nouveau chantier Ouvrir un dossier » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→438]",
+  "390 #dashboard « Ajouter un client Répertoire & NIF » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 385→422]",
+  "390 #dashboard « Créer facture Facturer un acompte » → effet [écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355]",
+  "390 #dashboard « Voir tous » → effet [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "390 #dashboard « Société Immobilière NBB Construction Siège NBB · DEV-2026-001 20 589 2 » → effet [écran « Espace IKADEVIS BTP »→« Mes devis », calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 385→642]",
+  "390 #dashboard « Construction Siège NBB Société Immobilière NBB En cours » → effet [écran « Espace IKADEVIS BTP »→«  », bouton remplacé, focus déplacé, contenu modifié, DOM 385→285]",
+  "390 #dashboard « Rénovation Façades ACM & Enseignes LED Résidence Les Almadies En cours » → effet [écran « Espace IKADEVIS BTP »→«  », bouton remplacé, focus déplacé, contenu modifié, DOM 385→276]",
+  "390 #chantiers « Créer un nouveau chantier » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 254→307]",
+  "390 #chantiers « Sélectionner le chantier Construction Siège NBB » → effet [adresse #chantiers→#chantiers/prj-001, écran « Chantiers »→«  », état du bouton, focus déplacé, contenu modifié, DOM 254→285]",
+  "390 #clients « Créer un nouveau client » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 252→289]",
+  "390 #clients « Sélectionner Société Immobilière NBB » → effet [adresse #clients→#clients/cli-001, écran « Clients »→«  », état du bouton, focus déplacé, contenu modifié, DOM 252→306]",
+  "390 #clients « Sélectionner Résidence Les Almadies » → effet [adresse #clients→#clients/cli-002, écran « Clients »→«  », état du bouton, focus déplacé, contenu modifié, DOM 252→297]",
+  "390 #devis « Nouveau devis » → effet [écran « Mes devis »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 306→436]",
+  "390 #devis « Filtrer les devis par statut » → effet [calques 0→1, état du bouton, contenu modifié, DOM 306→327]",
+  "390 #devis « Trier les devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 306→319]",
+  "390 #devis « Afficher le devis DEV-2026-001 de Société Immobilière NBB » → effet [calques 0→1, bouton remplacé, focus déplacé, contenu modifié, DOM 306→642]",
+  "390 #devis « Supprimer le devis DEV-2026-001 » → non cliqué (destructif / sortant / fichier)",
+  "390 #factures « Exporter les factures en CSV » → non cliqué (destructif / sortant / fichier)",
+  "390 #factures « Nouveau — créer une facture depuis un devis » → effet [contenu modifié, DOM 355→363]",
+  "390 #factures « Filtres avancés » → effet [calques 0→1, focus déplacé, contenu modifié, DOM 363→413]",
+  "390 #factures « Filtrer les factures par statut » → effet [focus déplacé]",
+  "390 #factures « Toutes 0 » → SANS EFFET OBSERVABLE []",
+  "390 #factures « Non réglées 0 » → effet [état du bouton, contenu modifié, DOM 355→366]",
+  "390 #factures « Partielles 0 » → effet [état du bouton, contenu modifié]",
+  "390 #factures « Soldées 0 » → effet [état du bouton, contenu modifié]",
+  "390 #factures « Avoirs 0 » → effet [état du bouton, contenu modifié]",
+  "390 #factures « Brouillons 0 » → effet [état du bouton, contenu modifié]",
+  "390 #chiffrage « Statut du devis » → effet [calques 0→1, état du bouton, contenu modifié, DOM 432→445]",
+  "390 #chiffrage « Plus d'actions sur le devis » → effet [contenu modifié, DOM 432→437]",
+  "390 #chiffrage « Importer Excel / CSV » → non cliqué (destructif / sortant / fichier)",
+  "390 #chiffrage « Ajouter un nouveau lot » → effet [contenu modifié, DOM 437→458]",
+  "390 #chiffrage « 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage » → effet [écran « Chiffrage »→«  », état du bouton, focus déplacé, contenu modifié]",
+  "390 #chiffrage « Ajouter mon premier ouvrage » → effet [focus déplacé]",
+  "390-chrome #dashboard « Accueil » → SANS EFFET OBSERVABLE []",
+  "390-chrome #dashboard « Devis » → effet [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "390-chrome #dashboard « Chantiers » → effet [écran « Mes devis »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 306→254]",
+  "390-chrome #dashboard « Factures » → effet [écran « Chantiers »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 254→355]",
+  "390-chrome #dashboard « Ouvrir le menu de navigation » → effet [calques 0→1, état du bouton, focus déplacé, contenu modifié, DOM 355→425]"
+ ],
+ "C023.liens.1440": [
+  "#dashboard Aller au contenu principal→#main-content",
+  "#chantiers Aller au contenu principal→#main-content",
+  "#clients Aller au contenu principal→#main-content",
+  "#chiffrage Aller au contenu principal→#main-content",
+  "#devis Aller au contenu principal→#main-content",
+  "#factures Aller au contenu principal→#main-content",
+  "#depenses Aller au contenu principal→#main-content",
+  "#ouvrages Aller au contenu principal→#main-content",
+  "#materiaux Aller au contenu principal→#main-content",
+  "#abonnement Aller au contenu principal→#main-content",
+  "#settings/entreprise Aller au contenu principal→#main-content"
+ ],
+ "C023.liens.390": [
+  "#dashboard Aller au contenu principal→#main-content",
+  "#chantiers Aller au contenu principal→#main-content",
+  "#clients Aller au contenu principal→#main-content",
+  "#chiffrage Aller au contenu principal→#main-content",
+  "#devis Aller au contenu principal→#main-content",
+  "#factures Aller au contenu principal→#main-content",
+  "#depenses Aller au contenu principal→#main-content",
+  "#ouvrages Aller au contenu principal→#main-content",
+  "#materiaux Aller au contenu principal→#main-content",
+  "#abonnement Aller au contenu principal→#main-content",
+  "#settings/entreprise Aller au contenu principal→#main-content"
+ ],
+ "C023.menu1440": [
+  "button«Nouveau devis»",
+  "button«Tableau de bord»",
+  "button«Chantiers»",
+  "button«Clients»",
+  "button«Mes devis»",
+  "button«Factures»",
+  "button«Dépenses»",
+  "button«Ouvrages et ressources»"
+ ],
+ "C023.boutonsNavigation": [
+  "1440 #dashboard « Créer mon premier devis » [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432]",
+  "1440 #dashboard « Nouveau devis Chiffrer un projet » [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436]",
+  "1440 #dashboard « Créer facture Facturer un acompte » [écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355]",
+  "1440 #dashboard « Voir tous » [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "1440 #dashboard « Société Immobilière NBB Construction Siège NBB · DEV-2026-001 20 589 2 » [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→642]",
+  "1440 #dashboard « Construction Siège NBB Société Immobilière NBB En cours » [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 385→285]",
+  "1440 #dashboard « Rénovation Façades ACM & Enseignes LED Résidence Les Almadies En cours » [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 385→276]",
+  "1440 #chantiers « Sélectionner le chantier Construction Siège NBB » [adresse #chantiers→#chantiers/prj-001, état du bouton, contenu modifié, DOM 254→285]",
+  "1440 #clients « Sélectionner Société Immobilière NBB » [adresse #clients→#clients/cli-001, état du bouton, contenu modifié, DOM 252→306]",
+  "1440 #clients « Sélectionner Résidence Les Almadies » [adresse #clients→#clients/cli-002, état du bouton, contenu modifié, DOM 252→297]",
+  "1440 #chiffrage « Aperçu Client & PDF » [écran « Chiffrage »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 432→607]",
+  "1440 #devis « Afficher le devis DEV-2026-002 de la société » [adresse #devis→#devis/1790997254547, bouton remplacé, focus déplacé, contenu modifié, DOM 349→631]",
+  "1440 #devis/101 « Afficher le devis DEV-2026-002 de la société » [adresse #devis/101→#devis/1790997254547, bouton remplacé, focus déplacé, contenu modifié, DOM 349→631]",
+  "1440 #depenses « Ajouter un compte » [adresse #depenses→#settings/finances, écran « Dépenses & fournisseurs »→« Paramètres du compte », bouton remplacé, focus déplacé, contenu modifié, DOM 397→333]",
+  "1440 #abonnement « IKADEVIS BTP — changer d'organisation » [écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 400→417]",
+  "1440 #abonnement « Paramètres du compte » [adresse #abonnement→#settings/entreprise, écran « Espace IKADEVIS BTP »→« Paramètres du compte », état du bouton, focus déplacé, contenu modifié, DOM 417→390]",
+  "1440 #abonnement « Menu du profil utilisateur » [écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 400→417]",
+  "1440 #abonnement « Chantiers » [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 417→304]",
+  "1440 #abonnement « Clients » [écran « Chantiers »→« Clients », bouton remplacé, focus déplacé, contenu modifié, DOM 304→271]",
+  "1440 #abonnement « Chiffrage en cours » [écran « Clients »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 271→595]",
+  "1440 #abonnement « Retourner au tableau de bord » [écran « Paramètres du compte »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 391→408]",
+  "1440 #abonnement « Entreprise Identité et coordonnées » [adresse #abonnement→#settings/entreprise, état du bouton, contenu modifié, DOM 391→381]",
+  "1440 #abonnement « Documents & PDF Logo, TVA et modèles » [adresse #abonnement→#settings/documents, état du bouton, contenu modifié, DOM 391→406]",
+  "1440 #abonnement « Facturation & envoi Banque, acomptes et messages » [adresse #abonnement→#settings/facturation, état du bouton, contenu modifié, DOM 391→392]",
+  "1440 #abonnement « Finances Comptes, devises, taxes » [adresse #abonnement→#settings/finances, état du bouton, contenu modifié, DOM 391→333]",
+  "1440 #abonnement « Abonnement & Licence Formules, équipe et paiements » [adresse #abonnement→#settings/abonnement]",
+  "1440 #abonnement « Équipe Membres et rôles » [adresse #abonnement→#settings/equipe, état du bouton, contenu modifié, DOM 391→306]",
+  "1440 #abonnement « Audit & sécurité Historique des actions » [adresse #abonnement→#settings/audit, état du bouton, contenu modifié, DOM 391→320]",
+  "1440 #abonnement « Diagnostic État du système & sync » [adresse #abonnement→#settings/diagnostic, état du bouton, contenu modifié, DOM 391→331]",
+  "1440 #abonnement « Données locales Copie et réinitialisation » [adresse #abonnement→#settings/donnees, état du bouton, contenu modifié, DOM 391→312]",
+  "1440 #settings/entreprise « IKADEVIS BTP — changer d'organisation » [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Paramètres du compte » [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », état du bouton, focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Menu du profil utilisateur » [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Chantiers » [adresse #settings/entreprise→#settings/facturation, bouton remplacé, focus déplacé, contenu modifié, DOM 381→392]",
+  "1440 #settings/entreprise « Clients » [adresse #settings/entreprise→#settings/finances, bouton remplacé, focus déplacé, contenu modifié, DOM 381→333]",
+  "1440 #settings/entreprise « Chiffrage en cours » [adresse #settings/entreprise→#settings/abonnement, bouton remplacé, focus déplacé, contenu modifié, DOM 381→391]",
+  "1440 #settings/entreprise « Mes devis » [adresse #settings/entreprise→#settings/equipe, bouton remplacé, focus déplacé, contenu modifié, DOM 381→306]",
+  "1440 #settings/entreprise « Dépenses » [adresse #settings/entreprise→#settings/audit, bouton remplacé, focus déplacé, contenu modifié, DOM 381→320]",
+  "1440 #settings/entreprise « Ouvrages et ressources » [adresse #settings/entreprise→#settings/donnees, bouton remplacé, focus déplacé, contenu modifié, DOM 381→312]",
+  "1440 #settings/entreprise « Retourner au tableau de bord » [adresse #settings/entreprise→∅, écran « Paramètres du compte »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 381→408]",
+  "1440 #settings/entreprise « Documents & PDF Logo, TVA et modèles » [adresse #settings/entreprise→#settings/documents, état du bouton, contenu modifié, DOM 381→406]",
+  "1440 #settings/entreprise « Facturation & envoi Banque, acomptes et messages » [adresse #settings/entreprise→#settings/facturation, état du bouton, contenu modifié, DOM 381→392]",
+  "1440 #settings/entreprise « Finances Comptes, devises, taxes » [adresse #settings/entreprise→#settings/finances, état du bouton, contenu modifié, DOM 381→333]",
+  "1440 #settings/entreprise « Abonnement & Licence Formules, équipe et paiements » [adresse #settings/entreprise→#settings/abonnement, état du bouton, contenu modifié, DOM 381→391]",
+  "1440 #settings/entreprise « Équipe Membres et rôles » [adresse #settings/entreprise→#settings/equipe, état du bouton, contenu modifié, DOM 381→306]",
+  "1440 #settings/entreprise « Audit & sécurité Historique des actions » [adresse #settings/entreprise→#settings/audit, état du bouton, contenu modifié, DOM 381→320]",
+  "1440 #settings/entreprise « Diagnostic État du système & sync » [adresse #settings/entreprise→#settings/diagnostic, état du bouton, contenu modifié, DOM 381→331]",
+  "1440 #settings/entreprise « Données locales Copie et réinitialisation » [adresse #settings/entreprise→#settings/donnees, état du bouton, contenu modifié, DOM 381→312]",
+  "1440-chrome #dashboard « Nouveau devis » [écran « Espace IKADEVIS BTP »→« Chiffrage », focus déplacé, contenu modifié, DOM 385→436]",
+  "1440-chrome #dashboard « Tableau de bord » [écran « Chiffrage »→« Espace IKADEVIS BTP », bouton remplacé, focus déplacé, contenu modifié, DOM 436→389]",
+  "1440-chrome #dashboard « Chantiers » [écran « Espace IKADEVIS BTP »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 389→254]",
+  "1440-chrome #dashboard « Clients » [écran « Chantiers »→« Clients », bouton remplacé, focus déplacé, contenu modifié, DOM 254→252]",
+  "1440-chrome #dashboard « Mes devis » [écran « Clients »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 252→306]",
+  "1440-chrome #dashboard « Factures » [écran « Mes devis »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 306→355]",
+  "1440-chrome #dashboard « Dépenses » [écran « Factures »→« Dépenses & fournisseurs », bouton remplacé, focus déplacé, contenu modifié, DOM 355→274]",
+  "1440-chrome #dashboard « Paramètres du compte » [adresse #dashboard→#settings/entreprise, écran « Dépenses & fournisseurs »→« Paramètres du compte », focus déplacé, contenu modifié, DOM 283→381]",
+  "390 #dashboard « Créer mon premier devis » [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432]",
+  "390 #dashboard « Nouveau devis Chiffrer un projet » [écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436]",
+  "390 #dashboard « Créer facture Facturer un acompte » [écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355]",
+  "390 #dashboard « Voir tous » [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "390 #dashboard « Construction Siège NBB Société Immobilière NBB En cours » [écran « Espace IKADEVIS BTP »→«  », bouton remplacé, focus déplacé, contenu modifié, DOM 385→285]",
+  "390 #dashboard « Rénovation Façades ACM & Enseignes LED Résidence Les Almadies En cours » [écran « Espace IKADEVIS BTP »→«  », bouton remplacé, focus déplacé, contenu modifié, DOM 385→276]",
+  "390 #chantiers « Sélectionner le chantier Construction Siège NBB » [adresse #chantiers→#chantiers/prj-001, écran « Chantiers »→«  », état du bouton, focus déplacé, contenu modifié, DOM 254→285]",
+  "390 #clients « Sélectionner Société Immobilière NBB » [adresse #clients→#clients/cli-001, écran « Clients »→«  », état du bouton, focus déplacé, contenu modifié, DOM 252→306]",
+  "390 #clients « Sélectionner Résidence Les Almadies » [adresse #clients→#clients/cli-002, écran « Clients »→«  », état du bouton, focus déplacé, contenu modifié, DOM 252→297]",
+  "390 #devis « Nouveau devis » [écran « Mes devis »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 306→436]",
+  "390 #chiffrage « 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage » [écran « Chiffrage »→«  », état du bouton, focus déplacé, contenu modifié]",
+  "390-chrome #dashboard « Devis » [écran « Espace IKADEVIS BTP »→« Mes devis », bouton remplacé, focus déplacé, contenu modifié, DOM 385→306]",
+  "390-chrome #dashboard « Chantiers » [écran « Mes devis »→« Chantiers », bouton remplacé, focus déplacé, contenu modifié, DOM 306→254]",
+  "390-chrome #dashboard « Factures » [écran « Chantiers »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 254→355]"
+ ],
+ "C023.actionQuiNavigue": [
+  "#dashboard « Créer mon premier devis » écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432",
+  "#dashboard « Nouveau devis Chiffrer un projet » écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436",
+  "#dashboard « Créer facture Facturer un acompte » écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355",
+  "#depenses « Ajouter un compte » adresse #depenses→#settings/finances, écran « Dépenses & fournisseurs »→« Paramètres du compte », bouton remplacé, focus déplacé, contenu modifié, DOM 397→333",
+  "#dashboard « Nouveau devis » écran « Espace IKADEVIS BTP »→« Chiffrage », focus déplacé, contenu modifié, DOM 385→436",
+  "#dashboard « Créer mon premier devis » écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→432",
+  "#dashboard « Nouveau devis Chiffrer un projet » écran « Espace IKADEVIS BTP »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 385→436",
+  "#dashboard « Créer facture Facturer un acompte » écran « Espace IKADEVIS BTP »→« Factures », bouton remplacé, focus déplacé, contenu modifié, DOM 385→355",
+  "#devis « Nouveau devis » écran « Mes devis »→« Chiffrage », bouton remplacé, focus déplacé, contenu modifié, DOM 306→436"
+ ],
+ "C024.inventaire": [
+  "Nouveau client : [submit] Créer le client",
+  "Nouveau chantier : [button] Client du chantier",
+  "Nouveau chantier : [button] Créer un nouveau client",
+  "Nouveau chantier : [submit] Créer le chantier",
+  "Nouvel ouvrage : [button] Annuler la modification (Cmd+Z / Ctrl+Z)",
+  "Nouvel ouvrage : [submit] Enregistrer l'ouvrage",
+  "Nouvelle dépense : [button] Déjà payée Ticket, reçu, achat au compta",
+  "Nouvelle dépense : [button] À payer Facture fournisseur avec échéanc",
+  "Nouvelle dépense : [button] Taxe de la dépense",
+  "Nouvelle dépense : [button] Devise de la dépense",
+  "Nouvelle dépense : [button] Catégorie de la dépense",
+  "Nouvelle dépense : [button] Chantier de la dépense",
+  "Nouvelle dépense : [button] Payée par l’entreprise",
+  "Nouvelle dépense : [button] Avancée par quelqu’un (à rembourser)",
+  "Nouvelle dépense : [button] Ajouter un compte",
+  "Nouvelle dépense : [button] Moyen de paiement",
+  "Nouvelle dépense : [button] Annuler",
+  "Nouvelle dépense : [submit] Enregistrer",
+  "Nouvelle matière : [button] BTP",
+  "Nouvelle matière : [button] Longueur · m",
+  "Nouvelle matière : [button] Barre",
+  "Nouvelle matière : [button] Conditionnement entier (barre, feuille, ",
+  "Nouvelle matière : [button] Annuler la modification (Cmd+Z / Ctrl+Z)",
+  "Nouvelle matière : [submit] Enregistrer la ressource",
+  "Paramètres entreprise : [button] Devise principale",
+  "Paramètres entreprise : [button] Retirer l'étape 1",
+  "Paramètres entreprise : [button] Retirer l'étape 2",
+  "Paramètres entreprise : [button] Retirer l'étape 3",
+  "Paramètres entreprise : [button] Retirer l'étape 4",
+  "Paramètres entreprise : [button] Ajouter une étape",
+  "Paramètres entreprise : [button] Retourner à l'application",
+  "Paramètres entreprise : [submit] Enregistrer les paramètres de l'entrepri"
+ ],
+ "C024.implicites": [],
+ "C026.pleins.1440": {
+  "#dashboard": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Créer mon premier devis (écran, 9358 px²)"
+  ],
+  "#chantiers": [
+   "Nouveau devis (navigation, 9368 px²)"
+  ],
+  "#clients": [
+   "Nouveau devis (navigation, 9368 px²)"
+  ],
+  "#devis": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Nouveau devis (écran, 6633 px²)"
+  ],
+  "#factures": [
+   "Nouveau devis (navigation, 9368 px²)"
+  ],
+  "#depenses": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Nouvelle dépense (écran, 7966 px²)"
+  ],
+  "#ouvrages": [
+   "Nouveau devis (navigation, 9368 px²)"
+  ],
+  "#materiaux": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Ajouter une nouvelle matière (écran, 17100 px²)"
+  ],
+  "#chiffrage": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Enregistrer (écran, 5409 px²)"
+  ],
+  "#settings/entreprise": [
+   "Nouveau devis (navigation, 9368 px²)",
+   "Enregistrer les paramètres de l'entreprise (écran, 11419 px²)"
+  ]
+ },
+ "C026.pleins.390": {
+  "#dashboard": [
+   "Créer mon premier devis (écran, 9358 px²)"
+  ],
+  "#chantiers": [],
+  "#clients": [],
+  "#devis": [
+   "Nouveau devis (écran, 6633 px²)"
+  ],
+  "#factures": [],
+  "#depenses": [
+   "Nouvelle dépense (écran, 7966 px²)"
+  ],
+  "#ouvrages": [],
+  "#materiaux": [
+   "Ajouter une nouvelle matière (écran, 16470 px²)"
+  ],
+  "#chiffrage": [
+   "Ajouter mon premier ouvrage (écran, 16416 px²)",
+   "Enregistrer (écran, 5210 px²)"
+  ],
+  "#settings/entreprise": [
+   "Enregistrer les paramètres de l'entreprise (écran, 5409 px²)"
+  ]
+ },
+ "C029.geometrie.1440": {
+  "#dashboard": {
+   "n": 28,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chantiers": {
+   "n": 20,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#clients": {
+   "n": 20,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chiffrage": {
+   "n": 38,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis": {
+   "n": 22,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#factures": {
+   "n": 26,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#depenses": {
+   "n": 24,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#ouvrages": {
+   "n": 52,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#materiaux": {
+   "n": 31,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#abonnement": {
+   "n": 16,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#settings/entreprise": {
+   "n": 27,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis/101": {
+   "n": 37,
+   "chevauchements": [],
+   "recouverts": []
+  }
+ },
+ "C029.imbriques.1440": [
+  "#devis button«Supprimer le devis DEV-2026-001» dans tr«Afficher le devis DEV-2026-001 de »",
+  "#devis/101 button«Supprimer le devis DEV-2026-001» dans tr«Afficher le devis DEV-2026-001 de »"
+ ],
+ "C029.geometrie.390": {
+  "#dashboard": {
+   "n": 19,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chantiers": {
+   "n": 13,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#clients": {
+   "n": 13,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chiffrage": {
+   "n": 20,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis": {
+   "n": 15,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#factures": {
+   "n": 16,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#depenses": {
+   "n": 17,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#ouvrages": {
+   "n": 43,
+   "chevauchements": [
+    "button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Accueil» 64×34 px",
+    "button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Devis» 84×34 px",
+    "button«Sélectionner l'ouvrage Réseau Plom» ∩ button«Chantiers» 59×34 px",
+    "button«Modifier Réseau Plomberie Sanitair» ∩ button«Chantiers» 17×35 px",
+    "button«Modifier Réseau Plomberie Sanitair» ∩ button«Factures» 24×35 px",
+    "button«Dupliquer Réseau Plomberie Sanitai» ∩ button«Factures» 40×35 px",
+    "button«Supprimer Réseau Plomberie Sanitai» ∩ button«Factures» 12×35 px",
+    "button«Supprimer Réseau Plomberie Sanitai» ∩ button«Ouvrir le menu de navigation» 28×31 px"
+   ],
+   "recouverts": [
+    "button«Sélectionner l'ouvrage Réseau Plom» sous button.flex«Devis»",
+    "button«Modifier Réseau Plomberie Sanitair» sous button.flex«Factures»",
+    "button«Dupliquer Réseau Plomberie Sanitai» sous button.flex«Factures»",
+    "button«Supprimer Réseau Plomberie Sanitai» sous button.flex«Ouvrir le menu de navigat»"
+   ]
+  },
+  "#materiaux": {
+   "n": 21,
+   "chevauchements": [
+    "button«Sélectionner Béton prêt à l’emploi» ∩ button«Accueil» 76×17 px",
+    "button«Sélectionner Béton prêt à l’emploi» ∩ button«Devis» 84×17 px",
+    "button«Sélectionner Béton prêt à l’emploi» ∩ button«Chantiers» 84×17 px",
+    "button«Sélectionner Béton prêt à l’emploi» ∩ button«Factures» 84×17 px",
+    "button«Sélectionner Béton prêt à l’emploi» ∩ button«Ouvrir le menu de navigation» 40×12 px"
+   ],
+   "recouverts": []
+  },
+  "#abonnement": {
+   "n": 6,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#settings/entreprise": {
+   "n": 10,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis/101": {
+   "n": 13,
+   "chevauchements": [
+    "button«Modifier le client et le chantier» ∩ button«Statut du devis» 14×25 px"
+   ],
+   "recouverts": []
+  }
+ },
+ "C029.imbriques.390": [
+  "#devis button«Supprimer le devis DEV-2026-001» dans div«Afficher le devis DEV-2026-001 de »"
+ ],
+ "C029.geometrie.320": {
+  "#dashboard": {
+   "n": 15,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chantiers": {
+   "n": 13,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#clients": {
+   "n": 13,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#chiffrage": {
+   "n": 19,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis": {
+   "n": 15,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#factures": {
+   "n": 16,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#depenses": {
+   "n": 17,
+   "chevauchements": [
+    "input«Rechercher une dépense» ∩ button«Accueil» 42×49 px",
+    "input«Rechercher une dépense» ∩ button«Devis» 66×49 px",
+    "input«Rechercher une dépense» ∩ button«Chantiers» 66×49 px",
+    "input«Rechercher une dépense» ∩ button«Factures» 66×49 px",
+    "input«Rechercher une dépense» ∩ button«Ouvrir le menu de navigation» 24×44 px"
+   ],
+   "recouverts": [
+    "input«Rechercher une dépense» sous button.flex«Chantiers»"
+   ]
+  },
+  "#ouvrages": {
+   "n": 31,
+   "chevauchements": [
+    "button«Sélectionner l'ouvrage Cloison de » ∩ button«Accueil» 46×39 px",
+    "button«Sélectionner l'ouvrage Cloison de » ∩ button«Devis» 66×39 px",
+    "button«Sélectionner l'ouvrage Cloison de » ∩ button«Chantiers» 24×39 px",
+    "button«Modifier Cloison de Distribution P» ∩ button«Chantiers» 34×40 px",
+    "button«Modifier Cloison de Distribution P» ∩ button«Factures» 6×40 px",
+    "button«Dupliquer Cloison de Distribution » ∩ button«Factures» 40×40 px",
+    "button«Supprimer Cloison de Distribution » ∩ button«Factures» 12×40 px",
+    "button«Supprimer Cloison de Distribution » ∩ button«Ouvrir le menu de navigation» 28×40 px"
+   ],
+   "recouverts": [
+    "button«Sélectionner l'ouvrage Cloison de » sous button.flex«Devis»",
+    "button«Modifier Cloison de Distribution P» sous button.flex«Chantiers»",
+    "button«Dupliquer Cloison de Distribution » sous button.flex«Factures»",
+    "button«Supprimer Cloison de Distribution » sous button.flex«Ouvrir le menu de navigat»"
+   ]
+  },
+  "#materiaux": {
+   "n": 18,
+   "chevauchements": [
+    "button«Sélectionner Plaque de fond tôle g» ∩ button«Accueil» 58×23 px",
+    "button«Sélectionner Plaque de fond tôle g» ∩ button«Devis» 66×23 px",
+    "button«Sélectionner Plaque de fond tôle g» ∩ button«Chantiers» 66×23 px",
+    "button«Sélectionner Plaque de fond tôle g» ∩ button«Factures» 66×23 px",
+    "button«Sélectionner Plaque de fond tôle g» ∩ button«Ouvrir le menu de navigation» 40×19 px"
+   ],
+   "recouverts": []
+  },
+  "#abonnement": {
+   "n": 5,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#settings/entreprise": {
+   "n": 8,
+   "chevauchements": [],
+   "recouverts": []
+  },
+  "#devis/101": {
+   "n": 12,
+   "chevauchements": [
+    "button«Modifier le client et le chantier» ∩ button«Statut du devis» 84×5 px"
+   ],
+   "recouverts": []
+  }
+ },
+ "C029.imbriques.320": [
+  "#devis button«Supprimer le devis DEV-2026-001» dans div«Afficher le devis DEV-2026-001 de »"
+ ],
+ "C033.fond.1440.#clients": "aria-modal=true ; fond inert=false aria-hidden=null",
+ "C033.fond.1440.#chantiers": "aria-modal=true ; fond inert=false aria-hidden=null",
+ "C033.fond.1440.#ouvrages": "aria-modal=true ; fond inert=false aria-hidden=null",
+ "C033.fond.1440.#dashboard": "aria-modal=true ; fond inert=false aria-hidden=null",
+ "C033.fond.390.#clients": "aria-modal=true ; fond inert=false aria-hidden=null",
+ "C037.depenseCreee.1440": true,
+ "C037.depenseCreee.390": true,
+ "C038.inventaire.1440": [
+  "#dashboard natifs=0 personnalisés=0 texte-date=0",
+  "#chantiers natifs=0 personnalisés=0 texte-date=0",
+  "#clients natifs=0 personnalisés=0 texte-date=0",
+  "#chiffrage natifs=0 personnalisés=0 texte-date=0",
+  "#devis natifs=0 personnalisés=0 texte-date=0",
+  "#factures natifs=0 personnalisés=0 texte-date=0",
+  "#depenses natifs=0 personnalisés=0 texte-date=0",
+  "#ouvrages natifs=0 personnalisés=0 texte-date=0",
+  "#materiaux natifs=0 personnalisés=0 texte-date=0",
+  "#abonnement natifs=0 personnalisés=0 texte-date=0",
+  "#settings/entreprise natifs=0 personnalisés=0 texte-date=0"
+ ],
+ "C038.inventaire.390": [
+  "#dashboard natifs=0 personnalisés=0 texte-date=0",
+  "#chantiers natifs=0 personnalisés=0 texte-date=0",
+  "#clients natifs=0 personnalisés=0 texte-date=0",
+  "#chiffrage natifs=0 personnalisés=0 texte-date=0",
+  "#devis natifs=0 personnalisés=0 texte-date=0",
+  "#factures natifs=0 personnalisés=0 texte-date=0",
+  "#depenses natifs=0 personnalisés=0 texte-date=0",
+  "#ouvrages natifs=0 personnalisés=0 texte-date=0",
+  "#materiaux natifs=0 personnalisés=0 texte-date=0",
+  "#abonnement natifs=0 personnalisés=0 texte-date=0",
+  "#settings/entreprise natifs=0 personnalisés=0 texte-date=0"
+ ],
+ "C039.title1440": [
+  "#dashboard button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#dashboard button(focalisable) « Paramètres de l'espace de travail »",
+  "#dashboard button(focalisable) « Compte : invite (invite@local.app) »",
+  "#dashboard button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#dashboard div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#chantiers button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#chantiers button(focalisable) « Paramètres de l'espace de travail »",
+  "#chantiers button(focalisable) « Compte : invite (invite@local.app) »",
+  "#chantiers button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#chantiers div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#clients button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#clients button(focalisable) « Paramètres de l'espace de travail »",
+  "#clients button(focalisable) « Compte : invite (invite@local.app) »",
+  "#clients button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#clients div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#chiffrage button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#chiffrage button(focalisable) « Paramètres de l'espace de travail »",
+  "#chiffrage button(focalisable) « Compte : invite (invite@local.app) »",
+  "#chiffrage button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#chiffrage div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#chiffrage button(focalisable) « Ouvrir l'assistant intelligent de création de devis »",
+  "#chiffrage button(focalisable) « Vue d'ensemble et répartition financière des lots »",
+  "#chiffrage div « Cliquer pour renommer ce lot »",
+  "#chiffrage span(focalisable) « Coefficient de vente : ce par quoi le déboursé sec est multiplié pour  »",
+  "#chiffrage div « Marge calculée après frais, sur le prix de vente HT. Pour l’ajuster, u »",
+  "#devis button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#devis button(focalisable) « Paramètres de l'espace de travail »",
+  "#devis button(focalisable) « Compte : invite (invite@local.app) »",
+  "#devis button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#devis div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#devis button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#factures button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#factures button(focalisable) « Paramètres de l'espace de travail »",
+  "#factures button(focalisable) « Compte : invite (invite@local.app) »",
+  "#factures button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#factures div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#factures button(focalisable) « Exporter le journal des ventes en CSV pour la comptabilité »",
+  "#factures button(focalisable) « Options de filtrage temporel et tri »",
+  "#depenses button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#depenses button(focalisable) « Paramètres de l'espace de travail »",
+  "#depenses button(focalisable) « Compte : invite (invite@local.app) »",
+  "#depenses button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#depenses div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#ouvrages button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#ouvrages button(focalisable) « Paramètres de l'espace de travail »",
+  "#ouvrages button(focalisable) « Compte : invite (invite@local.app) »",
+  "#ouvrages button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#ouvrages div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#materiaux button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#materiaux button(focalisable) « Paramètres de l'espace de travail »",
+  "#materiaux button(focalisable) « Compte : invite (invite@local.app) »",
+  "#materiaux button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#materiaux div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#abonnement button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#abonnement button(focalisable) « Paramètres de l'espace de travail »",
+  "#abonnement button(focalisable) « Compte : invite (invite@local.app) »",
+  "#abonnement button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#abonnement div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »",
+  "#settings/entreprise button(focalisable) « État de connexion : Données sur cet appareil »",
+  "#settings/entreprise button(focalisable) « Paramètres de l'espace de travail »",
+  "#settings/entreprise button(focalisable) « Compte : invite (invite@local.app) »",
+  "#settings/entreprise button(focalisable) « Démarrer un devis vierge et ouvrir le chiffrage »",
+  "#settings/entreprise div(focalisable) « Gérer votre formule ou découvrir les formules illimitées »"
+ ],
+ "C039.rail768": [
+  {
+   "nom": "Tableau de bord",
+   "visible": "Tableau de bord",
+   "tronque": false
+  },
+  {
+   "nom": "Chantiers",
+   "visible": "Chantiers",
+   "tronque": false
+  },
+  {
+   "nom": "Clients",
+   "visible": "Clients",
+   "tronque": false
+  },
+  {
+   "nom": "Mes devis",
+   "visible": "Mes devis",
+   "tronque": false
+  },
+  {
+   "nom": "Factures",
+   "visible": "Factures",
+   "tronque": false
+  },
+  {
+   "nom": "Dépenses",
+   "visible": "Dépenses",
+   "tronque": false
+  },
+  {
+   "nom": "Catalogue",
+   "visible": "Catalogue",
+   "tronque": false
+  },
+  {
+   "nom": "Ressources",
+   "visible": "Ressources",
+   "tronque": false
+  },
+  {
+   "nom": "Paramètres du compte",
+   "visible": "",
+   "tronque": null
+  }
+ ]
+}

@@ -1,0 +1,5804 @@
+{
+  "date": "2026-10-03T04:05:59.928Z",
+  "captures": [
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_320x568__dashboard.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_320x568__chantiers.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_320x568__chiffrage.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_360x740__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_360x740__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_375x667__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_375x667__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_390x844__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_414x896__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_414x896__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_600x960__devis.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_600x960__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_767x1024__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_767x1024__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__dashboard.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__devis.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_768x1024__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_820x1180__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1023x768__chiffrage.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1023x768__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1023x768__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1024x768__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1024x768__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1280x800__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1280x800__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1440x900__depenses.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C111_1440x900__settings_entreprise.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_liste_devis_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_liste_devis_768.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_document_lecture_mobile_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_document_papier_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_facturer_tableau_390_avant.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C113_facturer_tableau_390_apres_glisser.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C115_premier_ouvrage_390x844.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C115_premier_ouvrage_375x667.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_dashboard.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_chiffrage.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C116_zones_sures_portrait_fiche_devis.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C117_lot_avec_ouvrage_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C117_factures_brouillon_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C118_menu_plus_reste_ouvert_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C119_signature_trace_doigt_390.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C120_devis_enregistre_412.png",
+    "docs/audit-ux-220/UX_EVIDENCE/G6-mobile-adaptation/C120_facture_brouillon_412.png"
+  ],
+  "mesures": {
+    "C111": {
+      "combinaisons": [
+        {
+          "taille": "320x568",
+          "route": "#dashboard",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 2,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#chantiers",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#clients",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#chiffrage",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 2,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            },
+            {
+              "nom": "Statut du devis",
+              "visible": "75 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#devis",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#factures",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#depenses",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Ajouter un compte",
+              "part": 0.74
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Toutes",
+              "part": 0.32
+            },
+            {
+              "a": "Devis de référence",
+              "b": "À payer",
+              "part": 0.43
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Payées",
+              "part": 0.43
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.89
+            }
+          ],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#ouvrages",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 0,
+          "nbCoupes": 4,
+          "coupes": [
+            "Aller au contenu principal",
+            "Fouilles en Pleine Masse & Terrassement ",
+            "Enduit Ciment Hydrofuge 2 Passes Extérie",
+            "Lettres Reliefs Découpées Plexiglas Rétr"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#materiaux",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 320,
+          "ellipses": 32,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#abonnement",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 320,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "320x568",
+          "route": "#settings/entreprise",
+          "vw": 320,
+          "vh": 568,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 2,
+          "collisions": [
+            {
+              "a": "contact@entreprise.com",
+              "b": "Retourner à l'application",
+              "part": 0.5
+            },
+            {
+              "a": "contact@entreprise.com",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.5
+            }
+          ],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Menu du profil utilisateur",
+              "visible": "54 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 320,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#dashboard",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#chantiers",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#clients",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#chiffrage",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#devis",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#factures",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#depenses",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Ajouter un compte",
+              "part": 0.84
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Toutes",
+              "part": 0.42
+            },
+            {
+              "a": "Devis de référence",
+              "b": "À payer",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Payées",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.8
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#ouvrages",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#materiaux",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 360,
+          "ellipses": 29,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#abonnement",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "360x740",
+          "route": "#settings/entreprise",
+          "vw": 360,
+          "vh": 740,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 2,
+          "collisions": [
+            {
+              "a": "Ex : 084123456A",
+              "b": "Retourner à l'application",
+              "part": 0.87
+            },
+            {
+              "a": "Ex : 084123456A",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.87
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 360,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#dashboard",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#chantiers",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#clients",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#chiffrage",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#devis",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#factures",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#depenses",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Ajouter un compte",
+              "part": 0.84
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Toutes",
+              "part": 0.42
+            },
+            {
+              "a": "Devis de référence",
+              "b": "À payer",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Payées",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.8
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#ouvrages",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#materiaux",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 375,
+          "ellipses": 27,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#abonnement",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "375x667",
+          "route": "#settings/entreprise",
+          "vw": 375,
+          "vh": 667,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 2,
+          "collisions": [
+            {
+              "a": "Bamako, Mali",
+              "b": "Retourner à l'application",
+              "part": 0.97
+            },
+            {
+              "a": "Bamako, Mali",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.97
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 375,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#dashboard",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#chantiers",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#clients",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#chiffrage",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#devis",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#factures",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#depenses",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Ajouter un compte",
+              "part": 0.84
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Toutes",
+              "part": 0.42
+            },
+            {
+              "a": "Devis de référence",
+              "b": "À payer",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Payées",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.8
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#ouvrages",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#materiaux",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 390,
+          "ellipses": 24,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#abonnement",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "390x844",
+          "route": "#settings/entreprise",
+          "vw": 390,
+          "vh": 844,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 390,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#dashboard",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#chantiers",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#clients",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#chiffrage",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#devis",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#factures",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#depenses",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Ajouter un compte",
+              "part": 0.84
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Toutes",
+              "part": 0.42
+            },
+            {
+              "a": "Devis de référence",
+              "b": "À payer",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Payées",
+              "part": 0.57
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.8
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#ouvrages",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#materiaux",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 414,
+          "ellipses": 20,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#abonnement",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "414x896",
+          "route": "#settings/entreprise",
+          "vw": 414,
+          "vh": 896,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 2,
+          "collisions": [
+            {
+              "a": "Devise principale",
+              "b": "Retourner à l'application",
+              "part": 0.29
+            },
+            {
+              "a": "Devise principale",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.29
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 414,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#dashboard",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#chantiers",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#clients",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#chiffrage",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#devis",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#factures",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#depenses",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 5,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.27
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "À payer",
+              "part": 0.37
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Payées",
+              "part": 0.37
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.37
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Rechercher une dépense",
+              "part": 0.9
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#ouvrages",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#materiaux",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#abonnement",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "600x960",
+          "route": "#settings/entreprise",
+          "vw": 600,
+          "vh": 960,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 600,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#dashboard",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#chantiers",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#clients",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#chiffrage",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#devis",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#factures",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#depenses",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 3,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.68
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.76
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.17
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#ouvrages",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#materiaux",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#abonnement",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "767x1024",
+          "route": "#settings/entreprise",
+          "vw": 767,
+          "vh": 1024,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Retourner à l'application",
+              "part": 0.76
+            },
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.31
+            },
+            {
+              "a": "Pourcentage de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 1
+            },
+            {
+              "a": "Retirer l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 1
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre du bas 5 boutons, écran plein « réglages »",
+          "largeurContenu": 767,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#dashboard",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#chantiers",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#clients",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#chiffrage",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#devis",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 1,
+          "rognes": [
+            {
+              "nom": "Supprimer le devis DEV-2026-001",
+              "visible": "50 %"
+            }
+          ],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#factures",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#depenses",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 3,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.68
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.53
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.39
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#ouvrages",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#materiaux",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#abonnement",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "768x1024",
+          "route": "#settings/entreprise",
+          "vw": 768,
+          "vh": 1024,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 8,
+          "collisions": [
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Retourner à l'application",
+              "part": 0.48
+            },
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.19
+            },
+            {
+              "a": "Pourcentage de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.65
+            },
+            {
+              "a": "Retirer l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.67
+            },
+            {
+              "a": "Intitulé de l'étape 4",
+              "b": "Retourner à l'application",
+              "part": 0.4
+            },
+            {
+              "a": "Intitulé de l'étape 4",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.16
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 696,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#dashboard",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#chantiers",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#clients",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#chiffrage",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#devis",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#factures",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#depenses",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 3,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.68
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.69
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.23
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#ouvrages",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#materiaux",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#abonnement",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "820x1180",
+          "route": "#settings/entreprise",
+          "vw": 820,
+          "vh": 1180,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 748,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#dashboard",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#chantiers",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#clients",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#chiffrage",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#devis",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#factures",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#depenses",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.32
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "À payer",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Payées",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.47
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#ouvrages",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#materiaux",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#abonnement",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1023x768",
+          "route": "#settings/entreprise",
+          "vw": 1023,
+          "vh": 768,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 1,
+          "collisions": [
+            {
+              "a": "30 jours",
+              "b": "Retourner à l'application",
+              "part": 0.87
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 72 px",
+          "largeurContenu": 951,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#dashboard",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#chantiers",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#clients",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#chiffrage",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#devis",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#factures",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#depenses",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 3,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.68
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.73
+            },
+            {
+              "a": "Devis de référence",
+              "b": "Avances à rembourser",
+              "part": 0.2
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#ouvrages",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 18,
+          "coupes": [
+            "Aller au contenu principal",
+            "Fouilles en Pleine Masse & Terrassement ",
+            "Béton Armé pour Fondations, Poteaux & Ch",
+            "Maçonnerie en Murs d’Agglos de 15",
+            "Revêtement Sol en Carrelage Grès Cérame "
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#materiaux",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 24,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#abonnement",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1024x768",
+          "route": "#settings/entreprise",
+          "vw": 1024,
+          "vh": 768,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 1,
+          "collisions": [
+            {
+              "a": "30 jours",
+              "b": "Retourner à l'application",
+              "part": 0.87
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 774,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#dashboard",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 2,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#chantiers",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#clients",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#chiffrage",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#devis",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#factures",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#depenses",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.32
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "À payer",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Payées",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.47
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#ouvrages",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 1,
+          "nbCoupes": 4,
+          "coupes": [
+            "Aller au contenu principal",
+            "Fouilles en Pleine Masse & Terrassement ",
+            "Enduit Ciment Hydrofuge 2 Passes Extérie",
+            "Lettres Reliefs Découpées Plexiglas Rétr"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#materiaux",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 24,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#abonnement",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 3,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1280x800",
+          "route": "#settings/entreprise",
+          "vw": 1280,
+          "vh": 800,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Intitulé de l'étape 1",
+              "b": "Retourner à l'application",
+              "part": 0.95
+            },
+            {
+              "a": "Intitulé de l'étape 1",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.4
+            },
+            {
+              "a": "Pourcentage de l'étape 1",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.91
+            },
+            {
+              "a": "Retirer l'étape 1",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.98
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 250 px",
+          "largeurContenu": 1030,
+          "ellipses": 3,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#dashboard",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#dashboard",
+          "h1": "Espace IKADEVIS BTP",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#chantiers",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#chantiers",
+          "h1": "Chantiers",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#clients",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#clients",
+          "h1": "Clients",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#chiffrage",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#chiffrage",
+          "h1": "Chiffrage",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#devis",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#devis",
+          "h1": "Mes devis",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#factures",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#factures",
+          "h1": "Factures",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#depenses",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#depenses",
+          "h1": "Dépenses & fournisseurs",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Chantier à analyser",
+              "b": "Toutes",
+              "part": 0.32
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "À payer",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Payées",
+              "part": 0.47
+            },
+            {
+              "a": "Chantier à analyser",
+              "b": "Avances à rembourser",
+              "part": 0.47
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#ouvrages",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#ouvrages",
+          "h1": "Catalogue des Ouvrages",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 0,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#materiaux",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#materiaux",
+          "h1": "Ressources & Prix",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 23,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#abonnement",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#abonnement",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 0,
+          "collisions": [],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 2,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        },
+        {
+          "taille": "1440x900",
+          "route": "#settings/entreprise",
+          "vw": 1440,
+          "vh": 900,
+          "hash": "#settings/entreprise",
+          "h1": "Paramètres du compte",
+          "debordement": 0,
+          "nbEchappes": 0,
+          "echappes": [],
+          "nbCollisions": 4,
+          "collisions": [
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Retourner à l'application",
+              "part": 0.85
+            },
+            {
+              "a": "Intitulé de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.35
+            },
+            {
+              "a": "Pourcentage de l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.81
+            },
+            {
+              "a": "Retirer l'étape 3",
+              "b": "Enregistrer les paramètres de l'ent",
+              "part": 0.87
+            }
+          ],
+          "nbRognes": 0,
+          "rognes": [],
+          "titreOk": true,
+          "navOk": true,
+          "navDetail": "barre latérale 259 px",
+          "largeurContenu": 1181,
+          "ellipses": 2,
+          "nbCoupes": 1,
+          "coupes": [
+            "Aller au contenu principal"
+          ]
+        }
+      ],
+      "essai": 1,
+      "dureeS": 206
+    },
+    "C112": {
+      "inventaire": {
+        "1440#dashboard": [
+          "Tout",
+          "Ce mois",
+          "Trimestre",
+          "Année",
+          "Modifier et personnaliser le tableau de bord",
+          "Créer mon premier devis",
+          "Nouveau devis Chiffrer un projet",
+          "Nouveau chantier Ouvrir un dossier",
+          "Ajouter un client Répertoire & NIF",
+          "Créer facture Facturer un acompte",
+          "Voir tous",
+          "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
+          "Construction Siège NBB Société Immobilière NBB En cours",
+          "Rénovation Façades ACM & Enseignes LED Résidence Les Almadie"
+        ],
+        "1440#chantiers": [
+          "Créer un nouveau chantier",
+          "Rechercher un chantier",
+          "Sélectionner le chantier Construction Siège NBB",
+          "Sélectionner le chantier Rénovation Façades ACM & Enseignes "
+        ],
+        "1440#clients": [
+          "Créer un nouveau client",
+          "Rechercher un client",
+          "Sélectionner Société Immobilière NBB",
+          "Sélectionner Résidence Les Almadies"
+        ],
+        "1440#chiffrage": [
+          "Annuler la modification (Cmd+Z / Ctrl+Z)",
+          "Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)",
+          "Statut du devis",
+          "Nouveau devis",
+          "Aperçu Client & PDF",
+          "Enregistrer",
+          "Plus d'actions sur le devis",
+          "Client du devis",
+          "Chantier du devis",
+          "Importer Excel / CSV",
+          "Ajouter mon premier ouvrage",
+          "01 Lot 01 — Travaux 0 FCFA",
+          "Ajouter un lot au devis",
+          "Synthèse des lots",
+          "Options du lot",
+          "Renommer le lot Lot 01 — Travaux",
+          "Rechercher un ouvrage à ajouter",
+          "Choisir dans le Catalogue complet",
+          "Ajouter une ligne libre",
+          "COEFF K",
+          "Taux de TVA du devis"
+        ],
+        "1440#devis": [
+          "Nouveau devis",
+          "Rechercher dans les devis",
+          "Filtrer les devis par statut",
+          "Trier les devis",
+          "Afficher le devis DEV-2026-001 de Société Immobilière NBB",
+          "Supprimer le devis DEV-2026-001"
+        ],
+        "1440#factures": [
+          "Exporter les factures en CSV",
+          "Nouveau — créer une facture depuis un devis",
+          "Rechercher dans les factures",
+          "Filtres avancés",
+          "Toutes 0",
+          "Non réglées 0",
+          "Partielles 0",
+          "Soldées 0",
+          "Avoirs 0",
+          "Brouillons 0"
+        ],
+        "1440#depenses": [
+          "Nouvelle dépense",
+          "Rentabilité du chantier · prévu et dépenses réelles",
+          "Chantier à analyser",
+          "Devis de référence",
+          "Ajouter un compte",
+          "Toutes",
+          "À payer",
+          "Payées",
+          "Avances à rembourser",
+          "Rechercher une dépense"
+        ],
+        "1440#ouvrages": [
+          "Créer un nouvel ouvrage au catalogue",
+          "Rechercher un ouvrage dans le catalogue",
+          "Sélectionner l'ouvrage Fouilles en Pleine Masse & Terrasseme",
+          "Modifier Fouilles en Pleine Masse & Terrassement BTP",
+          "Dupliquer Fouilles en Pleine Masse & Terrassement BTP",
+          "Supprimer Fouilles en Pleine Masse & Terrassement BTP",
+          "Sélectionner l'ouvrage Béton Armé pour Fondations, Poteaux &",
+          "Modifier Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Dupliquer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Supprimer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Sélectionner l'ouvrage Maçonnerie en Murs d’Agglos de 15",
+          "Modifier Maçonnerie en Murs d’Agglos de 15",
+          "Dupliquer Maçonnerie en Murs d’Agglos de 15",
+          "Supprimer Maçonnerie en Murs d’Agglos de 15",
+          "Sélectionner l'ouvrage Revêtement Sol en Carrelage Grès Céra",
+          "Modifier Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Dupliquer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Supprimer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Sélectionner l'ouvrage Cloison de Distribution Placostil BA1",
+          "Modifier Cloison de Distribution Placostil BA13 72/48 avec L",
+          "Dupliquer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Supprimer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Sélectionner l'ouvrage Faux-Plafond Suspendu BA13 sur Ossatu",
+          "Modifier Faux-Plafond Suspendu BA13 sur Ossature Métallique ",
+          "Dupliquer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Supprimer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Sélectionner l'ouvrage Installation Électrique Basse Tension",
+          "Modifier Installation Électrique Basse Tension & Tableaux",
+          "Dupliquer Installation Électrique Basse Tension & Tableaux",
+          "Supprimer Installation Électrique Basse Tension & Tableaux",
+          "Sélectionner l'ouvrage Réseau Plomberie Sanitaire Multicouch",
+          "Modifier Réseau Plomberie Sanitaire Multicouche & Évacuation",
+          "Dupliquer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Supprimer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Sélectionner l'ouvrage Peinture Murale Satinée BTP",
+          "Modifier Peinture Murale Satinée BTP",
+          "Dupliquer Peinture Murale Satinée BTP",
+          "Supprimer Peinture Murale Satinée BTP",
+          "Sélectionner l'ouvrage Enduit Ciment Hydrofuge 2 Passes Exté",
+          "Modifier Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérieu",
+          "Dupliquer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Supprimer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Sélectionner l'ouvrage Habillage Façade en Panneaux Alucobon",
+          "Modifier Habillage Façade en Panneaux Alucobond / ACM",
+          "Dupliquer Habillage Façade en Panneaux Alucobond / ACM",
+          "Supprimer Habillage Façade en Panneaux Alucobond / ACM",
+          "Sélectionner l'ouvrage Menuiserie Aluminium & Baie Vitrée Co",
+          "Modifier Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Dupliquer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Supprimer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Sélectionner l'ouvrage Garde-Corps Métallerie (Plan de Débit",
+          "Modifier Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Dupliquer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Supprimer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Sélectionner l'ouvrage Dressing Menuiserie sur Mesure (Caiss",
+          "Modifier Dressing Menuiserie sur Mesure (Caissons)",
+          "Dupliquer Dressing Menuiserie sur Mesure (Caissons)",
+          "Supprimer Dressing Menuiserie sur Mesure (Caissons)",
+          "Sélectionner l'ouvrage Panneau avec cadre métallique et auto",
+          "Modifier Panneau avec cadre métallique et autocollant",
+          "Dupliquer Panneau avec cadre métallique et autocollant",
+          "Supprimer Panneau avec cadre métallique et autocollant",
+          "Sélectionner l'ouvrage Caisson Enseigne Lumineuse LED Double",
+          "Modifier Caisson Enseigne Lumineuse LED Double Face",
+          "Dupliquer Caisson Enseigne Lumineuse LED Double Face",
+          "Supprimer Caisson Enseigne Lumineuse LED Double Face",
+          "Sélectionner l'ouvrage Lettres Reliefs Découpées Plexiglas R",
+          "Modifier Lettres Reliefs Découpées Plexiglas Rétroéclairées ",
+          "Dupliquer Lettres Reliefs Découpées Plexiglas Rétroéclairées",
+          "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
+        ],
+        "1440#materiaux": [
+          "Voir la liste des matières premières",
+          "Voir la liste de la main-d'œuvre",
+          "Importer un fichier CSV",
+          "Exporter au format CSV",
+          "Ajouter une nouvelle matière",
+          "Rechercher dans les ressources",
+          "Sélectionner Tube carré acier 25x25 (Cadres & Renforts)",
+          "Sélectionner Autocollant imprimé VINYL HD Lamination",
+          "Sélectionner Plaque de fond tôle galvanisée 10/10e",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur",
+          "Sélectionner Peinture Murale Satinée Lessivable",
+          "Sélectionner Béton prêt à l’emploi B25 dosé 350 kg/m³",
+          "Sélectionner Aciers Haute Adhérence FeE500 (HA 8 à 16)",
+          "Sélectionner Agglos creux de 15x20x40 standard",
+          "Sélectionner Ciment CPJ 42.5 pour mortier de pose",
+          "Sélectionner Carrelage Grès Cérame 60x60 Poli Rectifié",
+          "Sélectionner Colle carrelage C2TE & Joint hydrofuge",
+          "Sélectionner Profilé Aluminium thermolaqué noir/blanc",
+          "Sélectionner Vitrage feuilleté de sécurité 44.2",
+          "Sélectionner Modules LED étanches IP67 1.2W Grand Angle",
+          "Sélectionner Alimentation étanche LED MeanWell 12V 200W",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm",
+          "Sélectionner Bâche PVC 510g M1 Anti-reflet HD",
+          "Sélectionner Tube carré galvanisé 40x40 Ossature Façade",
+          "Sélectionner Chevilles chimiques & Fixations M10",
+          "Sélectionner Plaque de plâtre BA13 standard 2.50m x 1.20m",
+          "Sélectionner Ossature métallique Rails R48 & Montants M48",
+          "Sélectionner Laine de verre acoustique et thermique 45mm",
+          "Sélectionner Enduit à joint et bande microperforée",
+          "Sélectionner Tube multicouche gainé Ø16/20 pour eau chaude/f",
+          "Sélectionner Tube PVC évacuation sanitaire Ø40/Ø100",
+          "Sélectionner Câble cuivre d’alimentation R2V 3G2.5mm²",
+          "Sélectionner Disjoncteur divisionnaire 16A/20A Phase+Neutre",
+          "Sélectionner Mortier d’enduit ciment hydrofuge prêt à gâcher",
+          "Sélectionner Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²)",
+          "Sélectionner Tube carré acier 25x25 (Débit précis, Barre 6m)",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur (Calepinage",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm (Calep"
+        ],
+        "1440#abonnement": [
+          "Retourner au tableau de bord",
+          "Mensuel",
+          "Annuel −20 %",
+          "Votre formule actuelle",
+          "Choisir Standard",
+          "Choisir Entreprise",
+          "Retourner à l'application"
+        ],
+        "1440#settings/entreprise": [
+          "Retourner au tableau de bord",
+          "Ex : Entreprise BTP SARL",
+          "Ex : Travaux Publics & Bâtiment",
+          "+223 XX XX XX XX",
+          "contact@entreprise.com",
+          "Bamako, Mali",
+          "Ex : 084123456A",
+          "Ex : MA.BKO.2024.B.1234",
+          "Devise principale",
+          "30 jours",
+          "Intitulé de l'étape 1",
+          "Pourcentage de l'étape 1",
+          "Retirer l'étape 1",
+          "Intitulé de l'étape 2",
+          "Pourcentage de l'étape 2",
+          "Retirer l'étape 2",
+          "Intitulé de l'étape 3",
+          "Pourcentage de l'étape 3",
+          "Retirer l'étape 3",
+          "Intitulé de l'étape 4",
+          "Pourcentage de l'étape 4",
+          "Retirer l'étape 4",
+          "Ajouter une étape",
+          "Retourner à l'application",
+          "Enregistrer les paramètres de l'entreprise"
+        ],
+        "1440|entete": [
+          "ikadevis - Tableau de bord",
+          "Recherche globale dans ikadevis",
+          "État de connexion : Démonstration",
+          "IKADEVIS BTP — changer d'organisation",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ],
+        "390#dashboard": [
+          "Tout",
+          "Ce mois",
+          "Trimestre",
+          "Année",
+          "Modifier et personnaliser le tableau de bord",
+          "Créer mon premier devis",
+          "Nouveau devis Chiffrer un projet",
+          "Nouveau chantier Ouvrir un dossier",
+          "Ajouter un client Répertoire & NIF",
+          "Créer facture Facturer un acompte",
+          "Voir tous",
+          "Société Immobilière NBB Construction Siège NBB · DEV-2026-00",
+          "Construction Siège NBB Société Immobilière NBB En cours",
+          "Rénovation Façades ACM & Enseignes LED Résidence Les Almadie"
+        ],
+        "390#chantiers": [
+          "Créer un nouveau chantier",
+          "Rechercher un chantier",
+          "Sélectionner le chantier Construction Siège NBB",
+          "Sélectionner le chantier Rénovation Façades ACM & Enseignes "
+        ],
+        "390#clients": [
+          "Créer un nouveau client",
+          "Rechercher un client",
+          "Sélectionner Société Immobilière NBB",
+          "Sélectionner Résidence Les Almadies"
+        ],
+        "390#chiffrage": [
+          "Statut du devis",
+          "Plus d'actions sur le devis",
+          "Client du devis",
+          "Chantier du devis",
+          "Importer Excel / CSV",
+          "Ajouter mon premier ouvrage",
+          "Afficher le détail du chiffrage (déboursé, coefficient K, ma",
+          "Aperçu PDF",
+          "Enregistrer"
+        ],
+        "390#devis": [
+          "Nouveau devis",
+          "Rechercher dans les devis",
+          "Filtrer les devis par statut",
+          "Trier les devis",
+          "Afficher le devis DEV-2026-001 de Société Immobilière NBB",
+          "Supprimer le devis DEV-2026-001"
+        ],
+        "390#factures": [
+          "Exporter les factures en CSV",
+          "Nouveau — créer une facture depuis un devis",
+          "Rechercher dans les factures",
+          "Filtres avancés",
+          "Toutes 0",
+          "Non réglées 0",
+          "Partielles 0",
+          "Soldées 0",
+          "Avoirs 0",
+          "Brouillons 0"
+        ],
+        "390#depenses": [
+          "Nouvelle dépense",
+          "Rentabilité du chantier · prévu et dépenses réelles",
+          "Chantier à analyser",
+          "Devis de référence",
+          "Ajouter un compte",
+          "Toutes",
+          "À payer",
+          "Payées",
+          "Avances à rembourser",
+          "Rechercher une dépense"
+        ],
+        "390#ouvrages": [
+          "Créer un nouvel ouvrage au catalogue",
+          "Rechercher un ouvrage dans le catalogue",
+          "Sélectionner l'ouvrage Fouilles en Pleine Masse & Terrasseme",
+          "Modifier Fouilles en Pleine Masse & Terrassement BTP",
+          "Dupliquer Fouilles en Pleine Masse & Terrassement BTP",
+          "Supprimer Fouilles en Pleine Masse & Terrassement BTP",
+          "Sélectionner l'ouvrage Béton Armé pour Fondations, Poteaux &",
+          "Modifier Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Dupliquer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Supprimer Béton Armé pour Fondations, Poteaux & Chaînages",
+          "Sélectionner l'ouvrage Maçonnerie en Murs d’Agglos de 15",
+          "Modifier Maçonnerie en Murs d’Agglos de 15",
+          "Dupliquer Maçonnerie en Murs d’Agglos de 15",
+          "Supprimer Maçonnerie en Murs d’Agglos de 15",
+          "Sélectionner l'ouvrage Revêtement Sol en Carrelage Grès Céra",
+          "Modifier Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Dupliquer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Supprimer Revêtement Sol en Carrelage Grès Cérame 60x60",
+          "Sélectionner l'ouvrage Cloison de Distribution Placostil BA1",
+          "Modifier Cloison de Distribution Placostil BA13 72/48 avec L",
+          "Dupliquer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Supprimer Cloison de Distribution Placostil BA13 72/48 avec ",
+          "Sélectionner l'ouvrage Faux-Plafond Suspendu BA13 sur Ossatu",
+          "Modifier Faux-Plafond Suspendu BA13 sur Ossature Métallique ",
+          "Dupliquer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Supprimer Faux-Plafond Suspendu BA13 sur Ossature Métallique",
+          "Sélectionner l'ouvrage Installation Électrique Basse Tension",
+          "Modifier Installation Électrique Basse Tension & Tableaux",
+          "Dupliquer Installation Électrique Basse Tension & Tableaux",
+          "Supprimer Installation Électrique Basse Tension & Tableaux",
+          "Sélectionner l'ouvrage Réseau Plomberie Sanitaire Multicouch",
+          "Modifier Réseau Plomberie Sanitaire Multicouche & Évacuation",
+          "Dupliquer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Supprimer Réseau Plomberie Sanitaire Multicouche & Évacuatio",
+          "Sélectionner l'ouvrage Peinture Murale Satinée BTP",
+          "Modifier Peinture Murale Satinée BTP",
+          "Dupliquer Peinture Murale Satinée BTP",
+          "Supprimer Peinture Murale Satinée BTP",
+          "Sélectionner l'ouvrage Enduit Ciment Hydrofuge 2 Passes Exté",
+          "Modifier Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérieu",
+          "Dupliquer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Supprimer Enduit Ciment Hydrofuge 2 Passes Extérieur/Intérie",
+          "Sélectionner l'ouvrage Habillage Façade en Panneaux Alucobon",
+          "Modifier Habillage Façade en Panneaux Alucobond / ACM",
+          "Dupliquer Habillage Façade en Panneaux Alucobond / ACM",
+          "Supprimer Habillage Façade en Panneaux Alucobond / ACM",
+          "Sélectionner l'ouvrage Menuiserie Aluminium & Baie Vitrée Co",
+          "Modifier Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Dupliquer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Supprimer Menuiserie Aluminium & Baie Vitrée Coulissante",
+          "Sélectionner l'ouvrage Garde-Corps Métallerie (Plan de Débit",
+          "Modifier Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Dupliquer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Supprimer Garde-Corps Métallerie (Plan de Débit 1D)",
+          "Sélectionner l'ouvrage Dressing Menuiserie sur Mesure (Caiss",
+          "Modifier Dressing Menuiserie sur Mesure (Caissons)",
+          "Dupliquer Dressing Menuiserie sur Mesure (Caissons)",
+          "Supprimer Dressing Menuiserie sur Mesure (Caissons)",
+          "Sélectionner l'ouvrage Panneau avec cadre métallique et auto",
+          "Modifier Panneau avec cadre métallique et autocollant",
+          "Dupliquer Panneau avec cadre métallique et autocollant",
+          "Supprimer Panneau avec cadre métallique et autocollant",
+          "Sélectionner l'ouvrage Caisson Enseigne Lumineuse LED Double",
+          "Modifier Caisson Enseigne Lumineuse LED Double Face",
+          "Dupliquer Caisson Enseigne Lumineuse LED Double Face",
+          "Supprimer Caisson Enseigne Lumineuse LED Double Face",
+          "Sélectionner l'ouvrage Lettres Reliefs Découpées Plexiglas R",
+          "Modifier Lettres Reliefs Découpées Plexiglas Rétroéclairées ",
+          "Dupliquer Lettres Reliefs Découpées Plexiglas Rétroéclairées",
+          "Supprimer Lettres Reliefs Découpées Plexiglas Rétroéclairées"
+        ],
+        "390#materiaux": [
+          "Voir la liste des matières premières",
+          "Voir la liste de la main-d'œuvre",
+          "Importer un fichier CSV",
+          "Exporter au format CSV",
+          "Ajouter une nouvelle matière",
+          "Rechercher dans les ressources",
+          "Sélectionner Tube carré acier 25x25 (Cadres & Renforts)",
+          "Sélectionner Autocollant imprimé VINYL HD Lamination",
+          "Sélectionner Plaque de fond tôle galvanisée 10/10e",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur",
+          "Sélectionner Peinture Murale Satinée Lessivable",
+          "Sélectionner Béton prêt à l’emploi B25 dosé 350 kg/m³",
+          "Sélectionner Aciers Haute Adhérence FeE500 (HA 8 à 16)",
+          "Sélectionner Agglos creux de 15x20x40 standard",
+          "Sélectionner Ciment CPJ 42.5 pour mortier de pose",
+          "Sélectionner Carrelage Grès Cérame 60x60 Poli Rectifié",
+          "Sélectionner Colle carrelage C2TE & Joint hydrofuge",
+          "Sélectionner Profilé Aluminium thermolaqué noir/blanc",
+          "Sélectionner Vitrage feuilleté de sécurité 44.2",
+          "Sélectionner Modules LED étanches IP67 1.2W Grand Angle",
+          "Sélectionner Alimentation étanche LED MeanWell 12V 200W",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm",
+          "Sélectionner Bâche PVC 510g M1 Anti-reflet HD",
+          "Sélectionner Tube carré galvanisé 40x40 Ossature Façade",
+          "Sélectionner Chevilles chimiques & Fixations M10",
+          "Sélectionner Plaque de plâtre BA13 standard 2.50m x 1.20m",
+          "Sélectionner Ossature métallique Rails R48 & Montants M48",
+          "Sélectionner Laine de verre acoustique et thermique 45mm",
+          "Sélectionner Enduit à joint et bande microperforée",
+          "Sélectionner Tube multicouche gainé Ø16/20 pour eau chaude/f",
+          "Sélectionner Tube PVC évacuation sanitaire Ø40/Ø100",
+          "Sélectionner Câble cuivre d’alimentation R2V 3G2.5mm²",
+          "Sélectionner Disjoncteur divisionnaire 16A/20A Phase+Neutre",
+          "Sélectionner Mortier d’enduit ciment hydrofuge prêt à gâcher",
+          "Sélectionner Panneau Mélaminé 18mm Hydrofuge (Plaque 6m²)",
+          "Sélectionner Tube carré acier 25x25 (Débit précis, Barre 6m)",
+          "Sélectionner Plaque Alucobond 4mm PVDF Extérieur (Calepinage",
+          "Sélectionner Plaque Plexiglas Acrylique Diffusant 3mm (Calep"
+        ],
+        "390#abonnement": [
+          "Retourner au tableau de bord",
+          "Section des paramètres",
+          "Mensuel",
+          "Annuel −20 %",
+          "Votre formule actuelle",
+          "Choisir Standard",
+          "Choisir Entreprise",
+          "Retourner à l'application"
+        ],
+        "390#settings/entreprise": [
+          "Retourner au tableau de bord",
+          "Section des paramètres",
+          "Ex : Entreprise BTP SARL",
+          "Ex : Travaux Publics & Bâtiment",
+          "+223 XX XX XX XX",
+          "contact@entreprise.com",
+          "Bamako, Mali",
+          "Ex : 084123456A",
+          "Ex : MA.BKO.2024.B.1234",
+          "Devise principale",
+          "30 jours",
+          "Intitulé de l'étape 1",
+          "Pourcentage de l'étape 1",
+          "Retirer l'étape 1",
+          "Intitulé de l'étape 2",
+          "Pourcentage de l'étape 2",
+          "Retirer l'étape 2",
+          "Intitulé de l'étape 3",
+          "Pourcentage de l'étape 3",
+          "Retirer l'étape 3",
+          "Intitulé de l'étape 4",
+          "Pourcentage de l'étape 4",
+          "Retirer l'étape 4",
+          "Ajouter une étape",
+          "Retourner à l'application",
+          "Enregistrer les paramètres de l'entreprise"
+        ],
+        "390|entete": [
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ]
+      },
+      "absentsA390": {
+        "#dashboard": [],
+        "#chantiers": [],
+        "#clients": [],
+        "#chiffrage": [
+          "Annuler la modification (Cmd+Z / Ctrl+Z)",
+          "Rétablir la modification (Cmd+Maj+Z / Ctrl+Y)",
+          "Nouveau devis",
+          "Aperçu Client & PDF",
+          "01 Lot 01 — Travaux 0 FCFA",
+          "Ajouter un lot au devis",
+          "Synthèse des lots",
+          "Options du lot",
+          "Renommer le lot Lot 01 — Travaux",
+          "Rechercher un ouvrage à ajouter",
+          "Choisir dans le Catalogue complet",
+          "Ajouter une ligne libre",
+          "COEFF K",
+          "Taux de TVA du devis"
+        ],
+        "#devis": [],
+        "#factures": [],
+        "#depenses": [],
+        "#ouvrages": [],
+        "#materiaux": [],
+        "#abonnement": [],
+        "#settings/entreprise": []
+      },
+      "editeur390": {
+        "editeur": {
+          "Client du devis": true,
+          "Chantier du devis": true,
+          "Ajouter un lot": true,
+          "Importer Excel / CSV": true,
+          "Taux de TVA": true,
+          "Aperçu PDF": true,
+          "Enregistrer": true,
+          "Ajouter un ouvrage": true,
+          "Ligne libre": true,
+          "Options du lot": true,
+          "Renommer le lot": true,
+          "Synthèse des lots": true,
+          "Annuler / Rétablir (historique)": false
+        },
+        "annulerRetablir": [
+          {
+            "nom": "Annuler la modification (Cmd+Z",
+            "visible": false,
+            "affichage": "none"
+          },
+          {
+            "nom": "Rétablir la modification (Cmd+",
+            "visible": false,
+            "affichage": "none"
+          }
+        ]
+      },
+      "surfaces390": {
+        "entete": [
+          "Aller au contenu principal",
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur"
+        ],
+        "menuProfil": [
+          "Aller au contenu principal",
+          "ikadevis - Tableau de bord",
+          "État de connexion : Démonstration",
+          "Paramètres du compte",
+          "Menu du profil utilisateur",
+          "Formule & Facturation Starter",
+          "Mon Profil & Compte",
+          "Paramètres Entreprise",
+          "Se déconnecter"
+        ],
+        "menuMobile": [
+          "Fermer le menu",
+          "Formule STARTER 14j restants 1/3 devis créés • Pas",
+          "Chantiers & Projets",
+          "Clients & CRM",
+          "Dépenses & fournisseurs",
+          "Ouvrages",
+          "Prix des Matériaux",
+          "Modèles de documents PDF & en-tête",
+          "Paramètres Entreprise & compte",
+          "Installer l'application sur mobile",
+          "Se déconnecter"
+        ]
+      },
+      "essai": 1,
+      "dureeS": 107
+    },
+    "C113": {
+      "listeDevis": {
+        "390x844": {
+          "mode": "cartes",
+          "debordementDoc": 0,
+          "dansEcran": true,
+          "contenu": {
+            "client": true,
+            "chantier": true,
+            "numero": true,
+            "date": true,
+            "montant": true,
+            "statut": true,
+            "supprimer": true
+          }
+        },
+        "768x1024": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [
+            "ACTIONS"
+          ],
+          "defilementH": 0,
+          "debordementDoc": 0,
+          "supprimer": {
+            "gauche": 738,
+            "droite": 766,
+            "fraction": 0.5,
+            "x": 537.890625,
+            "y": 362
+          },
+          "supprimerApresGlisser": {
+            "gauche": 738,
+            "droite": 766,
+            "fraction": 0.5,
+            "x": 537.890625,
+            "y": 362
+          }
+        },
+        "1024x768": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [],
+          "defilementH": 0,
+          "debordementDoc": 0,
+          "supprimer": {
+            "gauche": 951,
+            "droite": 979,
+            "fraction": 1,
+            "x": 751,
+            "y": 360
+          },
+          "supprimerApresGlisser": {
+            "gauche": 951,
+            "droite": 979,
+            "fraction": 1,
+            "x": 751,
+            "y": 360
+          }
+        },
+        "1440x900": {
+          "mode": "tableau",
+          "colonnes": [
+            "CLIENT & ENTREPRISE",
+            "CHANTIER / PROJET",
+            "DEVIS & DATE",
+            "MONTANT TTC",
+            "STATUT",
+            "ACTIONS"
+          ],
+          "horsZone": [],
+          "defilementH": 0,
+          "debordementDoc": 0,
+          "supprimer": {
+            "gauche": 1367,
+            "droite": 1395,
+            "fraction": 1,
+            "x": 1167,
+            "y": 336
+          },
+          "supprimerApresGlisser": {
+            "gauche": 1367,
+            "droite": 1395,
+            "fraction": 1,
+            "x": 1167,
+            "y": 336
+          }
+        }
+      },
+      "documentLecture": {
+        "mode": "lecture mobile",
+        "largeur": 366,
+        "gauche": 12,
+        "droite": 378,
+        "vw": 390,
+        "debordementDoc": 0,
+        "cellules": 25,
+        "etiquetees": 12,
+        "lignes": 4,
+        "defileurH": null,
+        "policeMinPx": 13.1,
+        "aide": false,
+        "metaViewport": "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content"
+      },
+      "documentPapier": {
+        "mode": "papier",
+        "largeur": 740,
+        "gauche": 12,
+        "droite": 752,
+        "vw": 390,
+        "debordementDoc": 0,
+        "cellules": 25,
+        "etiquetees": 0,
+        "lignes": 4,
+        "defileurH": {
+          "clientWidth": 390,
+          "scrollWidth": 764,
+          "overflowX": "auto"
+        },
+        "policeMinPx": 10.9,
+        "aide": true,
+        "metaViewport": "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content"
+      },
+      "facturer390": {
+        "avant": {
+          "overflowX": "auto",
+          "clientWidth": 310,
+          "scrollWidth": 564,
+          "scrollLeft": 0,
+          "zone": {
+            "gauche": 40,
+            "droite": 350
+          },
+          "ths": [
+            {
+              "t": "Lot",
+              "visible": 1
+            },
+            {
+              "t": "Montant total",
+              "visible": 0.67
+            },
+            {
+              "t": "Déjà facturé",
+              "visible": 0
+            },
+            {
+              "t": "% cumulé",
+              "visible": 0
+            },
+            {
+              "t": "Cette facture",
+              "visible": 0
+            }
+          ],
+          "champs": [
+            {
+              "visible": 0,
+              "gauche": 453
+            },
+            {
+              "visible": 0,
+              "gauche": 453
+            },
+            {
+              "visible": 0,
+              "gauche": 453
+            }
+          ],
+          "premiereColonneFigee": false,
+          "indiceDefilement": false
+        },
+        "apres": {
+          "overflowX": "auto",
+          "clientWidth": 310,
+          "scrollWidth": 564,
+          "scrollLeft": 254,
+          "zone": {
+            "gauche": 40,
+            "droite": 350
+          },
+          "ths": [
+            {
+              "t": "Lot",
+              "visible": 0
+            },
+            {
+              "t": "Montant total",
+              "visible": 0.87
+            },
+            {
+              "t": "Déjà facturé",
+              "visible": 1
+            },
+            {
+              "t": "% cumulé",
+              "visible": 1
+            },
+            {
+              "t": "Cette facture",
+              "visible": 1
+            }
+          ],
+          "champs": [
+            {
+              "visible": 1,
+              "gauche": 199
+            },
+            {
+              "visible": 1,
+              "gauche": 199
+            },
+            {
+              "visible": 1,
+              "gauche": 199
+            }
+          ],
+          "premiereColonneFigee": false,
+          "indiceDefilement": false
+        }
+      },
+      "essai": 1,
+      "dureeS": 36
+    },
+    "C114": {
+      "cas": {},
+      "meta": {
+        "viewport": "width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content",
+        "overlaysContent": true,
+        "insetCss": "0px"
+      },
+      "erreur": "Error: introuvable : /^Nom du client/",
+      "essai": 1
+    },
+    "C115": {
+      "ctaPremierOuvrage": {
+        "390x844": {
+          "repos": {
+            "haut": 690,
+            "bas": 738,
+            "hauteur": 48,
+            "touchablePx": 12,
+            "fraction": 0.2,
+            "barreTotaux": 703,
+            "defileur": "aucun"
+          },
+          "apresDefilement": {
+            "haut": 690,
+            "bas": 738,
+            "hauteur": 48,
+            "touchablePx": 12,
+            "fraction": 0.2,
+            "barreTotaux": 703,
+            "defileur": "aucun"
+          }
+        },
+        "414x896": {
+          "repos": {
+            "haut": 655,
+            "bas": 703,
+            "hauteur": 48,
+            "touchablePx": 48,
+            "fraction": 1,
+            "barreTotaux": 755,
+            "defileur": "aucun"
+          },
+          "apresDefilement": {
+            "haut": 655,
+            "bas": 703,
+            "hauteur": 48,
+            "touchablePx": 48,
+            "fraction": 1,
+            "barreTotaux": 755,
+            "defileur": "aucun"
+          }
+        },
+        "360x740": {
+          "repos": {
+            "haut": 690,
+            "bas": 738,
+            "hauteur": 48,
+            "touchablePx": 0,
+            "fraction": 0,
+            "barreTotaux": 599,
+            "defileur": "oui"
+          },
+          "apresDefilement": {
+            "haut": 669,
+            "bas": 717,
+            "hauteur": 48,
+            "touchablePx": 1,
+            "fraction": 0,
+            "barreTotaux": 599,
+            "defileur": "oui"
+          }
+        },
+        "375x667": {
+          "repos": {
+            "haut": 690,
+            "bas": 738,
+            "hauteur": 48,
+            "touchablePx": 0,
+            "fraction": 0,
+            "barreTotaux": 526,
+            "defileur": "oui"
+          },
+          "apresDefilement": {
+            "haut": 690,
+            "bas": 738,
+            "hauteur": 48,
+            "touchablePx": 0,
+            "fraction": 0,
+            "barreTotaux": 526,
+            "defileur": "oui"
+          }
+        }
+      },
+      "erreur": "ProtocolError: Protocol error (Input.synthesizeScrollGesture): Position out of bounds",
+      "essai": 1
+    },
+    "C116": {
+      "envPortrait": {
+        "haut": "47px",
+        "droite": "0px",
+        "bas": "34px",
+        "gauche": "0px"
+      },
+      "erreur": "Error: recouvert, impossible à toucher : 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage",
+      "essai": 1
+    },
+    "C117": {
+      "etats": {
+        "390#dashboard": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#chantiers": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#clients": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#chiffrage": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#devis": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#factures": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#depenses": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#ouvrages": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#materiaux": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#abonnement": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390#settings/entreprise": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390 lot vide": {
+          "nbPetits": 3,
+          "petits": [
+            "Ajouter un lot au devis 27×20",
+            "Synthèse des lots 34×21",
+            "Options du lot 21×34"
+          ],
+          "echecs": [],
+          "survol": []
+        },
+        "390 bibliothèque d’ouvrages": {
+          "nbPetits": 3,
+          "petits": [
+            "Ajouter un lot au devis 27×20",
+            "Synthèse des lots 34×21",
+            "Options du lot 21×34"
+          ],
+          "echecs": [
+            {
+              "nom": "Ajouter un lot au devis",
+              "l": 27,
+              "h": 20,
+              "voisin": "Rechercher un ouvrage par nom,"
+            },
+            {
+              "nom": "Synthèse des lots",
+              "l": 34,
+              "h": 21,
+              "voisin": "Rechercher un ouvrage par nom,"
+            },
+            {
+              "nom": "Options du lot",
+              "l": 21,
+              "h": 34,
+              "voisin": "Façades"
+            }
+          ],
+          "survol": []
+        },
+        "390 inspecteur": {
+          "nbPetits": 2,
+          "petits": [
+            "Mode simple 69×23",
+            "Mode avancé 69×23"
+          ],
+          "echecs": [
+            {
+              "nom": "Mode simple",
+              "l": 69,
+              "h": 23,
+              "voisin": "État de connexion : Démonstrat"
+            },
+            {
+              "nom": "Mode avancé",
+              "l": 69,
+              "h": 23,
+              "voisin": "Menu du profil utilisateur"
+            }
+          ],
+          "survol": []
+        },
+        "390 lot avec ouvrage": {
+          "nbPetits": 3,
+          "petits": [
+            "Ajouter un lot au devis 27×20",
+            "Synthèse des lots 34×21",
+            "Options du lot 21×34"
+          ],
+          "echecs": [],
+          "survol": []
+        },
+        "390 menu mobile": {
+          "nbPetits": 3,
+          "petits": [
+            "Ajouter un lot au devis 27×20",
+            "Synthèse des lots 34×21",
+            "Options du lot 21×34"
+          ],
+          "echecs": [],
+          "survol": []
+        },
+        "390 fiche devis": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390 fiche devis, menu ⋮": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390 fenêtre Facturer": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "390 factures (1 brouillon)": {
+          "nbPetits": 2,
+          "petits": [
+            "Sélectionner toutes les factur 13×13",
+            "Sélectionner facture Société I 13×13"
+          ],
+          "echecs": [],
+          "survol": []
+        },
+        "320#dashboard": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "320#devis": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "320#factures": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "320#chiffrage": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        },
+        "320#materiaux": {
+          "nbPetits": 0,
+          "petits": [],
+          "echecs": [],
+          "survol": []
+        }
+      },
+      "frequentes": [
+        {
+          "libelle": "barre du bas · Accueil",
+          "l": 84,
+          "h": 57,
+          "touchablePx": 56,
+          "fraction": 1
+        },
+        {
+          "libelle": "barre du bas · Devis",
+          "l": 84,
+          "h": 57,
+          "touchablePx": 56,
+          "fraction": 1
+        },
+        {
+          "libelle": "barre du bas · Chantiers",
+          "l": 84,
+          "h": 57,
+          "touchablePx": 56,
+          "fraction": 1
+        },
+        {
+          "libelle": "barre du bas · Factures",
+          "l": 84,
+          "h": 57,
+          "touchablePx": 56,
+          "fraction": 1
+        },
+        {
+          "libelle": "barre du bas · Menu",
+          "l": 48,
+          "h": 48,
+          "touchablePx": 48,
+          "fraction": 1
+        },
+        {
+          "libelle": "Nouveau devis",
+          "l": 166,
+          "h": 40,
+          "touchablePx": 40,
+          "fraction": 1
+        },
+        {
+          "libelle": "Supprimer le devis",
+          "l": 32,
+          "h": 32,
+          "touchablePx": 32,
+          "fraction": 1
+        },
+        {
+          "libelle": "Ajouter mon premier ouvrage",
+          "l": 342,
+          "h": 48,
+          "touchablePx": 12,
+          "fraction": 0.2
+        },
+        {
+          "libelle": "Ajouter un nouveau lot",
+          "l": 28,
+          "h": 28,
+          "touchablePx": 28,
+          "fraction": 1
+        },
+        {
+          "libelle": "Enregistrer",
+          "l": 100,
+          "h": 52,
+          "touchablePx": 52,
+          "fraction": 1
+        },
+        {
+          "libelle": "Aperçu PDF",
+          "l": 102,
+          "h": 52,
+          "touchablePx": 52,
+          "fraction": 1
+        },
+        {
+          "libelle": "Ajouter un lot (barre des lots)",
+          "l": 27,
+          "h": 20,
+          "touchablePx": 20,
+          "fraction": 0.96
+        },
+        {
+          "libelle": "Synthèse des lots",
+          "l": 34,
+          "h": 21,
+          "touchablePx": 21,
+          "fraction": 1
+        },
+        {
+          "libelle": "Ajouter un ouvrage au lot",
+          "l": 222,
+          "h": 44,
+          "touchablePx": 44,
+          "fraction": 1
+        },
+        {
+          "libelle": "Confirmer mes quantités",
+          "l": 209,
+          "h": 40,
+          "touchablePx": 40,
+          "fraction": 1
+        },
+        {
+          "libelle": "Surface directe (champ)",
+          "l": 316,
+          "h": 44,
+          "touchablePx": 44,
+          "fraction": 1
+        },
+        {
+          "libelle": "Terminer",
+          "l": 366,
+          "h": 44,
+          "touchablePx": 44,
+          "fraction": 1
+        },
+        {
+          "libelle": "Quantité (ligne)",
+          "l": 116,
+          "h": 38,
+          "touchablePx": 38,
+          "fraction": 1
+        },
+        {
+          "libelle": "Dupliquer (ligne)",
+          "l": 32,
+          "h": 38,
+          "touchablePx": 38,
+          "fraction": 1
+        },
+        {
+          "libelle": "Supprimer (ligne)",
+          "l": 30,
+          "h": 38,
+          "touchablePx": 38,
+          "fraction": 1
+        }
+      ],
+      "essai": 1,
+      "dureeS": 63
+    },
+    "C118": {
+      "fermetures": {
+        "bouton « Fermer le menu »": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 250
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "toucher le voile au-dessus du panneau": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 250
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "touche Échap": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1316,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 256
+          },
+          "fondPendant": 0,
+          "navOk": true
+        },
+        "choix d’une destination (Clients & CRM)": {
+          "ouvert": true,
+          "focusDansMenu": true,
+          "ferme": true,
+          "defilement": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 243
+          },
+          "fondPendant": null,
+          "navOk": true
+        },
+        "profil toucher à l’extérieur": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 249
+          }
+        },
+        "profil touche Échap": {
+          "ouvert": true,
+          "ferme": true,
+          "def": {
+            "defileur": true,
+            "pt": {
+              "x": 195,
+              "y": 288
+            },
+            "scrollTop": 0,
+            "max": 1953,
+            "body": "hidden",
+            "html": "visible",
+            "voile": null,
+            "molette": 300,
+            "doigt": 252
+          }
+        }
+      },
+      "base": {
+        "defileur": true,
+        "pt": {
+          "x": 195,
+          "y": 288
+        },
+        "scrollTop": 0,
+        "max": 1316,
+        "body": "hidden",
+        "html": "visible",
+        "voile": null,
+        "molette": 300,
+        "doigt": 250
+      },
+      "menuPlus": {
+        "ouvert": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresToucherExterieur": {
+          "haut": 237,
+          "bas": 359,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "defilementFiche": {
+          "avant": 0,
+          "apres": 303
+        },
+        "apresDefilement": {
+          "haut": -66,
+          "bas": 56,
+          "classe": "saved-quote-mobile-more-menu absolute le"
+        },
+        "apresEchap": null,
+        "ficheApresEchap": false,
+        "pointExterieur": {
+          "x": 26,
+          "y": 75.59375
+        }
+      },
+      "picker": {
+        "picker": {
+          "plein": 772
+        },
+        "retour": "Retour au devis",
+        "apresPicker": {
+          "ouvert": false,
+          "entete": "sticky"
+        },
+        "navApres": true
+      },
+      "essai": 1,
+      "dureeS": 65
+    },
+    "C119": {
+      "draggable": 0,
+      "reordonner": {
+        "avant": [
+          "01 Lot 01 — Travau",
+          "02 Lot 02 — Nouvea"
+        ],
+        "apres": [
+          "02 Lot 02 — Nouvea",
+          "01 Lot 01 — Travau"
+        ],
+        "chevronsSurvol": [
+          {
+            "affiche": "none",
+            "visible": false
+          }
+        ],
+        "monter": "Monter le lot"
+      },
+      "poignee": {
+        "poignee": {
+          "x": 195,
+          "y": 226.5
+        },
+        "toujoursOuvert": true
+      },
+      "filtres": {
+        "rangee": {
+          "cacheADroite": true,
+          "overflowX": "auto",
+          "x": 195,
+          "y": 136.25,
+          "avant": 0
+        },
+        "apres": {
+          "scrollLeft": 320,
+          "visible": true,
+          "fraction": 1
+        }
+      },
+      "signature390": {
+        "doigt": {
+          "x0": 104,
+          "x1": 286,
+          "y": 433
+        },
+        "canevas": {
+          "attributs": "440×180",
+          "affiche": "304×176",
+          "gauche": 43,
+          "haut": 345
+        },
+        "encre": null,
+        "ecartDroite": null
+      },
+      "erreur": "Error: recouvert, impossible à toucher : Effacer",
+      "essai": 1
+    },
+    "C120": {
+      "moteurs": {
+        "chromium": "Chrome/152.0.7977.42",
+        "puppeteer": "25.7.0",
+        "note": "Émulation mobile Chromium (isMobile, hasTouch, UA Android). WebKit/Mobile Safari et Gecko/Firefox Android non pilotés par cette sonde."
+      },
+      "etapes": [
+        {
+          "nom": "Menu → Clients & CRM",
+          "ok": true,
+          "v": true
+        },
+        {
+          "nom": "Créer un nouveau client",
+          "ok": false,
+          "v": "introuvable : /^Nom du client/"
+        },
+        {
+          "nom": "Devis → Nouveau devis",
+          "ok": false,
+          "v": "recouvert, impossible à toucher : Devis"
+        },
+        {
+          "nom": "Ajouter un ouvrage (Agglos)",
+          "ok": false,
+          "v": "introuvable : /^01 Lot 01/"
+        },
+        {
+          "nom": "Saisir 120 m² et confirmer les quantités",
+          "ok": false,
+          "v": "introuvable : /^Surface directe/"
+        },
+        {
+          "nom": "Terminer puis Enregistrer",
+          "ok": false,
+          "v": "introuvable : /^Terminer$/"
+        },
+        {
+          "nom": "Le devis apparaît dans « Mes devis » avec un montant",
+          "ok": false,
+          "v": "recouvert, impossible à toucher : Devis"
+        },
+        {
+          "nom": "Ouvrir le devis et créer le brouillon de facture",
+          "ok": false,
+          "v": "introuvable : /^Afficher le devis DEV-2026-002/"
+        },
+        {
+          "nom": "La facture brouillon est listée",
+          "ok": false,
+          "v": "recouvert, impossible à toucher : Factures"
+        }
+      ],
+      "devis": false,
+      "essai": 1,
+      "dureeS": 10
+    }
+  },
+  "resultats": [
+    {
+      "label": "C111 · 320×568 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#dashboard: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #chantiers: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #clients: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #chiffrage: débord 0, échappés 0, collisions 0, rognées 2 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"},{\"nom\":\"Statut du devis\",\"visible\":\"75 %\"}], titre ok, nav ok | #devis: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #factures: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Ajouter un compte\",\"part\":0.74},{\"a\":\"Devis de référence\",\"b\":\"Toutes\",\"part\":0.32}], rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #ouvrages: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #materiaux: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #abonnement: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 2 [{\"a\":\"contact@entreprise.com\",\"b\":\"Retourner à l'application\",\"part\":0.5},{\"a\":\"contact@entreprise.com\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.5}], rognées 1 [{\"nom\":\"Menu du profil utilisateur\",\"visible\":\"54 %\"}], titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 360×740 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Ajouter un compte\",\"part\":0.84},{\"a\":\"Devis de référence\",\"b\":\"Toutes\",\"part\":0.42}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 2 [{\"a\":\"Ex : 084123456A\",\"b\":\"Retourner à l'application\",\"part\":0.87},{\"a\":\"Ex : 084123456A\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.87}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 375×667 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Ajouter un compte\",\"part\":0.84},{\"a\":\"Devis de référence\",\"b\":\"Toutes\",\"part\":0.42}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 2 [{\"a\":\"Bamako, Mali\",\"b\":\"Retourner à l'application\",\"part\":0.97},{\"a\":\"Bamako, Mali\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.97}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 390×844 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Ajouter un compte\",\"part\":0.84},{\"a\":\"Devis de référence\",\"b\":\"Toutes\",\"part\":0.42}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 414×896 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Ajouter un compte\",\"part\":0.84},{\"a\":\"Devis de référence\",\"b\":\"Toutes\",\"part\":0.42}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 2 [{\"a\":\"Devise principale\",\"b\":\"Retourner à l'application\",\"part\":0.29},{\"a\":\"Devise principale\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.29}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 600×960 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 5 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.27},{\"a\":\"Chantier à analyser\",\"b\":\"À payer\",\"part\":0.37}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 767×1024 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.76}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.76},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.31}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 768×1024 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#devis: débord 0, échappés 0, collisions 0, rognées 1 [{\"nom\":\"Supprimer le devis DEV-2026-001\",\"visible\":\"50 %\"}], titre ok, nav ok | #depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.53}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 8 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.48},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.19}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 820×1180 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.69}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 1023×768 (tactile) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 4 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.32},{\"a\":\"Chantier à analyser\",\"b\":\"À payer\",\"part\":0.47}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 1 [{\"a\":\"30 jours\",\"b\":\"Retourner à l'application\",\"part\":0.87}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 1024×768 (bureau) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 3 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.68},{\"a\":\"Chantier à analyser\",\"b\":\"Avances à rembourser\",\"part\":0.73}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 1 [{\"a\":\"30 jours\",\"b\":\"Retourner à l'application\",\"part\":0.87}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 1280×800 (bureau) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 4 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.32},{\"a\":\"Chantier à analyser\",\"b\":\"À payer\",\"part\":0.47}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 1\",\"b\":\"Retourner à l'application\",\"part\":0.95},{\"a\":\"Intitulé de l'étape 1\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.4}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C111 · 1440×900 (bureau) · 11 écrans sans rupture (débordement, élément hors cadre, chevauchement, commande rognée, titre, navigation)",
+      "pass": false,
+      "detail": "#depenses: débord 0, échappés 0, collisions 4 [{\"a\":\"Chantier à analyser\",\"b\":\"Toutes\",\"part\":0.32},{\"a\":\"Chantier à analyser\",\"b\":\"À payer\",\"part\":0.47}], rognées 0, titre ok, nav ok | #settings/entreprise: débord 0, échappés 0, collisions 4 [{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Retourner à l'application\",\"part\":0.85},{\"a\":\"Intitulé de l'étape 3\",\"b\":\"Enregistrer les paramètres de l'ent\",\"part\":0.35}], rognées 0, titre ok, nav ok"
+    },
+    {
+      "label": "C112 · Écrans de liste (8) : toute action visible à 1440 existe aussi à 390",
+      "pass": true,
+      "detail": "aucune action de contenu perdue"
+    },
+    {
+      "label": "C112 · Réglages : les 10 sections du menu latéral restent accessibles à 390 (liste déroulante « Section des paramètres »)",
+      "pass": true,
+      "detail": "absents à 390 : 0 entrées de menu ; remplacées par : Section des paramètres"
+    },
+    {
+      "label": "C112 · 390 px : les 10 destinations principales s’atteignent au doigt (barre du bas ou menu)",
+      "pass": true,
+      "detail": "10/10 atteintes (Accueil, Mes devis, Chantiers, Factures, Clients, Dépenses, Ouvrages, Ressources, Nouveau devis, Paramètres)"
+    },
+    {
+      "label": "C112 · 390 px : formule / abonnement accessible depuis le menu",
+      "pass": true,
+      "detail": "bannière « Formule STARTER 14j restants 1/3 devis créés • Pas »"
+    },
+    {
+      "label": "C112 · Éditeur de devis à 390 : client, chantier, lots, ouvrages, TVA, aperçu, enregistrement, annuler/rétablir",
+      "pass": false,
+      "detail": "absents : Annuler / Rétablir (historique) — boutons d’historique présents dans le DOM mais masqués ([{\"nom\":\"Annuler la modification (Cmd+Z\",\"visible\":false,\"affichage\":\"none\"},{\"nom\":\"Rétablir la modification (Cmd+\",\"visible\":false,\"affichage\":\"none\"}])"
+    },
+    {
+      "label": "C112 · 390 px : changement d’organisation (présent dans la barre du haut à 1440) reste accessible",
+      "pass": false,
+      "detail": "barre du haut 1440 : « IKADEVIS BTP — changer d'organisation » ; à 390 cherché dans barre du haut, menu du profil, menu mobile : absent (menu profil : Aller au contenu principal · Formule & Facturation Starter · Mon Profil & Compte · Paramètres Entreprise · Se déconnecter)"
+    },
+    {
+      "label": "C112 · 390 px : recherche globale (présente à 1440) ou équivalent",
+      "pass": false,
+      "detail": "à 1440 : « Recherche globale dans ikadevis » ; à 390 : absente (seules les recherches propres à chaque liste existent)"
+    },
+    {
+      "label": "C112 · Fiche devis à 390 : statut, client/chantier, envoyer, PDF, facturer, modifier, partager, signer, imprimer",
+      "pass": true,
+      "detail": "10/10 présentes"
+    },
+    {
+      "label": "C113 · Liste des devis 390×844 : cartes reprenant les 6 colonnes du tableau",
+      "pass": true,
+      "detail": "{\"mode\":\"cartes\",\"debordementDoc\":0,\"dansEcran\":true,\"contenu\":{\"client\":true,\"chantier\":true,\"numero\":true,\"date\":true,\"montant\":true,\"statut\":true,\"supprimer\":true}}"
+    },
+    {
+      "label": "C113 · Liste des devis 768×1024 : tableau 6 colonnes entièrement lisible",
+      "pass": false,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[\"ACTIONS\"],\"defilementH\":0,\"debordementDoc\":0,\"supprimer\":{\"gauche\":738,\"droite\":766,\"fraction\":0.5,\"x\":537.890625,\"y\":362},\"supprimerApresGlisser\":{\"gauche\":738,\"droi"
+    },
+    {
+      "label": "C113 · Liste des devis 1024×768 : tableau 6 colonnes entièrement lisible",
+      "pass": true,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[],\"defilementH\":0,\"debordementDoc\":0,\"supprimer\":{\"gauche\":951,\"droite\":979,\"fraction\":1,\"x\":751,\"y\":360},\"supprimerApresGlisser\":{\"gauche\":951,\"droite\":979,\"fraction\""
+    },
+    {
+      "label": "C113 · Liste des devis 1440×900 : tableau 6 colonnes entièrement lisible",
+      "pass": true,
+      "detail": "{\"mode\":\"tableau\",\"colonnes\":[\"CLIENT & ENTREPRISE\",\"CHANTIER / PROJET\",\"DEVIS & DATE\",\"MONTANT TTC\",\"STATUT\",\"ACTIONS\"],\"horsZone\":[],\"defilementH\":0,\"debordementDoc\":0,\"supprimer\":{\"gauche\":1367,\"droite\":1395,\"fraction\":1,\"x\":1167,\"y\":336},\"supprimerApresGlisser\":{\"gauche\":1367,\"droite\":1395,\"frac"
+    },
+    {
+      "label": "C113 · Fiche devis 390 (lecture mobile) : chaque ligne du tableau devient une carte étiquetée, sans défilement horizontal",
+      "pass": true,
+      "detail": "{\"mode\":\"lecture mobile\",\"largeur\":366,\"gauche\":12,\"droite\":378,\"vw\":390,\"debordementDoc\":0,\"cellules\":25,\"etiquetees\":12,\"lignes\":4,\"defileurH\":null,\"policeMinPx\":13.1,\"aide\":false,\"metaViewport\":\"width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content\"}"
+    },
+    {
+      "label": "C113 · Fiche devis 390 (mise en page imprimable) : document A4 dans une zone à défilement horizontal propre, consigne affichée, zoom non bloqué",
+      "pass": true,
+      "detail": "{\"mode\":\"papier\",\"largeur\":740,\"gauche\":12,\"droite\":752,\"vw\":390,\"debordementDoc\":0,\"cellules\":25,\"etiquetees\":0,\"lignes\":4,\"defileurH\":{\"clientWidth\":390,\"scrollWidth\":764,\"overflowX\":\"auto\"},\"policeMinPx\":10.9,\"aide\":true,\"metaViewport\":\"width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content\"} · glisser au doigt : scrollLeft {\"avant\":0,\"apres\":223}"
+    },
+    {
+      "label": "C113 · « Facturer DEV-… » à 390 : le tableau des lots (5 colonnes) reste dans une zone défilante horizontalement",
+      "pass": true,
+      "detail": "zone 310 px pour 564 px ; glisser au doigt → scrollLeft 254"
+    },
+    {
+      "label": "C113 · « Facturer DEV-… » à 390 : colonnes utiles visibles sans geste caché, et la colonne « Lot » reste lisible pendant le défilement",
+      "pass": false,
+      "detail": "au repos : colonnes masquées Montant total (67 %), Déjà facturé (0 %), % cumulé (0 %), Cette facture (0 %) ; champs « % cumulé » visibles 0/3 ; indice de défilement affiché : non ; après glisser : « Lot » visible à 0 %, colonne figée : non"
+    },
+    {
+      "label": "C114 · ERREUR DE SONDE",
+      "pass": false,
+      "detail": "Error: introuvable : /^Nom du client/\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:250:21)\n    at async c114 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:769:9)\n    at async run (file:///Users/mahamaneha"
+    },
+    {
+      "label": "C115 · ERREUR DE SONDE",
+      "pass": false,
+      "detail": "ProtocolError: Protocol error (Input.synthesizeScrollGesture): Position out of bounds\n    at <instance_members_initializer> (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/node_modules/puppeteer-core/lib/puppeteer/common/CallbackRegistry.js:108:14)\n    at new Callback (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20"
+    },
+    {
+      "label": "C116 · ERREUR DE SONDE",
+      "pass": false,
+      "detail": "Error: recouvert, impossible à toucher : 01 Lot 01 — Travaux 0 FCFA • 0% • 0 ouvrage\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c116 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:10"
+    },
+    {
+      "label": "C117 · Cibles < 24 px sans espacement suffisant (WCAG 2.5.8), 25 états à 390/320 px — hors « Options du lot » (UX-P3-02 connu)",
+      "pass": false,
+      "detail": "390 bibliothèque d’ouvrages : « Ajouter un lot au devis » 27×20 (voisin « Rechercher un ouvrage par nom, ») | 390 bibliothèque d’ouvrages : « Synthèse des lots » 34×21 (voisin « Rechercher un ouvrage par nom, ») | 390 inspecteur : « Mode simple » 69×23 (voisin « État de connexion : Démonstrat ») | 390 inspecteur : « Mode avancé » 69×23 (voisin « Menu du profil utilisateur »)"
+    },
+    {
+      "label": "C117 · Aucune action rendue quasi invisible sur écran tactile (dévoilée au survol seulement)",
+      "pass": true,
+      "detail": "aucune"
+    },
+    {
+      "label": "C117 · Actions fréquentes (21) : surface touchable ≥ 24 px dans les deux dimensions",
+      "pass": false,
+      "detail": "Ajouter mon premier ouvrage 342×48, touchable 12 px (20 %) | Ajouter un lot (barre des lots) 27×20, touchable 20 px (96 %) | Synthèse des lots 34×21, touchable 21 px (100 %)"
+    },
+    {
+      "label": "C117 · Actions fréquentes : taille confortable ≥ 44 px (recommandation, WCAG 2.5.5 AAA)",
+      "pass": false,
+      "detail": "Nouveau devis 166×40 | Supprimer le devis 32×32 | Ajouter un nouveau lot 28×28 | Confirmer mes quantités 209×40 | Quantité (ligne) 116×38 | Dupliquer (ligne) 32×38 | Supprimer (ligne) 30×38"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par bouton « Fermer le menu » : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 250 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par toucher le voile au-dessus du panneau : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 250 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par touche Échap : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 256 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok, fond défilé pendant l’ouverture : 0 px"
+    },
+    {
+      "label": "C118 · Menu mobile fermé par choix d’une destination (Clients & CRM) : se ferme, puis le contenu défile (molette + doigt) et la barre du bas répond",
+      "pass": true,
+      "detail": "ouvert true, focus dans le menu true, fermé true, molette 300 px, doigt 243 px, body overflow hidden (base hidden), voile restant aucun, barre du bas ok"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par toucher à l’extérieur, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 249 px, voile aucun"
+    },
+    {
+      "label": "C118 · Menu du profil fermé par touche Échap, puis défilement de la liste des ressources",
+      "pass": true,
+      "detail": "ouvert true, fermé true, molette 300 px, doigt 252 px, voile aucun"
+    },
+    {
+      "label": "C118 · Fenêtre « Nouveau client » fermée par Échap : aucun verrou de défilement ne subsiste (écran suivant défilable)",
+      "pass": true,
+      "detail": "fermée true, molette 300, doigt 255, body hidden"
+    },
+    {
+      "label": "C118 · Menu ⋮ « Plus d’actions » (fiche devis, 390) : se ferme au toucher extérieur",
+      "pass": false,
+      "detail": "ouvert {\"haut\":237,\"bas\":359,\"classe\":\"saved-quote-mobile-more-menu absolute le\"} ; après toucher sur le texte « Société Immobilière NBB » : TOUJOURS OUVERT ; après glisser au doigt (fiche 0 → 303 px) : toujours ouvert (-66–56 px)"
+    },
+    {
+      "label": "C118 · Menu ⋮ « Plus d’actions » : Échap ferme le menu sans fermer la fiche devis",
+      "pass": false,
+      "detail": "après Échap : menu fermé, fiche devis FERMÉE (retour à la liste)"
+    },
+    {
+      "label": "C118 · Sélecteur plein écran « Client du devis » : se ferme par son bouton retour, l’en-tête retrouve sa position, la navigation répond",
+      "pass": true,
+      "detail": "{\"picker\":{\"plein\":772},\"retour\":\"Retour au devis\",\"apresPicker\":{\"ouvert\":false,\"entete\":\"sticky\"},\"navApres\":true}"
+    },
+    {
+      "label": "C119 · ERREUR DE SONDE",
+      "pass": false,
+      "detail": "Error: recouvert, impossible à toucher : Effacer\n    at taper (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:251:44)\n    at async c119 (file:///Users/mahamanehaidara/Documents/ANTY%20GRAVITY%20APSS/Micro%20office%20ERP%20CALCUL/tests/ux/controles/G6-mobile-adaptation.mjs:1477:9)\n    at async run (file:///User"
+    },
+    {
+      "label": "C120 · Chromium 152 (émulation Android 412×915, toucher) : créer un client, chiffrer et enregistrer un devis, le facturer",
+      "pass": false,
+      "detail": "✓ Menu → Clients & CRM · ✗ Créer un nouveau client (introuvable : /^Nom du client/) · ✗ Devis → Nouveau devis (recouvert, impossible à toucher : Devis) · ✗ Ajouter un ouvrage (Agglos) (introuvable : /^01 Lot 01/) · ✗ Saisir 120 m² et confirmer les quantités (introuvable : /^Surface directe/) · ✗ Terminer puis Enregistrer (introuvable : /^Terminer$/) · ✗ Le devis apparaît dans « Mes devis » avec un montant (recouvert, impossible à toucher : Devis) · ✗ Ouvrir le devis et créer le brouillon de facture (introuvable : /^Afficher le devis DEV-2026-002/) · ✗ La facture brouillon est listée (recouvert, impossible à toucher : Factures)"
+    },
+    {
+      "label": "C120 · Mêmes tâches sur Safari iOS / WebKit, Firefox Android, appareil physique",
+      "pass": false,
+      "detail": "NON TESTÉ — aucun moteur WebKit ni Gecko pilotable par la sonde (Puppeteer : Chrome seul en cache), aucun appareil physique ; le simulateur iOS présent sur la machine ne permet pas d’imposer l’isolement réseau exigé (blocage hors 127.0.0.1, config factice)"
+    },
+    {
+      "label": "Isolement · aucune requête tentée hors 127.0.0.1",
+      "pass": true,
+      "detail": "aucune tentative"
+    },
+    {
+      "label": "Console · aucune erreur JavaScript ni dialogue natif pendant la sonde",
+      "pass": true,
+      "detail": "aucune"
+    }
+  ]
+}

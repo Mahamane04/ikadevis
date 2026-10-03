@@ -33,7 +33,7 @@
          d'erreur. C'est arrivé une première fois avec tailwind.css seul
          (2026-08-17), puis une seconde fois avec le JS (refactor barre de
          navigation, 2026-09-15) — d'où l'automatisation. -->
-    <link rel="stylesheet" href="tailwind.css?v=0113cfb1b1">
+    <link rel="stylesheet" href="tailwind.css?v=70ca3ca95f">
     <script src="vendor/react.production.min.js"></script>
     <script src="vendor/react-dom.production.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
@@ -51,11 +51,14 @@
             overflow: hidden;
         }
 
+        /* Audit UX 220 (C132, WCAG 1.4.11) — la bordure #e4e9ee faisait 1,2:1
+           sur fond blanc : la limite d'un champ vide était presque invisible.
+           #7f8c9a : 3,4:1 sur blanc, 3,1:1 sur le gris de fond. */
         .app-input, .app-select {
             width: 100%;
             padding: 0.75rem 1rem;
             background-color: #ffffff;
-            border: 1px solid #e4e9ee;
+            border: 1px solid #7f8c9a;
             border-radius: 0.75rem;
             font-size: 0.875rem;
             color: #1c2b33;
@@ -64,9 +67,9 @@
         }
         .app-input:focus, .app-select:focus {
             background-color: #ffffff;
-            border-color: #0082fb;
+            border-color: #0064e0;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 130, 251, 0.16);
+            box-shadow: 0 0 0 3px rgba(0, 100, 224, 0.4);
         }
 
         /* Les utilitaires de padding Tailwind perdaient contre la règle
@@ -189,10 +192,15 @@
         .btn-icon {
             width: 2.5rem; height: 2.5rem;
             display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 0.5rem; color: #8f9ca8;
+            border-radius: 0.5rem; color: #64748b; /* était #8f9ca8 : 2,8:1, sous le seuil de 3:1 d'une icône (1.4.11) */
             transition: all 0.15s ease;
         }
-        .btn-icon:hover { background-color: #fee2e2; color: #dc2626; }
+        /* Audit UX 220 (C050) — ce survol était ROUGE pour toutes les icônes-
+           boutons : « Paramètres du compte », « Fermer »… prenaient la couleur
+           de la suppression. Survol neutre par défaut, en :where() (spécificité
+           nulle) pour que les boutons destructeurs gardent leur rouge
+           explicite (hover:bg-red-50 hover:text-red-600). */
+        :where(.btn-icon):hover { background-color: #f1f5f8; color: #1c2b33; }
 
         .app-card {
             background-color: white;
@@ -1144,6 +1152,24 @@
                 background: white !important;
             }
             @page { size: A4; margin: 1cm; }
+            /* Audit UX 220 (C169) — un devis de 151 lignes n'imprimait que sa
+               première page : les ANCÊTRES de la zone (coque de 100dvh en
+               overflow:hidden, fenêtre de détail en position:fixed et
+               overflow:auto, animations à transform) la rognaient à la
+               hauteur de l'écran. À l'impression seulement, ces ancêtres —
+               et eux seuls — redeviennent des boîtes ordinaires. */
+            html, body, *:has([data-zone-impression]) {
+                height: auto !important; max-height: none !important; min-height: 0 !important;
+                overflow: visible !important; position: static !important;
+                transform: none !important; animation: none !important;
+            }
+            /* Le reste de l'application, seulement INVISIBLE, gardait sa
+               hauteur une fois ses ancêtres libérés : pages blanches en fin
+               d'impression. Ce qui n'est ni une zone, ni dans une zone, ni un
+               ancêtre de zone sort du flux. */
+            body *:not([data-zone-impression]):not([data-zone-impression] *):not(:has([data-zone-impression])) {
+                display: none !important;
+            }
         }
         /* Audit UI/UX septembre 2026 : priorité au travail en cours. */
         [data-testid="quote-items-desktop"] input[data-col="price"] { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -1219,18 +1245,18 @@
 <body>
     <div id="root"></div>
     <script src="config.js"></script>
-    <script src="js/payment-data-safety.js?v=e6ad4d65a5"></script>
-    <script src="js/catalog-persistence.js?v=e6ad4d65a5"></script>
-    <script src="js/tenant-persistence.js?v=000ddd755e"></script>
-    <script src="js/finance-core.js?v=e6ad4d65a5"></script>
-    <script src="js/quote-import.js?v=e6ad4d65a5"></script>
-    <script src="js/project-profitability.js?v=e6ad4d65a5"></script>
-    <script src="js/calc-engine.js?v=e6ad4d65a5"></script>
-    <script src="js/utils.js?v=e6ad4d65a5"></script>
-    <script src="js/quote-templates.js?v=e6ad4d65a5"></script>
-    <script src="js/saspay-service.js?v=e6ad4d65a5"></script>
-    <script src="js/subscription-service.js?v=e6ad4d65a5"></script>
-    <script src="app.compiled.js?v=e6ad4d65a5"></script>
+    <script src="js/payment-data-safety.js?v=92bf42cef4"></script>
+    <script src="js/catalog-persistence.js?v=92bf42cef4"></script>
+    <script src="js/tenant-persistence.js?v=92bf42cef4"></script>
+    <script src="js/finance-core.js?v=92bf42cef4"></script>
+    <script src="js/quote-import.js?v=92bf42cef4"></script>
+    <script src="js/project-profitability.js?v=92bf42cef4"></script>
+    <script src="js/calc-engine.js?v=92bf42cef4"></script>
+    <script src="js/utils.js?v=92bf42cef4"></script>
+    <script src="js/quote-templates.js?v=92bf42cef4"></script>
+    <script src="js/saspay-service.js?v=92bf42cef4"></script>
+    <script src="js/subscription-service.js?v=92bf42cef4"></script>
+    <script src="app.compiled.js?v=92bf42cef4"></script>
     <script>
         // Enregistrement du service worker. Volontairement après 'load' :
         // il ne doit pas concurrencer le premier rendu.
@@ -1247,12 +1273,18 @@
                     console.warn('[PWA] service worker non enregistré :', err && err.message);
                 });
             });
-            var refreshing = false;
+            // Audit UX 220 (C143) — à la PREMIÈRE visite, la prise de contrôle
+            // du service worker (clients.claim) déclenchait un rechargement :
+            // la page repartait à zéro pendant que l'utilisateur saisissait,
+            // alors qu'elle venait du réseau et n'avait rien de périmé.
+            // Pour une MISE À JOUR, aucun rechargement d'office non plus (un
+            // rechargement différé au masquage de l'onglet perdait encore une
+            // fenêtre en cours de saisie) : l'application l'annonce, et la
+            // nouvelle version s'applique au chargement suivant.
+            var avaitUnControleur = !!navigator.serviceWorker.controller;
             navigator.serviceWorker.addEventListener('controllerchange', function () {
-                if (!refreshing) {
-                    refreshing = true;
-                    window.location.reload();
-                }
+                if (!avaitUnControleur) { avaitUnControleur = true; return; }
+                try { window.dispatchEvent(new CustomEvent('ikadevis:nouvelle-version')); } catch (_) { /* navigateur ancien : rien */ }
             });
         }
     </script>

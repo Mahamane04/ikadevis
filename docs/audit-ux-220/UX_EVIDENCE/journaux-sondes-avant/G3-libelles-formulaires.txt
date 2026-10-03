@@ -1,0 +1,842 @@
+  (bloc A parcours : 49 s)
+  (bloc B création : 35 s)
+  (bloc C annuler : 14 s)
+  (bloc D statuts : 54 s)
+  (bloc E états : 95 s)
+  (bloc F formats : 26 s)
+  (bloc G conditionnels : 49 s)
+  (bloc H marché : 39 s)
+  (bloc J situation : 22 s)
+  (bloc I textes longs : 57 s)
+  ❌ [C041] Libellés d'action vagues sur 14 écrans × 2 largeurs (830 actions relevées) — #factures : « Nouveau » (nom accessible « Nouveau — créer une facture depuis un devis ») | #factures : « Options » (nom accessible « Filtres avancés ») | #settings/documents : « OK »
+  ❌ [C045] Un seul h1 par écran, aucun saut de niveau, taille décroissante avec le niveau (14 écrans × 2 largeurs) — 1440#chiffrage : h2 « Lot 01 — Travaux » (18px) plus grand que h1 « Chiffrage » (14px) | 1440#chiffrage : h3 « Ce lot ne contient aucun ouvrage pour le moment » (16px) plus grand que h1 « Chiffrage » (14px) | 1440#abonnement : h2 « À chaque entreprise, sa formule. » (25px) plus grand que h1 « Paramètres du compte » (24px) | 1440#settings/facturation : saut h1 « Paramètres du compte » → h3 « Coordonnées bancaires » | 1440#settings/finances : saut h1 « Paramètres du compte » → h4 « Finances » | 390#abonnement : h2 « À chaque entreprise, sa formule. » (23px) plus grand que h1 « Paramètres du compte » (16px) | 390#abonnement : h3 « Starter » (17px) plus grand que h1 « Paramètres du compte » (16px) | 390#abonnement : h3 « Standard » (17px) plus grand que h1 « Paramètres du compte » (16px) | 390#abonnement : h3 « Entreprise » (17px) plus grand que h1 « Paramètres du compte » (16px) | 390#settings/facturation : saut h1 « Paramètres du compte » → h3 « Coordonnées bancaires » | 390#settings/finances : saut h1 « Paramètres du compte » → h4 « Finances »
+  ✅ [C049] Bouton principal (.btn-primary) : même fond et même rayon sur tous les écrans à 1440 px — fond rgb(0, 100, 224) · rayon 12px → #dashboard « Nouveau devis », #dashboard « Créer mon premier devis », #chantiers « Nouveau devis », #clients « Nouveau devis »
+  ❌ [C049] Pastille de statut chantier « En cours » identique entre tableau de bord et liste des chantiers — 1440#dashboard : 10px none fond rgb(236, 253, 245) | 1440#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8) | 390#dashboard : 10px none fond rgb(236, 253, 245) | 390#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8)
+  ✅ [C050] Aucune action présente mais invisible au repos (opacité < 0,15 ou masquée) — 14 écrans × 2 largeurs — aucune
+  ✅ [C050] Texte des boutons principaux lisible sur leur fond (≥ 4,5:1) — min 5.39:1
+  ❌ [C041] 1440 px — « Créer facture · Facturer un acompte » (tableau de bord) ouvre une création de facture / d'acompte — libellé « Créer facture Facturer un acompte » → écran « Factures », adresse #dashboard, fenêtre : aucune, choix du type (acompte) : non, mot « acompte » visible : non
+  ❌ [C041] 390 px — « Créer facture · Facturer un acompte » (tableau de bord) ouvre une création de facture / d'acompte — libellé « Créer facture Facturer un acompte » → écran « Factures », adresse #dashboard, fenêtre : aucune, choix du type (acompte) : non, mot « acompte » visible : non
+  ❌ [C042] Créer une facture depuis un devis porte le même verbe sur ses trois points d'entrée (tableau de bord, Factures, fiche devis) — « Créer facture » / « Nouveau » / « Convertir en facture » — Factures › bouton « Nouveau » (nom accessible « Nouveau — créer une facture depuis un devis ») → fenêtre « Facturer DEV-2026-001 » ; Fiche devis › bouton « Convertir en facture » (nom accessible « Facturer le devis DEV-2026-001 ») → fenêtre « Facturer DEV-2026-001 », type « Standard (facture unique) », validation « Créer le brouillon »
+  ❌ [C042] Le nom accessible de « Convertir en facture » reprend le libellé visible (WCAG 2.5.3) — visible « Convertir en facture » / nom « Facturer le devis DEV-2026-001 »
+  ❌ [C042] Créer un client : même verbe sur le tableau de bord, la liste et la fenêtre — tableau de bord « Ajouter un client Répertoire & NIF » → fenêtre « Nouveau Client » (validation « Créer le client ») ; Clients « Nouveau Client » → fenêtre « Nouveau Client »
+  ❌ [C042] « Annuler » de la fiche matière : son nom accessible et son info-bulle décrivent l'action réelle (fermer sans enregistrer) — nom « Annuler la modification (Cmd+Z / Ctrl+Z) », info-bulle « Annuler — Cmd+Z (Ctrl+Z) » — même nom que le bouton « annuler la dernière modification » de l'éditeur de devis (« Annuler la modification (Cmd+Z / Ctrl+Z) », icône fa-solid fa-rotate-left)
+  ❌ [C042] Le raccourci annoncé par ce bouton (Cmd/Ctrl+Z) produit la même action que le bouton — après Cmd+Z puis Ctrl+Z (focus hors champ) : fiche toujours ouverte, nom « Matière test G3 » ; après clic sur le bouton : fiche fermée, matières 32 → 32
+  ❌ [C042] « Annuler » de la fenêtre « Nouvel Ouvrage » : nom accessible conforme à l'action — nom « Annuler la modification (Cmd+Z / Ctrl+Z) », info-bulle « Annuler — Cmd+Z (Ctrl+Z) »
+  ❌ [C046] « Partiellement réglée » (facture) et « Partiellement payée » (dépense) ont la même couleur — « Partiellement réglée » fond rgba(255, 251, 235, 0.8) texte rgb(146, 64, 14) (ambre/orange) / « Partiellement payée » fond rgb(219, 234, 254) texte rgb(30, 64, 175) (bleu)
+  ❌ [C046] Rien n'est encore réglé : « Émise » (facture) et « À payer » (dépense) ont la même couleur — « Émise » fond rgb(241, 245, 249) texte rgb(51, 65, 85) (neutre) / « À payer » fond rgb(254, 243, 199) texte rgb(146, 64, 14) (ambre/orange)
+  ✅ [C046] Soldé / accepté : même couleur (vert) entre devis et dépenses — « Accepté » fond rgba(236, 253, 245, 0.8) texte rgb(6, 95, 70) (vert) / « Payée » fond rgb(209, 250, 229) texte rgb(6, 95, 70) (vert)
+  ❌ [C046] L'ambre ne porte qu'un sens (pas à la fois « rien payé » et « partiellement payé ») — ambre : facture:Partiellement réglée, dépense:À payer
+  ✅ [C046] Le bleu ne porte qu'un sens (pas à la fois « en devis » et « partiellement payée ») — bleu : dépense:Partiellement payée
+  ❌ [C046] Le devis facturé garde son statut « Facturé » dans la liste après un règlement partiel de sa facture — liste des devis, ligne DEV-2026-001 : facture émise → ["Facturé"] ; après règlement partiel de 100 000 → ["Accepté"]
+  ❌ [C042] Enregistrer un paiement : même verbe côté factures et côté dépenses — ouvrir : « Enregistrer un règlement » / « Régler » ; valider : « Valider le règlement » / « Enregistrer le règlement » ; statuts : « Partiellement réglée » fond rgba(255, 251, 235, 0.8) texte rgb(146, 64, 14) (ambre/orange) vs « Partiellement payée » fond rgb(219, 234, 254) texte rgb(30, 64, 175) (bleu) ; filtres factures ["Toutes 1","Non réglées 0","Partielles 1","Soldées 0","Avoirs 0","Brouillons 0"] / dépenses ["Toutes","À payer","Payées","Avances à rembourser"]
+  ✅ [C049] Indicateur de focus clavier identique pour une même famille de composant, dans le contenu de 7 écrans (30 tabulations par écran) — btn-primary : contour auto 1px | app-input : anneau rgba(0, 130, 251, 0.16) · bordure rgb(0, 130, 251) | btn-secondary : contour auto 1px | btn-icon : contour auto 1px
+  ❌ [C050] Au survol, un bouton non destructif (« Paramètres du compte », « Fermer ») ne prend pas la couleur de la suppression — Paramètres : fond rgb(254, 226, 226) icône rgb(220, 38, 38) (rouge/rose) ; Fermer : fond rgb(254, 226, 226) icône rgb(220, 38, 38) (rouge/rose) ; Supprimer le devis : fond rgb(254, 242, 242) icône rgb(220, 38, 38) (rouge/rose)
+  ❌ [C049] Bouton de l'action principale de l'écran : même apparence au repos et au survol sur 5 écrans — #settings/entreprise « Enregistrer les paramètres de l'entreprise » (.btn-primary) repos rgb(0, 100, 224) → survol rgb(0, 79, 184) | #depenses « /^Nouvelle dépense$/ » (.btn-primary) repos rgb(0, 100, 224) → survol rgb(0, 79, 184) | #materiaux « Ajouter une nouvelle matière » (.btn-primary) repos rgb(0, 100, 224) → survol rgb(0, 79, 184) | #clients « Créer un nouveau client » (autre classe) repos rgb(255, 255, 255) → survol rgb(241, 245, 248) | #chantiers « Créer un nouveau chantier » (autre classe) repos rgb(255, 255, 255) → survol rgb(241, 245, 248)
+  ❌ [C049] Filtres de liste : l'état « choisi » est le même composant et le même état exposé sur Factures et Dépenses — Factures : « Toutes 0 » choisi visuellement (fond rgb(28, 43, 51)), état exposé aucun (rôle bouton) ; Dépenses : « Toutes » aria-selected=true, « À payer » aria-selected=false, « Payées » aria-selected=false, « Avances à rembourser » aria-selected=false
+  ❌ [C049] Formulaire dépense : les deux groupes de choix exclusifs (« Nature », « Qui a payé ») montrent la sélection de la même façon — Nature de la dépense › « Déjà payée Ticket, reçu, achat » fond rgb(248, 250, 252) texte rgb(28, 43, 51) | Qui a payé › « Payée par l’entreprise » fond rgb(28, 43, 51) texte rgb(255, 255, 255)
+  ✅ [C053] Nouveau client : l'exemple d'e-mail est visible avant l'erreur, et l'erreur bloque l'envoi — exemple avant saisie « Ex: contact@entreprise.com » ; après « contact@ » : refusé — « Veuillez saisir la partie manquante après le symbole "@". L'adresse "contact@" est incomplète. » ; fenêtre toujours ouverte
+  ❌ [C053] Nouvelle dépense : les champs cités par l'erreur avaient un exemple ou une unité avant l'envoi — erreur affichée « Décrivez la dépense (ex. « Ciment 50 sacs »). Le montant doit être supérieur à zéro. Indiquez le compte d’où l’argent est sorti. » ; Objet : exemple « Ex. Ciment 50 sacs, location nacelle » ; Montant : libellé « MONTANT HT * », exemple «  », aide «  »
+  ❌ [C053] Champs à format (e-mail, téléphone, NIF/RCCM, RIB/IBAN, montants, taux, dates) : exemple, unité ou aide visible avant toute erreur — 41 champs dans 10 formulaires — Nouvelle dépense › « MONTANT HT * » (number) | Nouveau compte (Compte bancaire) › « IBAN (SI APPLICABLE) » (text) | Nouveau compte (Compte bancaire) › « BIC / SWIFT » (text) | Nouveau compte (Compte bancaire) › « IBAN (SI APPLICABLE) » (text) | Nouveau compte (Compte bancaire) › « BIC / SWIFT » (text)
+  ❌ [C053] Les exemples de numéro de téléphone suivent un même indicatif (marché de l'entreprise) — indicatifs montrés : +221, +223, +225 — client téléphone « Ex: +221 77 654 32 10 » ; Paramètres › Entreprise › TÉLÉPHONE / WHATSAPP « +223 XX XX XX XX » ; Paramètres › Documents & PDF › Nouveau taux de TVA « Ex : 20 » ; Paramètres › Documents & PDF › MENTION D'EXONÉRATION (SI TVA À 0 %) « Ex : Exonéré de TVA — marché financé sur ressources extérieures » ; Paramètres › Facturation & envoi › RIB / COMPTE BANCAIRE « Ex : 01234 56789 00012345678 01 » ; Paramètres › Facturation & envoi › ORANGE MONEY « +223 XX XX XX XX » ; Paramètres › Facturation & envoi › WAVE « +223 XX XX XX XX » ; Paramètres › Facturation & envoi › MOOV MONEY « +223 XX XX XX XX » ; Nouveau compte › NUMÉRO DU PORTEFEUILLE « +225 07 00 00 00 00 »
+  ❌ [C059] Nouvelle dépense : 13 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 13 champs ; fieldset : 0
+  ❌ [C059] Paramètres › Entreprise : 18 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 18 champs ; fieldset : 0
+  ✅ [C059] Paramètres › Facturation & envoi : 14 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres ["h3:Coordonnées bancaires","h3:Paiement mobile","h3:Encaissements SasPay temporairement indisponibles","h3:Règles BTP par défaut","h3:Modèles de messages"] ; plus longue suite sans titre : 4 champs ; fieldset : 0
+  ❌ [C059] Nouveau compte : 11 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 11 champs ; fieldset : 0
+  ❌ [C059] Nouvelle matière : 10 champs regroupés sous des titres (au plus 7 champs d'affilée sans titre) — titres [] ; plus longue suite sans titre : 10 champs ; fieldset : 0
+  ✅ [C057] Nouveau client : replier puis déplier « Informations complémentaires » conserve téléphone et e-mail — replié : oui ; après dépliage : « +223 76 12 34 56 », « g3@exemple.ml »
+  ✅ [C057] Nouveau chantier : créer un client depuis la fenêtre conserve le nom et l'adresse déjà saisis, et sélectionne le nouveau client — bouton « Créer un nouveau client » → fenêtre intermédiaire « Nouveau Client » ; au retour : nom « Chantier G3 imbriqué », adresse « Hamdallaye ACI 2000 », client « Client G3 imbriqué »
+  ✅ [C057] Dépense : basculer « À payer » ↔ « Déjà payée » conserve objet, fournisseur, montant et l'échéance modifiée — échéance proposée 2026-11-02 → saisie 2026-12-15 ; après aller-retour : {"objet":"Ciment G3 conditionnel","fournisseur":"Quincaillerie Bamako","montant":"150000"}, échéance 2026-12-15
+  ✅ [C057] Dépense : « Avancée par quelqu'un » → « Payée par l'entreprise » → retour : le nom saisi est conservé — « Moussa Traoré »
+  ✅ [C057] Dépense : décocher puis recocher « Répartir entre plusieurs chantiers » conserve les montants des parts — parts après aller-retour : ["100000","77000"] ; champ « Chantier » réaffiché pendant le décochage : oui
+  ❌ [C057] Dépense : le lien « Ajouter un compte » du formulaire ne fait pas perdre la dépense en cours (ou prévient avant) — clic → écran « Paramètres du compte » (#settings/finances), avertissement : aucun ; retour sur Dépenses : formulaire fermé, objet « — » (saisis : objet, fournisseur, montant 150 000, échéance)
+  ✅ [C057] Compte : passer de « Compte bancaire » à « Mobile money » et retour conserve IBAN et numéro de portefeuille — IBAN « ML016 01201 020400012345 67 », portefeuille « +223 76 12 34 56 »
+  ✅ [C057] Facturer : passer le type de « Standard » à « Acompte » conserve le pourcentage saisi et le montant — % affiché après changement « 040 » (valeur 40) ; total 8 982 206 FCFA → 8 982 206 FCFA
+  ❌ [C058] Facturer : effacer le % au clavier puis taper « 40 » affiche « 40 » — valeur initiale « 100 » ; après 4 × Retour arrière : « 0 » ; après frappe de 4 puis 0 : « 040 »
+  ✅ [C057] Devis : Rectangle (4 × 3) → Surface (50 m²) → Rectangle → Surface : chaque saisie est retrouvée — largeur/hauteur au retour ["4","3"], surface au retour « 50 »
+  ✅ [C058] Téléphones maliens (+223 …, 8 chiffres, 00223…), e-mails .ml / .com.ml et NIF/RCCM maliens acceptés et enregistrés tels quels — refus : aucun ; stockés : [{"nom":"Client G3 tel 00","tel":"00223 76123456","mel":"a.traore@orange.ml","nif":"NIF 084123456A / RCCM MA.BKO.2024.B.1234"},{"nom":"Client G3 tel local","tel":"76 12 34 56","mel":"devis@sahel-construction.ml","nif":"NIF 084123456A / RCCM MA.BKO.2024.B.1234"},{"nom":"Client G3 tel international","tel":"+223 76 12 34 56","mel":"contact@btp-mali.com.ml","nif":"NIF 084123456A / RCCM MA.BKO.2024.B.1234"}]
+  ✅ [C058] Montant tapé « 1 500 000 » (espaces de milliers) : compris comme 1 500 000 — valeur du champ « 1500000 », TTC affiché « 1 770 000 FCFA »
+  ✅ [C058] Virgule décimale « 12,5 » dans la surface (navigateur fr-FR) : comprise comme 12,5 — valeur du champ « 12.5 »
+  ✅ [C058] Virgule décimale « 2,5 » dans « Contenu d'un conditionnement » : comprise comme 2,5 — valeur du champ « 2.5 »
+  ✅ [C058] Paramètres › Entreprise : téléphone fixe malien, NIF et RCCM au format malien acceptés et conservés — champs invalides : aucun ; alerte : aucune ; relus après navigation : ["+223 20 22 33 44","084123456A","MA.BKO.2024.B.1234"]
+  ✅ [C058] Règlement de facture tapé « 100 000 » : compris comme 100 000 — valeur du champ « 100000 »
+  ❌ [C058] Situation n° 2 : effacer le % cumulé du lot 1 (30 % déjà facturés) et taper « 50 » donne 50 % — 1re situation : % saisis ["030","030","030"], Total HT de cette facture 5 234 557 FCFA ; 2e (« Nouvelle situation ») lot « Lot 01 — Terrassement & Fondations » min 30 : affiché « 100 » après la frappe ; ligne « Cette facture » 0 FCFA → 9 877 369 FCFA ; Total HT de cette facture 9 877 369 FCFA
+  ❌ [C048] Le produit propose une autre langue que le français (préalable au contrôle) — html lang="fr", sélecteur de langue visible : non, « langue » dans Paramètres › Entreprise : non — mesure indicative +40 % : 320#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 2 ; 320#factures : débordement page 0→0px, libellés rognés 1, hors écran 7 ; 320#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3 ; 360#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 1 ; 360#factures : débordement page 0→0px, libellés rognés 1, hors écran 6 ; 360#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3 ; 390#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0 ; 390#factures : débordement page 0→0px, libellés rognés 1, hors écran 5 ; 390#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3 ; 768#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 1 ; 768#factures : débordement page 0→0px, libellés rognés 1, hors écran 2 ; 768#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3 ; 1024#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0 ; 1024#factures : débordement page 0→0px, libellés rognés 1, hors écran 1 ; 1024#depenses : débordement page 0→0px, libellés rognés 0, hors écran 1 ; 1440#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0 ; 1440#factures : débordement page 0→0px, libellés rognés 1, hors écran 0 ; 1440#depenses : débordement page 0→0px, libellés rognés 0, hors écran 0
+  ✅ [environnement] aucune requête hors 127.0.0.1 n'a abouti (toutes bloquées) — 0 tentative(s) bloquée(s) : aucune
+  ✅ [environnement] aucune erreur JavaScript pendant les parcours — aucune
+
+MESURES {
+ "C041.vagues": [
+  "#factures : « Nouveau » (nom accessible « Nouveau — créer une facture depuis un devis »)",
+  "#factures : « Options » (nom accessible « Filtres avancés »)",
+  "#settings/documents : « OK »"
+ ],
+ "C045.titres": {
+  "1440#dashboard": [
+   "h1(24px) Espace IKADEVIS BTP",
+   "h2(18px) Votre prochain chantier commence par un devis.",
+   "h3(14px) Pipeline Commercial des Devis",
+   "h3(14px) Devis récents",
+   "h3(14px) Chantiers en cours"
+  ],
+  "1440#chantiers": [
+   "h1(18px) Chantiers"
+  ],
+  "1440#clients": [
+   "h1(18px) Clients"
+  ],
+  "1440#chiffrage": [
+   "h1(14px) Chiffrage",
+   "h2(18px) Lot 01 — Travaux",
+   "h3(16px) Ce lot ne contient aucun ouvrage pour le moment"
+  ],
+  "1440#devis": [
+   "h1(18px) Mes devis"
+  ],
+  "1440#factures": [
+   "h1(18px) Factures"
+  ],
+  "1440#depenses": [
+   "h1(20px) Dépenses & fournisseurs"
+  ],
+  "1440#ouvrages": [
+   "h1(18px) Catalogue des Ouvrages"
+  ],
+  "1440#materiaux": [
+   "h1(18px) Ressources & Prix"
+  ],
+  "1440#abonnement": [
+   "h1(24px) Paramètres du compte",
+   "h2(25px) À chaque entreprise, sa formule.",
+   "h3(17px) Starter",
+   "h3(17px) Standard",
+   "h3(17px) Entreprise"
+  ],
+  "1440#settings/entreprise": [
+   "h1(24px) Paramètres du compte"
+  ],
+  "1440#settings/documents": [
+   "h1(24px) Paramètres du compte"
+  ],
+  "1440#settings/facturation": [
+   "h1(24px) Paramètres du compte",
+   "h3(14px) Coordonnées bancaires",
+   "h3(14px) Paiement mobile",
+   "h3(16px) Encaissements SasPay temporairement indisponibles",
+   "h3(14px) Règles BTP par défaut",
+   "h3(14px) Modèles de messages"
+  ],
+  "1440#settings/finances": [
+   "h1(24px) Paramètres du compte",
+   "h4(14px) Finances"
+  ],
+  "390#dashboard": [
+   "h1(20px) Espace IKADEVIS BTP",
+   "h2(18px) Votre prochain chantier commence par un devis.",
+   "h3(14px) Pipeline Commercial des Devis",
+   "h3(14px) Devis récents",
+   "h3(14px) Chantiers en cours"
+  ],
+  "390#chantiers": [
+   "h1(18px) Chantiers"
+  ],
+  "390#clients": [
+   "h1(18px) Clients"
+  ],
+  "390#chiffrage": [
+   "h1(12px) Chiffrage"
+  ],
+  "390#devis": [
+   "h1(18px) Mes devis"
+  ],
+  "390#factures": [
+   "h1(18px) Factures"
+  ],
+  "390#depenses": [
+   "h1(20px) Dépenses & fournisseurs"
+  ],
+  "390#ouvrages": [
+   "h1(18px) Catalogue des Ouvrages"
+  ],
+  "390#materiaux": [
+   "h1(18px) Ressources & Prix"
+  ],
+  "390#abonnement": [
+   "h1(16px) Paramètres du compte",
+   "h2(23px) À chaque entreprise, sa formule.",
+   "h3(17px) Starter",
+   "h3(17px) Standard",
+   "h3(17px) Entreprise"
+  ],
+  "390#settings/entreprise": [
+   "h1(16px) Paramètres du compte"
+  ],
+  "390#settings/documents": [
+   "h1(16px) Paramètres du compte"
+  ],
+  "390#settings/facturation": [
+   "h1(16px) Paramètres du compte",
+   "h3(14px) Coordonnées bancaires",
+   "h3(14px) Paiement mobile",
+   "h3(16px) Encaissements SasPay temporairement indisponibles",
+   "h3(14px) Règles BTP par défaut",
+   "h3(14px) Modèles de messages"
+  ],
+  "390#settings/finances": [
+   "h1(16px) Paramètres du compte",
+   "h4(14px) Finances"
+  ]
+ },
+ "C049.primaires": {
+  "fond rgb(0, 100, 224) · rayon 12px": [
+   "#dashboard « Nouveau devis »",
+   "#dashboard « Créer mon premier devis »",
+   "#chantiers « Nouveau devis »",
+   "#clients « Nouveau devis »",
+   "#chiffrage « Nouveau devis »",
+   "#chiffrage « Enregistrer »",
+   "#chiffrage « Ajouter mon premier ouvrage »",
+   "#devis « Nouveau devis »",
+   "#devis « Nouveau devis »",
+   "#factures « Nouveau devis »",
+   "#depenses « Nouveau devis »",
+   "#depenses « Nouvelle dépense »",
+   "#ouvrages « Nouveau devis »",
+   "#materiaux « Nouveau devis »",
+   "#materiaux « Nouvelle Matière »",
+   "#abonnement « Nouveau devis »",
+   "#settings/entreprise « Nouveau devis »",
+   "#settings/entreprise « Enregistrer les modifications »",
+   "#settings/documents « Nouveau devis »",
+   "#settings/documents « Enregistrer les modifications »",
+   "#settings/facturation « Nouveau devis »",
+   "#settings/facturation « Enregistrer les modifications »",
+   "#settings/finances « Nouveau devis »",
+   "#settings/finances « Ajouter un compte »"
+  ]
+ },
+ "C049.pastilleEnCours": [
+  "1440#dashboard : 10px none fond rgb(236, 253, 245)",
+  "1440#dashboard : 10px none fond rgb(236, 253, 245)",
+  "1440#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8)",
+  "1440#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8)",
+  "390#dashboard : 10px none fond rgb(236, 253, 245)",
+  "390#dashboard : 10px none fond rgb(236, 253, 245)",
+  "390#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8)",
+  "390#chantiers : 9px uppercase fond rgba(236, 253, 245, 0.8)"
+ ],
+ "C050.masquees": [],
+ "C042.cheminsFacture": [
+  "Factures › bouton « Nouveau » (nom accessible « Nouveau — créer une facture depuis un devis ») → fenêtre « Facturer DEV-2026-001 »",
+  "Fiche devis › bouton « Convertir en facture » (nom accessible « Facturer le devis DEV-2026-001 ») → fenêtre « Facturer DEV-2026-001 », type « Standard (facture unique) », validation « Créer le brouillon »"
+ ],
+ "C042.annuler": {
+  "undo": {
+   "aria": "Annuler la modification (Cmd+Z / Ctrl+Z)",
+   "title": "Annuler — Cmd+Z (Ctrl+Z)",
+   "texte": "",
+   "icone": "fa-solid fa-rotate-left"
+  },
+  "btnAnnuler": {
+   "x": 1191.8046875,
+   "y": 837.65625,
+   "texte": "Annuler",
+   "aria": "Annuler la modification (Cmd+Z / Ctrl+Z)",
+   "title": "Annuler — Cmd+Z (Ctrl+Z)"
+  },
+  "apresRaccourci": {
+   "ouverte": true,
+   "nom": "Matière test G3"
+  },
+  "apresBouton": {
+   "ouverte": false,
+   "nb": "32"
+  },
+  "annulerOuvrage": {
+   "x": 720.8046875,
+   "y": 622.109375,
+   "texte": "Annuler",
+   "aria": "Annuler la modification (Cmd+Z / Ctrl+Z)",
+   "title": "Annuler — Cmd+Z (Ctrl+Z)"
+  },
+  "nbAvant": "32"
+ },
+ "C046.chantiersCrees": [
+  "G3 en devis : refusé (fenêtre « Votre abonnement » ouverte)",
+  "G3 en pause : refusé (fenêtre « Votre abonnement » ouverte)",
+  "G3 terminé : créé",
+  "G3 annulé : créé"
+ ],
+ "C053.reglementFacture": [
+  {
+   "id": "reglement_montant_commun",
+   "libelle": "MONTANT À ENCAISSER (FCFA) *",
+   "type": "number",
+   "exemple": "0",
+   "aide": "FCFA",
+   "valeur": "20589256"
+  },
+  {
+   "id": "reglement_date",
+   "libelle": "DATE DE RÈGLEMENT *",
+   "type": "date",
+   "exemple": "",
+   "aide": "",
+   "valeur": "2026-10-03"
+  },
+  {
+   "id": "reglement_ref",
+   "libelle": "RÉF. TRANSACTION / CHÈQUE",
+   "type": "text",
+   "exemple": "Ex: VIR-84920, WAVE-993...",
+   "aide": "",
+   "valeur": ""
+  },
+  {
+   "id": "reglement_note",
+   "libelle": "OBSERVATIONS / NOTE INTERNE (OPTIONNEL)",
+   "type": "text",
+   "exemple": "Ex: Acompte validé à la livraison",
+   "aide": "",
+   "valeur": ""
+  }
+ ],
+ "C058.reglementEspaces": "100000",
+ "C046.pastilles": {
+  "chantier:PRJ-2026-004": {
+   "texte": "PRJ-2026-004",
+   "fond": "rgb(240, 247, 255)",
+   "couleur": "rgb(0, 79, 184)",
+   "taille": "10px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:ANNULÉ": {
+   "texte": "ANNULÉ",
+   "fond": "rgb(255, 241, 242)",
+   "couleur": "rgb(159, 18, 57)",
+   "taille": "9px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:PRJ-2026-003": {
+   "texte": "PRJ-2026-003",
+   "fond": "rgb(240, 247, 255)",
+   "couleur": "rgb(0, 79, 184)",
+   "taille": "10px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:TERMINÉ": {
+   "texte": "TERMINÉ",
+   "fond": "rgb(241, 245, 249)",
+   "couleur": "rgb(51, 65, 85)",
+   "taille": "9px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:PRJ-2026-001": {
+   "texte": "PRJ-2026-001",
+   "fond": "rgb(240, 247, 255)",
+   "couleur": "rgb(0, 79, 184)",
+   "taille": "10px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:EN COURS": {
+   "texte": "EN COURS",
+   "fond": "rgba(236, 253, 245, 0.8)",
+   "couleur": "rgb(6, 95, 70)",
+   "taille": "9px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "chantier:PRJ-2026-002": {
+   "texte": "PRJ-2026-002",
+   "fond": "rgb(240, 247, 255)",
+   "couleur": "rgb(0, 79, 184)",
+   "taille": "10px",
+   "casse": "uppercase",
+   "module": "chantier"
+  },
+  "tableau-de-bord:100% acceptés": {
+   "texte": "100% acceptés",
+   "fond": "rgb(236, 253, 245)",
+   "couleur": "rgb(4, 120, 87)",
+   "taille": "12px",
+   "casse": "none",
+   "module": "tableau-de-bord"
+  },
+  "tableau-de-bord:Accepté": {
+   "texte": "Accepté",
+   "fond": "rgba(236, 253, 245, 0.8)",
+   "couleur": "rgb(6, 95, 70)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "tableau-de-bord"
+  },
+  "tableau-de-bord:En cours": {
+   "texte": "En cours",
+   "fond": "rgb(236, 253, 245)",
+   "couleur": "rgb(4, 120, 87)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "tableau-de-bord"
+  },
+  "facture:Brouillon": {
+   "texte": "Brouillon",
+   "fond": "rgb(241, 245, 248)",
+   "couleur": "rgb(46, 61, 72)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "facture"
+  },
+  "facture:Émise": {
+   "texte": "Émise",
+   "fond": "rgb(241, 245, 249)",
+   "couleur": "rgb(51, 65, 85)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "facture"
+  },
+  "facture:Partiellement réglée": {
+   "texte": "Partiellement réglée",
+   "fond": "rgba(255, 251, 235, 0.8)",
+   "couleur": "rgb(146, 64, 14)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "facture"
+  },
+  "devis:Accepté": {
+   "texte": "Accepté",
+   "fond": "rgba(236, 253, 245, 0.8)",
+   "couleur": "rgb(6, 95, 70)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "devis"
+  },
+  "dépense:À payer": {
+   "texte": "À payer",
+   "fond": "rgb(254, 243, 199)",
+   "couleur": "rgb(146, 64, 14)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "dépense"
+  },
+  "dépense:Partiellement payée": {
+   "texte": "Partiellement payée",
+   "fond": "rgb(219, 234, 254)",
+   "couleur": "rgb(30, 64, 175)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "dépense"
+  },
+  "dépense:Payée": {
+   "texte": "Payée",
+   "fond": "rgb(209, 250, 229)",
+   "couleur": "rgb(6, 95, 70)",
+   "taille": "10px",
+   "casse": "none",
+   "module": "dépense"
+  }
+ },
+ "C042.vocabulairePaiement": {
+  "devisApresEmission": [
+   "Facturé"
+  ],
+  "validationReglementFacture": "Valider le règlement",
+  "apresReglement": "Quittance de règlement",
+  "filtresFactures": [
+   "Toutes 1",
+   "Non réglées 0",
+   "Partielles 1",
+   "Soldées 0",
+   "Avoirs 0",
+   "Brouillons 0"
+  ],
+  "ouvrirReglementFacture": "Enregistrer un règlement",
+  "devisApresReglementPartiel": [
+   "Accepté"
+  ],
+  "ouvrirReglementDepense": "Régler",
+  "validationReglementDepense": "Enregistrer le règlement",
+  "filtresDepenses": [
+   "Toutes",
+   "À payer",
+   "Payées",
+   "Avances à rembourser"
+  ]
+ },
+ "C046.familles": {
+  "rouge/rose": [
+   "chantier:ANNULÉ"
+  ],
+  "neutre": [
+   "chantier:TERMINÉ",
+   "facture:Brouillon",
+   "facture:Émise"
+  ],
+  "vert": [
+   "chantier:EN COURS",
+   "tableau-de-bord:Accepté",
+   "tableau-de-bord:En cours",
+   "devis:Accepté",
+   "dépense:Payée"
+  ],
+  "ambre/orange": [
+   "facture:Partiellement réglée",
+   "dépense:À payer"
+  ],
+  "bleu": [
+   "dépense:Partiellement payée"
+  ]
+ },
+ "C049.focus": {
+  "btn-primary": {
+   "contour auto 1px": [
+    "#devis « Nouveau devis »",
+    "#depenses « Nouvelle dépense »",
+    "#materiaux « Nouvelle Matière »"
+   ]
+  },
+  "app-input": {
+   "anneau rgba(0, 130, 251, 0.16) · bordure rgb(0, 130, 251)": [
+    "#devis « Rechercher dans les devis »",
+    "#factures « Rechercher dans les factures »",
+    "#depenses « Rechercher une dépense »"
+   ]
+  },
+  "btn-secondary": {
+   "contour auto 1px": [
+    "#factures « Export CSV »",
+    "#factures « Nouveau »",
+    "#factures « Options »"
+   ]
+  },
+  "btn-icon": {
+   "contour auto 1px": [
+    "#settings/entreprise « Retirer l'étape 1 »",
+    "#settings/entreprise « Retirer l'étape 2 »",
+    "#settings/entreprise « Retirer l'étape 3 »"
+   ]
+  }
+ },
+ "C049.focusSansIndicateur": [],
+ "C050.survol": {
+  "reglages": {
+   "aria": "Paramètres du compte",
+   "fond": "rgb(254, 226, 226)",
+   "couleur": "rgb(220, 38, 38)"
+  },
+  "fermer": {
+   "aria": "Fermer la boîte de dialogue",
+   "fond": "rgb(254, 226, 226)",
+   "couleur": "rgb(220, 38, 38)"
+  },
+  "supprimer": {
+   "aria": "Supprimer le devis DEV-2026-001",
+   "fond": "rgb(254, 242, 242)",
+   "couleur": "rgb(220, 38, 38)"
+  }
+ },
+ "C049.survolPrimaire": [
+  {
+   "route": "#settings/entreprise",
+   "bouton": "Enregistrer les paramètres de l'entreprise",
+   "classePrincipale": true,
+   "repos": "rgb(0, 100, 224)",
+   "survol": "rgb(0, 79, 184)"
+  },
+  {
+   "route": "#depenses",
+   "bouton": "/^Nouvelle dépense$/",
+   "classePrincipale": true,
+   "repos": "rgb(0, 100, 224)",
+   "survol": "rgb(0, 79, 184)"
+  },
+  {
+   "route": "#materiaux",
+   "bouton": "Ajouter une nouvelle matière",
+   "classePrincipale": true,
+   "repos": "rgb(0, 100, 224)",
+   "survol": "rgb(0, 79, 184)"
+  },
+  {
+   "route": "#clients",
+   "bouton": "Créer un nouveau client",
+   "classePrincipale": false,
+   "repos": "rgb(255, 255, 255)",
+   "survol": "rgb(241, 245, 248)"
+  },
+  {
+   "route": "#chantiers",
+   "bouton": "Créer un nouveau chantier",
+   "classePrincipale": false,
+   "repos": "rgb(255, 255, 255)",
+   "survol": "rgb(241, 245, 248)"
+  }
+ ],
+ "C049.filtres": {
+  "pastillesFiltre": [
+   {
+    "texte": "Toutes 0",
+    "fond": "rgb(28, 43, 51)",
+    "couleur": "rgb(255, 255, 255)",
+    "etatExpose": null,
+    "role": null
+   },
+   {
+    "texte": "Non réglées 0",
+    "fond": "rgba(241, 245, 248, 0.9)",
+    "couleur": "rgb(68, 81, 94)",
+    "etatExpose": null,
+    "role": null
+   },
+   {
+    "texte": "Partielles 0",
+    "fond": "rgba(241, 245, 248, 0.9)",
+    "couleur": "rgb(68, 81, 94)",
+    "etatExpose": null,
+    "role": null
+   },
+   {
+    "texte": "Soldées 0",
+    "fond": "rgba(241, 245, 248, 0.9)",
+    "couleur": "rgb(68, 81, 94)",
+    "etatExpose": null,
+    "role": null
+   },
+   {
+    "texte": "Avoirs 0",
+    "fond": "rgba(241, 245, 248, 0.9)",
+    "couleur": "rgb(68, 81, 94)",
+    "etatExpose": null,
+    "role": null
+   },
+   {
+    "texte": "Brouillons 0",
+    "fond": "rgba(241, 245, 248, 0.9)",
+    "couleur": "rgb(68, 81, 94)",
+    "etatExpose": null,
+    "role": null
+   }
+  ],
+  "ongletsDep": [
+   {
+    "texte": "Toutes",
+    "fond": "rgb(28, 43, 51)",
+    "etatExpose": "true"
+   },
+   {
+    "texte": "À payer",
+    "fond": "rgb(255, 255, 255)",
+    "etatExpose": "false"
+   },
+   {
+    "texte": "Payées",
+    "fond": "rgb(255, 255, 255)",
+    "etatExpose": "false"
+   },
+   {
+    "texte": "Avances à rembourser",
+    "fond": "rgb(255, 255, 255)",
+    "etatExpose": "false"
+   }
+  ]
+ },
+ "C049.selection": {
+  "selection": {
+   "#factures": [],
+   "#depenses": [
+    "tab « Toutes » fond rgb(28, 43, 51) texte rgb(255, 255, 255)"
+   ],
+   "#dashboard": [],
+   "#settings/finances": [
+    "tab « Comptes 0 » fond rgb(28, 43, 51) texte rgb(255, 255, 255)"
+   ]
+  },
+  "radios": [
+   {
+    "texte": "Déjà payée Ticket, reçu, achat",
+    "groupe": "Nature de la dépense",
+    "fond": "rgb(248, 250, 252)",
+    "couleur": "rgb(28, 43, 51)",
+    "bordure": "rgb(28, 43, 51)"
+   },
+   {
+    "texte": "Payée par l’entreprise",
+    "groupe": "Qui a payé",
+    "fond": "rgb(28, 43, 51)",
+    "couleur": "rgb(255, 255, 255)",
+    "bordure": "rgb(28, 43, 51)"
+   }
+  ]
+ },
+ "C053.manquants": [
+  "Nouvelle dépense › « MONTANT HT * » (number)",
+  "Nouveau compte (Compte bancaire) › « IBAN (SI APPLICABLE) » (text)",
+  "Nouveau compte (Compte bancaire) › « BIC / SWIFT » (text)",
+  "Nouveau compte (Compte bancaire) › « IBAN (SI APPLICABLE) » (text)",
+  "Nouveau compte (Compte bancaire) › « BIC / SWIFT » (text)"
+ ],
+ "C053.exemplesMarche": [
+  "client téléphone « Ex: +221 77 654 32 10 »",
+  "Paramètres › Entreprise › TÉLÉPHONE / WHATSAPP « +223 XX XX XX XX »",
+  "Paramètres › Documents & PDF › Nouveau taux de TVA « Ex : 20 »",
+  "Paramètres › Documents & PDF › MENTION D'EXONÉRATION (SI TVA À 0 %) « Ex : Exonéré de TVA — marché financé sur ressources extérieures »",
+  "Paramètres › Facturation & envoi › RIB / COMPTE BANCAIRE « Ex : 01234 56789 00012345678 01 »",
+  "Paramètres › Facturation & envoi › ORANGE MONEY « +223 XX XX XX XX »",
+  "Paramètres › Facturation & envoi › WAVE « +223 XX XX XX XX »",
+  "Paramètres › Facturation & envoi › MOOV MONEY « +223 XX XX XX XX »",
+  "Nouveau compte › NUMÉRO DU PORTEFEUILLE « +225 07 00 00 00 00 »"
+ ],
+ "C059.structures": {
+  "Nouveau client": {
+   "nbChamps": 7,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 7,
+   "fieldsets": 0
+  },
+  "Nouveau chantier": {
+   "nbChamps": 7,
+   "titres": [
+    "h3:Nouveau Chantier"
+   ],
+   "plusLongueSuiteSansTitre": 7,
+   "fieldsets": 0
+  },
+  "Nouvelle dépense": {
+   "nbChamps": 13,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 13,
+   "fieldsets": 0
+  },
+  "Paramètres › Entreprise": {
+   "nbChamps": 18,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 18,
+   "fieldsets": 0
+  },
+  "Paramètres › Documents & PDF": {
+   "nbChamps": 6,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 6,
+   "fieldsets": 0
+  },
+  "Paramètres › Facturation & envoi": {
+   "nbChamps": 14,
+   "titres": [
+    "h3:Coordonnées bancaires",
+    "h3:Paiement mobile",
+    "h3:Encaissements SasPay temporairement indisponibles",
+    "h3:Règles BTP par défaut",
+    "h3:Modèles de messages"
+   ],
+   "plusLongueSuiteSansTitre": 4,
+   "fieldsets": 0
+  },
+  "Nouveau compte": {
+   "nbChamps": 11,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 11,
+   "fieldsets": 0
+  },
+  "Nouvelle matière": {
+   "nbChamps": 10,
+   "titres": [],
+   "plusLongueSuiteSansTitre": 10,
+   "fieldsets": 0
+  }
+ },
+ "C058.pourcentageSituation": {
+  "pctInitial": "100",
+  "pctVide": "0",
+  "pctAffiche": "040",
+  "pct": "040",
+  "totalAvant": "8 982 206 FCFA",
+  "totalApres": "8 982 206 FCFA"
+ },
+ "C058.langueNavigateur": "fr-FR",
+ "C058.situation": {
+  "saisis1": [
+   "030",
+   "030",
+   "030"
+  ],
+  "total1": "Total HT de cette facture 5 234 557 FCFA",
+  "bouton": "Nouvelle situation",
+  "avant": [
+   {
+    "lot": "Lot 01 — Terrassement & Fondations",
+    "deja": "4 233 158 FCFA",
+    "pct": "30",
+    "min": "30",
+    "cetteFacture": "0 FCFA"
+   },
+   {
+    "lot": "Lot 02 — Maçonnerie & Cloisonnements",
+    "deja": "808 052 FCFA",
+    "pct": "30",
+    "min": "30",
+    "cetteFacture": "0 FCFA"
+   },
+   {
+    "lot": "Lot 03 — Peinture & Finitions",
+    "deja": "193 347 FCFA",
+    "pct": "30",
+    "min": "30",
+    "cetteFacture": "0 FCFA"
+   }
+  ],
+  "affiche": "100",
+  "apres": [
+   {
+    "lot": "Lot 01 — Terrassement & Fondations",
+    "deja": "4 233 158 FCFA",
+    "pct": "100",
+    "min": "30",
+    "cetteFacture": "9 877 369 FCFA"
+   },
+   {
+    "lot": "Lot 02 — Maçonnerie & Cloisonnements",
+    "deja": "808 052 FCFA",
+    "pct": "30",
+    "min": "30",
+    "cetteFacture": "0 FCFA"
+   },
+   {
+    "lot": "Lot 03 — Peinture & Finitions",
+    "deja": "193 347 FCFA",
+    "pct": "30",
+    "min": "30",
+    "cetteFacture": "0 FCFA"
+   }
+  ],
+  "total2": "Total HT de cette facture 9 877 369 FCFA"
+ },
+ "C048.langue": {
+  "lang": "fr",
+  "selecteur": false,
+  "selecteurParametres": false
+ },
+ "C048.pseudoLocalisation": [
+  "320#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 2",
+  "320#factures : débordement page 0→0px, libellés rognés 1, hors écran 7",
+  "320#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3",
+  "360#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 1",
+  "360#factures : débordement page 0→0px, libellés rognés 1, hors écran 6",
+  "360#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3",
+  "390#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0",
+  "390#factures : débordement page 0→0px, libellés rognés 1, hors écran 5",
+  "390#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3",
+  "768#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 1",
+  "768#factures : débordement page 0→0px, libellés rognés 1, hors écran 2",
+  "768#depenses : débordement page 0→0px, libellés rognés 0, hors écran 3",
+  "1024#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0",
+  "1024#factures : débordement page 0→0px, libellés rognés 1, hors écran 1",
+  "1024#depenses : débordement page 0→0px, libellés rognés 0, hors écran 1",
+  "1440#dashboard : débordement page 0→0px, libellés rognés 0, hors écran 0",
+  "1440#factures : débordement page 0→0px, libellés rognés 1, hors écran 0",
+  "1440#depenses : débordement page 0→0px, libellés rognés 0, hors écran 0"
+ ],
+ "environnement.recouvrements": []
+}

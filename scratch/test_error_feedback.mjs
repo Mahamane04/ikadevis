@@ -37,15 +37,20 @@ export async function run() {
         await wait(600);
 
         const enFaute = await page.evaluate(() => {
-            const notif = document.querySelector('[role="alert"], [role="status"]');
-            const pastille = notif?.querySelector('div');
+            // Audit UX 220 (C127) — l'annonce passe par une région live
+            // PERMANENTE (role="alert" pour une erreur) ; la notification
+            // visible, elle, est marquée data-toast et masquée aux lecteurs
+            // d'écran pour ne pas être lue deux fois.
+            const notif = [...document.querySelectorAll('[role="alert"], [role="status"]')].find((e) => e.innerText.trim());
+            const visuel = document.querySelector('[data-toast]');
+            const pastille = visuel?.querySelector('div');
             const champ = document.querySelector('input[aria-label^="Client du devis"]');
             return {
                 message: notif?.innerText.replace(/\n/g, ' ') || '',
                 role: notif?.getAttribute('role') || '',
                 live: notif?.getAttribute('aria-live') || '',
                 fondPastille: pastille ? getComputedStyle(pastille).backgroundColor : '',
-                icone: notif?.querySelector('i')?.className || '',
+                icone: visuel?.querySelector('i')?.className || '',
                 champRouge: Boolean(champ?.className.includes('border-red-500')),
                 champInvalide: champ?.getAttribute('aria-invalid') || null,
                 champFocalise: document.activeElement === champ

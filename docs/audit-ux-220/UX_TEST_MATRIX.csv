@@ -1,0 +1,221 @@
+﻿contrôle;section;statut;suivi;cas prévus / exécutés;preuve ou constat
+C001;A;PASSÉ;;12 écrans × 2 largeurs : titre et tâche identifiables;inventaire (h1 par écran)
+C002;A;NON TESTÉ;;—;UX-HYP-01 : trois appels « nouveau devis » concurrents — étude utilisateur requise
+C003;A;ÉCHEC;"ÉCHEC → corrigé (chantier fictif) ; reste ouvert";"devis sans chantier ; libellés Projet/Chantier";"UX-P2-01 corrigé ; « Projet non renseigné » (fiche devis) vs « Chantier non renseigné » (listes) subsiste"
+C004;A;PASSÉ;;"devis brouillon→enregistré ; facture brouillon→émise→réglée";parcours P3 joué
+C005;A;ÉCHEC;ouvert;enregistrer sans quantités confirmées;refus expliqué, mais le bouton « Confirmer » n’est plus à l’écran après navigation (UX-P2-12)
+C006;A;PASSÉ;;facture « depuis DEV-… », client et chantier repris;parcours P3
+C007;A;NON TESTÉ;;—;non exécuté dans cette session
+C008;A;PASSÉ;;émission, avoir, règlement accessibles depuis la fiche facture;parcours P3
+C009;A;PASSÉ;;décisions produit documentées respectées;UX-P2-09, UX-DEC-01 signalés sans être modifiés
+C010;A;NON TESTÉ;;—;non exécuté dans cette session
+C011;B;NON TESTÉ;;—;non exécuté dans cette session
+C012;B;PASSÉ;;12 écrans;élément de menu actif + titre
+C013;B;PASSÉ;;12 écrans;libellé de menu = titre d’écran (Chantiers, Clients, Mes devis, Factures…)
+C014;B;PASSÉ;;12 routes;toutes atteignables par menu et par adresse
+C015;B;ÉCHEC;ouvert;"« Créer mon premier devis » ; ouverture de fiche";"UX-P2-06 : éditeur sans adresse ; fiches devis OK (#devis/<id>)"
+C016;B;ÉCHEC;ouvert;Facturer depuis #devis/<id>;UX-P2-06 : écran Factures, adresse restée #devis/<id>
+C017;B;NON TESTÉ;;—;non exécuté dans cette session
+C018;B;NON TESTÉ;;—;non exécuté dans cette session
+C019;B;NON TESTÉ;;—;non exécuté dans cette session
+C020;B;NON TESTÉ;;—;non exécuté dans cette session
+C021;C;PASSÉ;;Enregistrer, Facturer, Créer le brouillon, Émettre, Valider le règlement;effet métier vérifié dans le stockage
+C022;C;NON TESTÉ;;—;non exécuté dans cette session
+C023;C;NON TESTÉ;;—;non exécuté dans cette session
+C024;C;NON TESTÉ;;—;non exécuté dans cette session
+C025;C;PASSÉ;;« Confirmer mes quantités » désactivé;raison écrite à côté (« Renseignez votre métré »)
+C026;C;NON TESTÉ;;—;UX-HYP-01
+C027;C;PASSÉ;;"Émettre (irréversible) ; Supprimer";confirmation explicite, focus sur « Annuler »
+C028;C;PASSÉ;;double clic : Enregistrer, Créer le brouillon, Émettre;une seule création à chaque fois
+C029;C;NON TESTÉ;;—;non exécuté dans cette session
+C030;C;PASSÉ;;après succès et après erreur d’enregistrement;contrôles restés utilisables
+C031;D;PASSÉ;ÉCHEC → corrigé, retesté;Nouveau Client, Facturer DEV-…, Émettre, Règlement;"UX-P2-04 ; test_accessibilite_navigation_fenetres"
+C032;D;PASSÉ;ÉCHEC → corrigé, retesté;ouverture/fermeture Nouveau Client;focus rendu au déclencheur après Échap
+C033;D;NON TESTÉ;;—;non exécuté dans cette session
+C034;D;NON TESTÉ;;—;non exécuté dans cette session
+C035;D;PASSÉ;ÉCHEC → corrigé, retesté;Échap sur Nouveau Client;"UX-P2-11 ; vraie touche"
+C036;D;PASSÉ;;sélecteur de TVA (bas d’écran);test_quote_pricing_ui 34/34 (lot du 28/09)
+C037;D;NON TESTÉ;;—;non exécuté dans cette session
+C038;D;NON TESTÉ;;—;non exécuté dans cette session
+C039;D;NON TESTÉ;;—;non exécuté dans cette session
+C040;D;NON TESTÉ;;—;non exécuté dans cette session
+C041;E;NON TESTÉ;;—;non exécuté dans cette session
+C042;E;NON TESTÉ;;—;non exécuté dans cette session
+C043;E;PASSÉ;;Partager, Signer, Imprimer, Envoyer;libellés visibles
+C044;E;PASSÉ;;enregistrement refusé, client manquant;messages métier en français
+C045;E;NON TESTÉ;;—;non exécuté dans cette session
+C046;E;NON TESTÉ;;—;non exécuté dans cette session
+C047;E;PASSÉ;;listes devis/factures à 1440 et 390;montants entiers, aucun débordement
+C048;E;NON TESTÉ;;—;non exécuté dans cette session
+C049;E;NON TESTÉ;;—;non exécuté dans cette session
+C050;E;NON TESTÉ;;—;non exécuté dans cette session
+C051;F;PASSÉ;;fenêtre Nouveau client (7 champs);label[for] associés
+C052;F;PASSÉ;;fenêtre Nouveau client, règlement;astérisque + « (facultatif) »
+C053;F;NON TESTÉ;;—;non exécuté dans cette session
+C054;F;PASSÉ;;téléphone, e-mail, montant;type=tel / email / number
+C055;F;PASSÉ;ÉCHEC → corrigé, retesté;montant de règlement prérempli;UX-P2-02 : « 1466781.3 » → « 1466781 »
+C056;F;ÉCHEC;ouvert;fenêtre Nouveau client;aucun attribut autocomplete (P3)
+C057;F;NON TESTÉ;;—;non exécuté dans cette session
+C058;F;NON TESTÉ;;—;non exécuté dans cette session
+C059;F;NON TESTÉ;;—;non exécuté dans cette session
+C060;F;PASSÉ;;nom du client saisi dans le devis;repris dans la fenêtre de création
+C061;G;NON TESTÉ;;—;non exécuté dans cette session
+C062;G;PASSÉ;;quantités non confirmées;le message dit quoi faire
+C063;G;NON TESTÉ;;—;non exécuté dans cette session
+C064;G;PASSÉ;ÉCHEC → corrigé, retesté;rechargement après saisie;"UX-P0-01 ; test_persistance_rechargement 6/6"
+C065;G;NON TESTÉ;;—;non exécuté dans cette session
+C066;G;NON TESTÉ;;—;non exécuté dans cette session
+C067;G;PASSÉ;ÉCHEC → corrigé, retesté;« Enregistré localement » vs données perdues;UX-P0-01
+C068;G;PASSÉ;;toasts d’enregistrement et d’émission;correspondent à l’état stocké
+C069;G;NON TESTÉ;;—;non exécuté dans cette session
+C070;G;NON TESTÉ;;—;non exécuté dans cette session
+C071;H;NON TESTÉ;;—;non exécuté dans cette session
+C072;H;NON TESTÉ;;—;non exécuté dans cette session
+C073;H;PASSÉ;;filtre « Soldées » sans résultat;« Aucune facture correspondante » distinct de la base vide
+C074;H;PASSÉ;ÉCHEC → corrigé, retesté;compteurs Toutes/Non réglées/Partielles/Soldées;UX-P2-03
+C075;H;NON TESTÉ;;—;non exécuté dans cette session
+C076;H;NON TESTÉ;;—;non exécuté dans cette session
+C077;H;NON TESTÉ;;—;non exécuté dans cette session
+C078;H;NON TESTÉ;;—;non exécuté dans cette session
+C079;H;NON TESTÉ;;—;non exécuté dans cette session
+C080;H;NON TESTÉ;;—;non exécuté dans cette session
+C081;I;NON TESTÉ;;—;non exécuté dans cette session
+C082;I;NON TESTÉ;;—;non exécuté dans cette session
+C083;I;NON TESTÉ;;—;non exécuté dans cette session
+C084;I;NON TESTÉ;;—;non exécuté dans cette session
+C085;I;NON TESTÉ;;—;non exécuté dans cette session
+C086;I;NON TESTÉ;;—;non exécuté dans cette session
+C087;I;NON TESTÉ;;—;non exécuté dans cette session
+C088;I;NON TESTÉ;;—;non exécuté dans cette session
+C089;I;NON TESTÉ;;—;non exécuté dans cette session
+C090;I;NON TESTÉ;;—;non exécuté dans cette session
+C091;J;PASSÉ;;"P2 chiffrage→PDF ; P3 devis→facture→paiement";parcours joués de bout en bout en démo
+C092;J;NON TESTÉ;;—;non exécuté dans cette session
+C093;J;NON TESTÉ;;—;non exécuté dans cette session
+C094;J;PASSÉ;ÉCHEC → corrigé, retesté;"compteurs après règlement ; listes après création";UX-P2-03, UX-P0-01
+C095;J;NON TESTÉ;;—;non exécuté dans cette session
+C096;J;PASSÉ;ÉCHEC → corrigé, retesté;facture réglée écrasée par refacturation;UX-P0-01
+C097;J;PASSÉ;ÉCHEC → corrigé, retesté;rechargement en cours de démo;"UX-P0-01 (reprise des données) ; UX-P2-10 (message) ouvert"
+C098;J;NON TESTÉ;;—;non exécuté dans cette session
+C099;J;NON TESTÉ;;—;non exécuté dans cette session
+C100;J;PASSÉ;;émission de facture;toast + facture listée
+C101;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C102;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C103;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C104;K;NON TESTÉ;;—;UX-HYP-01 / UX-P2-10
+C105;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C106;K;PASSÉ;;démo;badge « Démonstration » + entreprise active affichés
+C107;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C108;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C109;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C110;K;NON TESTÉ;;—;compte réel requis (connexion, invitation, session expirée)
+C111;L;NON TESTÉ;partiel;"390 et 1440 passés ; 320/360/768/1024 non exécutés";inventaire 24 combinaisons sans débordement
+C112;L;NON TESTÉ;;—;non exécuté dans cette session
+C113;L;NON TESTÉ;;—;non exécuté dans cette session
+C114;L;NON TESTÉ;;—;non exécuté dans cette session
+C115;L;NON TESTÉ;;—;non exécuté dans cette session
+C116;L;NON TESTÉ;;—;non exécuté dans cette session
+C117;L;NON TESTÉ;;—;non exécuté dans cette session
+C118;L;NON TESTÉ;;—;non exécuté dans cette session
+C119;L;NON TESTÉ;;—;non exécuté dans cette session
+C120;L;NON TESTÉ;;—;"aucun appareil mobile réel ; émulation Chromium seulement"
+C121;M;PASSÉ;ÉCHEC → corrigé, retesté (périmètre inventaire);12 écrans × 2 largeurs;13 cliquables non focalisables → 0
+C122;M;PASSÉ;ÉCHEC → corrigé, retesté;navigation latérale, « Créer mon premier devis »;focus sur le titre du nouvel écran
+C123;M;NON TESTÉ;;—;non exécuté dans cette session
+C124;M;NON TESTÉ;;—;non exécuté dans cette session
+C125;M;PASSÉ;ÉCHEC → corrigé, retesté;fenêtres;noms accessibles reliés au titre
+C126;M;NON TESTÉ;;—;pas de lecteur d’écran disponible
+C127;M;NON TESTÉ;;—;pas de lecteur d’écran disponible
+C128;M;NON TESTÉ;;—;non exécuté dans cette session
+C129;M;PASSÉ;ÉCHEC → corrigé (2 cas);organisation, « Nouveau » facture;reste à revoir sur les écrans non inventoriés
+C130;M;NON TESTÉ;;—;non exécuté dans cette session
+C131;N;PASSÉ;ÉCHEC → corrigé, retesté (périmètre inventaire);12 écrans × 2 largeurs;"32 → 0 textes sous le seuil ; 127 usages de neutral-400 hors périmètre à revoir"
+C132;N;NON TESTÉ;;—;non exécuté dans cette session
+C133;N;NON TESTÉ;;—;non exécuté dans cette session
+C134;N;NON TESTÉ;;—;non exécuté dans cette session
+C135;N;NON TESTÉ;;—;non exécuté dans cette session
+C136;N;NON TESTÉ;partiel;"Supprimer devis mobile corrigé (32 px) ; « Options du lot » 21 px non traité";inventaire
+C137;N;NON TESTÉ;;—;non exécuté dans cette session
+C138;N;NON TESTÉ;;—;non exécuté dans cette session
+C139;N;NON TESTÉ;;—;non exécuté dans cette session
+C140;N;NON TESTÉ;;—;matrice WCAG complète non réalisée
+C141;O;NON TESTÉ;;—;non exécuté dans cette session
+C142;O;NON TESTÉ;;—;non exécuté dans cette session
+C143;O;NON TESTÉ;;—;non exécuté dans cette session
+C144;O;NON TESTÉ;;—;non exécuté dans cette session
+C145;O;NON TESTÉ;;—;non exécuté dans cette session
+C146;O;NON TESTÉ;;—;non exécuté dans cette session
+C147;O;NON TESTÉ;;—;non exécuté dans cette session
+C148;O;NON TESTÉ;;—;non exécuté dans cette session
+C149;O;ÉCHEC;décision à arbitrer;transition de page et de fiche;UX-DEC-01 : 350 ms ajoutées volontairement, test modifié pour rester vert
+C150;O;NON TESTÉ;;—;non exécuté dans cette session
+C151;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C152;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C153;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C154;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C155;P;PASSÉ;ÉCHEC → corrigé, retesté;démo : données locales présentées comme conservées;UX-P0-01
+C156;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C157;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C158;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C159;P;PASSÉ;ÉCHEC → corrigé;jeton de cache de tenant-persistence.js figé;ajouté à FICHIERS_JS
+C160;P;NON TESTÉ;;—;réseau réel / compte connecté requis
+C161;Q;NON TESTÉ;;—;non exécuté dans cette session
+C162;Q;NON TESTÉ;;—;non exécuté dans cette session
+C163;Q;NON TESTÉ;;—;non exécuté dans cette session
+C164;Q;NON TESTÉ;;—;non exécuté dans cette session
+C165;Q;NON TESTÉ;;—;non exécuté dans cette session
+C166;Q;NON TESTÉ;;—;non exécuté dans cette session
+C167;Q;NON TESTÉ;;—;non exécuté dans cette session
+C168;Q;NON TESTÉ;;—;non exécuté dans cette session
+C169;Q;NON TESTÉ;;—;non exécuté dans cette session
+C170;Q;NON TESTÉ;;—;non exécuté dans cette session
+C171;R;PASSÉ;;devis et facture;brouillon / émise / réglée distingués
+C172;R;PASSÉ;;ligne de devis;120 m² × 10 359 = 1 243 035 (tableau = document)
+C173;R;NON TESTÉ;;—;non exécuté dans cette session
+C174;R;PASSÉ;ÉCHEC → corrigé, retesté;devis → facture → règlement;"TTC arrondi à la devise ; UX-P2-02/03"
+C175;R;NON TESTÉ;;—;non exécuté dans cette session
+C176;R;NON TESTÉ;;—;UX-HYP-02 : facture « 1 lot » au lieu du détail — à valider
+C177;R;PASSÉ;;facture émise;« Figée », modification refusée, avoir proposé
+C178;R;PASSÉ;;émission;document, conséquence et effet nommés
+C179;R;NON TESTÉ;;—;non exécuté dans cette session
+C180;R;NON TESTÉ;;—;non exécuté dans cette session
+C181;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C182;S;NON TESTÉ;;—;non exécuté dans cette session
+C183;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C184;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C185;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C186;S;NON TESTÉ;;—;non exécuté dans cette session
+C187;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C188;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C189;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C190;S;NON APPLICABLE;;—;pas de CRM à opportunités, mentions ni pipeline glissable — clients et statuts de devis seulement
+C191;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C192;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C193;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C194;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C195;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C196;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C197;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C198;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C199;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C200;T;NON APPLICABLE;;—;aucune boutique, panier, commission ni retrait dans ikadevis
+C201;U;NON TESTÉ;;—;non exécuté dans cette session
+C202;U;NON TESTÉ;;—;non exécuté dans cette session
+C203;U;NON TESTÉ;;—;non exécuté dans cette session
+C204;U;NON TESTÉ;;—;non exécuté dans cette session
+C205;U;NON TESTÉ;;—;non exécuté dans cette session
+C206;U;NON TESTÉ;;—;non exécuté dans cette session
+C207;U;NON TESTÉ;;—;non exécuté dans cette session
+C208;U;NON TESTÉ;;—;non exécuté dans cette session
+C209;U;NON TESTÉ;;—;non exécuté dans cette session
+C210;U;NON TESTÉ;;—;non exécuté dans cette session
+C211;V;NON TESTÉ;partiel;"vide (démo) et unique testés ; volume non testé";—
+C212;V;NON TESTÉ;;—;non exécuté dans cette session
+C213;V;NON TESTÉ;;—;non exécuté dans cette session
+C214;V;NON TESTÉ;;—;non exécuté dans cette session
+C215;V;NON TESTÉ;;—;non exécuté dans cette session
+C216;V;PASSÉ;;captures inventaire inspectées;—
+C217;V;PASSÉ;;3 bancs ajoutés;vérifient les effets stockés et le focus réel, pas la présence
+C218;V;PASSÉ;;chaque correction;retest ciblé + test:audit + suite générale comparée
+C219;V;PASSÉ;;constats ouverts;priorité et suivi dans UX_AUDIT.md
+C220;V;PASSÉ;;rapport;couverture, risques et inconnues séparés

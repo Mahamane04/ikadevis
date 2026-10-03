@@ -1250,7 +1250,11 @@ function adaptHybridToSavedQuote(hybridQuote, companyInfo) {
         clientId: hybridQuote.clientId || null,
         clientName: hybridQuote.clientName?.trim() || '',
         projectId: hybridQuote.projectId || null,
-        projectRef: hybridQuote.projectRef || 'Chantier Multi-Lots',
+        // Audit UX 2026-10 (UX-P2-01) — « Chantier Multi-Lots » était inscrit
+        // d'office quand aucun chantier n'était choisi ; resolveClientAndProject
+        // créait alors un VRAI chantier de ce nom, et le devis client l'imprimait
+        // comme si l'utilisateur l'avait saisi. Pas de chantier choisi = aucun.
+        projectRef: (hybridQuote.projectRef || '').trim(),
         notes: hybridQuote.notes || '',
         vatRate: calc.vatRate !== undefined ? calc.vatRate : 18,
         isMultiLot: true,

@@ -1,0 +1,460 @@
+  C002 terminé en 34 s
+  … C007 : élément introuvable : [role="dialog"] button /^Ajouter$/ — nouvelle tentative
+  C007 terminé en 96 s
+  C010 terminé en 29 s
+  C011 terminé en 88 s
+  C017 terminé en 58 s
+  … C108 : élément introuvable : button /^Dupliquer le devis DEV-2026-001$/ @aria-label — nouvelle tentative
+  C108 terminé en 14 s
+  C019 terminé en 42 s
+  C020 terminé en 149 s
+  C107 terminé en 82 s
+  … C101 : Page.addScriptToEvaluateOnNewDocument timed out. Increase the 'protocolTimeout' setting in — nouvelle tentative
+  C101 terminé en 225 s
+  C103 terminé en 22 s
+  ✅ [C002] 1440 px — l'appel principal de l'accueil porte sur le devis, est le premier bouton principal et visible sans défiler — « Créer mon premier devis » · bas 316 px ≤ limite 900 px · premier .btn-primary : true · non recouvert : true · appels « devis » visibles : 3 (Nouveau devis / Créer mon premier devis / Nouveau devis Chiffrer un projet) — voir UX-HYP-01
+  ✅ [C105] 1440 px — à l'entrée, aucun guide ni fenêtre n'impose un passage obligé — fenêtres modales ouvertes : 0 · consigne en place : « Votre prochain chantier commence par un devis. Choisissez les travaux, renseignez les quantités et vérifiez vos prix. Démonstration : votre travail est conservé »
+  ✅ [C105] 1440 px — la consigne de démarrage est toujours là après un aller-retour dans l'application — présente : true
+  ✅ [C002] 1440 px — un clic sur l'appel principal ouvre le chiffrage d'un devis vierge — h1 « Chiffrage » · DEV-2026-002 · adresse «  » (adresse non mise à jour : UX-P2-06, connu)
+  ✅ [C104] 1440 px — le chiffrage vide dit quoi faire ensuite (étapes + premier geste) — étapes 1→4 : true · « Ajouter mon premier ouvrage » : true · « Commencez directement… » : true
+  ✅ [C104] 1440 px — après l'ajout d'un ouvrage, l'écran dit ce qui reste à faire (métré à confirmer) — « Quantités à confirmer » : true · « Renseignez votre métré » : true
+  ✅ [C104] 1440 px — première valeur utile atteinte : un ouvrage chiffré (> 0 FCFA) en 5 gestes depuis l'accueil — saisie surface : ok · Prix de vente total HT = 153 450 FCFA · gestes : appel principal, recherche « Peinture », Entrée, surface 100 m², « Confirmer mes quantités »
+  ✅ [C002] 390 px — l'appel principal de l'accueil porte sur le devis, est le premier bouton principal et visible sans défiler — « Créer mon premier devis » · bas 545 px ≤ limite 775 px · premier .btn-primary : true · non recouvert : true · appels « devis » visibles : 2 (Créer mon premier devis / Nouveau devis Chiffrer un projet) — voir UX-HYP-01
+  ✅ [C105] 390 px — à l'entrée, aucun guide ni fenêtre n'impose un passage obligé — fenêtres modales ouvertes : 0 · consigne en place : « Votre prochain chantier commence par un devis. Choisissez les travaux, renseignez les quantités et vérifiez vos prix. Démonstration : votre travail est conservé »
+  ✅ [C105] 390 px — la consigne de démarrage est toujours là après un aller-retour dans l'application — présente : true
+  ✅ [C002] 390 px — un clic sur l'appel principal ouvre le chiffrage d'un devis vierge — h1 « Chiffrage » · DEV-2026-002 · adresse «  » (adresse non mise à jour : UX-P2-06, connu)
+  ✅ [C104] 390 px — le chiffrage vide dit quoi faire ensuite (étapes + premier geste) — étapes 1→4 : true · « Ajouter mon premier ouvrage » : true · « Commencez directement… » : false
+  ✅ [C105] 1440 px — (information) le devis d'exemple ouvert dans le chiffrage affiche-t-il des conseils de découverte ? — h1 « Chiffrage » · bandeau « Vous explorez un devis d’exemple… / Déplier l'aide » affiché : false (voir HYP dans le rapport)
+  ✅ [C007] 1440 px — « Supprimer » nomme le devis, le client et l'irréversibilité avant de confirmer — « Supprimer ce devis ? « DEV-2026-001 » (Société Immobilière NBB) sera définitivement retiré de vos devis. Cette action est sans retour. Annuler Supprimer »
+  ✅ [C007] 1440 px — « Facturer » montre les lots, les montants et le total avant « Créer le brouillon » — total affiché : 17 448 522 FCFA · bouton visible : true (bas 715 px / 900) · atteignable par défilement : false
+  ❌ [C007] 1440 px — la garde de sortie annonce une perte ; après « Ne pas enregistrer », le travail est-il réellement abandonné ? — message : « Enregistrer le devis en cours ? Ce chiffrage contient des modifications qui ne sont pas encore enregistrées. Si vous quittez sans enregistrer, elles s » · après « Ne pas enregistrer » : chemin de retour présent = true, ouvrages 1 → 1, « Modifications non enregistrées » = true
+  ✅ [C007] 390 px — « Supprimer » nomme le devis, le client et l'irréversibilité avant de confirmer — « Supprimer ce devis ? « DEV-2026-001 » (Société Immobilière NBB) sera définitivement retiré de vos devis. Cette action est sans retour. Annuler Supprimer »
+  ✅ [C007] 390 px — « Facturer » montre les lots, les montants et le total avant « Créer le brouillon » — total affiché : 17 448 522 FCFA · bouton visible : true (bas 696 px / 844) · atteignable par défilement : false
+  ❌ [C007] BLOQUÉ — la sonde n'a pas pu terminer ce parcours — élément introuvable : [role="dialog"] button /^Ajouter$/
+  ❌ [C010] 1440 px — « Mon Profil & Compte » et « Paramètres Entreprise » (menu du profil) mènent à des contenus distincts — Mon Profil & Compte → #settings/entreprise « Entreprise Identité et coordonnées » · Paramètres Entreprise → #settings/entreprise « Entreprise Identité et coordonnées » · contenu « profil » (e-mail, mot de passe) trouvé : false
+  ✅ [C010] 1440 px — « Formule & Facturation » ouvre la même fenêtre que la carte « Formule Starter » (même fonction, même destination : redondance assumée) — fenêtre : ["Votre abonnement"]
+  ❌ [C010] 1440 px — le raccourci « Créer facture · Facturer un acompte » fait autre chose que l'entrée « Factures » du menu — après clic : h1 « Factures », menu actif « Factures », choix du devis à facturer ouvert : false, adresse «  »
+  ✅ [C011] d1440 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : §PILOTAGE · §EXPLOITATION · §CONFIGURATION · libellés techniques : aucun · barre latérale : Nouveau devis, Tableau de bord, Chantiers, Clients, Mes devis, Factures, Dépenses, Ouvrages et ressources, Catalogue, Ressources
+  ✅ [C018] d1440 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : true · entrée équivalente ailleurs : false
+  ❌ [C018] d1440 px — le logo (« ikadevis - Tableau de bord ») mène au tableau de bord — depuis Clients → h1 « Factures », menu actif « Factures », adresse « #clients »
+  ✅ [C011] d1024 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : §PILOTAGE · §EXPLOITATION · §CONFIGURATION · libellés techniques : aucun · barre latérale : Nouveau devis, Tableau de bord, Chantiers, Clients, Mes devis, Factures, Dépenses, Ouvrages et ressources, Catalogue, Ressources
+  ✅ [C018] d1024 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : true · entrée équivalente ailleurs : false
+  ✅ [C011] t768 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : (rail replié sans groupes) · libellés techniques : aucun · rail : Tableau de bord, Chantiers, Clients, Mes devis, Factures, Dépenses, Catalogue, Ressources
+  ✅ [C018] t768 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : true · entrée équivalente ailleurs : false
+  ❌ [C018] t768 px — le logo (« ikadevis - Tableau de bord ») mène au tableau de bord — depuis Clients → h1 « Factures », menu actif « Factures », adresse « #clients »
+  ✅ [C011] m390 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : §EXPLOITATION & DONNÉES · §PERSONNALISATION · libellés techniques : aucun · barre basse : Accueil, Devis, Chantiers, Factures, Ouvrir le menu de navigation | tiroir : , §EXPLOITATION & DONNÉES, Chantiers & Projets, Clients & CRM, Dépenses & fournisseurs, Ouvrages, Prix des Matériaux, §PERSONNALISATION, Modèles de documents PDF & en-tête, Paramètres Entreprise & compte, Installer l'application sur mobile, Se déconnecter
+  ❌ [C018] m390 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : false · entrée équivalente ailleurs : false
+  ❌ [C018] m390 px — le logo (« ikadevis - Tableau de bord ») mène au tableau de bord — depuis Clients → h1 « Factures », menu actif « Factures », adresse « #clients »
+  ✅ [C011] m360 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : §EXPLOITATION & DONNÉES · §PERSONNALISATION · libellés techniques : aucun · barre basse : Accueil, Devis, Chantiers, Factures, Ouvrir le menu de navigation | tiroir : , §EXPLOITATION & DONNÉES, Chantiers & Projets, Clients & CRM, Dépenses & fournisseurs, Ouvrages, Prix des Matériaux, §PERSONNALISATION, Modèles de documents PDF & en-tête, Paramètres Entreprise & compte, Installer l'application sur mobile, Se déconnecter
+  ❌ [C018] m360 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : false · entrée équivalente ailleurs : false
+  ✅ [C011] m320 px — les menus parlent métier (aucun identifiant technique) et sont groupés par tâche — groupes : §EXPLOITATION & DONNÉES · §PERSONNALISATION · libellés techniques : aucun · barre basse : Accueil, Devis, Chantiers, Factures, Ouvrir le menu de navigation | tiroir : , §EXPLOITATION & DONNÉES, Chantiers & Projets, Clients & CRM, Dépenses & fournisseurs, Ouvrages, Prix des Matériaux, §PERSONNALISATION, Modèles de documents PDF & en-tête, Paramètres Entreprise & compte, Installer l'application sur mobile, Se déconnecter
+  ❌ [C018] m320 px — « changer d'entreprise » est atteignable (barre du haut, menu du profil ou tiroir) — sélecteur visible : false · entrée équivalente ailleurs : false
+  ❌ [C018] 1440 + 390 px — une même destination porte le même nom dans la barre latérale, la barre basse et le tiroir « Menu » — Espace IKADEVIS BTP ← « Tableau de bord » / « Accueil » ; Chantiers ← « Chantiers » / « Chantiers & Projets » ; Clients ← « Clients » / « Clients & CRM » ; Mes devis ← « Mes devis » / « Devis » ; Dépenses & fournisseurs ← « Dépenses » / « Dépenses & fournisseurs » ; Catalogue des Ouvrages ← « Catalogue » / « Ouvrages » ; Ressources & Prix ← « Ressources » / « Prix des Matériaux »
+  ✅ [C017] 1440 px — Mes devis : recherche, filtre et tri conservés après « Fermer la boîte de dialogue » — avant {"recherche":"NBB","statut":"Acceptés","tri":"Client A → Z","hash":"","detailOuvert":0} → après {"recherche":"NBB","statut":"Acceptés","tri":"Client A → Z","hash":"#devis/101","detailOuvert":0} — l'adresse désigne encore la fiche fermée (extension de UX-P2-06)
+  ✅ [C017] 1440 px — Mes devis : le bouton Retour du navigateur referme la fiche et rend la liste filtrée — après Retour : {"recherche":"NBB","statut":"Acceptés","tri":"Client A → Z","hash":"","detailOuvert":0}
+  ✅ [C017] 390 px — Mes devis : recherche, filtre et tri conservés après « Retour aux devis » — avant {"recherche":"NBB","statut":"Acceptés","tri":"Client A → Z","hash":"","detailOuvert":0} → après {"recherche":"NBB","statut":"Acceptés","tri":"Client A → Z","hash":"","detailOuvert":0}
+  ❌ [C017] 390 px — Mes devis : le bouton Retour du navigateur referme la fiche et rend la liste filtrée — après Retour : {"statut":"","tri":"","hash":"","detailOuvert":0}
+  ✅ [C017] 390 px — Clients : la recherche « Rés » est conservée au retour de la fiche — valeur au retour : « Rés »
+  ❌ [C017] 390 px — Ouvrages : après avoir ouvert « Panneau avec cadre métallique et autocol » (liste défilée de 669 px), le retour rend la même position — défilement avant 669 px → après « Retour à la liste des ouvrages » 0 px · élément ouvert hors écran (top 1306 px)
+  ❌ [C017] 390 px — Ressources : après avoir ouvert « Tube carré acier 25x25 (Débit précis, Ba » (liste défilée de 1953 px), le retour rend la même position — défilement avant 1953 px → après « Retour à la liste » 0 px · élément ouvert hors écran (top 2564 px)
+  ❌ [C108] BLOQUÉ — la sonde n'a pas pu terminer ce parcours — élément introuvable : button /^Dupliquer le devis DEV-2026-001$/ @aria-label
+  ✅ [C019] 1440 px — #devis/999999 (depuis Clients) : message « introuvable » + retour à la liste — adresse finale « #devis » · h1 « Mes devis » · messages ["Devis introuvable ou non autorisé."] · contenu « Mes devis 1 résultat(s) · prochain DEV-2026-002 Nouveau devis Tous les statuts Plus récents CLIENT & ENTREPRIS » · actions dans la page : Nouveau devis / Tous les statuts / Plus récents
+  ✅ [C019] 1440 px — #factures/FACT-0000 (depuis Clients) : message « introuvable » + retour à la liste — adresse finale « #factures » · h1 « Factures » · messages ["Facture introuvable ou non autorisée."] · contenu « Factures 0 résultat(s) · 0 brouillon(s) Export CSV Nouveau Options Tous les statuts Toutes 0 Non réglées 0 Par » · actions dans la page : Export CSV / Nouveau / Options / Tous les statuts
+  ✅ [C019] 1440 px — #clients/inconnu (depuis Clients) : message « introuvable » + retour à la liste — adresse finale « #clients » · h1 « Clients » · messages ["Fiche client introuvable."] · contenu « Clients Nouveau Client SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 RÉ Résidence Les Almadi » · actions dans la page : Nouveau Client / SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 / RÉ Résidence Les Almadies Mme Fatou SOW (Syndic)
+  ✅ [C019] 1440 px — #chantiers/inconnu (depuis Clients) : message « introuvable » + retour à la liste — adresse finale « #chantiers » · h1 « Chantiers » · messages ["Chantier introuvable."] · contenu « Chantiers Nouveau Chantier PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB · 1 devis PRJ- » · actions dans la page : Nouveau Chantier / PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB · 1 devis / PRJ-2026-002 EN COURS Rénovation Façades ACM & Enseignes LED Résidence Les Almadies
+  ❌ [C019] 1440 px — #page-inexistante (depuis Clients) : message « page introuvable » + lien de sortie — adresse finale « #page-inexistante » · h1 « Clients » · messages [] · contenu « Clients Nouveau Client SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 RÉ Résidence Les Almadi » · actions dans la page : Nouveau Client / SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 / RÉ Résidence Les Almadies Mme Fatou SOW (Syndic)
+  ❌ [C019] 1440 px — #settings/inexistant (depuis Clients) : message « page introuvable » + lien de sortie — adresse finale « #settings/inexistant » · h1 « Paramètres du compte » · messages [] · contenu «  » · actions dans la page : aucune
+  ✅ [C019] 1440 px — #platform-admin (depuis Clients) : explication « accès réservé » + navigation pour repartir — adresse finale « #platform-admin » · h1 «  » · messages [] · contenu « Accès réservé Cet espace est réservé aux administrateurs de la plateforme ikadevis. » · actions dans la page : aucune
+  ✅ [C019] 390 px — #devis/999999 (depuis Clients) : message « introuvable » + retour à la liste — adresse finale « #devis » · h1 « Mes devis » · messages ["Devis introuvable ou non autorisé."] · contenu « Mes devis 1 résultat(s) · prochain DEV-2026-002 Nouveau devis Tous les statuts Plus récents Société Immobilièr » · actions dans la page : Nouveau devis / Tous les statuts / Plus récents
+  ❌ [C019] 390 px — #page-inexistante (depuis Clients) : message « page introuvable » + lien de sortie — adresse finale « #page-inexistante » · h1 « Clients » · messages [] · contenu « Clients Nouveau Client SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 RÉ Résidence Les Almadi » · actions dans la page : Nouveau Client / SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 / RÉ Résidence Les Almadies Mme Fatou SOW (Syndic)
+  ✅ [C019] 390 px — #platform-admin (depuis Clients) : explication « accès réservé » + navigation pour repartir — adresse finale « #platform-admin » · h1 «  » · messages [] · contenu « Accès réservé Cet espace est réservé aux administrateurs de la plateforme ikadevis. » · actions dans la page : aucune
+  ✅ [C020] 1440 px — sortie par barre latérale « Clients » avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Chiffrage », avertissement OUI · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ✅ [C020] 1440 px — sortie par raccourci Alt+2 avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Chiffrage », avertissement OUI · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ✅ [C020] 1440 px — sortie par roue « Paramètres du compte » (barre du haut) avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Paramètres du compte », avertissement non · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ✅ [C020] 1440 px — sortie par logo « ikadevis - Tableau de bord » avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Factures », avertissement non · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ✅ [C020] 1440 px — sortie par recherche globale ⌘K → un devis avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Mes devis », avertissement non · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ✅ [C020] 1440 px — sortie par bouton Retour du navigateur avec un ouvrage non enregistré : avertissement, ou travail retrouvé intact — avant : 1 ouvrage, non enregistré=true · après la sortie : h1 « Mes devis », avertissement non · retour au chiffrage : 1 ouvrage, non enregistré=true
+  ❌ [C020] 390 px — sortie par barre basse « Devis » : la sonde n'a pas pu jouer le geste — élément introuvable : [role="dialog"] button /^Ajouter$/
+  ❌ [C020] 390 px — sortie par tiroir « Menu » → « Clients & CRM » : la sonde n'a pas pu jouer le geste — élément introuvable : [role="dialog"] button /^Ajouter$/
+  ✅ [C020] 1440 px — Paramètres › Entreprise : une saisie quittée sans « Enregistrer » est conservée (ou un avertissement le dit) — avertissement au départ : aucun · valeur au retour : « BTP - Fabrications - Aménagement - Signalétique — sonde G1 »
+  ✅ [C020] 1440 px — changer d'entreprise avec un chiffrage non enregistré est refusé avec une explication — message : ["Quantités à confirmer Renseignez votre métré. Le montant reste provisoire jusqu’à votre confirmation. Confirmer mes quantités","« Peinture Murale Satinée BTP » ajouté au Lot 01 !","Enregistrez votre travail et terminez la synchronisation avant de changer d’entreprise."] · chiffrage toujours là : 1 ouvrage
+  ❌ [C020] 1440 px — démo : revenir à l'entreprise d'origine ne fait pas disparaître sans prévenir la session ni l'entreprise créée — après le choix : écran « Connexion » (UX-P2-10) · entreprises après « Essayer sans compte » : ["IKADEVIS BTP Propriétaire FCFA"]
+  ✅ [C107] 1440 px — clients : passer de « Société Immobilière NBB » à « Résidence Les Almadies » n'affiche aucune image avec les données de « Société Immobilière NBB » — 82 images analysées après le clic (+100 ms) · images périmées : 0 · lignes propres à A suivies : Clients Nouveau Client SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 RÉ Résidence Les Almadies Mme Fatou SOW (Syndic) SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) Créer Devis NIF/RCCM : NIF-00482910-A +221 77 654 32 10 contact@nbb-immo.com Boulevard de la République, Dakar 1 CHANTIERS 1 DEVIS CHANTIERS DU CLIENT PRJ-2026-001Construction Siège NBB DEVIS & AVENANTS DEV-2026-001 03/10/2026 20 589 256 FCFA · état intermédiaire neutre (squelette) vu : false
+  ✅ [C107] 1440 px — chantiers : passer de « Construction Siège NBB » à « Rénovation Façades ACM » n'affiche aucune image avec les données de « Construction Siège NBB » — 83 images analysées après le clic (+100 ms) · images périmées : 0 · lignes propres à A suivies : 1 devis PRJ-2026-002 EN COURS Rénovation Façades ACM & Enseignes LED Résidence Les Almadies PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB • Plateau, Rue Carnot TOTAL DES DEVIS RATTACHÉS TTC 20 589 256 FCFA DEVIS & AVENANTS RATTACHÉS (1) DEV-2026-001 03/10/2026 20 589 256 FCFA · état intermédiaire neutre (squelette) vu : false
+  ✅ [C107] 390 px — clients : passer de « Société Immobilière NBB » à « Résidence Les Almadies » n'affiche aucune image avec les données de « Société Immobilière NBB » — 83 images analysées après le clic (+100 ms) · images périmées : 0 · lignes propres à A suivies : SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) Créer Devis NIF/RCCM : NIF-00482910-A +221 77 654 32 10 contact@nbb-immo.com Boulevard de la République, Dakar 1 CHANTIERS 1 DEVIS CHANTIERS DU CLIENT PRJ-2026-001Construction Siège NBB DEVIS & AVENANTS DEV-2026-001 03/10/2026 20 589 256 FCFA · état intermédiaire neutre (squelette) vu : true
+  ✅ [C107] 390 px — chantiers : passer de « Construction Siège NBB » à « Rénovation Façades ACM » n'affiche aucune image avec les données de « Construction Siège NBB » — 82 images analysées après le clic (+100 ms) · images périmées : 0 · lignes propres à A suivies : PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB • Plateau, Rue Carnot TOTAL DES DEVIS RATTACHÉS TTC 20 589 256 FCFA DEVIS & AVENANTS RATTACHÉS (1) DEV-2026-001 03/10/2026 20 589 256 FCFA · état intermédiaire neutre (squelette) vu : true
+  ✅ [C107] 1440 px — (information, UX-DEC-01) Factures → Clients : l'ancien écran reste-t-il affiché sous le menu « Clients » ? — 0 images où le menu indique « Clients » et l'écran montre encore « Factures » · écran Clients affiché à 363 ms
+  ❌ [C107] 1440 px — démo : après « Créer l'organisation », la nouvelle entreprise n'affiche pas les données de l'ancienne — sélecteur : « Entreprise Sonde G1 » · h1 de l'accueil : « Espace IKADEVIS BTP » · Mes devis montre DEV-2026-001 : true · Clients montre « Société Immobilière NBB » : true
+  ❌ [C110] 1440 px — connexion : e-mail et mot de passe déclarent leur rôle (autocomplete « email/username » et « current-password », WCAG 1.3.5) — e-mail : type=email autocomplete=null name=null · mot de passe : type=password autocomplete=null name=null · libellés associés : EMAIL/MOT DE PASSE · dans un <form> : true
+  ✅ [C110] 1440 px — le collage n'est pas bloqué (e-mail, mot de passe) — auth-email:autorisé · auth-password:autorisé
+  ✅ [C110] 1440 px — une alternative au mot de passe est offerte (Google, essai sans compte) — Google : true · Essayer sans compte : true · bouton « afficher le mot de passe » : false
+  ✅ [C101] 1440 px — l'inscription se distingue de la connexion (titre, bouton, champs, consentement) — connexion : « Connexion » / « Se connecter » / « Continuer avec Google » · inscription : « Créer un compte » / « Créer mon compte » / « S'inscrire avec Google » · champs inscription : auth-org, auth-email, auth-password, (sans id)
+  ❌ [C101] 1440 px — au clavier, après « Créer un compte », le focus est placé dans le nouveau formulaire (WCAG 2.4.3) — focus après Entrée : BODY
+  ❌ [C110] 1440 px — inscription : le mot de passe est déclaré « new-password » (génération par le gestionnaire), l'organisation « organization » — mot de passe : autocomplete=null minLength=8 · organisation : autocomplete=null
+  ✅ [C102] 1440 px — « Mot de passe oublié » : e-mail conservé, retour à la connexion et essai sans compte proposés — « Réinitialiser le mot de passe » · e-mail conservé : « sonde@exemple.test » · champs : auth-email · actions : Envoyer le lien / Essayer sans compte / ← Retour à la connexion · focus : BODY
+  ✅ [C101] 1440 px — passer connexion ↔ inscription ↔ réinitialisation ne recharge rien et ne boucle pas — navigations de page : 0 · adresse : /index.html · écran final « Connexion »
+  ❌ [C110] 390 px — connexion : e-mail et mot de passe déclarent leur rôle (autocomplete « email/username » et « current-password », WCAG 1.3.5) — e-mail : type=email autocomplete=null name=null · mot de passe : type=password autocomplete=null name=null · libellés associés : EMAIL/MOT DE PASSE · dans un <form> : true
+  ✅ [C110] 390 px — le collage n'est pas bloqué (e-mail, mot de passe) — auth-email:autorisé · auth-password:autorisé
+  ✅ [C110] 390 px — une alternative au mot de passe est offerte (Google, essai sans compte) — Google : true · Essayer sans compte : true · bouton « afficher le mot de passe » : false
+  ✅ [C101] 390 px — l'inscription se distingue de la connexion (titre, bouton, champs, consentement) — connexion : « Connexion » / « Se connecter » / « Continuer avec Google » · inscription : « Créer un compte » / « Créer mon compte » / « S'inscrire avec Google » · champs inscription : auth-org, auth-email, auth-password, (sans id)
+  ❌ [C101] 390 px — au clavier, après « Créer un compte », le focus est placé dans le nouveau formulaire (WCAG 2.4.3) — focus après Entrée : BODY
+  ❌ [C110] 390 px — inscription : le mot de passe est déclaré « new-password » (génération par le gestionnaire), l'organisation « organization » — mot de passe : autocomplete=null minLength=8 · organisation : autocomplete=null
+  ✅ [C102] 390 px — « Mot de passe oublié » : e-mail conservé, retour à la connexion et essai sans compte proposés — « Réinitialiser le mot de passe » · e-mail conservé : « sonde@exemple.test » · champs : auth-email · actions : Envoyer le lien / Essayer sans compte / ← Retour à la connexion · focus : BODY
+  ✅ [C101] 390 px — passer connexion ↔ inscription ↔ réinitialisation ne recharge rien et ne boucle pas — navigations de page : 0 · adresse : /index.html · écran final « Connexion »
+  ✅ [C101] 1440 px — démo → « Se déconnecter » → connexion → « Essayer sans compte » → démo, sans boucle — après déconnexion : « Connexion » · après « Essayer sans compte » : « Espace IKADEVIS BTP »
+  ✅ [C101] 1440 px — « Créer mon compte et conserver ce devis » ouvre bien l'inscription (pas la connexion) et dit que le devis est gardé — écran : « Créer un compte » · mention : « Votre devis d’essai est conservé ici. »
+  ✅ [C102] 1440 px — arrivé par un lien profond (#factures), l'utilisateur y est ramené après l'écran d'accès — adresse avant accès « #factures » → après « Essayer sans compte » : h1 « Factures », adresse « #factures »
+  ❌ [C109] 1440 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — invitation — écran : « Connexion » · alertes : [] · explication trouvée : false · l'adresse garde « #error=access_denied&error_code=otp_expi… »
+  ❌ [C102] 1440 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — réinitialisation — écran : « Connexion » · alertes : [] · explication trouvée : false · l'adresse garde « #error=access_denied&error_code=otp_expi… »
+  ❌ [C109] 390 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — invitation — écran : « Connexion » · alertes : [] · explication trouvée : false · l'adresse garde « #error=access_denied&error_code=otp_expi… »
+  ❌ [C102] 390 px — (simulé : adresse de retour Supabase « otp_expired ») un lien e-mail périmé est expliqué, avec la marche à suivre — réinitialisation — écran : « Connexion » · alertes : [] · explication trouvée : false · l'adresse garde « #error=access_denied&error_code=otp_expi… »
+  ❌ [C102] 1440 px — (simulé : retour d'un lien de réinitialisation) l'écran « Nouveau mot de passe » offre une sortie (annuler / retour) — événement émis : true · titre « Nouveau mot de passe » · actions : Enregistrer le mot de passe
+  ❌ [C110] 1440 px — (simulé) « Nouveau mot de passe » : champ libellé et déclaré « new-password » (WCAG 1.3.5, 3.3.2) — champ : {"type":"password","autocomplete":null,"libelles":0,"ariaLabel":null,"placeholder":"Minimum 8 caractères"}
+  ❌ [C103] 1440 px — (simulé : événement SIGNED_OUT du client Supabase) la fin de session est expliquée à l'écran — événement émis : true · écran : « Connexion » · explication visible : false · messages vus : []
+  ✅ [C103] 1440 px — après la reconnexion, le chiffrage non enregistré est proposé à la reprise (pas de perte silencieuse) — « Un devis non enregistré du 03/10/2026 à 03:13 a été retrouvé — 1 ouvrage. » · bouton « Reprendre ce devis » : true
+  ✅ [C109] 1440 px — démo : Paramètres › Équipe explique pourquoi on ne peut pas inviter et comment y arriver — « Créez ou rejoignez une organisation cloud La gestion d'équipe n'est disponible qu'une fois connecté à une organisation ikadevis. »
+  ✅ [environnement] aucune requête hors 127.0.0.1 n'a abouti (toutes bloquées) — 0 tentative(s) bloquée(s) : aucune
+  ✅ [environnement] aucune erreur JavaScript pendant les parcours — aucune
+
+MESURES {
+ "C002_accueil_1440": {
+  "texte": "Créer mon premier devis",
+  "primaire": true,
+  "premierPrimaire": true,
+  "bas": 316,
+  "limite": 900,
+  "atteignable": true,
+  "consigne": "Votre prochain chantier commence par un devis. Choisissez les travaux, renseignez les quantités et vérifiez vos prix. Démonstration : votre travail est conservé",
+  "bloquants": 0,
+  "appelsDevis": [
+   "Nouveau devis",
+   "Créer mon premier devis",
+   "Nouveau devis Chiffrer un projet"
+  ]
+ },
+ "C104_premiere_valeur": {
+  "saisie": "ok",
+  "montant": 153450
+ },
+ "C002_accueil_390": {
+  "texte": "Créer mon premier devis",
+  "primaire": true,
+  "premierPrimaire": true,
+  "bas": 545,
+  "limite": 775,
+  "atteignable": true,
+  "consigne": "Votre prochain chantier commence par un devis. Choisissez les travaux, renseignez les quantités et vérifiez vos prix. Démonstration : votre travail est conservé",
+  "bloquants": 0,
+  "appelsDevis": [
+   "Créer mon premier devis",
+   "Nouveau devis Chiffrer un projet"
+  ]
+ },
+ "C105_bandeau_exemple": {
+  "h1": "Chiffrage",
+  "bandeau": false
+ },
+ "C010_menu_profil": {
+  "Mon Profil & Compte": {
+   "hash": "#settings/entreprise",
+   "h1": "Paramètres du compte",
+   "section": "Entreprise Identité et coordonnées",
+   "dialogues": [],
+   "profil": false
+  },
+  "Paramètres Entreprise": {
+   "hash": "#settings/entreprise",
+   "h1": "Paramètres du compte",
+   "section": "Entreprise Identité et coordonnées",
+   "dialogues": [],
+   "profil": false
+  },
+  "Formule & Facturation": {
+   "hash": "",
+   "h1": "Espace IKADEVIS BTP",
+   "section": "Tableau de bord",
+   "dialogues": [
+    "Votre abonnement"
+   ],
+   "profil": false
+  }
+ },
+ "C011_structure_d1440": {
+  "sidebar": [
+   "Nouveau devis",
+   "§PILOTAGE",
+   "Tableau de bord",
+   "§EXPLOITATION",
+   "Chantiers",
+   "Clients",
+   "Mes devis",
+   "Factures",
+   "Dépenses",
+   "§CONFIGURATION",
+   "Ouvrages et ressources",
+   "Catalogue",
+   "Ressources"
+  ],
+  "rail": null,
+  "barreBas": null,
+  "selecteurEntreprise": true,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C018_carte_barre-laterale_Tableau de bord": "Espace IKADEVIS BTP",
+ "C018_carte_barre-laterale_Chantiers": "Chantiers",
+ "C018_carte_barre-laterale_Clients": "Clients",
+ "C018_carte_barre-laterale_Mes devis": "Mes devis",
+ "C018_carte_barre-laterale_Factures": "Factures",
+ "C018_carte_barre-laterale_Dépenses": "Dépenses & fournisseurs",
+ "C018_carte_barre-laterale_Catalogue": "Catalogue des Ouvrages",
+ "C018_carte_barre-laterale_Ressources": "Ressources & Prix",
+ "C011_structure_d1024": {
+  "sidebar": [
+   "Nouveau devis",
+   "§PILOTAGE",
+   "Tableau de bord",
+   "§EXPLOITATION",
+   "Chantiers",
+   "Clients",
+   "Mes devis",
+   "Factures",
+   "Dépenses",
+   "§CONFIGURATION",
+   "Ouvrages et ressources",
+   "Catalogue",
+   "Ressources"
+  ],
+  "rail": null,
+  "barreBas": null,
+  "selecteurEntreprise": true,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C011_structure_t768": {
+  "sidebar": null,
+  "rail": [
+   "Tableau de bord",
+   "Chantiers",
+   "Clients",
+   "Mes devis",
+   "Factures",
+   "Dépenses",
+   "Catalogue",
+   "Ressources"
+  ],
+  "barreBas": null,
+  "selecteurEntreprise": true,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C011_structure_m390": {
+  "sidebar": null,
+  "rail": null,
+  "barreBas": [
+   "Accueil",
+   "Devis",
+   "Chantiers",
+   "Factures",
+   "Ouvrir le menu de navigation"
+  ],
+  "tiroir": [
+   "",
+   "§EXPLOITATION & DONNÉES",
+   "Chantiers & Projets",
+   "Clients & CRM",
+   "Dépenses & fournisseurs",
+   "Ouvrages",
+   "Prix des Matériaux",
+   "§PERSONNALISATION",
+   "Modèles de documents PDF & en-tête",
+   "Paramètres Entreprise & compte",
+   "Installer l'application sur mobile",
+   "Se déconnecter"
+  ],
+  "selecteurEntreprise": false,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C018_carte_barre-basse_Accueil": "Espace IKADEVIS BTP",
+ "C018_carte_barre-basse_Devis": "Mes devis",
+ "C018_carte_barre-basse_Chantiers": "Chantiers",
+ "C018_carte_barre-basse_Factures": "Factures",
+ "C018_carte_tiroir_Chantiers & Projets": "Chantiers",
+ "C018_carte_tiroir_Clients & CRM": "Clients",
+ "C018_carte_tiroir_Dépenses & fournisseurs": "Dépenses & fournisseurs",
+ "C018_carte_tiroir_Ouvrages": "Catalogue des Ouvrages",
+ "C018_carte_tiroir_Prix des Matériaux": "Ressources & Prix",
+ "C018_carte_tiroir_Paramètres Entreprise & compte": "Paramètres du compte",
+ "C011_structure_m360": {
+  "sidebar": null,
+  "rail": null,
+  "barreBas": [
+   "Accueil",
+   "Devis",
+   "Chantiers",
+   "Factures",
+   "Ouvrir le menu de navigation"
+  ],
+  "tiroir": [
+   "",
+   "§EXPLOITATION & DONNÉES",
+   "Chantiers & Projets",
+   "Clients & CRM",
+   "Dépenses & fournisseurs",
+   "Ouvrages",
+   "Prix des Matériaux",
+   "§PERSONNALISATION",
+   "Modèles de documents PDF & en-tête",
+   "Paramètres Entreprise & compte",
+   "Installer l'application sur mobile",
+   "Se déconnecter"
+  ],
+  "selecteurEntreprise": false,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C011_structure_m320": {
+  "sidebar": null,
+  "rail": null,
+  "barreBas": [
+   "Accueil",
+   "Devis",
+   "Chantiers",
+   "Factures",
+   "Ouvrir le menu de navigation"
+  ],
+  "tiroir": [
+   "",
+   "§EXPLOITATION & DONNÉES",
+   "Chantiers & Projets",
+   "Clients & CRM",
+   "Dépenses & fournisseurs",
+   "Ouvrages",
+   "Prix des Matériaux",
+   "§PERSONNALISATION",
+   "Modèles de documents PDF & en-tête",
+   "Paramètres Entreprise & compte",
+   "Installer l'application sur mobile",
+   "Se déconnecter"
+  ],
+  "selecteurEntreprise": false,
+  "profil": [
+   "Formule & Facturation Starter",
+   "Mon Profil & Compte",
+   "Paramètres Entreprise",
+   "Se déconnecter"
+  ]
+ },
+ "C018_libelles_par_destination": {
+  "Espace IKADEVIS BTP": [
+   "Tableau de bord",
+   "Accueil"
+  ],
+  "Chantiers": [
+   "Chantiers",
+   "Chantiers & Projets"
+  ],
+  "Clients": [
+   "Clients",
+   "Clients & CRM"
+  ],
+  "Mes devis": [
+   "Mes devis",
+   "Devis"
+  ],
+  "Factures": [
+   "Factures"
+  ],
+  "Dépenses & fournisseurs": [
+   "Dépenses",
+   "Dépenses & fournisseurs"
+  ],
+  "Catalogue des Ouvrages": [
+   "Catalogue",
+   "Ouvrages"
+  ],
+  "Ressources & Prix": [
+   "Ressources",
+   "Prix des Matériaux"
+  ],
+  "Paramètres du compte": [
+   "Paramètres Entreprise & compte"
+  ]
+ },
+ "C017_defilement_Ouvrages": {
+  "defile": 669,
+  "cible": "Sélectionner l'ouvrage Panneau avec cadre métallique et autocollant",
+  "ouvert": [],
+  "retour": "Retour à la liste des ouvrages",
+  "apres": 0,
+  "cibleVisible": {
+   "top": 1306,
+   "dansEcran": false
+  }
+ },
+ "C017_defilement_Ressources": {
+  "defile": 1953,
+  "cible": "Sélectionner Tube carré acier 25x25 (Débit précis, Barre 6m)",
+  "ouvert": [],
+  "retour": "Retour à la liste",
+  "apres": 0,
+  "cibleVisible": {
+   "top": 2564,
+   "dansEcran": false
+  }
+ },
+ "C107_#clients_1440": {
+  "propresA": [
+   "Clients Nouveau Client SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) 1 RÉ Résidence Les Almadies Mme Fatou SOW (Syndic) SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) Créer Devis NIF/RCCM : NIF-00482910-A +221 77 654 32 10 contact@nbb-immo.com Boulevard de la République, Dakar 1 CHANTIERS 1 DEVIS CHANTIERS DU CLIENT PRJ-2026-001Construction Siège NBB DEVIS & AVENANTS DEV-2026-001 03/10/2026 20 589 256 FCFA"
+  ],
+  "images": 82,
+  "perimees": 0
+ },
+ "C107_#chantiers_1440": {
+  "propresA": [
+   "1 devis PRJ-2026-002 EN COURS Rénovation Façades ACM & Enseignes LED Résidence Les Almadies PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB • Plateau, Rue Carnot TOTAL DES DEVIS RATTACHÉS TTC 20 589 256 FCFA DEVIS & AVENANTS RATTACHÉS (1) DEV-2026-001 03/10/2026 20 589 256 FCFA"
+  ],
+  "images": 83,
+  "perimees": 0
+ },
+ "C107_#clients_390": {
+  "propresA": [
+   "SO Société Immobilière NBB M. Amadou DIOP (Directeur Général) Créer Devis NIF/RCCM : NIF-00482910-A +221 77 654 32 10 contact@nbb-immo.com Boulevard de la République, Dakar 1 CHANTIERS 1 DEVIS CHANTIERS DU CLIENT PRJ-2026-001Construction Siège NBB DEVIS & AVENANTS DEV-2026-001 03/10/2026 20 589 256 FCFA"
+  ],
+  "images": 83,
+  "perimees": 0
+ },
+ "C107_#chantiers_390": {
+  "propresA": [
+   "PRJ-2026-001 EN COURS Construction Siège NBB Société Immobilière NBB • Plateau, Rue Carnot TOTAL DES DEVIS RATTACHÉS TTC 20 589 256 FCFA DEVIS & AVENANTS RATTACHÉS (1) DEV-2026-001 03/10/2026 20 589 256 FCFA"
+  ],
+  "images": 82,
+  "perimees": 0
+ },
+ "C107_ecran_350ms": {
+  "images": 61,
+  "ancienSousNouveauMenu": 0,
+  "premierClientsMs": 363
+ }
+}

@@ -262,7 +262,12 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **Un `grep` de contrôle retrouve les commentaires du correctif** *(2026-09-24, § 73)* | Chercher `checks >= maxChecks` ou `handleSimulateSuccess` dans le source les retrouve **dans la documentation de leur propre suppression** : cinq faux rouges d'un coup, et le symétrique (faux vert) serait pire. Lire le code amputé de ses lignes de commentaire. |
 | **Un référentiel écrit à la main n'est pas une source** *(2026-09-24, § 73.10)* | `SASPAY_COUNTRIES` de `js/saspay-service.js` listait 22 réseaux ; l'API SasPay en expose **77, dont 65 actifs**. J'ai affirmé « Wave n'opère pas au Mali » en me fiant à cette liste — **faux**, `wave_ml` est actif, et le correctif privait les Maliens du moyen de paiement le plus répandu. Six opérateurs actifs manquaient sur les pays déjà couverts. Quand la source est interrogeable (`GET /networks/`), la lire. |
 | **staging et production ont DIVERGÉ** *(2026-09-24, § 73.4)* | `public.set_updated_at()` (pourtant dans `v5_schema.sql`) est **présente en production, absente de staging**. Ne jamais supposer qu'une migration ancienne est appliquée des deux côtés : le vérifier avant d'en dépendre. |
-| **Sonder la production juste après un déploiement donne de FAUX échecs** *(2026-09-17)* | `index.html` (~ligne 1139) fait `controllerchange` → `window.location.reload()` : à la **première** visite suivant une mise en ligne, le nouveau service worker prend la main et la page se recharge, ce qui détruit l'arbre React et renvoie à l'écran de connexion. Une sonde automatisée conclut alors « production cassée ». Toujours faire une visite d'échauffement, puis mesurer à la seconde. Code antérieur : commit `0a364c4`. |
+| **Sonder la production juste après un déploiement donne de FAUX échecs** *(2026-09-17, révisé 2026-10-03)* | Avant l'audit UX 220, `controllerchange` → `reload()` rechargeait la page à la **première** visite (prise de contrôle initiale), en pleine saisie (C143). Désormais : **aucun rechargement d'office** — rien à la 1re visite ; pour une mise à jour, l'App affiche un avis « nouvelle version » (évènement `ikadevis:nouvelle-version`) et la nouvelle version s'applique au chargement suivant. Une sonde qui ouvre la page juste après un déploiement peut donc exécuter l'ANCIENNE version : faire une visite d'échauffement puis recharger avant de mesurer. |
+| **Dates « jj/mm/aaaa » lues à l'américaine** *(2026-10-03, audit UX 220)* | Les devis et brouillons stockent `toLocaleDateString('fr-FR')` (« 03/10/2026 »). `new Date('03/10/2026')` = **10 mars** : le devis du jour sortait de « Ce mois ». Toujours lire une date de document avec `lireDateDocument()` (ou `formatDate`, qui l'utilise). |
+| **Deux onglets = deux copies en mémoire** *(2026-10-03)* | Chaque onglet réécrit toute sa liste : sans l'écoute de `storage` (effet « C158 » dans App), le second effaçait les créations du premier et les deux attribuaient le même numéro de devis. Toute nouvelle ressource persistée localement doit être ajoutée à cette écoute. |
+| **Un minuteur de notification efface la suivante** *(2026-10-03)* | `setTimeout(() => setToast(null))` effaçait n'importe quel message affiché à ce moment. Chaque minuteur ne doit retirer que SON message (identifiant). Même piège corrigé pour le lien « Annuler » d'une suppression d'ouvrage. |
+| **Une notification courte a produit un FAUX VERT** *(2026-10-03)* | `test_pdf_zone_visible` lisait les messages à 6 s ; la notification d'échec disparaissait à 3,5 s → « aucun message » → vert, alors que le montage masquait la seule zone imprimable. Un test qui conclut à l'absence d'erreur doit attendre un **succès** explicite, pas un silence. |
+| **`LS.set` peut échouer (stockage plein)** *(2026-10-03)* | `TenantPersistence.set` renvoie `false` sans lever. `LS.set` émet désormais `ikadevis:ecriture-locale-impossible`, que l'App transforme en message. Ne pas réintroduire d'écriture locale qui ignore ce retour. |
 
 ---
 
@@ -373,6 +378,14 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   échec par rapport à la liste nominative d'avant.
 - Liens légaux `/conditions` et `/confidentialite` sont des espaces réservés
   — à remplacer avant mise en ligne réelle.
+- **Audit UX/UI 220 contrôles (2026-10-03)** — branche `audit/ux-220-2026-10`,
+  livrables dans `docs/audit-ux-220/` (carte produit, inventaire de 797
+  interactions, matrice des 220 contrôles, constats, plan, journal), sondes
+  rejouables dans `tests/ux/controles/`, bancs dans `tests/ux/`. Corrigés :
+  perte de données au rechargement (P0), deux onglets, « Marquer envoyées »
+  en lot, import « Remplacer tout », dates jj/mm/aaaa, accessibilité clavier
+  et lecteur d'écran, documents de facture. **Non déployé.** Décisions
+  consignées dans `UX_REDESIGN_PLAN.md` (R1–R10).
 
 ---
 
