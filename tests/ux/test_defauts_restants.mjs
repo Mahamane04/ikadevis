@@ -11,13 +11,21 @@
 //   - menu « Plus d'actions » de l'en-tête du chiffrage : Échap — C123 ;
 //   - « Modifier client / chantier » qui chevauchait « Statut du devis » — C029.
 //
+// LOT B — clavier et focus dans le chiffrage :
+//   - le focus retombait sur la page après l'ajout d'un ouvrage au clavier
+//     et après « Confirmer mes quantités » — C124 ;
+//   - Échap sans focus ne fermait pas la fenêtre du dessus — C033 ;
+//   - Alt+↓ changeait de lot depuis un champ à suggestions et jetait le
+//     focus — C128 ; option active de la liste d'ouvrages non exposée — C128 ;
+//   - champs à suggestions et onglets de lot sans indicateur de focus — C124.
+//
 // Mode Démo, données fictives, serveur local isolé : toute requête vers un
 // autre hôte que 127.0.0.1 est bloquée.
 import puppeteer from 'puppeteer';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { startServer } from '../../scratch/lib/server.mjs';
-import { enterGuestMode } from '../../scratch/lib/harness.mjs';
+import { enterGuestMode, setFirstOuvrageSurface } from '../../scratch/lib/harness.mjs';
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const CONFIG_FACTICE = await readFile(new URL('../../config.example.js', import.meta.url), 'utf8');
@@ -325,6 +333,230 @@ export async function run() {
         ok(`C123 · Le focus quitte le menu : il se referme ; Échap dans le champ client reste au champ — menu ${menuApresFocus} ; ${JSON.stringify(apresEchapChamp)}`,
             menuApresFocus === 'false' && apresEchapChamp.focusDansChamp && apresEchapChamp.listeOuverte !== 'true');
         await page.close();
+
+        // ════════════════════ LOT B — clavier et focus ════════════════════
+        const pb = await navigateur.newPage();
+        await pb.setViewport({ width: 1440, height: 900 });
+        await preparer(pb, url);
+        await pb.evaluate(() => localStorage.clear());
+        await pb.reload({ waitUntil: 'networkidle0' });
+        await enterGuestMode(pb, { createQuote: false });
+        await attendre(1500);
+        await cliquer(pb, '^Nouveau devis', 'aside button');
+        await pb.waitForFunction(() => document.body.innerText.includes('LOTS DU DEVIS'), { timeout: 10000 });
+        await attendre(700);
+        const focusActuel = () => pb.evaluate(() => {
+            const a = document.activeElement;
+            return { balise: a?.tagName, nom: (a?.getAttribute('aria-label') || a?.textContent || '').trim().slice(0, 40), dansInspecteur: !!a?.closest('.work-item-inspector'), page: a === document.body };
+        });
+
+        // B · C128 — liste d'ouvrages : l'option active est exposée.
+        await pb.evaluate(() => [...document.querySelectorAll('input[aria-label="Rechercher un ouvrage à ajouter"]')].find((i) => i.getBoundingClientRect().width > 0)?.focus());
+        await pb.keyboard.type('Peinture', { delay: 20 });
+        await attendre(700);
+        await pb.keyboard.press('ArrowDown');
+        await attendre(250);
+        const liste = await pb.evaluate(() => {
+            const champ = document.activeElement;
+            const id = champ?.getAttribute('aria-activedescendant');
+            const option = id ? document.getElementById(id) : null;
+            const options = [...document.querySelectorAll('#quote-solution-listbox [role="option"]')];
+            return { id, existe: !!option, selectionnee: option?.getAttribute('aria-selected'), nbSelectionnees: options.filter((o) => o.getAttribute('aria-selected') === 'true').length, nbOptions: options.length };
+        });
+        ok(`C128 · « Rechercher un ouvrage » : l'option active est désignée (aria-activedescendant) et seule marquée sélectionnée — ${JSON.stringify(liste)}`,
+            liste.existe && liste.selectionnee === 'true' && liste.nbSelectionnees === 1 && liste.nbOptions > 0);
+
+        // B · C124 — ajout au clavier (Entrée) : le focus va au métré.
+        await pb.keyboard.press('Enter');
+        await attendre(900);
+        const apresAjout = await focusActuel();
+        ok(`C124 · Ouvrage ajouté au clavier dans un lot vide : le focus va à l'inspecteur (conteneur, pas un champ de saisie), pas à la page — ${JSON.stringify(apresAjout)}`,
+            !apresAjout.page && apresAjout.dansInspecteur && !/^(INPUT|SELECT|TEXTAREA)$/.test(apresAjout.balise || ''));
+        // Relecture — le focus n'étant pas dans un champ, Ctrl+Z annule bien l'ajout.
+        const ouvragePresent = () => pb.evaluate(() => [...document.querySelectorAll('.work-item-inspector, [data-testid="quote-items-desktop"]')]
+            .some((z) => z.getBoundingClientRect().width > 0 && z.textContent.includes('Peinture')));
+        const avantAnnulation = await ouvragePresent();
+        await pb.keyboard.down('Control'); await pb.keyboard.press('z'); await pb.keyboard.up('Control');
+        await attendre(700);
+        const apresAnnulation = await ouvragePresent();
+        ok(`C124 · Après un ajout au clavier, Ctrl+Z annule l'ajout (le focus n'est pas dans un champ) — présent avant=${avantAnnulation}, après=${apresAnnulation}`,
+            avantAnnulation && !apresAnnulation);
+        // Relecture — ajout À LA SOURIS : le focus n'est pas envoyé dans un champ.
+        await pb.evaluate(() => [...document.querySelectorAll('input[aria-label="Rechercher un ouvrage à ajouter"]')].find((i) => i.getBoundingClientRect().width > 0)?.focus());
+        await pb.keyboard.type('Peinture', { delay: 20 });
+        await attendre(700);
+        const option = await pb.evaluate(() => {
+            const o = document.querySelector('#quote-solution-listbox [role="option"]');
+            if (!o) return null;
+            const r = o.getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        });
+        if (option) await pb.mouse.click(option.x, option.y);
+        await attendre(900);
+        const apresSouris = await focusActuel();
+        ok(`C124 · Ouvrage ajouté à la souris : le focus n'est pas envoyé dans un champ de saisie (Ctrl+Z reste au devis) — ${JSON.stringify(apresSouris)}`,
+            Boolean(option) && !(apresSouris.dansInspecteur && /^(INPUT|SELECT|TEXTAREA)$/.test(apresSouris.balise || '')));
+
+        // B · C124 — « Confirmer mes quantités » au clavier.
+        await setFirstOuvrageSurface(pb, 25);
+        await attendre(500);
+        const boutonConfirmer = await pb.evaluate(() => {
+            const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Confirmer mes quantités' && x.getBoundingClientRect().width > 0);
+            b?.focus();
+            return Boolean(b) && document.activeElement === b;
+        });
+        await pb.keyboard.press('Enter');
+        await attendre(700);
+        const apresConfirmer = await focusActuel();
+        ok(`C124 · « Confirmer mes quantités » au clavier : le focus reste dans l'inspecteur — bouton focalisé=${boutonConfirmer} ${JSON.stringify(apresConfirmer)}`,
+            boutonConfirmer && !apresConfirmer.page && apresConfirmer.dansInspecteur);
+
+        // B · C128 — Alt+↓ : laissé aux champs à suggestions ; depuis un autre
+        // champ, change de lot sans jeter le focus.
+        await cliquer(pb, '^Ajouter un lot au devis$');
+        await attendre(700);
+        const lotActif = () => pb.evaluate(() => {
+            const onglets = [...document.querySelectorAll('[role="tablist"][aria-label="Onglets des lots de travaux"] [role="tab"]')];
+            return { index: onglets.findIndex((t) => t.getAttribute('aria-selected') === 'true'), nb: onglets.length };
+        });
+        const lotAvant = await lotActif();
+        await pb.focus('input[aria-label="Client du devis"]');
+        await pb.keyboard.down('Alt'); await pb.keyboard.press('ArrowUp'); await pb.keyboard.up('Alt');
+        await attendre(500);
+        const lotApresChamp = await lotActif();
+        ok(`C128 · Alt+↑ dans le champ « Client du devis » (champ à suggestions) ne change pas de lot — ${JSON.stringify({ lotAvant, lotApresChamp })}`,
+            lotAvant.nb >= 2 && lotApresChamp.index === lotAvant.index);
+        // Depuis le bouton d'un onglet de lot : change de lot, focus conservé.
+        await pb.evaluate(() => document.querySelector('[role="tablist"][aria-label="Onglets des lots de travaux"] [role="tab"][aria-selected="true"]')?.focus());
+        await pb.keyboard.down('Alt'); await pb.keyboard.press('ArrowUp'); await pb.keyboard.up('Alt');
+        await attendre(700);
+        const lotApresRaccourci = await lotActif();
+        const focusApresRaccourci = await focusActuel();
+        ok(`C128 · Alt+↑ hors champ à suggestions : le lot change et le focus ne retombe pas sur la page — ${JSON.stringify({ lotApresRaccourci, focusApresRaccourci })}`,
+            lotApresRaccourci.index === lotAvant.index - 1 && !focusApresRaccourci.page);
+
+        // Relecture — un renommage de lot en cours est VALIDÉ par le raccourci
+        // (le champ valide en perdant le focus), pas perdu ni écrit ailleurs.
+        const nomsLots = () => pb.evaluate(() => [...document.querySelectorAll('[role="tablist"][aria-label="Onglets des lots de travaux"] [role="tab"]')].map((t) => t.textContent.replace(/\s+/g, ' ').trim()));
+        const lotDepart = (await lotActif()).index;
+        await pb.evaluate(() => [...document.querySelectorAll('[title="Cliquer pour renommer ce lot"]')].find((e) => e.getBoundingClientRect().width > 0)?.click());
+        await attendre(400);
+        const enRenommage = await pb.evaluate(() => document.activeElement?.tagName === 'INPUT');
+        if (enRenommage) {
+            await pb.keyboard.down('Control'); await pb.keyboard.press('a'); await pb.keyboard.up('Control');
+            await pb.keyboard.type('Lot renommé au clavier');
+            await pb.keyboard.down('Alt'); await pb.keyboard.press('ArrowDown'); await pb.keyboard.up('Alt');
+            await attendre(800);
+        }
+        const nomsApres = await nomsLots();
+        const lotArrivee = (await lotActif()).index;
+        ok(`C128 · Renommage de lot en cours puis Alt+↓ : le nom est validé sur le lot quitté, le lot suivant garde le sien — ${JSON.stringify({ enRenommage, lotDepart, lotArrivee, nomsApres })}`,
+            enRenommage && lotArrivee === lotDepart + 1 && /Lot renommé au clavier/.test(nomsApres[lotDepart] || '') && !/Lot renommé au clavier/.test(nomsApres[lotArrivee] || ''));
+
+        // Relecture — « Synthèse des lots » : Échap la referme (C033).
+        await cliquer(pb, '^Synthèse des lots$');
+        await attendre(700);
+        const syntheseOuverte = await pb.evaluate(() => Boolean(document.querySelector('[data-testid="lots-overview-page"]')));
+        await pb.evaluate(() => document.activeElement?.blur());
+        await pb.keyboard.press('Escape');
+        await attendre(600);
+        const syntheseApres = await pb.evaluate(() => Boolean(document.querySelector('[data-testid="lots-overview-page"]')));
+        ok(`C033 · « Synthèse des lots » : Échap la referme — ouverte=${syntheseOuverte}, après=${syntheseApres}`, syntheseOuverte && !syntheseApres);
+
+        // B · C124 — indicateurs de focus (clavier).
+        // Ces éléments portent `transition-all` : le contour s'anime. On lit
+        // le style une fois la transition finie, pas à l'instant du focus.
+        const anneau = async (selecteur) => {
+            const trouve = await pb.evaluate((sel) => {
+                const el = [...document.querySelectorAll(sel)].find((x) => x.getBoundingClientRect().width > 0);
+                el?.focus({ focusVisible: true });
+                return Boolean(el);
+            }, selecteur);
+            if (!trouve) return null;
+            await attendre(450);
+            return pb.evaluate(() => {
+                const cs = getComputedStyle(document.activeElement);
+                return { style: cs.outlineStyle, largeur: cs.outlineWidth, couleur: cs.outlineColor, decalage: cs.outlineOffset, ombre: cs.boxShadow.slice(0, 120) };
+            });
+        };
+        const anneauChamp = await anneau('input[aria-label="Client du devis"]');
+        const anneauOnglet = await anneau('[role="tablist"][aria-label="Onglets des lots de travaux"] [role="tab"]');
+        // Champ : UN seul indicateur, son anneau bleu (pas de contour en plus).
+        // Onglet : contour intérieur sombre (la bordure de l'onglet actif est déjà bleue).
+        const contourVisible = (a) => a && a.style === 'solid' && parseFloat(a.largeur) >= 2 && !/rgba\(0, 0, 0, 0\)|transparent/.test(a.couleur);
+        ok(`C124 · Indicateur de focus au clavier : champ « Client du devis » ${JSON.stringify(anneauChamp)} ; onglet de lot ${JSON.stringify(anneauOnglet)}`,
+            anneauChamp && /rgb\(0, 100, 224\)/.test(anneauChamp.ombre) && !contourVisible(anneauChamp)
+            && contourVisible(anneauOnglet) && parseFloat(anneauOnglet.decalage) < 0 && /rgb\(28, 43, 51\)/.test(anneauOnglet.couleur));
+
+        // B · C033 — Échap alors que le focus est sur la page : la fenêtre se ferme.
+        // Le chiffrage est modifié : le quitter pose la question (E10).
+        await aller(pb, '#clients');
+        await cliquer(pb, '^Ne pas enregistrer$', '[role="dialog"] button');
+        await attendre(1500);
+        await cliquer(pb, '^Créer un nouveau client$');
+        await attendre(700);
+        const ouverteAvant = await pb.evaluate(() => Boolean(document.getElementById('newClientForm-name')));
+        await pb.evaluate(() => document.activeElement?.blur());
+        const focusPage = await pb.evaluate(() => document.activeElement === document.body);
+        await pb.keyboard.press('Escape');
+        await attendre(600);
+        const ouverteApres = await pb.evaluate(() => Boolean(document.getElementById('newClientForm-name')));
+        ok(`C033 · Échap avec le focus sur la page : « Nouveau client » se ferme — ouverte avant=${ouverteAvant}, focus sur la page=${focusPage}, ouverte après=${ouverteApres}`,
+            ouverteAvant && focusPage && !ouverteApres);
+        await pb.close();
+
+        // Relecture — téléphone : Échap avec le focus sur la page ne ferme
+        // qu'UNE couche (la confirmation), pas la fiche devis dessous.
+        const tb = await ouvrirTelephone(navigateur, url);
+        const db = await tb.evaluate(() => (JSON.parse(localStorage.getItem('costcalc:guest:savedQuotes') || '[]')[0]) || null);
+        await aller(tb, `#devis/${db?.id}`, 1800);
+        await cliquer(tb, '^Plus d’actions$', '.saved-quote-detail-modal.fixed button');
+        await attendre(400);
+        await cliquer(tb, '^Supprimer le devis ', '.saved-quote-detail-modal.fixed button');
+        await attendre(700);
+        const confirmationOuverte = () => tb.evaluate(() => [...document.querySelectorAll('[role="dialog"]')].some((x) => /Supprimer Devis/.test(x.textContent) && x.getBoundingClientRect().width > 0));
+        const avantEchapCouches = await confirmationOuverte();
+        await tb.evaluate(() => document.activeElement?.blur());
+        await tb.keyboard.press('Escape');
+        await attendre(700);
+        const couches = { confirmation: await confirmationOuverte(), fiche: await ficheMobileOuverte(tb) };
+        ok(`C033 · Échap, focus sur la page, confirmation au-dessus de la fiche devis : seule la confirmation se ferme — avant=${avantEchapCouches} ${JSON.stringify(couches)}`,
+            avantEchapCouches && !couches.confirmation && couches.fiche);
+
+        await tb.close();
+        // Relecture — liste d'ouvrages en plein écran (640 à 767 px : tablette
+        // étroite, bureau zoomé ; à 390 px ce champ est remplacé par un
+        // bouton) : le champ qui garde le focus désigne lui aussi l'option
+        // active (C128).
+        const tm = await ouvrirTelephone(navigateur, url, 700, 900);
+        await aller(tm, '#chiffrage', 1800);
+        // Le champ d'ajout est dans le lot : on y entre par l'appel du lot
+        // vide, puis on referme le catalogue qu'il ouvre.
+        await cliquer(tm, 'Ajouter mon premier ouvrage');
+        await attendre(900);
+        await tm.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.getBoundingClientRect().width > 0
+            && (/^Terminer/.test(b.textContent.trim()) || b.getAttribute('aria-label') === 'Fermer le sélecteur'))?.click());
+        await attendre(900);
+        const champAjout = await tm.evaluate(() => {
+            const c = [...document.querySelectorAll('input[aria-label="Rechercher un ouvrage à ajouter"]')].find((i) => i.getBoundingClientRect().width > 0);
+            c?.focus();
+            return Boolean(c);
+        });
+        await attendre(600);
+        await tm.keyboard.type('Peinture', { delay: 20 });
+        await attendre(700);
+        await tm.keyboard.press('ArrowDown');
+        await attendre(250);
+        const listeMobile = await tm.evaluate(() => {
+            const champ = document.activeElement;
+            const id = champ?.getAttribute('aria-activedescendant');
+            const option = id ? document.getElementById(id) : null;
+            return { champ: champ?.getAttribute('aria-label'), role: champ?.getAttribute('role'), id, selectionnee: option?.getAttribute('aria-selected') };
+        });
+        listeMobile.champAjoutTrouve = champAjout;
+        ok(`C128 · 700 px, liste d'ouvrages en plein écran : le champ focalisé désigne l'option active — ${JSON.stringify(listeMobile)}`,
+            listeMobile.role === 'combobox' && Boolean(listeMobile.id) && listeMobile.selectionnee === 'true');
+        await tm.close();
     } finally {
         await navigateur.close();
         await fermerServeur();

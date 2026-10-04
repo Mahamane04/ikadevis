@@ -146,6 +146,16 @@ const lienEmail = (adresse, sujet, corps) =>
 const estUuid = (v) => typeof v === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
+// Dernier geste de l'utilisateur : clavier ou pointeur ? Un focus déplacé par
+// programme n'a de sens que pour qui navigue au clavier. À la souris il vole
+// la saisie (Ctrl+Z ne vise plus le devis), au doigt il fait surgir le
+// clavier virtuel (relecture du lot B).
+let dernierGesteAuClavier = false;
+if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', () => { dernierGesteAuClavier = true; }, true);
+    window.addEventListener('pointerdown', () => { dernierGesteAuClavier = false; }, true);
+}
+
 // Un menu déroulant est ouvert et l'on appuie sur Échap : la touche revient-elle
 // à AUTRE CHOSE que ce menu ? Oui si le focus est dans un champ de saisie ou
 // une liste hors du menu, ou dans une autre fenêtre. Un titre ou un conteneur
@@ -1607,7 +1617,7 @@ function ClientCombobox({
                     // Puce compacte sous sm: (rounded-full, plus étroite, placeholder
                     // court) au lieu de la barre de recherche pleine largeur — même
                     // input, mêmes onChange/onFocus, seule l'habillage change.
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${erreurAffichee ? 'border-red-500 ring-2 ring-red-500/25 bg-red-50/40' : isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${erreurAffichee ? 'border-red-500 ring-2 ring-red-500/25 bg-red-50/40' : isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50 focus-visible:ring-brand-600' : 'border-neutral-200 focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-600'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label={erreurAffichee ? 'Client du devis — requis' : 'Client du devis'}
                     aria-invalid={erreurAffichee || undefined}
                     aria-autocomplete="list"
@@ -1887,7 +1897,7 @@ function ProjectCombobox({
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Projet"
-                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50' : 'border-neutral-200'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full bg-neutral-50 hover:bg-white focus:bg-white border rounded-xl sm:rounded-lg pl-9 sm:pl-10 pr-9 sm:pr-8 py-2.5 sm:py-1.5 text-xs font-bold text-neutral-900 placeholder-neutral-500 outline-none transition-all truncate ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 bg-brand-50/50 focus-visible:ring-brand-600' : 'border-neutral-200 focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-600'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     aria-label="Chantier du devis"
                     aria-autocomplete="list"
                     aria-controls="quote-project-listbox"
@@ -2092,6 +2102,11 @@ function SolutionCombobox({
         }
     };
 
+    // Option désignée aux aides techniques (C128) — partagée par le champ du
+    // bureau et par celui de la vue plein écran (téléphone), qui garde le focus.
+    const idOptionActive = isOpen && highlightedIndex >= 0 && highlightedIndex <= filteredSolutions.length - (canCreate ? 0 : 1)
+        ? `quote-solution-option-${highlightedIndex}` : undefined;
+
     return (
         <div ref={rootRef} className="relative w-full">
             <div className={`relative ${isOpen ? 'z-[101]' : ''}`}>
@@ -2103,10 +2118,11 @@ function SolutionCombobox({
                     onChange={event => { setQuery(event.target.value); setIsOpen(true); }}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className={`w-full bg-white border rounded-xl pl-9 pr-10 py-2.5 text-xs font-semibold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10' : 'border-neutral-200 hover:border-neutral-300'}`}
+                    className={`w-full bg-white border rounded-xl pl-9 pr-10 py-2.5 text-xs font-semibold text-neutral-900 placeholder-neutral-400 outline-none transition-all ${isOpen ? 'border-brand-500 ring-2 ring-brand-500/10 focus-visible:ring-brand-600' : 'border-neutral-200 hover:border-neutral-300 focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-600'}`}
                     aria-label="Rechercher un ouvrage à ajouter"
                     aria-autocomplete="list"
                     aria-controls="quote-solution-listbox"
+                    aria-activedescendant={idOptionActive}
                     aria-expanded={isOpen}
                     aria-haspopup="listbox"
                     role="combobox"
@@ -2150,6 +2166,11 @@ function SolutionCombobox({
                             onKeyDown={handleKeyDown}
                             placeholder="Rechercher un ouvrage…"
                             aria-label="Rechercher un ouvrage dans le catalogue"
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-controls="quote-solution-listbox"
+                            aria-expanded={isOpen}
+                            aria-activedescendant={idOptionActive}
                         />
                     </div>
                     <div className="picker-popover-label px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
@@ -2161,7 +2182,8 @@ function SolutionCombobox({
                                 key={solution.id || solution.name}
                                 type="button"
                                 role="option"
-                                aria-selected={false}
+                                id={`quote-solution-option-${index}`}
+                                aria-selected={highlightedIndex === index}
                                 onMouseEnter={() => setHighlightedIndex(index)}
                                 onClick={() => selectSolution(solution)}
                                 className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition-colors ${highlightedIndex === index ? 'bg-brand-50 text-brand-900' : 'text-neutral-700 hover:bg-neutral-50'}`}
@@ -2181,6 +2203,7 @@ function SolutionCombobox({
                             <button
                                 type="button"
                                 role="option"
+                                id={`quote-solution-option-${filteredSolutions.length}`}
                                 aria-selected={highlightedIndex === filteredSolutions.length}
                                 onMouseEnter={() => setHighlightedIndex(filteredSolutions.length)}
                                 onClick={createSolution}
@@ -3975,7 +3998,7 @@ function LotTabsBar({
                             role="tab"
                             aria-selected={isActive}
                             onClick={() => onSelectLot && onSelectLot(idx)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all shrink-0 border ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all shrink-0 border focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neutral-900 ${
                                 isActive
                                     ? 'bg-white border-brand-500 text-neutral-900 shadow-2xs ring-1 ring-brand-500/20 font-bold'
                                     : 'bg-white/60 hover:bg-white border-neutral-200 text-neutral-600 hover:text-neutral-900'
@@ -4078,6 +4101,7 @@ function LotsOverviewModal({
                         onClick={onClose}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800 text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 active:scale-95"
                         aria-label="Retour au chiffrage"
+                        data-fermer-fenetre="1"
                         title="Revenir à l'éditeur de devis"
                     >
                         <i className="fa-solid fa-arrow-left text-brand-600"></i>
@@ -6001,7 +6025,7 @@ function WorkItemInspector({
     </section>;
 
     return (
-        <div ref={inspectorRef} role={compactInspector ? 'dialog' : undefined} aria-modal={compactInspector ? 'true' : undefined} aria-label={compactInspector ? `Modifier l’ouvrage ${item.name}` : undefined} className="work-item-inspector flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
+        <div ref={inspectorRef} tabIndex={-1} role={compactInspector ? 'dialog' : 'region'} aria-modal={compactInspector ? 'true' : undefined} aria-label={`Modifier l’ouvrage ${item.name}`} className="work-item-inspector outline-none flex-1 min-w-0 min-h-0 h-full w-full bg-white flex flex-col overflow-hidden animate-fade-in">
                 <div className="p-3.5 sm:p-4 border-b border-neutral-200 bg-white space-y-2.5 shrink-0">
                     {/* Rangée 1 : Navigation retour, Sélecteur direct de lot, Pagination d'ouvrage et Toggle Simple/Avancé */}
                     <div className="flex items-center justify-between gap-2">
@@ -6138,7 +6162,22 @@ function WorkItemInspector({
 
                 {item.needsQuantityConfirmation && <div role="status" className="p-3 bg-amber-50 border-b border-amber-200 text-xs shrink-0">
                     <p className="font-semibold">Quantités à confirmer</p><p className="mt-1">Renseignez votre métré. Le montant reste provisoire jusqu’à votre confirmation.</p>
-                    <button type="button" disabled={!quantityValid} onClick={() => onUpdateItem({ needsQuantityConfirmation: false })} className="btn-primary mt-2 disabled:opacity-50">Confirmer mes quantités</button>
+                    <button type="button" disabled={!quantityValid} onClick={(e) => {
+                        onUpdateItem({ needsQuantityConfirmation: false });
+                        // C124 — ce bouton disparaît une fois les quantités
+                        // confirmées : au CLAVIER (clic sans pointeur,
+                        // detail === 0) le focus retombait sur la page. Il
+                        // va au conteneur de l'inspecteur — pas à un champ :
+                        // au doigt cela ferait surgir le clavier virtuel, à
+                        // la souris cela détournerait Ctrl+Z vers le champ.
+                        if (e.detail !== 0) return;
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            const racine = inspectorRef.current;
+                            const actif = document.activeElement;
+                            if (!racine || (actif && actif !== document.body && actif.isConnected)) return;
+                            racine.focus({ preventScroll: true });
+                        }));
+                    }} className="btn-primary mt-2 disabled:opacity-50">Confirmer mes quantités</button>
                 </div>}
                 {/* MODE SIMPLE (Novice / Rapide) */}
                 {(inspectorMode === 'simple' || isManualLine) ? (
@@ -7462,18 +7501,21 @@ function QuoteWorkspace({
             const hasLotModifier = e.altKey || e.ctrlKey || (e.metaKey && e.altKey);
             if (!hasLotModifier) return;
 
-            const tag = document.activeElement?.tagName?.toLowerCase();
-            // Ne pas intercepter uniquement si l'utilisateur est dans un textarea (champ multiligne)
-            if (tag === 'textarea') return;
+            // Audit UX 220 (C128) — Alt+↓ / Alt+↑ sont les touches natives d'une
+            // liste déroulante (ouvrir, refermer) : on les laisse aux listes,
+            // aux champs à suggestions, aux zones de texte.
+            const actif = document.activeElement;
+            if (actif && actif.matches && actif.matches('textarea, select, [role="combobox"], [role="listbox"], [role="option"], [contenteditable="true"]')) return;
 
             // Bloquer le comportement par défaut (défilement de page ou navigation texte macOS)
             e.preventDefault();
             e.stopPropagation();
 
-            // Si le focus est dans un input classique (recherche, quantité, prix), défocusser proprement
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
-            }
+            // Un champ en cours de saisie valide sa valeur EN PERDANT le focus
+            // (renommage d'un lot, quantité vidée) : on le quitte avant de
+            // changer de lot, sinon la saisie est perdue ou écrite dans le
+            // lot suivant. Le focus est repris juste après (voir plus bas).
+            if (actif && actif !== document.body && actif.matches && actif.matches('input') && typeof actif.blur === 'function') actif.blur();
 
             const total = calculatedQuote.lots?.length || 1;
             if (isUp) {
@@ -7481,6 +7523,19 @@ function QuoteWorkspace({
             } else {
                 handleSelectLot(Math.min(total - 1, activeLotIndex + 1));
             }
+            // Le focus ne doit pas retomber sur la page : après le changement
+            // de lot il va à l'inspecteur s'il est affiché, sinon à l'onglet
+            // du lot (ramené dans le champ de vision).
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                const a = document.activeElement;
+                if (a && a !== document.body && a.isConnected && a.getBoundingClientRect().width > 0) return;
+                if (document.querySelector('[role="dialog"][aria-modal="true"]:not(.work-item-inspector)')) return;
+                const visible = (el) => !!el && el.getBoundingClientRect().width > 0;
+                const inspecteur = document.querySelector('.work-item-inspector');
+                if (visible(inspecteur)) { inspecteur.focus({ preventScroll: true }); return; }
+                const onglet = [...document.querySelectorAll('[role="tablist"][aria-label="Onglets des lots de travaux"] [role="tab"][aria-selected="true"]')].find(visible);
+                if (onglet) { onglet.scrollIntoView({ block: 'nearest', inline: 'nearest' }); onglet.focus({ preventScroll: true }); }
+            }));
         };
 
         // Utiliser la phase de capture (true) pour intercepter l'événement avant tout composant enfant
@@ -7607,6 +7662,24 @@ function QuoteWorkspace({
     };
 
     // Item handlers
+    // Audit UX 220 (C124) — après un ajout fait AU CLAVIER, le focus retombait
+    // sur la page (le champ ou le bouton utilisé disparaît avec l'état « lot
+    // vide »). Il va au conteneur de l'inspecteur s'il vient de s'ouvrir, sinon
+    // au champ d'ajout sous le tableau. Rien à la souris ni au doigt.
+    const reprendreFocusApresAjout = () => {
+        if (!dernierGesteAuClavier) return;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const actif = document.activeElement;
+            if (actif && actif !== document.body && actif.isConnected) return;
+            if (document.querySelector('[role="dialog"][aria-modal="true"]:not(.work-item-inspector)')) return;
+            const visible = (e) => !!e && e.getBoundingClientRect().width > 0;
+            const inspecteur = document.querySelector('.work-item-inspector');
+            const cible = visible(inspecteur) ? inspecteur
+                : [...document.querySelectorAll('input[aria-label="Rechercher un ouvrage à ajouter"]')].find(visible);
+            cible?.focus({ preventScroll: true });
+        }));
+    };
+
     const handleSelectSolutionForLot = (sol) => {
         pushState();
         const newItem = {
@@ -7640,6 +7713,7 @@ function QuoteWorkspace({
         setInspectorItemIndex(updatedLots[activeLotIndex].items.length - 1);
         setIsPickerOpen(false);
         showToast(`« ${sol.name} » ajouté au Lot ${updatedLots[activeLotIndex].code || activeLotIndex + 1} !`);
+        reprendreFocusApresAjout();
     };
 
     const handleSelectBulkSolutions = (selectedList) => {
@@ -7672,6 +7746,7 @@ function QuoteWorkspace({
         };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
         showToast(`${newItems.length} ouvrages ajoutés au lot !`);
+        reprendreFocusApresAjout();
     };
 
     const handleAddCustomLine = () => {
@@ -7694,6 +7769,7 @@ function QuoteWorkspace({
         };
         setHybridQuote(prev => ({ ...prev, lots: updatedLots }));
         showToast("Ligne libre ajoutée au lot");
+        reprendreFocusApresAjout();
     };
 
     const handleUpdateItem = (itemIdx, patch) => {
@@ -20765,7 +20841,17 @@ function App({ supabaseSession, supabaseClient, onSignOut }) {
             const depuisListe = e.target && e.target.closest
                 && e.target.closest('[role="combobox"], [role="listbox"], [role="option"], .picker-popover');
             if (e.key === 'Escape' && !e.defaultPrevented && courante && document.contains(courante)
-                && courante.contains(e.target) && !depuisListe && !courante.classList.contains('picker-popover')) {
+                // C033 — focus perdu sur la page (fenêtre ouverte au doigt, bouton
+                // disparu) : Échap ne faisait rien et la fenêtre restait.
+                // Jamais quand une fenêtre qui gère son propre focus est ouverte
+                // par-dessus (confirmation, envoi) : une seule touche fermait les
+                // deux couches. Ni sur un éditeur de travail long
+                // (data-echap-focus-requis) : il se fermerait sans confirmation.
+                && (courante.contains(e.target)
+                    || ((e.target === document.body || e.target === document.documentElement)
+                        && !document.querySelector('[data-focus-gere]')
+                        && !courante.hasAttribute('data-echap-focus-requis')))
+                && !depuisListe && !courante.classList.contains('picker-popover')) {
                 // Audit UX 220 (C118) — Échap dans un menu déroulant (« Plus
                 // d'actions ») refermait toute la fiche. Le menu ouvert, s'il y en
                 // a un, se referme d'abord ; le focus revient sur son bouton.
@@ -34135,7 +34221,7 @@ function CompanyDocPreviewModal({ companyInfo, onClose }) {
                 ];
 
                 return (
-                    <div className="fixed inset-0 z-[140] bg-neutral-100 flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Éditeur de modèle de document">
+                    <div className="fixed inset-0 z-[140] bg-neutral-100 flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label="Éditeur de modèle de document" data-echap-focus-requis="1">
                         {/* Barre du haut */}
                         <div className="shrink-0 bg-white border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
                             <div className="min-w-0 flex-1 flex items-center gap-3">

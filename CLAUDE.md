@@ -272,6 +272,8 @@ qu'un utilisateur atteint le bas d'une page. Voir § 59 du tracker
 | **La fiche devis mobile est une fenêtre plein écran en z-140, montée en fin d'App** *(2026-10-03)* | Sous 1024 px, toute fenêtre ouverte DEPUIS cette fiche doit avoir un niveau supérieur, sinon elle s'ouvre dessous, invisible : signature, partage, « Nouveau client / chantier » z-145 ; confirmation z-225 ; notification z-230. Le même balisage existe dans le panneau de bureau masqué : un `querySelector` renvoie d'abord la copie invisible — viser `.saved-quote-detail-modal.fixed …` ou l'élément visible. |
 | **Une fiche a une adresse : la refermer doit la rendre** *(2026-10-03)* | Ouvrir une fiche par `selectSavedQuote` / `selectProject` / `selectInvoiceItem` inscrit `#…/<id>` (`inscrireAdresseFiche`). La refermer par un simple `setViewingSavedQuote(null)` laisse cette entrée : le Retour du navigateur ROUVRE la fiche. Passer par `closeQuotePreview` (retour en arrière si elle vient de la liste, sinon `replaceState`). |
 | **Fiche devis ≠ chiffrage en cours** *(2026-10-03)* | Modifier le client ou le chantier depuis la fiche d'un devis doit toucher CE devis (`majDevisAffiche`), et le chiffrage seulement s'il a le même `id`. L'ancienne garde « ni l'un ni l'autre n'a d'identifiant serveur » était toujours vraie en démo. |
+| **Ne jamais envoyer le focus dans un champ de saisie par programme** *(2026-10-04)* | Au doigt, cela fait surgir le clavier virtuel (Android) ; à la souris, Ctrl+Z ne vise plus le devis mais le champ. Reprendre un focus perdu seulement après un geste CLAVIER (`dernierGesteAuClavier`, ou `event.detail === 0` sur un clic) et vers une cible non éditable (conteneur de l'inspecteur, `tabIndex={-1}`). |
+| **Un `blur()` peut être une validation** *(2026-10-04)* | Le titre d'un lot et certaines quantités s'enregistrent en perdant le focus. Retirer un `blur()` « inutile » du raccourci de changement de lot faisait perdre un renommage en cours, ou l'écrivait dans le lot suivant. |
 | **Une écriture locale refusée ne doit jamais être suivie d'un succès** *(2026-10-03)* | `LS.set` renvoie `false` et émet `ikadevis:ecriture-locale-impossible` `{cle}` de façon SYNCHRONE. L'enregistrement d'un devis lit ce résultat (pas de « enregistré », atelier laissé « non enregistré »). En démonstration, `showToast` remplace tout succès annoncé dans le même geste par l'échec. Toute nouvelle écriture qui annonce un succès doit lire le booléen. |
 
 ---
@@ -392,16 +394,16 @@ sur `platform_admins`), chaque accès journalisé. Détail : § 19 du tracker.
   accessibilité clavier et lecteur d'écran, documents de facture,
   impression, Retour du navigateur sur un chiffrage non enregistré.
   Signature au doigt sous 1024 px et faux succès quand le stockage est plein
-  corrigés (lot 7) ; fiche devis sur téléphone (lot 8, non déployé).
-  Matrice : **123 PASSÉ, 37 ÉCHEC, 32 BLOQUÉ, 25 N/A, 3 non testés**. **En ligne depuis le 2026-10-03** : commit `c555d60`
+  corrigés (lot 7) ; fiche devis sur téléphone (lot 8) et clavier / focus
+  du chiffrage (lot 9), non déployés. Matrice : **124 PASSÉ, 35 ÉCHEC,
+  33 BLOQUÉ, 25 N/A, 3 non testés**. **En ligne depuis le 2026-10-03** : commit `c555d60`
   (PR n° 2), version Cloudflare `4da31b5f-8c23-4e55-9e6b-8f212349f066` ;
   retour arrière : `npx wrangler rollback cdf73e1f-3a9c-462a-b4bd-6d0d95310048`
   (build de la PR n° 1). Les défauts restants sont corrigés par petits lots
   sur la branche `fix/ux-defauts-restants-2026-10` (banc
   `tests/ux/test_defauts_restants.mjs`), **non déployée**. Reste ouvert (`UX_AUDIT.md` § Défauts
-  restants, 40 lignes avec correction proposée) : focus perdu après ajout
-  d'ouvrage, onglets sans panneau relié, 320 px, écran d'accès lent sur
-  réseau faible… **Les sondes G1–G9 sont à
+  restants, 33 lignes avec correction proposée) : onglets sans panneau
+  relié, libellés vagues, 320 px, écran d'accès lent sur réseau faible… **Les sondes G1–G9 sont à
   réparer avant tout rejeu** : plusieurs sélecteurs sont périmés (libellés
   renommés) et leur capture des annonces guette des nœuds AJOUTÉS alors que
   les régions d'annonce sont permanentes. Décisions : `UX_REDESIGN_PLAN.md`

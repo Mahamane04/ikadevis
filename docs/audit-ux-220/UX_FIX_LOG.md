@@ -398,3 +398,47 @@ par réfutation), corrigée et testée avant le commit :
 - Matrice : **123 PASSÉ, 37 ÉCHEC, 32 BLOQUÉ, 25 NON APPLICABLE, 3 NON
   TESTÉ** (C017, C090, C118, C123 passent d'ÉCHEC à PASSÉ).
 
+## Lot 9 — Défauts restants, lot B : clavier et focus dans le chiffrage (2026-10-04)
+
+Branche `fix/ux-defauts-restants-2026-10`, **non déployée**.
+
+| Défaut | Correction | Retest (banc défauts restants) |
+|---|---|---|
+| Focus retombé sur la page après l'ajout d'un ouvrage au clavier dans un lot vide (C124) | après un ajout **fait au clavier**, le focus va au conteneur de l'inspecteur (sinon au champ d'ajout) — `reprendreFocusApresAjout`, appelée aussi pour l'ajout multiple et la ligne libre | focus dans l'inspecteur, hors champ de saisie ; Ctrl+Z annule toujours l'ajout ; à la souris le focus n'est pas déplacé |
+| Focus retombé sur la page après « Confirmer mes quantités » au clavier (C124) | même règle, sur activation clavier seulement (`detail === 0`) | focus dans l'inspecteur |
+| Échap sans focus ne fermait pas la fenêtre du dessus (C033) | le filet agit aussi quand le focus est sur la page — sauf si une fenêtre autogérée est ouverte par-dessus, et jamais sur l'éditeur de modèles (`data-echap-focus-requis`) ; « Synthèse des lots » reconnaît son bouton de retour | « Nouveau client » se ferme ; confirmation au-dessus de la fiche devis : une seule couche se ferme ; synthèse des lots refermée |
+| Alt+↓ volé aux champs à suggestions, focus jeté sur la page (C128) | le raccourci de lot laisse la touche aux listes et champs à suggestions ; un champ en cours de saisie est quitté (il valide en perdant le focus) puis le focus va à l'inspecteur ou à l'onglet du lot | lot inchangé depuis « Client du devis » ; lot changé sans focus sur la page ; renommage de lot en cours validé sur le lot quitté |
+| Option active de « Rechercher un ouvrage » non exposée (C128) | `aria-activedescendant`, identifiants et `aria-selected` des options, y compris dans la vue plein écran (640–767 px) | option désignée et seule sélectionnée, à 1440 et à 700 px |
+| Champs client / chantier / ouvrage et onglets de lot sans indicateur de focus perceptible (C124) | anneau `focus-visible` sur les trois champs (un seul indicateur) ; contour intérieur sombre sur l'onglet de lot | anneau `rgb(0,100,224)` ; contour `rgb(28,43,51)`, décalage −2 px |
+
+**Relecture adversariale du lot** (deux relecteurs, 11 constats, tous confirmés) —
+cinq régressions de la première version, corrigées avant le commit :
+le focus envoyé dans le champ « Désignation » faisait surgir le clavier sur
+Android et détournait Ctrl+Z à la souris (d'où la cible non éditable et la
+garde « clavier seulement ») ; Échap depuis la page fermait deux couches
+quand une confirmation ou la fenêtre d'envoi était au-dessus ; il fermait
+aussi l'éditeur de modèles sans confirmation ; le `blur` retiré du raccourci
+de lot servait de validation (renommage perdu ou écrit dans le lot
+suivant) ; double indicateur de focus sur les champs à suggestions.
+
+Reste ouvert, relevé par la relecture : l'éditeur de modèles se ferme sans
+confirmation quand il a des réglages non enregistrés (défaut antérieur, quand
+le focus est dans l'éditeur) ; l'ouverture du clavier virtuel sur Android
+n'a pas pu être rejouée sur appareil.
+
+### Vérification (build JS `d06f686f37`)
+
+- `tests/ux/test_defauts_restants.mjs` : **29/29**.
+- Bancs `tests/ux` : **110/110** (8 bancs). `npm run test:audit` vert.
+- Suite complète `npm test` : **539/627, 26/58 suites, 7/7 étalons —
+  identique à `main`** (0 échec nouveau, 0 disparu). Un premier passage
+  avait donné 538/627 : « Rien n'est restauré tant que l'utilisateur n'a
+  pas accepté » (brouillon automatique). Rejoué seul trois fois puis dans
+  la suite entière, le test passe ; le lot ne touche pas à la reprise du
+  brouillon. Échec passager, non reproduit. Ce contrôle reste fragile :
+  le devis du test vaut 0 FCFA (échec déjà présent sur `main`), il ne
+  passe donc que parce que la barre des totaux est absente de l'écran.
+- Matrice : **124 PASSÉ, 35 ÉCHEC, 33 BLOQUÉ, 25 NON APPLICABLE, 3 NON
+  TESTÉ** (C128 passe à PASSÉ ; C033 passe à BLOQUÉ : défaut corrigé, cas
+  de la sonde non rejoués).
+
